@@ -1,0 +1,204 @@
+/*
+ * Copyright (C) 2008 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#ifndef ANDROID_OVERLAY_INTERFACE_H
+#define ANDROID_OVERLAY_INTERFACE_H
+
+#include <hardware/hardware.h>
+
+#include <stdint.h>
+#include <sys/cdefs.h>
+#include <sys/types.h>
+
+__BEGIN_DECLS
+
+/**
+ * The id of this module
+ */
+#define OVERLAY_HARDWARE_MODULE_ID "overlay"
+
+/**
+ * Name of the overlay device to open
+ */
+#define OVERLAY_HARDWARE_OVERLAY0 "overlay0"
+
+/*****************************************************************************/
+
+/* possible overlay formats */
+enum {
+    OVERLAY_FORMAT_RGBA_8888    = 1,
+    OVERLAY_FORMAT_RGB_565      = 4,
+    OVERLAY_FORMAT_BGRA_8888    = 5,
+    OVERLAY_FORMAT_YCbCr_422_SP = 0x10,
+    OVERLAY_FORMAT_YCbCr_420_SP = 0x11,
+    OVERLAY_FORMAT_YCbCr_422_P = 0x14,
+    OVERLAY_FORMAT_YCbCr_420_P = 0x15
+};
+
+/* values for rotation */
+enum {
+    /* flip source image horizontally */
+    OVERLAY_TRANSFORM_FLIP_H    = 0x01,
+    /* flip source image vertically */
+    OVERLAY_TRANSFORM_FLIP_V    = 0x02,
+    /* rotate source image 90 degrees */
+    OVERLAY_TRANSFORM_ROT_90    = 0x04,
+    /* rotate source image 180 degrees */
+    OVERLAY_TRANSFORM_ROT_180   = 0x03,
+    /* rotate source image 270 degrees */
+    OVERLAY_TRANSFORM_ROT_270   = 0x07,
+};
+
+/* names for setParameter() */
+enum {
+    OVERLAY_ROTATION_DEG  = 1,
+    OVERLAY_DITHER        = 3,
+};
+
+/* enable/disable value setParameter() */
+enum {
+    OVERLAY_DISABLE = 0,
+    OVERLAY_ENABLE  = 1
+};
+
+/* names for get() */
+enum {
+    /* Maximum amount of minification supported by the hardware*/
+    OVERLAY_MINIFICATION_LIMIT      = 1,
+    /* Maximum amount of magnification supported by the hardware */
+    OVERLAY_MAGNIFICATION_LIMIT     = 2,
+    /* Number of fractional bits support by the overlay scaling engine */
+    OVERLAY_SCALING_FRAC_BITS       = 3,
+    /* Supported rotation step in degrees. */
+    OVERLAY_ROTATION_STEP_DEG       = 4,
+    /* horizontal alignment in pixels */
+    OVERLAY_HORIZONTAL_ALIGNMENT    = 5,
+    /* vertical alignment in pixels */
+    OVERLAY_VERTICAL_ALIGNMENT      = 6,
+    /* width alignment restrictions. negative number for max. power-of-two */
+    OVERLAY_WIDTH_ALIGNMENT         = 7,
+    /* height alignment restrictions. negative number for max. power-of-two */
+    OVERLAY_HEIGHT_ALIGNMENT        = 8,
+};
+
+/*****************************************************************************/
+
+/* opaque reference to an Overlay kernel object */
+typedef struct {
+    int numFds;
+    int fds[4];
+    int numInts;
+    int data[0];
+} overlay_handle_t;
+
+typedef struct overlay_t {
+    uint32_t            w;
+    uint32_t            h;
+    int32_t             format;
+    uint32_t            w_stride;
+    uint32_t            h_stride;
+    uint32_t            reserved[3];
+    /* returns a reference to this overlay's handle (the caller doesn't
+     * take ownership) */
+    overlay_handle_t const* (*getHandleRef)(struct overlay_t* overlay);
+    uint32_t            reserved_procs[7];
+} overlay_t;
+
+/*****************************************************************************/
+
+/**
+ * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
+ * and the fields of this data structure must begin with hw_module_t
+ * followed by module specific information.
+ */
+struct overlay_module_t {
+    struct hw_module_t common;
+};
+
+/*****************************************************************************/
+
+/**
+ * Every device data structure must begin with hw_device_t
+ * followed by module specific public methods and attributes.
+ */
+struct overlay_device_t {
+    struct hw_device_t common;
+    
+    /* get static informations about the capabilities of the overlay engine */
+    int (*get)(struct overlay_device_t *dev, int name);
+
+    /* creates an overlay matching the given parameters as closely as possible.
+     * returns an error if no more overlays are available. The actual
+     * size and format is returned in overlay_t. */
+    overlay_t* (*createOverlay)(struct overlay_device_t *dev,
+            uint32_t w, uint32_t h, int32_t format);
+    
+    /* destroys an overlay. This call releases all
+     * resources associated with overlay_t and make it invalid */
+    void (*destroyOverlay)(struct overlay_device_t *dev,
+            overlay_t* overlay);
+
+    /* set position and scaling of the given overlay as closely as possible.
+     * if scaling cannot be performed, overlay must be centered. */
+    int (*setPosition)(struct overlay_device_t *dev,
+            overlay_t* overlay, 
+            int x, int y, uint32_t w, uint32_t h);
+
+    /* returns the actual position and size of the overlay */
+    int (*getPosition)(struct overlay_device_t *dev,
+            overlay_t* overlay, 
+            int* x, int* y, uint32_t* w, uint32_t* h);
+
+    /* sets configurable parameters for this overlay. returns an error if not
+     * supported. */
+    int (*setParameter)(struct overlay_device_t *dev,
+            overlay_t* overlay, int param, int value);
+    
+    /* swaps overlay buffers for double-buffered overlay. the actual swap is
+     * synchronized with VSYNC. Typically, this function blocks until a new
+     * buffer is available. */
+    int (*swapBuffers)(struct overlay_device_t *dev,
+            overlay_t* overlay);
+    
+    /* returns the offset in bytes of the current available buffer. When this 
+     * function returns, the buffer is ready to be used immediately. Typically,
+     * this function blocks until a buffer is available. */
+    int (*getOffset)(struct overlay_device_t *dev,
+            overlay_t* overlay);
+    
+    /* returns a filedescriptor that can be used to mmap() the overlay's
+     * memory. If this feature is not supported, an error is returned. */
+    int (*getMemory)(struct overlay_device_t *dev);
+};
+
+/*****************************************************************************/
+
+/** convenience API for opening and closing a device */
+
+static inline int overlay_open(const struct hw_module_t* module, 
+        struct overlay_device_t** device) {
+    return module->methods->open(module, 
+            OVERLAY_HARDWARE_OVERLAY0, (struct hw_device_t**)device);
+}
+
+static inline int overlay_close(struct overlay_device_t* device) {
+    return device->common.close(&device->common);
+}
+
+
+__END_DECLS
+
+#endif  // ANDROID_OVERLAY_INTERFACE_H

@@ -1,7 +1,7 @@
 
 #include <errno.h>
 #include <pthread.h>
-#include <termios.h>
+#include "qemu.h"
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <math.h>
@@ -10,11 +10,10 @@
 #define  LOG_TAG  "gps_qemu"
 #include <cutils/log.h>
 #include <cutils/sockets.h>
-#include <cutils/properties.h>
 #include <hardware/gps.h>
 
 /* the name of the qemud-controlled socket */
-#define  QEMUD_SOCKET_NAME  "qemud_gps"
+#define  QEMU_CHANNEL_NAME  "gps"
 
 #define  GPS_DEBUG  0
 
@@ -549,7 +548,7 @@ typedef struct {
     GpsCallbacks            callbacks;
     pthread_t               thread;
     int                     control[2];
-
+    QemuChannel             channel;
 } GpsState;
 
 static GpsState  _gps_state[1];
@@ -739,67 +738,21 @@ Exit:
 static void
 gps_state_init( GpsState*  state )
 {
-    char   prop[PROPERTY_VALUE_MAX];
-    char   device[256];
-    int    ret;
-    int    done = 0;
-
     state->init       = 1;
     state->control[0] = -1;
     state->control[1] = -1;
     state->fd         = -1;
 
-    // try to connect to the qemud socket
-    do {
-        state->fd = socket_local_client( QEMUD_SOCKET_NAME,
-                                         ANDROID_SOCKET_NAMESPACE_RESERVED,
-                                         SOCK_STREAM );
-        if (state->fd < 0) {
-            D("no '%s' control socket available: %s", QEMUD_SOCKET_NAME, strerror(errno));
-            break;
-        }
-        snprintf( device, sizeof(device), "/dev/socket/%s", QEMUD_SOCKET_NAME );
-        done = 1;
+    state->fd = qemu_channel_open( &state->channel,
+                                   QEMU_CHANNEL_NAME,
+                                   O_RDONLY );
 
-    } while (0);
-
-    // otherwise, look for a kernel-provided device name
-    if (!done) do {
-        if (property_get("ro.kernel.android.gps",prop,"") == 0) {
-            D("no kernel-provided gps device name");
-            break;
-        }
-        if ( snprintf(device, sizeof(device), "/dev/%s", prop) >= (int)sizeof(device) ) {
-            LOGE("gps serial device name too long: '%s'", prop);
-            break;
-        }
-
-        do {
-            state->fd = open( device, O_RDWR );
-        } while (state->fd < 0 && errno == EINTR);
-
-        if (state->fd < 0) {
-            LOGE("could not open gps serial device %s: %s", device, strerror(errno) );
-            break;
-        }
-        done = 1;
-
-    } while (0);
-
-    if (!done) {
+    if (state->fd < 0) {
         D("no gps emulation detected");
         return;
     }
 
     D("gps emulation will read from %s", device);
-
-    // disable echo on serial lines
-    if ( !memcmp( device, "/dev/ttyS", 9 ) ) {
-        struct termios  ios;
-        tcgetattr( state->fd, &ios );
-        ios.c_lflag = 0;  /* disable ECHO, ICANON, etc... */
-        tcsetattr( state->fd, TCSANOW, &ios );
-    }
 
     if ( socketpair( AF_LOCAL, SOCK_STREAM, 0, state->control ) < 0 ) {
         LOGE("could not create thread control socket pair: %s", strerror(errno));
@@ -893,7 +846,7 @@ qemu_gps_set_fix_frequency()
 
     if (!s->init) {
         D("%s: called with uninitialized state !!", __FUNCTION__);
-        return -1;
+        return;
     }
 
     D("%s: called", __FUNCTION__);

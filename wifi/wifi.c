@@ -131,6 +131,7 @@ static int check_driver_loaded() {
      */
     if ((proc = fopen(MODULE_FILE, "r")) == NULL) {
         LOGW("Could not open %s: %s", MODULE_FILE, strerror(errno));
+	property_set(DRIVER_PROP_NAME, "unloaded");	
         return 0;
     }
     while ((fgets(line, sizeof(line), proc)) != NULL) {
@@ -147,21 +148,25 @@ static int check_driver_loaded() {
 int wifi_load_driver()
 {
     char driver_status[PROPERTY_VALUE_MAX];
-    int count = 40; /* wait at most 20 seconds for completion */
+    int count = 100; /* wait at most 20 seconds for completion */
 
     if (check_driver_loaded()) {
         return 0;
     }
-    insmod(DRIVER_MODULE_PATH);
+
+    if (insmod(DRIVER_MODULE_PATH) < 0)
+        return -1;
+      
     property_set("ctl.start", FIRMWARE_LOADER);
+    sched_yield();
     while (count-- > 0) {
-        usleep(500000);
         if (property_get(DRIVER_PROP_NAME, driver_status, NULL)) {
             if (strcmp(driver_status, "ok") == 0)
                 return 0;
             else if (strcmp(DRIVER_PROP_NAME, "failed") == 0)
                 return -1;
         }
+        usleep(200000);
     }
     property_set(DRIVER_PROP_NAME, "timeout");
     return -1;
@@ -169,10 +174,18 @@ int wifi_load_driver()
 
 int wifi_unload_driver()
 {
+    int count = 20; /* wait at most 10 seconds for completion */
+    
     if (rmmod(DRIVER_MODULE_NAME) == 0) {
-        usleep(1000000);
-        property_set(DRIVER_PROP_NAME, "unloaded");
-        return 0;
+	while (count-- > 0) {
+	    if (!check_driver_loaded())
+		break;
+    	    usleep(500000);
+	}
+	if (count) {
+    	    return 0;
+	}
+	return -1;
     } else
         return -1;
 }
@@ -182,20 +195,21 @@ static int control_supplicant(int startIt)
     char supp_status[PROPERTY_VALUE_MAX] = {'\0'};
     const char *ctrl_prop = (startIt ? "ctl.start" : "ctl.stop");
     const char *desired_status = (startIt ? "running" : "stopped");
-    int count = 20; /* wait at most 20 seconds for completion */
+    int count = 200; /* wait at most 20 seconds for completion */
 
     if (property_get(SUPP_PROP_NAME, supp_status, NULL)
         && strcmp(supp_status, desired_status) == 0) {
         return 0;  /* supplicant already running */
     }
     property_set(ctrl_prop, SUPPLICANT_NAME);
+    sched_yield();
 
     while (count-- > 0) {
-        usleep(1000000);
         if (property_get(SUPP_PROP_NAME, supp_status, NULL)) {
             if (strcmp(supp_status, desired_status) == 0)
                 return 0;
         }
+        usleep(100000);
     }
     return -1;
 }

@@ -14,29 +14,47 @@
  * limitations under the License.
  */
 
-#ifndef _HARDWARE_SENSORS_H
-#define _HARDWARE_SENSORS_H
+#ifndef ANDROID_SENSORS_INTERFACE_H
+#define ANDROID_SENSORS_INTERFACE_H
 
 #include <stdint.h>
+#include <sys/cdefs.h>
+#include <sys/types.h>
 
-#if __cplusplus
-extern "C" {
-#endif
+#include <hardware/hardware.h>
+
+__BEGIN_DECLS
 
 /**
- * Sensor IDs must be a power of two and
- * must match values in SensorManager.java
+ * The id of this module
  */
+#define SENSORS_HARDWARE_MODULE_ID "sensors"
 
-#define SENSORS_ORIENTATION     0x00000001
-#define SENSORS_ACCELERATION    0x00000002
-#define SENSORS_TEMPERATURE     0x00000004
-#define SENSORS_MAGNETIC_FIELD  0x00000008
-#define SENSORS_LIGHT           0x00000010
-#define SENSORS_PROXIMITY       0x00000020
-#define SENSORS_TRICORDER       0x00000040
-#define SENSORS_ORIENTATION_RAW 0x00000080
-#define SENSORS_MASK            0x000000FF
+/**
+ * Name of the sensors device to open
+ */
+#define SENSORS_HARDWARE_CONTROL    "control"
+#define SENSORS_HARDWARE_DATA       "data"
+
+/**
+ * Handles must be higher than SENSORS_HANDLE_BASE
+ */
+#define SENSORS_HANDLE_BASE             0
+#define SENSORS_HANDLE_BITS             8
+#define SENSORS_HANDLE_COUNT            (1<<SENSORS_HANDLE_BITS)
+
+
+/**
+ * Sensor types
+ */
+#define SENSOR_TYPE_ACCELEROMETER       1
+#define SENSOR_TYPE_MAGNETIC_FIELD      2
+#define SENSOR_TYPE_ORIENTATION         3
+#define SENSOR_TYPE_GYROSCOPE           4
+#define SENSOR_TYPE_LIGHT               5
+#define SENSOR_TYPE_PRESSURE            6
+#define SENSOR_TYPE_TEMPERATURE         7
+#define SENSOR_TYPE_PROXIMITY           8
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -52,7 +70,7 @@ extern "C" {
 #define GRAVITY_JUPITER         (23.12f)
 #define GRAVITY_SATURN          (8.96f)
 #define GRAVITY_URANUS          (8.69f)
-#define GRAVITY_NEPTUN          (11.0f)
+#define GRAVITY_NEPTUNE         (11.0f)
 #define GRAVITY_PLUTO           (0.6f)
 #define GRAVITY_DEATH_STAR_I    (0.000000353036145f)
 #define GRAVITY_THE_ISLAND      (4.815162342f)
@@ -63,23 +81,6 @@ extern "C" {
 /** Minimum magnetic field on Earth's surface */
 #define MAGNETIC_FIELD_EARTH_MIN    (30.0f)
 
-/**
- * Various luminance values during the day (lux)
- */
-
-#define LIGHT_SUNLIGHT_MAX      (120000.0f)
-#define LIGHT_SUNLIGHT          (110000.0f)
-#define LIGHT_SHADE             (20000.0f)
-#define LIGHT_OVERCAST          (10000.0f)
-#define LIGHT_SUNRISE           (400.0f)
-#define LIGHT_CLOUDY            (100.0f)
-
-/*
- * Various luminance values during the night (lux)
- */
-
-#define LIGHT_FULLMOON          (0.25f)
-#define LIGHT_NO_MOON           (0.001f)
 
 /**
  * status of each sensor
@@ -92,6 +93,7 @@ extern "C" {
 
 /**
  * Definition of the axis
+ * ----------------------
  *
  * This API is relative to the screen of the device in its default orientation,
  * that is, if the device can be used in portrait or landscape, this API
@@ -99,23 +101,75 @@ extern "C" {
  * the axis are not swapped when the device's screen orientation changes.
  * Higher level services /may/ perform this transformation.
  *
- *    -x         +x
+ *   x<0         x>0
  *                ^
  *                |
- *    +-----------+-->  +y
+ *    +-----------+-->  y>0
  *    |           |
  *    |           |
  *    |           |
- *    |           |   / -z
+ *    |           |   / z<0
  *    |           |  /
  *    |           | /
- *    +-----------+/
- *    | o   O   o /
- *    +----------/+     -y
+ *    O-----------+/
+ *    |[]  [ ]  []/
+ *    +----------/+     y<0
  *              /
  *             /
- *           |/ +z
+ *           |/ z>0 (toward the sky)
  *
+ *    O: Origin (x=0,y=0,z=0)
+ *
+ *
+ * Orientation
+ * ----------- 
+ * 
+ * All values are angles in degrees.
+ * 
+ * azimuth: angle between the magnetic north direction and the Y axis, around 
+ *  the Z axis (0<=azimuth<360).
+ *      0=North, 90=East, 180=South, 270=West
+ * 
+ * pitch: Rotation around X axis (-180<=pitch<=180), with positive values when
+ *  the z-axis moves toward the y-axis.
+ *
+ * roll: Rotation around Y axis (-90<=roll<=90), with positive values when
+ *  the z-axis moves AWAY from the x-axis.
+ * 
+ * Note: This definition is different from yaw, pitch and roll used in aviation
+ *  where the X axis is along the long side of the plane (tail to nose).
+ *  
+ *  
+ * Acceleration
+ * ------------
+ *
+ *  All values are in SI units (m/s^2) and measure the acceleration of the
+ *  device minus the force of gravity.
+ *  
+ *  x: Acceleration minus Gx on the x-axis 
+ *  y: Acceleration minus Gy on the y-axis 
+ *  z: Acceleration minus Gz on the z-axis
+ *  
+ *  Examples:
+ *    When the device lies flat on a table and is pushed on its left side
+ *    toward the right, the x acceleration value is positive.
+ *    
+ *    When the device lies flat on a table, the acceleration value is +9.81,
+ *    which correspond to the acceleration of the device (0 m/s^2) minus the
+ *    force of gravity (-9.81 m/s^2).
+ *    
+ *    When the device lies flat on a table and is pushed toward the sky, the
+ *    acceleration value is greater than +9.81, which correspond to the
+ *    acceleration of the device (+A m/s^2) minus the force of 
+ *    gravity (-9.81 m/s^2).
+ *    
+ *    
+ * Magnetic Field
+ * --------------
+ * 
+ *  All values are in micro-Tesla (uT) and measure the ambient magnetic
+ *  field in the X, Y and Z axis.
+ *    
  */
 typedef struct {
     union {
@@ -126,7 +180,7 @@ typedef struct {
             float z;
         };
         struct {
-            float yaw;
+            float azimuth;
             float pitch;
             float roll;
         };
@@ -147,7 +201,7 @@ typedef struct {
         /* x,y,z values of the given sensor */
         sensors_vec_t   vector;
 
-        /* orientation values are in degres */
+        /* orientation values are in degrees */
         sensors_vec_t   orientation;
 
         /* acceleration values are in meter per second per second (m/s^2) */
@@ -156,7 +210,7 @@ typedef struct {
         /* magnetic vector values are in micro-Tesla (uT) */
         sensors_vec_t   magnetic;
 
-        /* temperature is in degres C */
+        /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
     };
 
@@ -166,78 +220,138 @@ typedef struct {
     uint32_t        reserved;
 } sensors_data_t;
 
-/**
- * Initialize the module. This is the first entry point
- * called and typically initializes the hardware.
- *
- * @return bit map of available sensors defined by
- *         the constants SENSORS_XXXX.
- */
-uint32_t sensors_control_init();
+
+struct sensor_t;
 
 /**
- * Returns the fd which will be the parameter to
- * sensors_data_open. The caller takes ownership
- * of this fd.
- *
- * @return a fd if successful, < 0 on error
+ * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
+ * and the fields of this data structure must begin with hw_module_t
+ * followed by module specific information.
  */
-int sensors_control_open();
+struct sensors_module_t {
+    struct hw_module_t common;
 
-/** Activate/deactiveate one or more of the sensors.
- *
- * @param sensors is a bitmask of the sensors to change.
- * @param mask is a bitmask for enabling/disabling sensors.
- *
- * @return bitmask of SENSORS_XXXX indicating which sensors are enabled
- */
-uint32_t sensors_control_activate(uint32_t sensors, uint32_t mask);
+    /**
+     * @return bit map of available sensors defined by
+     *         the constants SENSORS_XXXX.
+     */
+    int (*get_sensors_list)(struct sensors_module_t* module,
+            struct sensor_t const**);
+};
+
+struct sensor_t {
+    const char*     name;
+    const char*     vendor;
+    int             version;
+    int             handle;
+    int             type;
+    float           maxRange;
+    float           resolution;
+    float           power;
+    void*           reserved[9];
+};
+
 
 /**
- * Set the delay between sensor events in ms
- *
- * @return 0 if successful, < 0 on error
+ * Every device data structure must begin with hw_device_t
+ * followed by module specific public methods and attributes.
  */
-int sensors_control_delay(int32_t ms);
+struct sensors_control_device_t {
+    struct hw_device_t common;
+    
+    /**
+     * Returns the fd which will be the parameter to
+     * sensors_data_device_t::open_data(). 
+     * The caller takes ownership of this fd. This is intended to be
+     * passed cross processes.
+     *
+     * @return a fd if successful, < 0 on error
+     */
+    int (*open_data_source)(struct sensors_control_device_t *dev);
+    
+    /** Activate/deactivate one or more of the sensors.
+     *
+     * @param sensors is the handle of the sensors to change.
+     * @param enabled set to 1 to enable, or 0 to disable the sensor.
+     *
+     * @return 0 on success, negative errno code otherwise
+     */
+    int (*activate)(struct sensors_control_device_t *dev, 
+            int handle, int enabled);
+    
+    /**
+     * Set the delay between sensor events in ms
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*set_delay)(struct sensors_control_device_t *dev, int32_t ms);
 
-/**
- * Prepare to read sensor data.
- *
- * This routiune does NOT take ownership of the fd
- * and must not close it. Typcially this routine would
- * use a duplicate of the fd parameter.
- *
- * @param fd from sensors_control_open.
- *
- * @return 0 if successful, < 0 on error
- */
-int sensors_data_open(int fd);
+    /**
+     * Causes sensors_data_device_t.poll() to return -EWOULDBLOCK immediately.
+     */
+    int (*wake)(struct sensors_control_device_t *dev);
+};
 
-/**
- * Caller has completed using the sensor data.
- * The caller will not be blocked in sensors_data_poll
- * when this routine is called.
- *
- * @return 0 if successful, < 0 on error
- */
-int sensors_data_close();
+struct sensors_data_device_t {
+    struct hw_device_t common;
 
-/**
- * Return sensor data for one of the enabled sensors.
- *
- * @return SENSOR_XXXX for the returned data, -1 on error
- * */
-int sensors_data_poll(sensors_data_t* data, uint32_t sensors_of_interest);
+    /**
+     * Prepare to read sensor data.
+     *
+     * This routine does NOT take ownership of the fd
+     * and must not close it. Typically this routine would
+     * use a duplicate of the fd parameter.
+     *
+     * @param fd from sensors_control_open.
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*data_open)(struct sensors_data_device_t *dev, int fd);
+    
+    /**
+     * Caller has completed using the sensor data.
+     * The caller will not be blocked in sensors_data_poll
+     * when this routine is called.
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*data_close)(struct sensors_data_device_t *dev);
+    
+    /**
+     * Return sensor data for one of the enabled sensors.
+     *
+     * @return sensor handle for the returned data, 0x7FFFFFFF when 
+     * sensors_control_device_t.wake() is called and -errno on error
+     *  
+     */
+    int (*poll)(struct sensors_data_device_t *dev, 
+            sensors_data_t* data);
+};
 
-/**
- * @return bit map of available sensors defined by
- *         the constants SENSORS_XXXX.
- */
-uint32_t sensors_data_get_sensors();
+
+/** convenience API for opening and closing a device */
+
+static inline int sensors_control_open(const struct hw_module_t* module, 
+        struct sensors_control_device_t** device) {
+    return module->methods->open(module, 
+            SENSORS_HARDWARE_CONTROL, (struct hw_device_t**)device);
+}
+
+static inline int sensors_control_close(struct sensors_control_device_t* device) {
+    return device->common.close(&device->common);
+}
+
+static inline int sensors_data_open(const struct hw_module_t* module, 
+        struct sensors_data_device_t** device) {
+    return module->methods->open(module, 
+            SENSORS_HARDWARE_DATA, (struct hw_device_t**)device);
+}
+
+static inline int sensors_data_close(struct sensors_data_device_t* device) {
+    return device->common.close(&device->common);
+}
 
 
-#if __cplusplus
-}  // extern "C"
-#endif
+__END_DECLS
 
-#endif  // _HARDWARE_SENSORS_H
+#endif  // ANDROID_SENSORS_INTERFACE_H

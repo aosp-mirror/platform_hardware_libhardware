@@ -3,6 +3,7 @@
 
 #define LOG_TAG "libhardware"
 #include <utils/Log.h>
+#include "qemu.h"
 
 static const GpsInterface*  sGpsInterface = NULL;
 
@@ -10,10 +11,7 @@ static void
 gps_find_hardware( void )
 {
 #ifdef HAVE_QEMU_GPS_HARDWARE
-    char  propBuf[PROPERTY_VALUE_MAX];
-
-    property_get("ro.kernel.qemu", propBuf, "");
-    if (propBuf[0] == '1') {
+    if (qemu_check()) {
         sGpsInterface = gps_get_qemu_interface();
         if (sGpsInterface) {
             LOGD("using QEMU GPS Hardware emulation\n");
