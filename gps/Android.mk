@@ -1,14 +1,13 @@
-# the Dream and Surf use the Qualcom GPS stuff
+# Use hardware GPS implementation if available.
 #
-
 ifneq ($(BOARD_GPS_LIBRARIES),)
   LOCAL_CFLAGS           += -DHAVE_GPS_HARDWARE
   LOCAL_SHARED_LIBRARIES += $(BOARD_GPS_LIBRARIES)
 endif
 
-# always compile the emulator-specific hardware for now
+# Use emulator GPS implementation if QEMU_HARDWARE is set.
 #
-USE_QEMU_GPS_HARDWARE := true
+USE_QEMU_GPS_HARDWARE := $(QEMU_HARDWARE)
 
 ifeq ($(USE_QEMU_GPS_HARDWARE),true)
     LOCAL_CFLAGS    += -DHAVE_QEMU_GPS_HARDWARE

@@ -22,14 +22,14 @@ extern "C" {
 #endif
 
 /**
- * Load the wifi driver.
+ * Load the Wi-Fi driver.
  *
  * @return 0 on success, < 0 on failure.
  */
 int wifi_load_driver();
 
 /**
- * Unload the wifi driver.
+ * Unload the Wi-Fi driver.
  *
  * @return 0 on success, < 0 on failure.
  */
@@ -64,59 +64,76 @@ int wifi_connect_to_supplicant();
 void wifi_close_supplicant_connection();
 
 /**
- * Do a blocking call to get a wifi event and
- * return a string representing a wifi event
- * when it occurs.
+ * wifi_wait_for_event() performs a blocking call to 
+ * get a Wi-Fi event and returns a string representing 
+ * a Wi-Fi event when it occurs.
  *
  * @param buf is the buffer that receives the event
  * @param len is the maximum length of the buffer
  *
  * @returns number of bytes in buffer, 0 if no
- * event, for instance no connection, < 0 if an
- * error.
+ * event (for instance, no connection), and less than 0
+ * if there is an error.
  */
 int wifi_wait_for_event(char *buf, size_t len);
 
 /**
- * Issue a command to the wifi driver.
+ * wifi_command() issues a command to the Wi-Fi driver.
  *
- * see \link http://hostap.epitest.fi/wpa_supplicant/devel/ctrl_iface_page.html
- * for the list of the standard commands. Android has extended these to include
- * support for sending commands to the driver:
+ * Android extends the standard commands listed at 
+ * /link http://hostap.epitest.fi/wpa_supplicant/devel/ctrl_iface_page.html 
+ * to include support for sending commands to the driver:
  *
- *------------------------------------------------------------------------------
- *   command                 form of response                processing
- *      Summary of the command
- *------------------------------------------------------------------------------
- * "DRIVER START"        -> "OK" if successful            -> "OK" ? true : false
- *      Turn on WiFi Hardware
- *
- * "DRIVER STOP"         -> "OK" if successful            -> "OK" ? true : false
- *      Turn off WiFi Hardware
- *
- * "DRIVER RSSI"         -> "<ssid> Rssi xx"              -> "%*s %*s %d", &rssi
- *      Return received signal strength indicator in -db for current AP
- *
- * "DRIVER LINKSPEED"    -> "LinkSpeed xx"                -> "%*s %d", &linkspd
- *      Return link speed in MBPS
- *
- * "DRIVER MACADDR"      -> "Macaddr = xx.xx.xx.xx.xx.xx" -> "%*s = %s", &macadr
- *      Return mac address of the station
- *
- * "DRIVER SCAN-ACTIVE"  -> "OK" if successful            -> "OK" ? true : false
- *      Set scan type to active
- *
- * "DRIVER SCAN-PASSIVE" -> "OK" if successful            -> "OK" ? true : false
- *      Set scan type to passive
- *------------------------------------------------------------------------------
+ * <table border="2" cellspacing="2" cellpadding="2">
+ *   <tr>
+ *     <td><strong>Command / Command summary</strong></td>
+ *     <td><strong>Form of Response</strong></td>
+ *     <td><strong>Processing</strong></td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER START<BR>&nbsp;&nbsp;Turn on Wi-Fi Hardware</td>
+ *     <td>OK if successful</td>
+ *     <td>OK ? true : false</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER STOP<BR>&nbsp;&nbsp;Turn off Wi-Fi hardware</td>
+ *     <td>OK if successful</td>
+ *     <td>OK ? true : false</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER RSSI<BR>&nbsp;&nbsp;Return received signal strength indicator in -db for current AP</td>
+ *     <td>&lt;ssid&gt; Rssi xx</td>
+ *     <td>%*s %*s %d", &rssi</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER LINKSPEED<BR>&nbsp;&nbsp;Return link speed in MBPS</td>
+ *     <td>LinkSpeed xx</td>
+ *     <td>%*s %d", &linkspd</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER MACADDR<BR>&nbsp;&nbsp;Return mac address of the station</td>
+ *     <td>Macaddr = xx.xx.xx.xx.xx.xx</td>
+ *     <td>"%*s = %s", &macadr</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER SCAN-ACTIVE<BR>&nbsp;&nbsp;Set scan type to active</td>
+ *     <td>"OK" if successful</td>
+ *     <td>"OK" ? true : false</td>
+ *   </tr>
+ *   <tr>
+ *     <td>DRIVER SCAN-PASSIVE<BR>&nbsp;&nbsp;Set scan type to passive</td>
+ *     <td>"OK" if successful</td>
+ *     <td>"OK" ? true : false</td>
+ *   </tr>
+ * </table>
  *
  * See libs/android_runtime/android_net_wifi_Wifi.cpp for more information
- * on how these and other commands invoked.
+ * describing how these and other commands are invoked.
  *
  * @param command is the string command
  * @param reply is a buffer to receive a reply string
- * @param reply_len on entry is the maximum length of
- *        reply buffer and on exit the number of
+ * @param reply_len on entry, this is the maximum length of
+ *        the reply buffer. On exit, the number of
  *        bytes in the reply buffer.
  *
  * @return 0 if successful, < 0 if an error.
@@ -124,16 +141,17 @@ int wifi_wait_for_event(char *buf, size_t len);
 int wifi_command(const char *command, char *reply, size_t *reply_len);
 
 /**
- * Issues a dhcp request returning the acquired
- * information. All IPV4 addresses/mask are in
- * network byte order.
+ * do_dhcp_request() issues a dhcp request and returns the acquired
+ * information. 
+ * 
+ * All IPV4 addresses/mask are in network byte order.
  *
  * @param ipaddr return the assigned IPV4 address
  * @param gateway return the gateway being used
  * @param mask return the IPV4 mask
- * @param dns1 return the IPV4 address of a dns server
- * @param dns2 return the IPV4 address of a dns server
- * @param serverAddress return the IPV4 address of dhcp server
+ * @param dns1 return the IPV4 address of a DNS server
+ * @param dns2 return the IPV4 address of a DNS server
+ * @param server return the IPV4 address of DHCP server
  * @param lease return the length of lease in seconds.
  *
  * @return 0 if successful, < 0 if error.
@@ -142,7 +160,7 @@ int do_dhcp_request(int *ipaddr, int *gateway, int *mask,
                    int *dns1, int *dns2, int *server, int *lease);
 
 /**
- * Return the error string of the last do_dhcp_request.
+ * Return the error string of the last do_dhcp_request().
  */
 const char *get_dhcp_error_string();
 

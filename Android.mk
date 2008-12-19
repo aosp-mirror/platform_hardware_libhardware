@@ -8,12 +8,25 @@ include $(CLEAR_VARS)
 
 LOCAL_SHARED_LIBRARIES := libutils libcutils libwpa_client
 
+LOCAL_INCLUDES += $(LOCAL_PATH)
+
+ifneq ($(TARGET_SIMULATOR),true)
+  LOCAL_CFLAGS  += -DQEMU_HARDWARE
+  QEMU_HARDWARE := true
+endif
+
+ifneq ($(TARGET_SIMULATOR),true)
+LOCAL_SHARED_LIBRARIES += libdl
+endif
+
 include $(SAVE_MAKEFILES)
+
+LOCAL_SRC_FILES += hardware.c
 
 # need "-lrt" on Linux simulator to pick up clock_gettime
 ifeq ($(TARGET_SIMULATOR),true)
 	ifeq ($(HOST_OS),linux)
-		LOCAL_LDLIBS += -lrt -lpthread
+		LOCAL_LDLIBS += -lrt -lpthread -ldl
 	endif
 endif
 

@@ -22,15 +22,16 @@ extern "C" {
 #endif
 
 /**
- * Change the state of the led
+ * Changes the state of the LED.
  *
- * To turn on the led; Alpha != 0 and RBG != 0, onMS == 0 && offMS == 0.
- * To blink the led; Alpha != 0 and RBG != 0, onMS != 0 && offMS != 0.
- * To turn off the led; Alpha == 0 or RGB == 0.
+ *   -# Turn on LED: Alpha != 0 and RBG != 0, onMS == 0 && offMS == 0.
+ *   -# Blink LED: Alpha != 0 and RBG != 0, onMS != 0 && offMS != 0.
+ *   -# Turn off LED: Alpha == 0 or RGB == 0.
  *
- * @param colorARGB the is color, Alpha=31:24, Red=23:16 Green=15:8 Blue=7:0
- * @param onMS is the time on in milli-seconds
- * @param offMS is the time off in milli-seconds
+ * @param colorARGB represents the LED's color: Alpha=31:24, Red=23:16
+ * Green=15:8 Blue=7:0
+ * @param onMS represents the time the LED is on in milliseconds
+ * @param offMS represents the time the LED is off in milliseconds
  *
  * @return 0 if successful
  */

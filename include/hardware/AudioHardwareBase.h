@@ -59,6 +59,8 @@ public:
     // TODO: Replace with a more generic key:value get/set mechanism
     virtual status_t    setParameter(const char* key, const char* value);
     
+    virtual  size_t     getInputBufferSize(uint32_t sampleRate, int format, int channelCount);
+    
     /**This method dumps the state of the audio hardware */
     virtual status_t dumpState(int fd, const Vector<String16>& args);
 
