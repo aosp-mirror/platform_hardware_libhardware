@@ -81,6 +81,12 @@ public:
     /** write audio buffer to driver. Returns number of bytes written */
     virtual ssize_t     write(const void* buffer, size_t bytes) = 0;
 
+    /**
+     * Put the audio hardware output into standby mode. Returns
+     * status based on include/utils/Errors.h
+     */
+    virtual status_t    standby() = 0;
+
     /** dump the state of the audio output device */
     virtual status_t dump(int fd, const Vector<String16>& args) = 0;
 };
@@ -149,12 +155,6 @@ public:
      * return status based on values defined in include/utils/Errors.h
      */
     virtual status_t    initCheck() = 0;
-
-    /**
-     * put the audio hardware into standby mode to conserve power. Returns
-     * status based on include/utils/Errors.h
-     */
-    virtual status_t    standby() = 0;
 
     /** set the audio volume of a voice call. Range is between 0.0 and 1.0 */
     virtual status_t    setVoiceVolume(float volume) = 0;

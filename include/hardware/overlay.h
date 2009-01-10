@@ -33,7 +33,8 @@ __BEGIN_DECLS
 /**
  * Name of the overlay device to open
  */
-#define OVERLAY_HARDWARE_OVERLAY0 "overlay0"
+#define OVERLAY_HARDWARE_CONTROL    "control"
+#define OVERLAY_HARDWARE_DATA       "data"
 
 /*****************************************************************************/
 
@@ -44,11 +45,11 @@ enum {
     OVERLAY_FORMAT_BGRA_8888    = 5,
     OVERLAY_FORMAT_YCbCr_422_SP = 0x10,
     OVERLAY_FORMAT_YCbCr_420_SP = 0x11,
-    OVERLAY_FORMAT_YCbCr_422_P = 0x14,
-    OVERLAY_FORMAT_YCbCr_420_P = 0x15
+    OVERLAY_FORMAT_YCbCr_422_I = 0x14,
+    OVERLAY_FORMAT_YCbCr_420_I = 0x15
 };
 
-/* values for rotation */
+/* values for copybit_set_parameter(OVERLAY_TRANSFORM) */
 enum {
     /* flip source image horizontally */
     OVERLAY_TRANSFORM_FLIP_H    = 0x01,
@@ -64,8 +65,12 @@ enum {
 
 /* names for setParameter() */
 enum {
+    /* rotation of the source image in degrees (0 to 359) */
     OVERLAY_ROTATION_DEG  = 1,
+    /* enable or disable dithering */
     OVERLAY_DITHER        = 3,
+    /* transformation applied (this is a superset of COPYBIT_ROTATION_DEG) */
+    OVERLAY_TRANSFORM    = 4,
 };
 
 /* enable/disable value setParameter() */
@@ -117,6 +122,8 @@ typedef struct overlay_t {
     uint32_t            reserved_procs[7];
 } overlay_t;
 
+typedef void* overlay_buffer_t;
+
 /*****************************************************************************/
 
 /**
@@ -134,70 +141,86 @@ struct overlay_module_t {
  * Every device data structure must begin with hw_device_t
  * followed by module specific public methods and attributes.
  */
-struct overlay_device_t {
+
+struct overlay_control_device_t {
     struct hw_device_t common;
     
     /* get static informations about the capabilities of the overlay engine */
-    int (*get)(struct overlay_device_t *dev, int name);
+    int (*get)(struct overlay_control_device_t *dev, int name);
 
     /* creates an overlay matching the given parameters as closely as possible.
      * returns an error if no more overlays are available. The actual
      * size and format is returned in overlay_t. */
-    overlay_t* (*createOverlay)(struct overlay_device_t *dev,
+    overlay_t* (*createOverlay)(struct overlay_control_device_t *dev,
             uint32_t w, uint32_t h, int32_t format);
     
     /* destroys an overlay. This call releases all
      * resources associated with overlay_t and make it invalid */
-    void (*destroyOverlay)(struct overlay_device_t *dev,
+    void (*destroyOverlay)(struct overlay_control_device_t *dev,
             overlay_t* overlay);
 
     /* set position and scaling of the given overlay as closely as possible.
      * if scaling cannot be performed, overlay must be centered. */
-    int (*setPosition)(struct overlay_device_t *dev,
+    int (*setPosition)(struct overlay_control_device_t *dev,
             overlay_t* overlay, 
             int x, int y, uint32_t w, uint32_t h);
 
     /* returns the actual position and size of the overlay */
-    int (*getPosition)(struct overlay_device_t *dev,
+    int (*getPosition)(struct overlay_control_device_t *dev,
             overlay_t* overlay, 
             int* x, int* y, uint32_t* w, uint32_t* h);
 
     /* sets configurable parameters for this overlay. returns an error if not
      * supported. */
-    int (*setParameter)(struct overlay_device_t *dev,
+    int (*setParameter)(struct overlay_control_device_t *dev,
             overlay_t* overlay, int param, int value);
-    
-    /* swaps overlay buffers for double-buffered overlay. the actual swap is
-     * synchronized with VSYNC. Typically, this function blocks until a new
-     * buffer is available. */
-    int (*swapBuffers)(struct overlay_device_t *dev,
-            overlay_t* overlay);
-    
-    /* returns the offset in bytes of the current available buffer. When this 
-     * function returns, the buffer is ready to be used immediately. Typically,
-     * this function blocks until a buffer is available. */
-    int (*getOffset)(struct overlay_device_t *dev,
-            overlay_t* overlay);
-    
-    /* returns a filedescriptor that can be used to mmap() the overlay's
-     * memory. If this feature is not supported, an error is returned. */
-    int (*getMemory)(struct overlay_device_t *dev);
 };
+
+
+struct overlay_data_device_t {
+    struct hw_device_t common;
+
+    /* initialize the overlay from the given handle. this associates this
+     * overlay data module to its control module */
+    int (*initialize)(struct overlay_data_device_t *dev,
+            overlay_handle_t const* handle);
+    
+    /* blocks until an overlay buffer is available and return that buffer. */
+    overlay_buffer_t (*dequeueBuffer)(struct overlay_data_device_t *dev);
+
+    /* release the overlay buffer and post it */
+    int (*queueBuffer)(struct overlay_data_device_t *dev,
+            overlay_buffer_t buffer);
+
+    /* returns the address of a given buffer if supported, NULL otherwise. */
+    void* (*getBufferAddress)(struct overlay_data_device_t *dev,
+            overlay_buffer_t buffer);
+};
+
 
 /*****************************************************************************/
 
 /** convenience API for opening and closing a device */
 
-static inline int overlay_open(const struct hw_module_t* module, 
-        struct overlay_device_t** device) {
+static inline int overlay_control_open(const struct hw_module_t* module, 
+        struct overlay_control_device_t** device) {
     return module->methods->open(module, 
-            OVERLAY_HARDWARE_OVERLAY0, (struct hw_device_t**)device);
+            OVERLAY_HARDWARE_CONTROL, (struct hw_device_t**)device);
 }
 
-static inline int overlay_close(struct overlay_device_t* device) {
+static inline int overlay_control_close(struct overlay_control_device_t* device) {
     return device->common.close(&device->common);
 }
 
+static inline int overlay_data_open(const struct hw_module_t* module, 
+        struct overlay_data_device_t** device) {
+    return module->methods->open(module, 
+            OVERLAY_HARDWARE_DATA, (struct hw_device_t**)device);
+}
+
+static inline int overlay_data_close(struct overlay_data_device_t* device) {
+    return device->common.close(&device->common);
+}
 
 __END_DECLS
 
