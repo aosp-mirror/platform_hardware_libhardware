@@ -27,11 +27,15 @@
 
 /*****************************************************************************/
 
-struct overlay_context_t {
-    struct overlay_device_t device;
+struct overlay_control_context_t {
+    struct overlay_control_device_t device;
     /* our private state goes below here */
 };
 
+struct overlay_data_context_t {
+    struct overlay_data_device_t device;
+    /* our private state goes below here */
+};
 
 static int overlay_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
@@ -87,9 +91,11 @@ public:
     }
 };
 
-/*****************************************************************************/
+// ****************************************************************************
+// Control module
+// ****************************************************************************
 
-static int overlay_get(struct overlay_device_t *dev, int name) {
+static int overlay_get(struct overlay_control_device_t *dev, int name) {
     int result = -1;
     switch (name) {
         case OVERLAY_MINIFICATION_LIMIT:
@@ -120,7 +126,7 @@ static int overlay_get(struct overlay_device_t *dev, int name) {
     return result;
 }
 
-static overlay_t* overlay_createOverlay(struct overlay_device_t *dev,
+static overlay_t* overlay_createOverlay(struct overlay_control_device_t *dev,
          uint32_t w, uint32_t h, int32_t format) 
 {
     /* check the input params, reject if not supported or invalid */
@@ -130,8 +136,8 @@ static overlay_t* overlay_createOverlay(struct overlay_device_t *dev,
         case OVERLAY_FORMAT_BGRA_8888:
         case OVERLAY_FORMAT_YCbCr_422_SP:
         case OVERLAY_FORMAT_YCbCr_420_SP:
-        case OVERLAY_FORMAT_YCbCr_422_P:
-        case OVERLAY_FORMAT_YCbCr_420_P:
+        case OVERLAY_FORMAT_YCbCr_422_I:
+        case OVERLAY_FORMAT_YCbCr_420_I:
             break;
         default:
             return NULL;
@@ -147,36 +153,41 @@ static overlay_t* overlay_createOverlay(struct overlay_device_t *dev,
     return new overlay_object( /* pass needed params here*/ );
 }
 
-static void overlay_destroyOverlay(struct overlay_device_t *dev,
+static void overlay_destroyOverlay(struct overlay_control_device_t *dev,
          overlay_t* overlay) 
 {
     /* free resources associated with this overlay_t */
     delete overlay;
 }
 
-static int overlay_setPosition(struct overlay_device_t *dev,
+static int overlay_setPosition(struct overlay_control_device_t *dev,
          overlay_t* overlay, 
          int x, int y, uint32_t w, uint32_t h) {
     /* set this overlay's position (talk to the h/w) */
     return -EINVAL;
 }
 
-static int overlay_getPosition(struct overlay_device_t *dev,
+static int overlay_getPosition(struct overlay_control_device_t *dev,
          overlay_t* overlay, 
          int* x, int* y, uint32_t* w, uint32_t* h) {
     /* get this overlay's position */
     return -EINVAL;
 }
 
-static int overlay_setParameter(struct overlay_device_t *dev,
+static int overlay_setParameter(struct overlay_control_device_t *dev,
          overlay_t* overlay, int param, int value) {
     
     int result = 0;
     /* set this overlay's parameter (talk to the h/w) */
     switch (param) {
-        case OVERLAY_ROTATION_DEG: 
+        case OVERLAY_ROTATION_DEG:
+            /* if only 90 rotations are supported, the call fails
+             * for other values */
             break;
         case OVERLAY_DITHER: 
+            break;
+        case OVERLAY_TRANSFORM: 
+            // see OVERLAY_TRANSFORM_*
             break;
         default:
             result = -EINVAL;
@@ -184,46 +195,89 @@ static int overlay_setParameter(struct overlay_device_t *dev,
     }
     return result;
 }
- 
-static int overlay_swapBuffers(struct overlay_device_t *dev,
-         overlay_t* overlay) {
-    /* swap this overlay's buffers (talk to the h/w), this call probably
-     * wants to block until a new buffer is available */
-    return -EINVAL;
-}
- 
-static int overlay_getOffset(struct overlay_device_t *dev,
-         overlay_t* overlay) {
-    /* return the current's buffer offset */
+
+static int overlay_control_close(struct hw_device_t *dev) 
+{
+    struct overlay_control_context_t* ctx = (struct overlay_control_context_t*)dev;
+    if (ctx) {
+        /* free all resources associated with this device here
+         * in particular the overlay_handle_t, outstanding overlay_t, etc...
+         */
+        free(ctx);
+    }
     return 0;
 }
  
-static int overlay_getMemory(struct overlay_device_t *dev) {
-    /* maps this overlay if possible. don't forget to unmap in destroyOverlay */
+// ****************************************************************************
+// Data module
+// ****************************************************************************
+
+int overlay_initialize(struct overlay_data_device_t *dev,
+        overlay_handle_t const* handle)
+{
+    /* 
+     * overlay_handle_t should contain all the information to "inflate" this
+     * overlay. Typically it'll have a file descriptor, informations about
+     * how many buffers are there, etc...
+     * It is also the place to mmap all buffers associated with this overlay
+     * (see getBufferAddress).
+     * 
+     * NOTE: this function doesn't take ownership of overlay_handle_t
+     * 
+     */
+    
     return -EINVAL;
 }
 
-/*****************************************************************************/
-
-
-static int overlay_device_close(struct hw_device_t *dev) 
+overlay_buffer_t overlay_dequeueBuffer(struct overlay_data_device_t *dev) 
 {
-    struct overlay_context_t* ctx = (struct overlay_context_t*)dev;
+    /* blocks until a buffer is available and return an opaque structure
+     * representing this buffer.
+     */
+    return NULL;
+}
+
+int overlay_queueBuffer(struct overlay_data_device_t *dev,
+        overlay_buffer_t buffer)
+{
+    /* Mark this buffer for posting and recycle or free overlay_buffer_t. */
+    return -EINVAL;
+}
+
+void *overlay_getBufferAddress(struct overlay_data_device_t *dev,
+        overlay_buffer_t buffer)
+{
+    /* this may fail (NULL) if this feature is not supported. In that case,
+     * presumably, there is some other HAL module that can fill the buffer,
+     * using a DSP for instance */
+    return NULL;
+}
+
+static int overlay_data_close(struct hw_device_t *dev) 
+{
+    struct overlay_data_context_t* ctx = (struct overlay_data_context_t*)dev;
     if (ctx) {
-        /* free all resources associated with this device here */
+        /* free all resources associated with this device here
+         * in particular all pending overlay_buffer_t if needed.
+         * 
+         * NOTE: overlay_handle_t passed in initialize() is NOT freed and
+         * its file descriptors are not closed (this is the responsibility
+         * of the caller).
+         */
         free(ctx);
     }
     return 0;
 }
 
+/*****************************************************************************/
 
 static int overlay_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device)
 {
     int status = -EINVAL;
-    if (!strcmp(name, OVERLAY_HARDWARE_OVERLAY0)) {
-        struct overlay_context_t *dev;
-        dev = (overlay_context_t*)malloc(sizeof(*dev));
+    if (!strcmp(name, OVERLAY_HARDWARE_CONTROL)) {
+        struct overlay_control_context_t *dev;
+        dev = (overlay_control_context_t*)malloc(sizeof(*dev));
 
         /* initialize our state here */
         memset(dev, 0, sizeof(*dev));
@@ -232,7 +286,7 @@ static int overlay_device_open(const struct hw_module_t* module, const char* nam
         dev->device.common.tag = HARDWARE_DEVICE_TAG;
         dev->device.common.version = 0;
         dev->device.common.module = const_cast<hw_module_t*>(module);
-        dev->device.common.close = overlay_device_close;
+        dev->device.common.close = overlay_control_close;
         
         dev->device.get = overlay_get;
         dev->device.createOverlay = overlay_createOverlay;
@@ -240,10 +294,27 @@ static int overlay_device_open(const struct hw_module_t* module, const char* nam
         dev->device.setPosition = overlay_setPosition;
         dev->device.getPosition = overlay_getPosition;
         dev->device.setParameter = overlay_setParameter;
-        dev->device.swapBuffers = overlay_swapBuffers;
-        dev->device.getOffset = overlay_getOffset;
-        dev->device.getMemory = overlay_getMemory;
 
+        *device = &dev->device.common;
+        status = 0;
+    } else if (!strcmp(name, OVERLAY_HARDWARE_DATA)) {
+        struct overlay_data_context_t *dev;
+        dev = (overlay_data_context_t*)malloc(sizeof(*dev));
+
+        /* initialize our state here */
+        memset(dev, 0, sizeof(*dev));
+
+        /* initialize the procs */
+        dev->device.common.tag = HARDWARE_DEVICE_TAG;
+        dev->device.common.version = 0;
+        dev->device.common.module = const_cast<hw_module_t*>(module);
+        dev->device.common.close = overlay_data_close;
+        
+        dev->device.initialize = overlay_initialize;
+        dev->device.dequeueBuffer = overlay_dequeueBuffer;
+        dev->device.queueBuffer = overlay_queueBuffer;
+        dev->device.getBufferAddress = overlay_getBufferAddress;
+        
         *device = &dev->device.common;
         status = 0;
     }
