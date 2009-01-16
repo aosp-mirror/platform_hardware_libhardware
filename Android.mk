@@ -6,7 +6,7 @@ SAVE_MAKEFILES := $(call all-subdir-makefiles)
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_SHARED_LIBRARIES := libutils libcutils libwpa_client
+LOCAL_SHARED_LIBRARIES := libcutils
 
 LOCAL_INCLUDES += $(LOCAL_PATH)
 
