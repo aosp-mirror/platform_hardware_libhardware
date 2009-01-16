@@ -186,7 +186,8 @@ struct overlay_data_device_t {
             overlay_handle_t const* handle);
     
     /* blocks until an overlay buffer is available and return that buffer. */
-    overlay_buffer_t (*dequeueBuffer)(struct overlay_data_device_t *dev);
+    int (*dequeueBuffer)(struct overlay_data_device_t *dev,
+		         overlay_buffer_t *buf);
 
     /* release the overlay buffer and post it */
     int (*queueBuffer)(struct overlay_data_device_t *dev,

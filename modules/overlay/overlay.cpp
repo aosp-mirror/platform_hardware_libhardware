@@ -229,12 +229,13 @@ int overlay_initialize(struct overlay_data_device_t *dev,
     return -EINVAL;
 }
 
-overlay_buffer_t overlay_dequeueBuffer(struct overlay_data_device_t *dev) 
+int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
+			  overlay_buffer_t buf) 
 {
     /* blocks until a buffer is available and return an opaque structure
      * representing this buffer.
      */
-    return NULL;
+    return -EINVAL;
 }
 
 int overlay_queueBuffer(struct overlay_data_device_t *dev,

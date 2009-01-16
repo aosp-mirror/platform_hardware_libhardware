@@ -31,20 +31,21 @@
 #define HAL_LIBRARY_PATH "/system/lib/hw"
 
 /**
- * There are a set of variant filename
- * for modules. The form of the filename
- * is "<MODULE_ID>.variant.so" so for the
- * led module the Dream variants of base are
- * "ro.product.board" and "ro.arch" would be:
+ * There are a set of variant filename for modules. The form of the filename
+ * is "<MODULE_ID>.variant.so" so for the led module the Dream variants 
+ * of base "ro.product.board", "ro.board.platform" and "ro.arch" would be:
  *
  * led.trout.so
+ * led.msm7k.so
  * led.ARMV6.so
  * led.default.so
  */
+
 #define HAL_DEFAULT_VARIANT "default"
 #define HAL_VARIANT_KEYS_COUNT 3
 static const char *variant_keys[HAL_VARIANT_KEYS_COUNT] = {
     "ro.product.board",
+    "ro.board.platform",
     "ro.arch",
     HAL_DEFAULT_VARIANT
 };
@@ -73,7 +74,7 @@ static int load(const char *id,
     handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
         char const *err_str = dlerror();
-        LOGE("load: module=%s error=%s", path, err_str);
+        LOGW("load: module=%s error=%s", path, err_str);
         status = -EINVAL;
         goto done;
     }
