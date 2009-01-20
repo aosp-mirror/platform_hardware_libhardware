@@ -17,6 +17,8 @@
 #ifndef ANDROID_OVERLAY_INTERFACE_H
 #define ANDROID_OVERLAY_INTERFACE_H
 
+#include <cutils/native_handle.h>
+
 #include <hardware/hardware.h>
 
 #include <stdint.h>
@@ -102,12 +104,7 @@ enum {
 /*****************************************************************************/
 
 /* opaque reference to an Overlay kernel object */
-typedef struct {
-    int numFds;
-    int fds[4];
-    int numInts;
-    int data[0];
-} overlay_handle_t;
+typedef const native_handle* overlay_handle_t;
 
 typedef struct overlay_t {
     uint32_t            w;
@@ -118,7 +115,7 @@ typedef struct overlay_t {
     uint32_t            reserved[3];
     /* returns a reference to this overlay's handle (the caller doesn't
      * take ownership) */
-    overlay_handle_t const* (*getHandleRef)(struct overlay_t* overlay);
+    overlay_handle_t    (*getHandleRef)(struct overlay_t* overlay);
     uint32_t            reserved_procs[7];
 } overlay_t;
 
@@ -183,7 +180,7 @@ struct overlay_data_device_t {
     /* initialize the overlay from the given handle. this associates this
      * overlay data module to its control module */
     int (*initialize)(struct overlay_data_device_t *dev,
-            overlay_handle_t const* handle);
+            overlay_handle_t handle);
     
     /* blocks until an overlay buffer is available and return that buffer. */
     int (*dequeueBuffer)(struct overlay_data_device_t *dev,
