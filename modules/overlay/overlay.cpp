@@ -60,17 +60,14 @@ const struct overlay_module_t HAL_MODULE_INFO_SYM = {
 
 /*
  * This is the overlay_t object, it is returned to the user and represents
- * an overlay. here we use a subclass, where we can store our own state. 
- * Notice the use of "overlay_handle_t", which is an "opaque" marshallable 
- * handle, it can contains any number of ints and up to 4 filedescriptors.
- * In this example we store no fd and 2 ints.
+ * an overlay.
  * This handles will be passed across processes and possibly given to other
  * HAL modules (for instance video decode modules).
  */
 
 class overlay_object : public overlay_t {
     
-    struct handle_t : public overlay_handle_t {
+    struct handle_t : public native_handle {
         /* add the data fields we need here, for instance: */
         int width;
         int height;
@@ -78,7 +75,7 @@ class overlay_object : public overlay_t {
     
     handle_t mHandle;
     
-    static overlay_handle_t const* getHandleRef(struct overlay_t* overlay) {
+    static overlay_handle_t getHandleRef(struct overlay_t* overlay) {
         /* returns a reference to the handle, caller doesn't take ownership */
         return &(static_cast<overlay_object *>(overlay)->mHandle);
     }
@@ -86,6 +83,7 @@ class overlay_object : public overlay_t {
 public:
     overlay_object() {
         this->overlay_t::getHandleRef = getHandleRef;
+        mHandle.version = sizeof(native_handle);
         mHandle.numFds = 0;
         mHandle.numInts = 2; // extra ints we have in  our handle
     }
@@ -213,7 +211,7 @@ static int overlay_control_close(struct hw_device_t *dev)
 // ****************************************************************************
 
 int overlay_initialize(struct overlay_data_device_t *dev,
-        overlay_handle_t const* handle)
+        overlay_handle_t handle)
 {
     /* 
      * overlay_handle_t should contain all the information to "inflate" this
@@ -230,7 +228,7 @@ int overlay_initialize(struct overlay_data_device_t *dev,
 }
 
 int overlay_dequeueBuffer(struct overlay_data_device_t *dev,
-			  overlay_buffer_t buf) 
+			  overlay_buffer_t* buf) 
 {
     /* blocks until a buffer is available and return an opaque structure
      * representing this buffer.
