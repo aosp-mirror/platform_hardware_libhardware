@@ -42,13 +42,11 @@ __BEGIN_DECLS
 
 /* possible overlay formats */
 enum {
-    OVERLAY_FORMAT_RGBA_8888    = 1,
-    OVERLAY_FORMAT_RGB_565      = 4,
-    OVERLAY_FORMAT_BGRA_8888    = 5,
-    OVERLAY_FORMAT_YCbCr_422_SP = 0x10,
-    OVERLAY_FORMAT_YCbCr_420_SP = 0x11,
-    OVERLAY_FORMAT_YCbCr_422_I = 0x14,
-    OVERLAY_FORMAT_YCbCr_420_I = 0x15
+    OVERLAY_FORMAT_RGBA_8888    = HAL_PIXEL_FORMAT_RGBA_8888,
+    OVERLAY_FORMAT_RGB_565      = HAL_PIXEL_FORMAT_RGB_565,
+    OVERLAY_FORMAT_BGRA_8888    = HAL_PIXEL_FORMAT_BGRA_8888,
+    OVERLAY_FORMAT_YCbCr_422_I  = HAL_PIXEL_FORMAT_YCbCr_422_I,
+    OVERLAY_FORMAT_YCbCr_420_I  = HAL_PIXEL_FORMAT_YCbCr_420_I
 };
 
 /* values for copybit_set_parameter(OVERLAY_TRANSFORM) */
@@ -193,6 +191,8 @@ struct overlay_data_device_t {
     /* returns the address of a given buffer if supported, NULL otherwise. */
     void* (*getBufferAddress)(struct overlay_data_device_t *dev,
             overlay_buffer_t buffer);
+
+    int (*getBufferCount)(struct overlay_data_device_t *dev);
 };
 
 

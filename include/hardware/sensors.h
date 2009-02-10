@@ -37,7 +37,10 @@ __BEGIN_DECLS
 #define SENSORS_HARDWARE_DATA       "data"
 
 /**
- * Handles must be higher than SENSORS_HANDLE_BASE
+ * Handles must be higher than SENSORS_HANDLE_BASE and must be unique.
+ * A Handle identifies a given sensors. The handle is used to activate
+ * and/or deactivate sensors.
+ * In this version of the API there can only be 256 handles.
  */
 #define SENSORS_HANDLE_BASE             0
 #define SENSORS_HANDLE_BITS             8
@@ -232,22 +235,37 @@ struct sensors_module_t {
     struct hw_module_t common;
 
     /**
-     * @return bit map of available sensors defined by
-     *         the constants SENSORS_XXXX.
+     * Enumerate all available sensors. The list is returned in "list".
+     * @return number of sensors in the list
      */
     int (*get_sensors_list)(struct sensors_module_t* module,
-            struct sensor_t const**);
+            struct sensor_t const** list);
 };
 
 struct sensor_t {
+    /* name of this sensors */
     const char*     name;
+    /* vendor of the hardware part */
     const char*     vendor;
+    /* version of the hardware part + driver. The value of this field is
+     * left to the implementation and doesn't have to be monotonicaly
+     * increasing.
+     */    
     int             version;
+    /* handle that identifies this sensors. This handle is used to activate
+     * and deactivate this sensor. The value of the handle must be 8 bits
+     * in this version of the API. 
+     */
     int             handle;
+    /* this sensor's type. */
     int             type;
+    /* maximaum range of this sensor's value in SI units */
     float           maxRange;
+    /* smallest difference between two values reported by this sensor */
     float           resolution;
+    /* rough estimate of this sensor's power consumption in mA */
     float           power;
+    /* reserved fields, must be zero */
     void*           reserved[9];
 };
 
@@ -269,9 +287,9 @@ struct sensors_control_device_t {
      */
     int (*open_data_source)(struct sensors_control_device_t *dev);
     
-    /** Activate/deactivate one or more of the sensors.
+    /** Activate/deactivate one sensor.
      *
-     * @param sensors is the handle of the sensors to change.
+     * @param handle is the handle of the sensor to change.
      * @param enabled set to 1 to enable, or 0 to disable the sensor.
      *
      * @return 0 on success, negative errno code otherwise
