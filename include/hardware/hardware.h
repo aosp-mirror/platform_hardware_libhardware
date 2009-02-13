@@ -125,6 +125,24 @@ enum {
     HAL_PIXEL_FORMAT_YCbCr_420_I  = 0x15
 };
 
+
+/**
+ * Transformation definitions
+ */
+
+enum {
+    /* flip source image horizontally */
+    HAL_TRANSFORM_FLIP_H    = 0x01,
+    /* flip source image vertically */
+    HAL_TRANSFORM_FLIP_V    = 0x02,
+    /* rotate source image 90 degres */
+    HAL_TRANSFORM_ROT_90    = 0x04,
+    /* rotate source image 180 degres */
+    HAL_TRANSFORM_ROT_180   = 0x03,
+    /* rotate source image 270 degres */
+    HAL_TRANSFORM_ROT_270   = 0x07,
+};
+
 __END_DECLS
 
 #endif  /* ANDROID_INCLUDE_HARDWARE_HARDWARE_H */

@@ -52,15 +52,15 @@ enum {
 /* values for copybit_set_parameter(OVERLAY_TRANSFORM) */
 enum {
     /* flip source image horizontally */
-    OVERLAY_TRANSFORM_FLIP_H    = 0x01,
+    OVERLAY_TRANSFORM_FLIP_H    = HAL_TRANSFORM_FLIP_V,
     /* flip source image vertically */
-    OVERLAY_TRANSFORM_FLIP_V    = 0x02,
+    OVERLAY_TRANSFORM_FLIP_V    = HAL_TRANSFORM_FLIP_H,
     /* rotate source image 90 degrees */
-    OVERLAY_TRANSFORM_ROT_90    = 0x04,
+    OVERLAY_TRANSFORM_ROT_90    = HAL_TRANSFORM_ROT_90,
     /* rotate source image 180 degrees */
-    OVERLAY_TRANSFORM_ROT_180   = 0x03,
+    OVERLAY_TRANSFORM_ROT_180   = HAL_TRANSFORM_ROT_180,
     /* rotate source image 270 degrees */
-    OVERLAY_TRANSFORM_ROT_270   = 0x07,
+    OVERLAY_TRANSFORM_ROT_270   = HAL_TRANSFORM_ROT_270
 };
 
 /* names for setParameter() */
