@@ -193,6 +193,7 @@ struct overlay_data_device_t {
     /* returns the address of a given buffer if supported, NULL otherwise. */
     void* (*getBufferAddress)(struct overlay_data_device_t *dev,
             overlay_buffer_t buffer);
+    int (*getBufferCount)(struct overlay_data_device_t *dev);
 };
 
 
