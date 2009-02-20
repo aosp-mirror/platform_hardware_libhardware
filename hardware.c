@@ -41,8 +41,8 @@
  * led.default.so
  */
 
-#define HAL_DEFAULT_VARIANT "default"
-#define HAL_VARIANT_KEYS_COUNT 3
+#define HAL_DEFAULT_VARIANT     "default"
+#define HAL_VARIANT_KEYS_COUNT  4
 static const char *variant_keys[HAL_VARIANT_KEYS_COUNT] = {
     "ro.product.board",
     "ro.board.platform",
