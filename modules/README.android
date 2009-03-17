@@ -7,6 +7,8 @@ libhardware.so eventually should contain *just* the HAL hub
 Modules are .so in /system/libs/hw/ and have a well defined naming
 convention:
 
+    /system/libs/hw/<*_HARDWARE_MODULE_ID>.<ro.product.board>.so
+    /system/libs/hw/<*_HARDWARE_MODULE_ID>.<ro.board.platform>.so
     /system/libs/hw/<*_HARDWARE_MODULE_ID>.<ro.arch>.so
     /system/libs/hw/<*_HARDWARE_MODULE_ID>.default.so
 

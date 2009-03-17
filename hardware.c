@@ -41,28 +41,32 @@
  * led.default.so
  */
 
-#define HAL_DEFAULT_VARIANT "default"
-#define HAL_VARIANT_KEYS_COUNT 3
-static const char *variant_keys[HAL_VARIANT_KEYS_COUNT] = {
+#define HAL_DEFAULT_VARIANT     "default"
+static const char *variant_keys[] = {
+    "ro.hardware",  /* This goes first so that it can pick up a different
+                       file on the emulator. */
     "ro.product.board",
     "ro.board.platform",
-    "ro.arch",
-    HAL_DEFAULT_VARIANT
+    "ro.arch"
 };
+#define HAL_VARIANT_KEYS_COUNT  (sizeof(variant_keys)/sizeof(variant_keys[0]))
 
 /**
- * Load the file defined by the path and if succesfull
+ * Load the file defined by the variant and if succesfull
  * return the dlopen handle and the hmi.
  * @return 0 = success, !0 = failure.
  */
 static int load(const char *id,
-                const char *path,
-                void **pHandle,
+                const char *variant,
                 const struct hw_module_t **pHmi)
 {
     int status;
     void *handle;
     const struct hw_module_t *hmi;
+    char path[PATH_MAX];
+
+    /* Construct the path. */
+    snprintf(path, sizeof(path), "%s/%s.%s.so", HAL_LIBRARY_PATH, id, variant);
 
     LOGV("load: E id=%s path=%s", id, path);
 
@@ -109,21 +113,18 @@ done:
     }
 
     *pHmi = hmi;
-    *pHandle = handle;
 
-    LOGV("load: X id=%s path=%s hmi=%p pHandle=%p status=%d",
-         id, path, *pHmi, *pHandle, status);
+    LOGV("load: X id=%s path=%s hmi=%p handle=%p status=%d",
+         id, path, *pHmi, handle, status);
     return status;
 }
 
 int hw_get_module(const char *id, const struct hw_module_t **module) 
 {
     int status;
-    const struct hw_module_t *hmi = NULL;
-    char path[PATH_MAX];
-    char variant[PATH_MAX];
-    void *handle = NULL;
     int i;
+    const struct hw_module_t *hmi = NULL;
+    char prop[PATH_MAX];
 
     /*
      * Here we rely on the fact that calling dlopen multiple times on
@@ -134,30 +135,19 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     
     LOGV("hal_module_info_get: Load module id=%s", id);
 
-    /* Loop through the configuration variants looking for a module */
     status = -EINVAL;
+
+    /* Loop through the configuration variants looking for a module */
     for (i = 0; (status != 0) && (i < HAL_VARIANT_KEYS_COUNT); i++) {
-
-        /* Get variant or default */
-        if (strcmp(variant_keys[i], HAL_DEFAULT_VARIANT) == 0) {
-            strncpy(variant, HAL_DEFAULT_VARIANT, sizeof(variant)-1);
-            variant[sizeof(variant)-1] = 0;
-        } else {
-            if (property_get(variant_keys[i], variant, NULL) == 0) {
-                continue;
-            }
+        if (property_get(variant_keys[i], prop, NULL) == 0) {
+            continue;
         }
-
-        /* Construct the path then try to load */
-        snprintf(path, sizeof(path), "%s/%s.%s.so",
-                HAL_LIBRARY_PATH, id, variant);
-        status = load(id, path, &handle, &hmi);
+        status = load(id, prop, &hmi);
     }
+
+    /* Try default */
     if (status != 0) {
-        hmi = NULL;
-        if (handle != NULL) {
-            dlclose(handle);
-        }
+        status = load(id, HAL_DEFAULT_VARIANT, &hmi);
     }
     
     *module = hmi;

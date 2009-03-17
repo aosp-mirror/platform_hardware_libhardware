@@ -39,13 +39,13 @@ __BEGIN_DECLS
  * graphics/PixelFormat.java, ui/PixelFormat.h, pixelflinger/format.h
  */
 enum {
-    COPYBIT_FORMAT_RGBA_8888    = 1,
-    COPYBIT_FORMAT_RGB_565      = 4,
-    COPYBIT_FORMAT_BGRA_8888    = 5,
-    COPYBIT_FORMAT_RGBA_5551    = 6,
-    COPYBIT_FORMAT_RGBA_4444    = 7,
-    COPYBIT_FORMAT_YCbCr_422_SP = 0x10,
-    COPYBIT_FORMAT_YCbCr_420_SP = 0x11
+    COPYBIT_FORMAT_RGBA_8888    = HAL_PIXEL_FORMAT_RGBA_8888,
+    COPYBIT_FORMAT_RGB_565      = HAL_PIXEL_FORMAT_RGB_565,
+    COPYBIT_FORMAT_BGRA_8888    = HAL_PIXEL_FORMAT_BGRA_8888,
+    COPYBIT_FORMAT_RGBA_5551    = HAL_PIXEL_FORMAT_RGBA_5551,
+    COPYBIT_FORMAT_RGBA_4444    = HAL_PIXEL_FORMAT_RGBA_4444,
+    COPYBIT_FORMAT_YCbCr_422_SP = HAL_PIXEL_FORMAT_YCbCr_422_SP,
+    COPYBIT_FORMAT_YCbCr_420_SP = HAL_PIXEL_FORMAT_YCbCr_420_SP,
 };
 
 /* name for copybit_set_parameter */
@@ -63,15 +63,15 @@ enum {
 /* values for copybit_set_parameter(COPYBIT_TRANSFORM) */
 enum {
     /* flip source image horizontally */
-    COPYBIT_TRANSFORM_FLIP_H    = 0x01,
+    COPYBIT_TRANSFORM_FLIP_H    = HAL_TRANSFORM_FLIP_H,
     /* flip source image vertically */
-    COPYBIT_TRANSFORM_FLIP_V    = 0x02,
+    COPYBIT_TRANSFORM_FLIP_V    = HAL_TRANSFORM_FLIP_V,
     /* rotate source image 90 degres */
-    COPYBIT_TRANSFORM_ROT_90    = 0x04,
+    COPYBIT_TRANSFORM_ROT_90    = HAL_TRANSFORM_ROT_90,
     /* rotate source image 180 degres */
-    COPYBIT_TRANSFORM_ROT_180   = 0x03,
+    COPYBIT_TRANSFORM_ROT_180   = HAL_TRANSFORM_ROT_180,
     /* rotate source image 270 degres */
-    COPYBIT_TRANSFORM_ROT_270   = 0x07,
+    COPYBIT_TRANSFORM_ROT_270   = HAL_TRANSFORM_ROT_270,
 };
 
 /* enable/disable value copybit_set_parameter */
