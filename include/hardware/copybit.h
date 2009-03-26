@@ -58,6 +58,9 @@ enum {
     COPYBIT_DITHER          = 3,
     /* transformation applied (this is a superset of COPYBIT_ROTATION_DEG) */
     COPYBIT_TRANSFORM       = 4,
+    /* blurs the copied bitmap. The amount of blurring cannot be changed 
+     * at this time. */
+    COPYBIT_BLUR            = 5
 };
 
 /* values for copybit_set_parameter(COPYBIT_TRANSFORM) */
