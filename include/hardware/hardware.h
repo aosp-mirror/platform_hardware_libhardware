@@ -20,13 +20,18 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
+#include <cutils/native_handle.h>
+
 __BEGIN_DECLS
 
 /*
  * Value for the hw_module_t.tag field
  */
-#define HARDWARE_MODULE_TAG 'HWMT'
-#define HARDWARE_DEVICE_TAG 'HWDT'
+
+#define MAKE_TAG_CONSTANT(A,B,C,D) (((A) << 24) | ((B) << 16) | ((C) << 8) | (D))
+
+#define HARDWARE_MODULE_TAG MAKE_TAG_CONSTANT('H', 'W', 'M', 'T')
+#define HARDWARE_DEVICE_TAG MAKE_TAG_CONSTANT('H', 'W', 'D', 'T')
 
 struct hw_module_t;
 struct hw_module_methods_t;
@@ -58,9 +63,12 @@ struct hw_module_t {
 
     /** Modules methods */
     struct hw_module_methods_t* methods;
-    
+
+    /** module's dso */
+    void* dso;
+
     /** padding to 128 bytes, reserved for future use */
-    uint32_t reserved[32-6];
+    uint32_t reserved[32-7];
 };
 
 struct hw_module_methods_t {
@@ -91,7 +99,7 @@ struct hw_device_t {
 };
 
 /**
- * Name of the hal_module_info 
+ * Name of the hal_module_info
  */
 #define HAL_MODULE_INFO_SYM         HMI
 

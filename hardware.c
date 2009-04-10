@@ -62,7 +62,7 @@ static int load(const char *id,
 {
     int status;
     void *handle;
-    const struct hw_module_t *hmi;
+    struct hw_module_t *hmi;
     char path[PATH_MAX];
 
     /* Construct the path. */
@@ -78,14 +78,14 @@ static int load(const char *id,
     handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
         char const *err_str = dlerror();
-        LOGW("load: module=%s error=%s", path, err_str);
+        //LOGW("load: module=%s error=%s", path, err_str);
         status = -EINVAL;
         goto done;
     }
 
     /* Get the address of the struct hal_module_info. */
     const char *sym = HAL_MODULE_INFO_SYM_AS_STR;
-    hmi = (const struct hw_module_t *)dlsym(handle, sym);
+    hmi = (struct hw_module_t *)dlsym(handle, sym);
     if (hmi == NULL) {
         char const *err_str = dlerror();
         LOGE("load: couldn't find symbol %s", sym);
@@ -99,6 +99,8 @@ static int load(const char *id,
         status = -EINVAL;
         goto done;
     }
+    
+    hmi->dso = handle;
 
     /* success */
     status = 0;
