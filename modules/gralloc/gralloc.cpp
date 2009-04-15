@@ -260,8 +260,8 @@ static int gralloc_free(alloc_device_t* dev,
     }
     
     if (hnd->base) {
-        LOGW("Freeing mapped handle %p", hnd);
-        gralloc_unmap((gralloc_module_t*) dev->common.module, handle);
+        LOGW("handle %p still mapped at %p", hnd, hnd->base);
+        //gralloc_unmap((gralloc_module_t*) dev->common.module, handle);
     }
     
     close(hnd->fd);
