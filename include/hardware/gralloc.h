@@ -42,7 +42,7 @@ __BEGIN_DECLS
 
 enum {
     /* buffer is never read in software */
-    GRALLOC_USAGE_SW_READ_NEVER   = 0x00000001,
+    GRALLOC_USAGE_SW_READ_NEVER   = 0x00000000,
     /* buffer is rarely read in software */
     GRALLOC_USAGE_SW_READ_RARELY  = 0x00000002,
     /* buffer is often read in software */
@@ -51,7 +51,7 @@ enum {
     GRALLOC_USAGE_SW_READ_MASK    = 0x0000000F,
     
     /* buffer is never written in software */
-    GRALLOC_USAGE_SW_WRITE_NEVER  = 0x00000010,
+    GRALLOC_USAGE_SW_WRITE_NEVER  = 0x00000000,
     /* buffer is never written in software */
     GRALLOC_USAGE_SW_WRITE_RARELY = 0x00000020,
     /* buffer is never written in software */
@@ -89,47 +89,63 @@ typedef const native_handle* buffer_handle_t;
 struct gralloc_module_t {
     struct hw_module_t common;
     
-    /* 
-     * The (*map)() method maps the buffer in the caller's address space
-     * if this operation is allowed (see below). 
-     * Mapped buffers are reference-counted in a given process, that is,
-     * if a the buffer is already mapped, this function must return the
-     * same address and the internal reference counter is incremented.
-     * 
-     *  Returns 0 on success or -errno on error.
-     */
     
-    int (*map)(struct gralloc_module_t const* module,
-            buffer_handle_t handle, void** vaddr);
+    /*
+     * (*registerBuffer)() must be called before a buffer_handle_t that has not
+     * been created with (*alloc_device_t::alloc)() can be used.
+     * 
+     * This is intended to be used with buffer_handle_t's that have been
+     * received in this process through IPC.
+     * 
+     * This function checks that the handle is indeed a valid one and prepares
+     * it for use with (*lock)() and (*unlock)().
+     * 
+     * It is not necessary to call (*registerBuffer)() on a handle created 
+     * with (*alloc_device_t::alloc)().
+     * 
+     * returns an error if this buffer_handle_t is not valid.
+     */
+    int (*registerBuffer)(struct gralloc_module_t const* module,
+            buffer_handle_t handle);
 
     /*
-     * The (*unmap)() method, unmaps the buffer from the caller's address
-     * space, if the buffer has been mapped more than once, 
-     * the (*unmap)() needs to be called the same number of time before 
-     * the buffer is actually unmapped. 
+     * (*unregisterBuffer)() is called once this handle is no longer needed in
+     * this process. After this call, it is an error to call (*lock)(),
+     * (*unlock)(), or (*registerBuffer)().
      * 
-     * Returns 0 on success or -errno on error.
+     * This function doesn't close or free the handle itself; this is done
+     * by other means, usually through libcutils's native_handle_close() and
+     * native_handle_free(). 
+     * 
+     * It is an error to call (*unregisterBuffer)() on a buffer that wasn't
+     * explicitly registered first.
      */
-
-    int (*unmap)(struct gralloc_module_t const* module, buffer_handle_t handle);
-
+    int (*unregisterBuffer)(struct gralloc_module_t const* module,
+            buffer_handle_t handle);
     
     /*
      * The (*lock)() method is called before a buffer is accessed for the 
      * specified usage. This call may block, for instance if the h/w needs
      * to finish rendering or if CPU caches need to be synchronized.
      * 
-     * The caller promises to modify ALL PIXELS and ONLY THE PIXELS in the area
-     * specified by (l,t,w,h).
+     * The caller promises to modify only pixels in the area specified 
+     * by (l,t,w,h).
      * 
      * The content of the buffer outside of the specified area is NOT modified
      * by this call.
+     *
+     * If usage specifies GRALLOC_USAGE_SW_*, vaddr is filled with the address
+     * of the buffer in virtual memory.
+     *
+     * If the buffer was created with a usage mask incompatible with the
+     * requested usage flags here, -EINVAL is returned. 
      * 
      */
     
     int (*lock)(struct gralloc_module_t const* module,
             buffer_handle_t handle, int usage,
-            int l, int t, int w, int h);
+            int l, int t, int w, int h,
+            void** vaddr);
 
     
     /*

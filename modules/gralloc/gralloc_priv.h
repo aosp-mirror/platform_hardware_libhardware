@@ -36,6 +36,13 @@ inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGESIZE-1)) & ~(PAGESIZE-1);
 }
 
+int gralloc_map(gralloc_module_t const* module,
+        buffer_handle_t handle, void** vaddr);
+
+int gralloc_unmap(gralloc_module_t const* module, 
+        buffer_handle_t handle);
+
+
 int mapFrameBufferLocked(struct private_module_t* module);
 
 /*****************************************************************************/
@@ -58,6 +65,7 @@ struct private_module_t {
     float fps;
     
     enum {
+        // flag to indicate we'll post this buffer
         PRIV_USAGE_LOCKED_FOR_POST = 0x80000000
     };
 };
@@ -68,16 +76,18 @@ struct private_handle_t : public native_handle
 {
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
-        PRIV_FLAGS_USES_PMEM   = 0x00000002
+        PRIV_FLAGS_USES_PMEM   = 0x00000002,
+        PRIV_FLAGS_MAPPED      = 0x00000004,    // FIXME: should be out-of-line
+        PRIV_FLAGS_LOCKED      = 0x00000008     // FIXME: should be out-of-line
     };
 
     int     fd;
     int     magic;
-    int     base;
+    int     base;   // FIXME: should be out-of-line (meaningless with ipc)
     int     flags;
     int     size;
 
-    static const int sNumInts = 5;
+    static const int sNumInts = 4;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 

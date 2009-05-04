@@ -97,7 +97,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
         m->base.lock(&m->base, buffer, 
                 private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, m->info.xres, m->info.yres);
+                0, 0, m->info.xres, m->info.yres, NULL);
 
         const size_t offset = hnd->base - m->framebuffer->base;
         m->info.activate = FB_ACTIVATE_VBL;
@@ -113,14 +113,23 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         // If we can't do the page_flip, just copy the buffer to the front 
         // FIXME: use copybit HAL instead of memcpy
         
-        m->base.lock(&m->base, buffer, 
-                private_module_t::PRIV_USAGE_LOCKED_FOR_POST, 
-                0, 0, m->info.xres, m->info.yres);
+        void* fb_vaddr;
+        void* buffer_vaddr;
         
-        memcpy((void*)m->framebuffer->base, (void*)hnd->base,
-                m->finfo.line_length * m->info.yres);
+        m->base.lock(&m->base, m->framebuffer, 
+                GRALLOC_USAGE_SW_WRITE_RARELY, 
+                0, 0, m->info.xres, m->info.yres,
+                &fb_vaddr);
+
+        m->base.lock(&m->base, buffer, 
+                GRALLOC_USAGE_SW_READ_RARELY, 
+                0, 0, m->info.xres, m->info.yres,
+                &buffer_vaddr);
+
+        memcpy(fb_vaddr, buffer_vaddr, m->finfo.line_length * m->info.yres);
         
         m->base.unlock(&m->base, buffer); 
+        m->base.unlock(&m->base, m->framebuffer); 
     }
     
     return 0;
@@ -283,9 +292,9 @@ int mapFrameBufferLocked(struct private_module_t* module)
 
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
-    
+
     void* vaddr;
-    module->base.map(&module->base, module->framebuffer, &vaddr);
+    gralloc_map(&module->base, module->framebuffer, &vaddr);
     memset(vaddr, 0, fbSize);
 
     return 0;

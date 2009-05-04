@@ -53,17 +53,18 @@ int fb_device_open(const hw_module_t* module, const char* name,
 static int gralloc_device_open(const hw_module_t* module, const char* name,
         hw_device_t** device);
 
-extern int gralloc_map(gralloc_module_t const* module,
-        buffer_handle_t handle, void** vaddr);
-
-extern int gralloc_unmap(gralloc_module_t const* module, 
-        buffer_handle_t handle);
-
 extern int gralloc_lock(gralloc_module_t const* module,
         buffer_handle_t handle, int usage,
-        int l, int t, int w, int h);
+        int l, int t, int w, int h,
+        void** vaddr);
 
 extern int gralloc_unlock(gralloc_module_t const* module, 
+        buffer_handle_t handle);
+
+extern int gralloc_register_buffer(gralloc_module_t const* module,
+        buffer_handle_t handle);
+
+extern int gralloc_unregister_buffer(gralloc_module_t const* module,
         buffer_handle_t handle);
 
 /*****************************************************************************/
@@ -83,8 +84,8 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
             author: "The Android Open Source Project",
             methods: &gralloc_module_methods
         },
-        map: gralloc_map,
-        unmap: gralloc_unmap,
+        registerBuffer: gralloc_register_buffer,
+        unregisterBuffer: gralloc_unregister_buffer,
         lock: gralloc_lock,
         unlock: gralloc_unlock,
     },
@@ -98,12 +99,6 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
 
 /*****************************************************************************/
 
-/*
- * This function creates a buffer_handle_t initialized with the given fd.
- * the offset passed in parameter is used to mmap() this fd later at this
- * offset.
- */
-
 static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
 {
@@ -112,18 +107,14 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
 
     // allocate the framebuffer
     if (m->framebuffer == NULL) {
-        // initialize the framebuffer
+        // initialize the framebuffer, the framebuffer is mapped once
+        // and forever.
         int err = mapFrameBufferLocked(m);
         if (err < 0) {
             return err;
         }
     }
 
-    if (m->framebuffer->base == 0) {
-        void *vaddr;
-        m->base.map(&m->base, m->framebuffer, &vaddr);
-    }
-    
     const uint32_t bufferMask = m->bufferMask;
     const uint32_t numBuffers = m->numBuffers;
     const size_t bufferSize = m->finfo.line_length * m->info.yres;
@@ -258,11 +249,10 @@ static int gralloc_free(alloc_device_t* dev,
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
     }
-    
-    if (hnd->base) {
-        LOGW("handle %p still mapped at %p", hnd, hnd->base);
-        //gralloc_unmap((gralloc_module_t*) dev->common.module, handle);
-    }
+
+    gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
+            dev->common.module);
+    gralloc_unregister_buffer(m, handle);
     
     close(hnd->fd);
     delete hnd;
@@ -276,16 +266,8 @@ static int gralloc_close(struct hw_device_t *dev)
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
-         * all here
+         * all here.
          */
-
-        private_module_t* m = reinterpret_cast<private_module_t*>(dev->module);
-        pthread_mutex_lock(&m->lock);
-        if (m->framebuffer) {
-            m->base.unmap(&m->base, m->framebuffer);
-        }
-        pthread_mutex_unlock(&m->lock);
-
         free(ctx);
     }
     return 0;
