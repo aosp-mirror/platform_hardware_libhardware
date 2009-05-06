@@ -78,21 +78,25 @@ struct private_handle_t : public native_handle
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_PMEM   = 0x00000002,
         PRIV_FLAGS_MAPPED      = 0x00000004,    // FIXME: should be out-of-line
-        PRIV_FLAGS_LOCKED      = 0x00000008     // FIXME: should be out-of-line
     };
 
     int     fd;
     int     magic;
-    int     base;   // FIXME: should be out-of-line (meaningless with ipc)
     int     flags;
     int     size;
+    // FIXME: the attributes below should be out-of-line
+    int     base;
+    int     lockState;
+    int     writeOwner;
 
-    static const int sNumInts = 4;
+    static const int sNumInts = 6;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), base(0), flags(flags), size(size) {
+        fd(fd), magic(sMagic), flags(flags), size(size), base(0),
+        lockState(0), writeOwner(0) 
+    {
         version = sizeof(native_handle);
         numInts = sNumInts;
         numFds = sNumFds;

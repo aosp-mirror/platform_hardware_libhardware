@@ -220,8 +220,9 @@ int gralloc_register_buffer(gralloc_module_t const* module,
      */ 
     private_handle_t* hnd = (private_handle_t*)(handle);
     hnd->base = 0;
-    hnd->flags &= ~(private_handle_t::PRIV_FLAGS_LOCKED | 
-                    private_handle_t::PRIV_FLAGS_MAPPED);
+    hnd->flags &= ~private_handle_t::PRIV_FLAGS_MAPPED;
+    hnd->lockState = 0;
+    hnd->writeOwner = 0;
     
     return 0;
 }
@@ -240,8 +241,8 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
 
     private_handle_t* hnd = (private_handle_t*)(handle);
     
-    LOGE_IF(hnd->flags & private_handle_t::PRIV_FLAGS_LOCKED,
-            "handle %p still locked", hnd);
+    LOGE_IF(hnd->lockState, "handle %p still locked (state=%08x)",
+            hnd, hnd->lockState);
 
     if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
         if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
@@ -260,23 +261,51 @@ int gralloc_lock(gralloc_module_t const* module,
         int l, int t, int w, int h,
         void** vaddr)
 {
-    // FIXME: gralloc_lock() needs implementation
-
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     int err = 0;
     private_handle_t* hnd = (private_handle_t*)(handle);
+    int32_t current_value, new_value;
+    int retry;
 
-    // already locked
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_LOCKED) {
-        LOGE("handle %p already locked", handle);
-        return -EBUSY;
-    }
+    do {
+        current_value = hnd->lockState;
+        new_value = current_value;
+        
+        if (current_value>>31) {
+            // already locked for write 
+            LOGE("handle %p already locked for write", handle);
+            return -EBUSY;
+        } else if (current_value<<1) {
+            // already locked for read
+            if (usage & (GRALLOC_USAGE_SW_WRITE_MASK | GRALLOC_USAGE_HW_RENDER)) {
+                LOGE("handle %p already locked for read", handle);
+                return -EBUSY;
+            } else {
+                // this is not an error, but for now we want to know
+                LOGD("%p already locked for read... count = %d", 
+                        handle, (current_value & ~(1<<31)));
+            }
+        }
+
+        // not currently locked
+        if (usage & (GRALLOC_USAGE_SW_WRITE_MASK | GRALLOC_USAGE_HW_RENDER)) {
+            // locking for write
+            new_value |= (1<<31);
+        }
+        new_value++;
+
+        retry = android_atomic_cmpxchg(current_value, new_value, 
+                (volatile int32_t*)&hnd->lockState);
+    } while (retry);
     
-    uint32_t mask = GRALLOC_USAGE_SW_READ_MASK | 
-                    GRALLOC_USAGE_SW_WRITE_MASK;
-    if ((usage & mask) && vaddr){
+    if (new_value>>31) {
+        // locking for write, store the tid
+        hnd->writeOwner = gettid();
+    }
+
+    if (usage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
         if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
             *vaddr = (void*)hnd->base;
         } else {
@@ -284,25 +313,41 @@ int gralloc_lock(gralloc_module_t const* module,
             err = gralloc_map(module, handle, vaddr);
         }
     }
-    
-    hnd->flags |= private_handle_t::PRIV_FLAGS_LOCKED;
+
     return err;
 }
 
 int gralloc_unlock(gralloc_module_t const* module, 
         buffer_handle_t handle)
 {
-    // FIXME: gralloc_unlock() needs implementation
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)(handle);
+    int32_t current_value, new_value;
 
-    // not locked
-    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_LOCKED)) {
-        LOGE("handle %p is not locked", handle);
-        return -EINVAL;
-    }
+    do {
+        current_value = hnd->lockState;
+        new_value = current_value;
+
+        if (current_value>>31) {
+            // locked for write
+            if (hnd->writeOwner == gettid()) {
+                hnd->writeOwner = 0;
+                new_value &= ~(1<<31);
+            }
+        }
+
+        if ((new_value<<1) == 0) {
+            LOGE("handle %p not locked", handle);
+            return -EINVAL;
+        }
+
+        new_value--;
+
+    } while (android_atomic_cmpxchg(current_value, new_value, 
+            (volatile int32_t*)&hnd->lockState));
+
 
     /* FOR DEBUGGING
     if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
@@ -310,8 +355,7 @@ int gralloc_unlock(gralloc_module_t const* module,
             hnd->flags &= ~private_handle_t::PRIV_FLAGS_MAPPED;
         }
     }
-    */
-    
-    hnd->flags &= ~private_handle_t::PRIV_FLAGS_LOCKED;
+     */
+
     return 0;
 }

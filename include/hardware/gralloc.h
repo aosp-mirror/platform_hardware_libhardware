@@ -131,6 +131,18 @@ struct gralloc_module_t {
      * If usage specifies GRALLOC_USAGE_SW_*, vaddr is filled with the address
      * of the buffer in virtual memory.
      *
+     * THREADING CONSIDERATIONS:
+     *
+     * It is legal for several different threads to lock a buffer from 
+     * read access, none of the threads are blocked.
+     * 
+     * However, locking a buffer simultaneously for write or read/write is
+     * undefined, but:
+     * - shall not result in termination of the process
+     * - shall not block the caller
+     * It is acceptable to return an error or to leave the buffer's content
+     * into an indeterminate state.
+     *
      * If the buffer was created with a usage mask incompatible with the
      * requested usage flags here, -EINVAL is returned. 
      * 
