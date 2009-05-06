@@ -71,12 +71,6 @@ enum {
     GRALLOC_USAGE_HW_MASK         = 0x00001F00,
 };
 
-enum {
-    /* the framebuffer is mapped in memory */
-    FRAMEBUFFER_RESERVED0                = 0x00000001,
-    FRAMEBUFFER_FLAG_MAPPED              = 0x00000002,
-};
-
 /*****************************************************************************/
 
 typedef const native_handle* buffer_handle_t;
