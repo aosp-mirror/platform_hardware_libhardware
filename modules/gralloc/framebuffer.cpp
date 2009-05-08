@@ -38,6 +38,9 @@
 
 /*****************************************************************************/
 
+// should be a build option
+#define SUPPORTS_UPDATE_ON_DEMAND   1
+
 #define NUM_BUFFERS 2
 
 
@@ -340,7 +343,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = fb_close;
         dev->device.setSwapInterval = fb_setSwapInterval;
+#if SUPPORTS_UPDATE_ON_DEMAND
         dev->device.setUpdateRect   = fb_setUpdateRect;
+#endif
         dev->device.post            = fb_post;
 
         private_module_t* m = (private_module_t*)module;

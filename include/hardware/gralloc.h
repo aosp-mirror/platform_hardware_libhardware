@@ -244,8 +244,22 @@ struct framebuffer_device_t {
             int interval);
 
     /*
-     * sets a rectangle evaluated during (*post)() specifying which area
-     * of the buffer passed in (*post)() needs to be posted.
+     * This hook is OPTIONAL.
+     * 
+     * It is non NULL If the framebuffer driver supports "update-on-demand" 
+     * and the given rectangle is the area of the screen that gets 
+     * updated during (*post)().
+     * 
+     * This is useful on devices that are able to DMA only a portion of
+     * the screen to the display panel, upon demand -- as opposed to
+     * constantly refreshing the panel 60 times per second, for instance.
+     * 
+     * Only the area defined by this rectangle is guranteed to be valid, that
+     * is, the driver is not allowed to post anything outside of this
+     * rectangle. 
+     * 
+     * The rectangle evaluated during (*post)() and specifies which area
+     * of the buffer passed in (*post)() shall to be posted.
      * 
      * return -EINVAL if width or height <=0, or if left or top < 0 
      */
