@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include <hardware/hardware.h>
+#include <cutils/native_handle.h>
 
 __BEGIN_DECLS
 
@@ -278,14 +279,14 @@ struct sensors_control_device_t {
     struct hw_device_t common;
     
     /**
-     * Returns the fd which will be the parameter to
+     * Returns a native_handle_t, which will be the parameter to
      * sensors_data_device_t::open_data(). 
-     * The caller takes ownership of this fd. This is intended to be
+     * The caller takes ownership of this handle. This is intended to be
      * passed cross processes.
      *
-     * @return a fd if successful, < 0 on error
+     * @return a native_handle_t if successful, < 0 on error
      */
-    int (*open_data_source)(struct sensors_control_device_t *dev);
+    native_handle_t* (*open_data_source)(struct sensors_control_device_t *dev);
     
     /** Activate/deactivate one sensor.
      *
@@ -316,15 +317,15 @@ struct sensors_data_device_t {
     /**
      * Prepare to read sensor data.
      *
-     * This routine does NOT take ownership of the fd
+     * This routine does NOT take ownership of the handle
      * and must not close it. Typically this routine would
-     * use a duplicate of the fd parameter.
+     * use a duplicate of the nh parameter.
      *
-     * @param fd from sensors_control_open.
+     * @param nh from sensors_control_open.
      *
      * @return 0 if successful, < 0 on error
      */
-    int (*data_open)(struct sensors_data_device_t *dev, int fd);
+    int (*data_open)(struct sensors_data_device_t *dev, native_handle_t* nh);
     
     /**
      * Caller has completed using the sensor data.
