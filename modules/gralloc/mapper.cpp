@@ -283,9 +283,9 @@ int gralloc_lock(gralloc_module_t const* module,
                 LOGE("handle %p already locked for read", handle);
                 return -EBUSY;
             } else {
-                // this is not an error, but for now we want to know
-                LOGD("%p already locked for read... count = %d", 
-                        handle, (current_value & ~(1<<31)));
+                // this is not an error
+                //LOGD("%p already locked for read... count = %d", 
+                //        handle, (current_value & ~(1<<31)));
             }
         }
 
