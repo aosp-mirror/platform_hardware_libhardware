@@ -284,7 +284,7 @@ struct sensors_control_device_t {
      * The caller takes ownership of this handle. This is intended to be
      * passed cross processes.
      *
-     * @return a native_handle_t if successful, < 0 on error
+     * @return a native_handle_t if successful, NULL on error
      */
     native_handle_t* (*open_data_source)(struct sensors_control_device_t *dev);
     
