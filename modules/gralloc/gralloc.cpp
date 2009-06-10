@@ -147,6 +147,7 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     }
     
     hnd->base = vaddr;
+    hnd->offset = vaddr - intptr_t(m->framebuffer->base);
     *pHandle = hnd;
 
     return 0;

@@ -82,18 +82,19 @@ struct private_handle_t : public native_handle
     int     magic;
     int     flags;
     int     size;
+    int     offset; // used with copybit
     // FIXME: the attributes below should be out-of-line
     int     base;
     int     lockState;
     int     writeOwner;
 
-    static const int sNumInts = 6;
+    static const int sNumInts = 7;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), size(size), base(0),
-        lockState(0), writeOwner(0) 
+        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
+        base(0), lockState(0), writeOwner(0) 
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
