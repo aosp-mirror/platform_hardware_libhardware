@@ -296,10 +296,13 @@ int mapFrameBufferLocked(struct private_module_t* module)
     module->numBuffers = info.yres_virtual / info.yres;
     module->bufferMask = 0;
 
-    void* vaddr;
-    gralloc_map(&module->base, module->framebuffer, &vaddr);
+    void* vaddr = mmap(0, fbSize, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
+    if (vaddr == MAP_FAILED) {
+        LOGE("Error mapping the framebuffer (%s)", strerror(errno));
+        return -errno;
+    }
+    module->framebuffer->base = intptr_t(vaddr);
     memset(vaddr, 0, fbSize);
-
     return 0;
 }
 

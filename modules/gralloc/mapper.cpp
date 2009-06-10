@@ -32,198 +32,60 @@
 
 /*****************************************************************************/
 
-struct mapped_buffer_t {
-    intptr_t key;
-    int size;
-    int base;
-    int refCount;
-
-    mapped_buffer_t() { /* no init */ };
-    mapped_buffer_t(private_handle_t* hnd) 
-        : key(intptr_t(hnd)), size(hnd->size), base(0), refCount(0) {
-    }
-};
-
-static int compare(const mapped_buffer_t& a, const mapped_buffer_t& b) {
-    if (a.key < b.key) {
-        return -1;
-    }
-    if (a.key > b.key) {
-        return 1;
-    }
-    return 0;
-}
-
-struct mapped_buffers_t {
-    pthread_mutex_t mutex;
-    growable_sorted_array_t<mapped_buffer_t> records;
-
-    int map(gralloc_module_t const* module,
-            buffer_handle_t handle,
-            void** vaddr)
-    {
-        private_handle_t* hnd = (private_handle_t*)(handle);
-        mapped_buffer_t key(hnd);
-        //printRecord(ANDROID_LOG_DEBUG, "map", &key);
-        int result = 0;
-        mapped_buffer_t* record = 0;
-        pthread_mutex_lock(&mutex);
-        // From here to the end of the function we return by jumping to "exit"
-        // so that we always unlock the mutex.
-
-        int index = -1;
-        if (!records.find(key, index)) {
-            //LOGD("New item at %d", index);
-            void* mappedAddress = mmap(0, hnd->size,
-                    PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
-            if (mappedAddress == MAP_FAILED) {
-                result = -errno;
-                //LOGE("map failed %d", result);
-                goto exit;
-            }
-            key.base = intptr_t(mappedAddress);
-            records.insert(index, key);
-            record = records.at(index);
-        } else {
-            //LOGD("Found existing mapping at index %d", index);
-            record = records.at(index);
-            if (record->size != key.size) {
-                LOGE("Requested a new mapping at the same offset"
-                     "but with a different size");
-                printRecord(ANDROID_LOG_ERROR, "old", record);
-                printRecord(ANDROID_LOG_ERROR, "new", &key);
-                result = -EINVAL;
-                goto exit;
-            }
-        }
-        record->refCount += 1;
-        hnd->base = record->base;
-        *vaddr = (void*) record->base;
-    exit:
-        //print();
-        pthread_mutex_unlock(&mutex);
-        return result;
-    }
-
-    int unmap(gralloc_module_t const* module,
-            buffer_handle_t handle)
-    {
-        mapped_buffer_t key((private_handle_t*) handle);
-        //printRecord(ANDROID_LOG_DEBUG, "unmap", &key);
-        int index = -1;
-        int result = 0;
-        mapped_buffer_t* record = 0;
-        pthread_mutex_lock(&mutex);
-        // From here to the end of the function we return by jumping to "exit"
-        // so that we always unlock the mutex.
-
-        if (!records.find(key, index)) {
-            // This handle is not currently locked.
-            //LOGE("Could not find existing mapping near %d", index);
-            result = -ENOENT;
-            goto exit;
-        }
-        record = records.at(index);
-        //printRecord(ANDROID_LOG_DEBUG, "record", record);
-        record->refCount -= 1;
-        if (record->refCount == 0) {
-            //LOGD("Unmapping...");
-            if (munmap((void*)record->base, record->size) < 0) {
-                result = -errno;
-                //LOGE("Could not unmap %d", result);
-            }
-            records.remove(index);
-            ((private_handle_t*)handle)->base = 0;
-        }
-
-    exit:
-        //print();
-        pthread_mutex_unlock(&mutex);
-        return result;
-    }
-
-    void print() {
-        char prefix[16];
-        LOGD("Dumping records: count=%d size=%d", records.count, records.size);
-        for(int i=0; i<records.count ; i++) {
-            sprintf(prefix, "%3d", i);
-            printRecord(ANDROID_LOG_DEBUG, prefix, records.at(i));
-        }
-    }
-
-    void printRecord(int level, const char* what, mapped_buffer_t* record) {
-        LOG_PRI(level, LOG_TAG,
-          "%s: key=0x%08x, size=0x%08x, base=0x%08x refCount=%d",
-           what, int(record->key), record->size, 
-           record->base, record->refCount);
-    }
-};
-
-static mapped_buffers_t sMappedBuffers  = {
-    mutex: PTHREAD_MUTEX_INITIALIZER
-};
-
-/*****************************************************************************/
-
-int gralloc_map(gralloc_module_t const* module,
+static int gralloc_map(gralloc_module_t const* module,
         buffer_handle_t handle,
         void** vaddr)
 {
-    if (private_handle_t::validate(handle) < 0)
-        return -EINVAL;
-
-    private_handle_t* hnd = (private_handle_t*)(handle);
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
-        const private_module_t* m = 
-            reinterpret_cast<const private_module_t*>(module);
-        handle = m->framebuffer;
+    private_handle_t* hnd = (private_handle_t*)handle;
+    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+        void* mappedAddress = mmap(0, hnd->size, PROT_READ|PROT_WRITE,
+                MAP_SHARED, hnd->fd, 0);
+        if (mappedAddress == MAP_FAILED) {
+            return -errno;
+        }
+        hnd->base = intptr_t(mappedAddress);
     }
-    
-    int err = sMappedBuffers.map(module, handle, vaddr);
-    
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
-        *vaddr = (void*)hnd->base;
-    }
-    
-    return err;
+    *vaddr = (void*)hnd->base;
+    return 0;
 }
 
-int gralloc_unmap(gralloc_module_t const* module,
+static int gralloc_unmap(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
-    if (private_handle_t::validate(handle) < 0)
-        return -EINVAL;
-
-    private_handle_t* hnd = (private_handle_t*)(handle);
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
-        const private_module_t* m = 
-            reinterpret_cast<const private_module_t*>(module);
-        handle = m->framebuffer;
+    private_handle_t* hnd = (private_handle_t*)handle;
+    if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
+        if (munmap((void*)hnd->base, hnd->size) < 0) {
+            LOGE("Could not unmap %d", errno);
+        }
     }
-
-    return sMappedBuffers.unmap(module, handle);
+    hnd->base = 0;
+    return 0;
 }
+
+/*****************************************************************************/
+
+static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
+
+/*****************************************************************************/
 
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
-    
+
     // In this implementation, we don't need to do anything here
 
-    /* FIXME: we need to initialize the buffer as not mapped/not locked
+    /* NOTE: we need to initialize the buffer as not mapped/not locked
      * because it shouldn't when this function is called the first time
-     * in a new process. ideally these flags shouldn't be part of the
+     * in a new process. Ideally these flags shouldn't be part of the
      * handle, but instead maintained in the kernel or at least 
      * out-of-line
      */ 
-    private_handle_t* hnd = (private_handle_t*)(handle);
+    private_handle_t* hnd = (private_handle_t*)handle;
     hnd->base = 0;
-    hnd->flags &= ~private_handle_t::PRIV_FLAGS_MAPPED;
-    hnd->lockState = 0;
+    hnd->lockState  = 0;
     hnd->writeOwner = 0;
-    
     return 0;
 }
 
@@ -235,24 +97,25 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
 
     /*
      * If the buffer has been mapped during a lock operation, it's time
-     * to unmap it. It's an error to be here with a locked buffer.
+     * to un-map it. It's an error to be here with a locked buffer.
      * NOTE: the framebuffer is handled differently and is never unmapped.
      */
 
-    private_handle_t* hnd = (private_handle_t*)(handle);
+    private_handle_t* hnd = (private_handle_t*)handle;
+    int32_t current_value, new_value;
+    int retry;
     
-    LOGE_IF(hnd->lockState, "handle %p still locked (state=%08x)",
+    LOGE_IF(hnd->lockState & private_handle_t::LOCK_STATE_READ_MASK,
+            "handle %p still locked (state=%08x)",
             hnd, hnd->lockState);
 
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
-        if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
-            gralloc_unmap(module, handle);
-            LOGE_IF(hnd->base,
-                    "handle %p still mapped at %p",
-                    hnd, (void*)hnd->base);
-        }
+    if (hnd->lockState & private_handle_t::LOCK_STATE_MAPPED) {
+        gralloc_unmap(module, handle);
     }
-    
+
+    hnd->base = 0;
+    hnd->lockState  = 0;
+    hnd->writeOwner = 0;
     return 0;
 }
 
@@ -265,19 +128,19 @@ int gralloc_lock(gralloc_module_t const* module,
         return -EINVAL;
 
     int err = 0;
-    private_handle_t* hnd = (private_handle_t*)(handle);
+    private_handle_t* hnd = (private_handle_t*)handle;
     int32_t current_value, new_value;
     int retry;
 
     do {
         current_value = hnd->lockState;
         new_value = current_value;
-        
-        if (current_value>>31) {
+
+        if (current_value & private_handle_t::LOCK_STATE_WRITE) {
             // already locked for write 
             LOGE("handle %p already locked for write", handle);
             return -EBUSY;
-        } else if (current_value<<1) {
+        } else if (current_value & private_handle_t::LOCK_STATE_READ_MASK) {
             // already locked for read
             if (usage & (GRALLOC_USAGE_SW_WRITE_MASK | GRALLOC_USAGE_HW_RENDER)) {
                 LOGE("handle %p already locked for read", handle);
@@ -292,26 +155,34 @@ int gralloc_lock(gralloc_module_t const* module,
         // not currently locked
         if (usage & (GRALLOC_USAGE_SW_WRITE_MASK | GRALLOC_USAGE_HW_RENDER)) {
             // locking for write
-            new_value |= (1<<31);
+            new_value |= private_handle_t::LOCK_STATE_WRITE;
         }
         new_value++;
 
         retry = android_atomic_cmpxchg(current_value, new_value, 
                 (volatile int32_t*)&hnd->lockState);
     } while (retry);
-    
-    if (new_value>>31) {
+
+    if (new_value & private_handle_t::LOCK_STATE_WRITE) {
         // locking for write, store the tid
         hnd->writeOwner = gettid();
     }
 
     if (usage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
-        if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
-            *vaddr = (void*)hnd->base;
-        } else {
-            hnd->flags |= private_handle_t::PRIV_FLAGS_MAPPED;
-            err = gralloc_map(module, handle, vaddr);
+        if (!(current_value & private_handle_t::LOCK_STATE_MAPPED)) {
+            // we need to map for real
+            pthread_mutex_t* const lock = &sMapLock;
+            pthread_mutex_lock(lock);
+            if (!(hnd->lockState & private_handle_t::LOCK_STATE_MAPPED)) {
+                err = gralloc_map(module, handle, vaddr);
+                if (err == 0) {
+                    android_atomic_or(private_handle_t::LOCK_STATE_MAPPED,
+                            (volatile int32_t*)&(hnd->lockState));
+                }
+            }
+            pthread_mutex_unlock(lock);
         }
+        *vaddr = (void*)hnd->base;
     }
 
     return err;
@@ -323,22 +194,22 @@ int gralloc_unlock(gralloc_module_t const* module,
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    private_handle_t* hnd = (private_handle_t*)(handle);
+    private_handle_t* hnd = (private_handle_t*)handle;
     int32_t current_value, new_value;
 
     do {
         current_value = hnd->lockState;
         new_value = current_value;
 
-        if (current_value>>31) {
+        if (current_value & private_handle_t::LOCK_STATE_WRITE) {
             // locked for write
             if (hnd->writeOwner == gettid()) {
                 hnd->writeOwner = 0;
-                new_value &= ~(1<<31);
+                new_value &= ~private_handle_t::LOCK_STATE_WRITE;
             }
         }
 
-        if ((new_value<<1) == 0) {
+        if ((new_value & private_handle_t::LOCK_STATE_READ_MASK) == 0) {
             LOGE("handle %p not locked", handle);
             return -EINVAL;
         }
@@ -347,15 +218,6 @@ int gralloc_unlock(gralloc_module_t const* module,
 
     } while (android_atomic_cmpxchg(current_value, new_value, 
             (volatile int32_t*)&hnd->lockState));
-
-
-    /* FOR DEBUGGING
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_MAPPED) {
-        if (gralloc_unmap(module, handle) == 0) {
-            hnd->flags &= ~private_handle_t::PRIV_FLAGS_MAPPED;
-        }
-    }
-     */
 
     return 0;
 }

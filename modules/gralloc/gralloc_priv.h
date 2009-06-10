@@ -36,13 +36,6 @@ inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGESIZE-1)) & ~(PAGESIZE-1);
 }
 
-int gralloc_map(gralloc_module_t const* module,
-        buffer_handle_t handle, void** vaddr);
-
-int gralloc_unmap(gralloc_module_t const* module, 
-        buffer_handle_t handle);
-
-
 int mapFrameBufferLocked(struct private_module_t* module);
 
 /*****************************************************************************/
@@ -77,7 +70,12 @@ struct private_handle_t : public native_handle
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_PMEM   = 0x00000002,
-        PRIV_FLAGS_MAPPED      = 0x00000004,    // FIXME: should be out-of-line
+    };
+
+    enum {
+        LOCK_STATE_WRITE     =   1<<31,
+        LOCK_STATE_MAPPED    =   1<<30,
+        LOCK_STATE_READ_MASK =   0x3FFFFFFF
     };
 
     int     fd;
@@ -128,96 +126,5 @@ struct private_handle_t : public native_handle
         return NULL;
     }
 };
-
-/*****************************************************************************/
-
-template<typename T>
-struct growable_sorted_array_t {
-    int size;
-    int count;
-    T* data;
-
-    growable_sorted_array_t() : size(0), count(0), data(0) {
-    }
-
-    growable_sorted_array_t(int initialSize)
-        : size(initialSize), count(0), data(0)
-    {
-        data = new T[initialSize];
-    }
-
-    ~growable_sorted_array_t() {
-        delete[] data;
-    }
-
-    /** Returns true if we found an exact match.
-     * Argument index is set to the the first index >= key in place.
-     * Index will be in range 0..count inclusive.
-     *
-     */
-    bool find(const T& key, int& index) {
-        return binarySearch(0, count-1, key, index);
-    }
-
-    T* at(int index){
-        if (index >= 0  && index < count) {
-            return data + index;
-        }
-        return 0;
-    }
-
-    void insert(int index, const T& item) {
-        if (index >= 0 && index <= count) {
-            if (count + 1 > size) {
-                int newSize = size * 2;
-                if (newSize < count + 1) {
-                    newSize = count + 1;
-                }
-                T* newData = new T[newSize];
-                if (size > 0) {
-                    memcpy(newData, data, sizeof(T) * count);
-                }
-                data = newData;
-                size = newSize;
-            }
-            int toMove = count - index;
-            if (toMove > 0) {
-                memmove(data + index + 1, data + index, sizeof(T) * toMove);
-            }
-            count++;
-            data[index] = item;
-        }
-    }
-
-    void remove(int index) {
-        if (index >= 0 && index < count) {
-            int toMove = (count - 1) - index;
-            if (toMove > 0) {
-                memmove(data + index, data + index + 1, sizeof(T) * toMove);
-            }
-            count--;
-        }
-    }
-
-    /** Return the first index >= key. May be in range first..last+1. */
-    int binarySearch(int first, int last, const T& key, int& index)
-    {
-        while (first <= last) {
-            int mid = (first + last) / 2;
-            int cmp = compare(key, data[mid]);
-            if (cmp > 0) {
-                first = mid + 1;
-            } else if (cmp < 0) {
-                last = mid - 1;
-            } else {
-                index = mid;
-                return true;
-            }
-        }
-        index = first;
-        return false;
-    }
-};
-
 
 #endif /* GRALLOC_PRIV_H_ */
