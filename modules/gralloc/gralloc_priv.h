@@ -23,6 +23,8 @@
 #include <sys/cdefs.h>
 #include <hardware/gralloc.h>
 #include <pthread.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include <cutils/native_handle.h>
 
@@ -40,6 +42,23 @@ int mapFrameBufferLocked(struct private_module_t* module);
 
 /*****************************************************************************/
 
+class Locker {
+    pthread_mutex_t mutex;
+public:
+    class Autolock {
+        Locker& locker;
+    public:
+        inline Autolock(Locker& locker) : locker(locker) {  locker.lock(); }
+        inline ~Autolock() { locker.unlock(); }
+    };
+    inline Locker()        { pthread_mutex_init(&mutex, 0); }
+    inline ~Locker()       { pthread_mutex_destroy(&mutex); }
+    inline void lock()     { pthread_mutex_lock(&mutex); }
+    inline void unlock()   { pthread_mutex_unlock(&mutex); }
+};
+
+/*****************************************************************************/
+
 struct private_handle_t;
 
 struct private_module_t {
@@ -51,6 +70,9 @@ struct private_module_t {
     uint32_t bufferMask;
     pthread_mutex_t lock;
     buffer_handle_t currentBuffer;
+    int pmem_master;
+    void* pmem_master_base;
+
     struct fb_var_screeninfo info;
     struct fb_fix_screeninfo finfo;
     float xdpi;
@@ -82,25 +104,25 @@ struct private_handle_t : public native_handle
     int     magic;
     int     flags;
     int     size;
-    int     offset; // used with copybit
+    int     offset;
     // FIXME: the attributes below should be out-of-line
     int     base;
     int     lockState;
     int     writeOwner;
+    int     pid;
 
-    static const int sNumInts = 7;
+    static const int sNumInts = 8;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
         fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
-        base(0), lockState(0), writeOwner(0) 
+        base(0), lockState(0), writeOwner(0), pid(getpid())
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
         numFds = sNumFds;
     }
-
     ~private_handle_t() {
         magic = 0;
     }

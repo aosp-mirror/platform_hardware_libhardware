@@ -52,7 +52,7 @@ static const char *variant_keys[] = {
 #define HAL_VARIANT_KEYS_COUNT  (sizeof(variant_keys)/sizeof(variant_keys[0]))
 
 /**
- * Load the file defined by the variant and if succesfull
+ * Load the file defined by the variant and if successful
  * return the dlopen handle and the hmi.
  * @return 0 = success, !0 = failure.
  */

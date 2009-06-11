@@ -17,6 +17,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -30,6 +31,10 @@
 
 #include "gralloc_priv.h"
 
+
+// we need this for now because pmem cannot mmap at an offset
+#define PMEM_HACK   1
+
 /*****************************************************************************/
 
 static int gralloc_map(gralloc_module_t const* module,
@@ -38,12 +43,19 @@ static int gralloc_map(gralloc_module_t const* module,
 {
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
-        void* mappedAddress = mmap(0, hnd->size, PROT_READ|PROT_WRITE,
-                MAP_SHARED, hnd->fd, 0);
+        size_t size = hnd->size;
+#if PMEM_HACK
+        size += hnd->offset;
+#endif
+        void* mappedAddress = mmap(0, size,
+                PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
         if (mappedAddress == MAP_FAILED) {
+            LOGE("Could not mmap %s", strerror(errno));
             return -errno;
         }
-        hnd->base = intptr_t(mappedAddress);
+        hnd->base = intptr_t(mappedAddress) + hnd->offset;
+        //LOGD("gralloc_map() succeeded fd=%d, off=%d, size=%d, vaddr=%p", 
+        //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
     }
     *vaddr = (void*)hnd->base;
     return 0;
@@ -55,7 +67,7 @@ static int gralloc_unmap(gralloc_module_t const* module,
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
         if (munmap((void*)hnd->base, hnd->size) < 0) {
-            LOGE("Could not unmap %d", errno);
+            LOGE("Could not unmap %s", strerror(errno));
         }
     }
     hnd->base = 0;
@@ -82,10 +94,14 @@ int gralloc_register_buffer(gralloc_module_t const* module,
      * handle, but instead maintained in the kernel or at least 
      * out-of-line
      */ 
+
+    // if this handle was created in this process, then we keep it as is.
     private_handle_t* hnd = (private_handle_t*)handle;
-    hnd->base = 0;
-    hnd->lockState  = 0;
-    hnd->writeOwner = 0;
+    if (hnd->pid != getpid()) {
+        hnd->base = 0;
+        hnd->lockState  = 0;
+        hnd->writeOwner = 0;
+    }
     return 0;
 }
 
@@ -102,20 +118,20 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
      */
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    int32_t current_value, new_value;
-    int retry;
     
     LOGE_IF(hnd->lockState & private_handle_t::LOCK_STATE_READ_MASK,
             "handle %p still locked (state=%08x)",
             hnd, hnd->lockState);
 
-    if (hnd->lockState & private_handle_t::LOCK_STATE_MAPPED) {
-        gralloc_unmap(module, handle);
+    // never unmap buffers that were created in this process
+    if (hnd->pid != getpid()) {
+        if (hnd->lockState & private_handle_t::LOCK_STATE_MAPPED) {
+            gralloc_unmap(module, handle);
+        }
+        hnd->base = 0;
+        hnd->lockState  = 0;
+        hnd->writeOwner = 0;
     }
-
-    hnd->base = 0;
-    hnd->lockState  = 0;
-    hnd->writeOwner = 0;
     return 0;
 }
 

@@ -15,25 +15,29 @@
  */
 
 #include <limits.h>
-
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#include <cutils/ashmem.h>
-#include <cutils/log.h>
-
-#include <hardware/hardware.h>
-#include <hardware/gralloc.h>
-
+#include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
 
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/ioctl.h>
+
+#include <cutils/ashmem.h>
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 
+#include <hardware/hardware.h>
+#include <hardware/gralloc.h>
+
 #include "gralloc_priv.h"
+#include "allocator.h"
+
+#if HAVE_ANDROID_OS
+#include <linux/android_pmem.h>
+#endif
 
 /*****************************************************************************/
 
@@ -94,7 +98,9 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     numBuffers: 0,
     bufferMask: 0,
     lock: PTHREAD_MUTEX_INITIALIZER,
-    currentBuffer: 0
+    currentBuffer: 0,
+    pmem_master: -1,
+    pmem_master_base: 0
 };
 
 /*****************************************************************************/
@@ -164,32 +170,104 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
     return err;
 }
 
+static SimpleBestFitAllocator sAllocator(8*1024*1024);
+
+static int init_pmem_area(private_module_t* m)
+{
+    int err = 0;
+    int master_fd = open("/dev/pmem", O_RDWR, 0);
+    if (master_fd >= 0) {
+        void* base = mmap(0, sAllocator.size(),
+                PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
+        if (base == MAP_FAILED) {
+            err = -errno;
+            base = 0;
+            close(master_fd);
+            master_fd = -1;
+        }
+        m->pmem_master = master_fd;
+        m->pmem_master_base = base;
+    } else {
+        err = -errno;
+    }
+    return err;
+}
 
 static int gralloc_alloc_buffer(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
 {
-    size = roundUpToPageSize(size);
+    int err = 0;
     int flags = 0;
+
+    int fd = -1;
+    void* base = 0;
+    int offset = 0;
+    int lockState = 0;
+
+    size = roundUpToPageSize(size);
+    
+    if (usage & GRALLOC_USAGE_HW_TEXTURE) {
+        // enable pmem in that case, so our software GL can fallback to
+        // the copybit module.
+        flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
+    }
+    
     if (usage & GRALLOC_USAGE_HW_2D) {
         flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
     }
-    int fd;
+
     if ((flags & private_handle_t::PRIV_FLAGS_USES_PMEM) == 0) {
         fd = ashmem_create_region("Buffer", size);
+        if (fd < 0) {
+            err = -errno;
+        }
     } else {
-        fd = open("/dev/pmem", O_RDWR, 0);
-        // Note: Currently pmem get sized when it is mmaped.
-        // This means that just doing the open doesn't actually allocate
-        // anything. We basically need to do an implicit "mmap"
-        // (under the hood) for pmem regions. However, the current
-        // code will work okay for now thanks to the reference-counting.
+        private_module_t* m = reinterpret_cast<private_module_t*>(
+                dev->common.module);
+        
+        pthread_mutex_lock(&m->lock);
+        if (m->pmem_master == -1)
+            err = init_pmem_area(m);
+        pthread_mutex_unlock(&m->lock);
+        
+        if (m->pmem_master >= 0) {
+            // PMEM buffers are always mmapped
+            base = m->pmem_master_base;
+            lockState |= private_handle_t::LOCK_STATE_MAPPED;
+
+            offset = sAllocator.allocate(size);
+            if (offset < 0) {
+                err = -ENOMEM;
+            } else {
+                fd = open("/dev/pmem", O_RDWR, 0);
+                err = ioctl(fd, PMEM_CONNECT, m->pmem_master);
+                if (err < 0) {
+                    err = -errno;
+                } else {
+                    struct pmem_region sub = { offset, size };
+                    err = ioctl(fd, PMEM_MAP, &sub);
+                }
+                if (err < 0) {
+                    close(fd);
+                    sAllocator.deallocate(offset);
+                    fd = -1;
+                }
+                LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
+            }
+        }
     }
-    if (fd < 0) {
-        return -errno;
+
+    if (err == 0) {
+        private_handle_t* hnd = new private_handle_t(fd, size, flags);
+        hnd->offset = offset;
+        hnd->base = int(base)+offset;
+        hnd->lockState = lockState;
+        *pHandle = hnd;
     }
-    private_handle_t* hnd = new private_handle_t(fd, size, flags);
-    *pHandle = hnd;
-    return 0;
+    
+    LOGE_IF(err, "gralloc failed err=%s", strerror(-err));
+    
+    return err;
 }
 
 /*****************************************************************************/
@@ -249,6 +327,10 @@ static int gralloc_free(alloc_device_t* dev,
         const size_t bufferSize = m->finfo.line_length * m->info.yres;
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
+    } else if (true || hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
+        if (hnd->fd >= 0) {
+            sAllocator.deallocate(hnd->offset);
+       }
     }
 
     gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
