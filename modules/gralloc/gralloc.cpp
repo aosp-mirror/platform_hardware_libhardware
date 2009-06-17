@@ -252,7 +252,7 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
                     sAllocator.deallocate(offset);
                     fd = -1;
                 }
-                LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
+                //LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
             }
         }
     }
