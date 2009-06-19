@@ -217,17 +217,23 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
     }
 
     if ((flags & private_handle_t::PRIV_FLAGS_USES_PMEM) == 0) {
+try_ashmem:
         fd = ashmem_create_region("Buffer", size);
         if (fd < 0) {
+            LOGE("couldn't create ashmem (%s)", strerror(-errno));
             err = -errno;
         }
     } else {
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
-        
+
         pthread_mutex_lock(&m->lock);
-        if (m->pmem_master == -1)
+        if (m->pmem_master == -1) {
             err = init_pmem_area(m);
+            if (err) {
+                m->pmem_master = err;
+            }
+        }
         pthread_mutex_unlock(&m->lock);
         
         if (m->pmem_master >= 0) {
@@ -253,6 +259,15 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
                     fd = -1;
                 }
                 //LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
+            }
+        } else {
+            if ((usage & GRALLOC_USAGE_HW_2D) == 0) {
+                // the caller didn't request PMEM, so we can try something else
+                flags &= ~private_handle_t::PRIV_FLAGS_USES_PMEM;
+                err = 0;
+                goto try_ashmem;
+            } else {
+                LOGE("couldn't open pmem (%s)", strerror(-errno));
             }
         }
     }
