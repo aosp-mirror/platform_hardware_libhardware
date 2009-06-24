@@ -34,6 +34,8 @@
 
 /*****************************************************************************/
 
+struct private_module_t;
+
 inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGESIZE-1)) & ~(PAGESIZE-1);
 }

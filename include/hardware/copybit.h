@@ -103,12 +103,10 @@ struct copybit_image_t {
     uint32_t    h;
     /* format COPYBIT_FORMAT_xxx */
     int32_t     format;
-    /* offset from base to first pixel */
-    uint32_t    offset;
     /* base of buffer with image */
-    void       *base;
-    /* file descriptor for image */
-    int         fd;
+    void        *base;
+    /* handle to the image */
+    native_handle_t* handle;
 };
 
 /* Rectangle */
