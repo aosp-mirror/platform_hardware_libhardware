@@ -172,7 +172,7 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 
 static SimpleBestFitAllocator sAllocator(8*1024*1024);
 
-static int init_pmem_area(private_module_t* m)
+static int init_pmem_area_locked(private_module_t* m)
 {
     int err = 0;
     int master_fd = open("/dev/pmem", O_RDWR, 0);
@@ -190,6 +190,20 @@ static int init_pmem_area(private_module_t* m)
     } else {
         err = -errno;
     }
+    return err;
+}
+
+static int init_pmem_area(private_module_t* m)
+{
+    int err = 0;
+    pthread_mutex_lock(&m->lock);
+    if (m->pmem_master == -1) {
+        err = init_pmem_area_locked(m);
+        if (err) {
+            m->pmem_master = err;
+        }
+    }
+    pthread_mutex_unlock(&m->lock);
     return err;
 }
 
@@ -227,33 +241,33 @@ try_ashmem:
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
 
-        pthread_mutex_lock(&m->lock);
-        if (m->pmem_master == -1) {
-            err = init_pmem_area(m);
-            if (err) {
-                m->pmem_master = err;
-            }
-        }
-        pthread_mutex_unlock(&m->lock);
-        
-        if (m->pmem_master >= 0) {
+        err = init_pmem_area(m);
+        if (err == 0) {
             // PMEM buffers are always mmapped
             base = m->pmem_master_base;
             lockState |= private_handle_t::LOCK_STATE_MAPPED;
 
             offset = sAllocator.allocate(size);
             if (offset < 0) {
+                // no more pmem memory
                 err = -ENOMEM;
             } else {
+                struct pmem_region sub = { offset, size };
+                
+                // now create the "sub-heap"
                 fd = open("/dev/pmem", O_RDWR, 0);
-                err = ioctl(fd, PMEM_CONNECT, m->pmem_master);
+                err = fd < 0 ? fd : 0;
+                
+                // and connect to it
+                if (err == 0)
+                    err = ioctl(fd, PMEM_CONNECT, m->pmem_master);
+
+                // and make it available to the client process
+                if (err == 0)
+                    err = ioctl(fd, PMEM_MAP, &sub);
+
                 if (err < 0) {
                     err = -errno;
-                } else {
-                    struct pmem_region sub = { offset, size };
-                    err = ioctl(fd, PMEM_MAP, &sub);
-                }
-                if (err < 0) {
                     close(fd);
                     sAllocator.deallocate(offset);
                     fd = -1;
@@ -355,17 +369,30 @@ static int gralloc_free(alloc_device_t* dev,
         return -EINVAL;
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(handle);
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) 
+    {
         // free this buffer
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
         const size_t bufferSize = m->finfo.line_length * m->info.yres;
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
-    } else if (true || hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
+    } 
+    else if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) 
+    {
         if (hnd->fd >= 0) {
-            sAllocator.deallocate(hnd->offset);
-       }
+            struct pmem_region sub = { hnd->offset, hnd->size };
+            int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
+            LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
+                    "fd=%d, sub.offset=%lu, sub.size=%lu",
+                    strerror(errno), hnd->fd, hnd->offset, hnd->size);
+            if (err == 0) {
+                // we can't deallocate the memory in case of UNMAP failure
+                // because it would give that process access to someone else's
+                // surfaces, which would be a security breach.
+                sAllocator.deallocate(hnd->offset);
+            }
+        }
     }
 
     gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
