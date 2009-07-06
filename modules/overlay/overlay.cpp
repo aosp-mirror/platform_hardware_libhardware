@@ -44,7 +44,7 @@ static struct hw_module_methods_t overlay_module_methods = {
     open: overlay_device_open
 };
 
-const struct overlay_module_t HAL_MODULE_INFO_SYM = {
+struct overlay_module_t HAL_MODULE_INFO_SYM = {
     common: {
         tag: HARDWARE_MODULE_TAG,
         version_major: 1,
