@@ -44,8 +44,8 @@
 // should be a build option
 #define SUPPORTS_UPDATE_ON_DEMAND   1
 
-// fb_fix_screeninfo::id returned on the emulator
-#define EMULATOR_DEV_FB_ID ""
+// fb_fix_screeninfo::id returned on msm7k
+#define MSM_DEV_FB_ID "msmfb"
 
 // numbers of buffers for page flipping
 #define NUM_BUFFERS 2
@@ -353,10 +353,8 @@ int fb_device_open(hw_module_t const* module, const char* name,
         dev->device.common.module = const_cast<hw_module_t*>(module);
         dev->device.common.close = fb_close;
         dev->device.setSwapInterval = fb_setSwapInterval;
-#if SUPPORTS_UPDATE_ON_DEMAND
-        dev->device.setUpdateRect   = fb_setUpdateRect;
-#endif
         dev->device.post            = fb_post;
+        dev->device.setUpdateRect = 0;
 
         private_module_t* m = (private_module_t*)module;
         status = mapFrameBuffer(m);
@@ -373,12 +371,13 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.minSwapInterval) = 1;
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
 
-            if (!strcmp(m->finfo.id, EMULATOR_DEV_FB_ID)) {
-                LOGD("I think we're running on the emulator, "
-                     "turning UPDATE_ON_DEMAND off");
-                dev->device.setUpdateRect = 0;
+#if SUPPORTS_UPDATE_ON_DEMAND
+            if (!strcmp(m->finfo.id, MSM_DEV_FB_ID)) {
+                dev->device.setUpdateRect   = fb_setUpdateRect;
+                LOGD("msmfb driver detected, enabling UPDATE_ON_DEMAND");
             }
-            
+#endif
+
             *device = &dev->device.common;
         }
     }
