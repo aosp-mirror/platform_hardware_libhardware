@@ -242,7 +242,7 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
 
     if ((flags & private_handle_t::PRIV_FLAGS_USES_PMEM) == 0) {
 try_ashmem:
-        fd = ashmem_create_region("Buffer", size);
+        fd = ashmem_create_region("gralloc-buffer", size);
         if (fd < 0) {
             LOGE("couldn't create ashmem (%s)", strerror(-errno));
             err = -errno;
