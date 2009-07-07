@@ -41,6 +41,10 @@
 // should be a build option
 #define SUPPORTS_UPDATE_ON_DEMAND   1
 
+// fb_fix_screeninfo::id returned on the emulator
+#define EMULATOR_DEV_FB_ID ""
+
+// numbers of buffers for page flipping
 #define NUM_BUFFERS 2
 
 
@@ -366,6 +370,12 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.minSwapInterval) = 1;
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
 
+            if (!strcmp(m->finfo.id, EMULATOR_DEV_FB_ID)) {
+                LOGD("I think we're running on the emulator, "
+                     "turning UPDATE_ON_DEMAND off");
+                dev->device.setUpdateRect = 0;
+            }
+            
             *device = &dev->device.common;
         }
     }
