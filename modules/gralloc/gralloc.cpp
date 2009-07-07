@@ -195,9 +195,9 @@ static int init_pmem_area_locked(private_module_t* m)
 
 static int init_pmem_area(private_module_t* m)
 {
-    int err = 0;
     pthread_mutex_lock(&m->lock);
-    if (m->pmem_master == -1) {
+    int err = m->pmem_master;
+    if (err == -1) {
         err = init_pmem_area_locked(m);
         if (err) {
             m->pmem_master = err;
