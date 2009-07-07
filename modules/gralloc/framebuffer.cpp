@@ -26,6 +26,9 @@
 
 #include <fcntl.h>
 #include <errno.h>
+#include <sys/ioctl.h>
+#include <string.h>
+#include <stdlib.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>

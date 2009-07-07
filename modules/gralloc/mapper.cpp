@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <string.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -34,6 +35,14 @@
 
 // we need this for now because pmem cannot mmap at an offset
 #define PMEM_HACK   1
+
+/* desktop Linux needs a little help with gettid() */
+#if defined(ARCH_X86) && !defined(HAVE_ANDROID_OS)
+#define __KERNEL__
+# include <linux/unistd.h>
+pid_t gettid() { return syscall(__NR_gettid);}
+#undef __KERNEL__
+#endif
 
 /*****************************************************************************/
 

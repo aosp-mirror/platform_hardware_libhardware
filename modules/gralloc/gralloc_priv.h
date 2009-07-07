@@ -28,16 +28,14 @@
 
 #include <cutils/native_handle.h>
 
-#if HAVE_ANDROID_OS
 #include <linux/fb.h>
-#endif
 
 /*****************************************************************************/
 
 struct private_module_t;
 
 inline size_t roundUpToPageSize(size_t x) {
-    return (x + (PAGESIZE-1)) & ~(PAGESIZE-1);
+    return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
 }
 
 int mapFrameBufferLocked(struct private_module_t* module);

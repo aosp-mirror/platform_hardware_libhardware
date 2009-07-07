@@ -19,6 +19,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -238,6 +240,10 @@ try_ashmem:
             err = -errno;
         }
     } else {
+#ifndef HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
+        LOGE("pmem not available on this target");
+        err = -1;
+#else
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
 
@@ -284,6 +290,7 @@ try_ashmem:
                 LOGE("couldn't open pmem (%s)", strerror(-errno));
             }
         }
+#endif // HAVE_ANDROID_OS
     }
 
     if (err == 0) {
@@ -380,6 +387,10 @@ static int gralloc_free(alloc_device_t* dev,
     } 
     else if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) 
     {
+#ifndef HAVE_ANDROID_OS
+        LOGE("pmem not available on this target");
+        return -EINVAL;
+#else
         if (hnd->fd >= 0) {
             struct pmem_region sub = { hnd->offset, hnd->size };
             int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
@@ -393,6 +404,7 @@ static int gralloc_free(alloc_device_t* dev,
                 sAllocator.deallocate(hnd->offset);
             }
         }
+#endif // HAVE_ANDROID_OS
     }
 
     gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
