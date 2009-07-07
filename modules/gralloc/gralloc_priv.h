@@ -18,7 +18,11 @@
 #define GRALLOC_PRIV_H_
 
 #include <stdint.h>
-#include <asm/page.h>
+#ifdef HAVE_ANDROID_OS      // just want PAGE_SIZE define
+# include <asm/page.h>
+#else
+# include <sys/user.h>
+#endif
 #include <limits.h>
 #include <sys/cdefs.h>
 #include <hardware/gralloc.h>
