@@ -200,10 +200,16 @@ static int init_pmem_area(private_module_t* m)
     pthread_mutex_lock(&m->lock);
     int err = m->pmem_master;
     if (err == -1) {
+        // first time, try to initialize pmem
         err = init_pmem_area_locked(m);
         if (err) {
             m->pmem_master = err;
         }
+    } else if (err < 0) {
+        // pmem couldn't be initialized, never use it
+    } else {
+        // pmem OK
+        err = 0;
     }
     pthread_mutex_unlock(&m->lock);
     return err;
