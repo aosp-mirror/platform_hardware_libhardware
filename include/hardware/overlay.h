@@ -46,7 +46,13 @@ enum {
     OVERLAY_FORMAT_RGB_565      = HAL_PIXEL_FORMAT_RGB_565,
     OVERLAY_FORMAT_BGRA_8888    = HAL_PIXEL_FORMAT_BGRA_8888,
     OVERLAY_FORMAT_YCbCr_422_I  = HAL_PIXEL_FORMAT_YCbCr_422_I,
-    OVERLAY_FORMAT_YCbCr_420_I  = HAL_PIXEL_FORMAT_YCbCr_420_I
+    OVERLAY_FORMAT_YCbCr_420_I  = HAL_PIXEL_FORMAT_YCbCr_420_I,
+    OVERLAY_FORMAT_YCbCr_422_SP = HAL_PIXEL_FORMAT_YCbCr_422_SP,
+    OVERLAY_FORMAT_YCbCr_420_SP = HAL_PIXEL_FORMAT_YCbCr_420_SP,
+    OVERLAY_FORMAT_YCbYCr_422_I = HAL_PIXEL_FORMAT_YCbCr_422_I,
+    OVERLAY_FORMAT_YCbYCr_420_I = HAL_PIXEL_FORMAT_YCbCr_420_I,
+    OVERLAY_FORMAT_CbYCrY_422_I = HAL_PIXEL_FORMAT_CbYCrY_422_I,
+    OVERLAY_FORMAT_CbYCrY_420_I = HAL_PIXEL_FORMAT_CbYCrY_420_I
 };
 
 /* values for copybit_set_parameter(OVERLAY_TRANSFORM) */
@@ -169,6 +175,9 @@ struct overlay_control_device_t {
      * supported. */
     int (*setParameter)(struct overlay_control_device_t *dev,
             overlay_t* overlay, int param, int value);
+
+    int (*stage)(struct overlay_control_device_t *dev, overlay_t* overlay);
+    int (*commit)(struct overlay_control_device_t *dev, overlay_t* overlay);
 };
 
 
@@ -180,6 +189,12 @@ struct overlay_data_device_t {
     int (*initialize)(struct overlay_data_device_t *dev,
             overlay_handle_t handle);
     
+    int (*setCrop)(struct overlay_data_device_t *dev,
+            uint32_t x, uint32_t y, uint32_t w, uint32_t h) ;
+
+    int (*getCrop)(struct overlay_data_device_t *dev,
+       uint32_t* x, uint32_t* y, uint32_t* w, uint32_t* h) ;
+
     /* blocks until an overlay buffer is available and return that buffer. */
     int (*dequeueBuffer)(struct overlay_data_device_t *dev,
 		         overlay_buffer_t *buf);
