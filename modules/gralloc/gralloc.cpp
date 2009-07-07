@@ -222,6 +222,8 @@ static int gralloc_alloc_buffer(alloc_device_t* dev,
 
     size = roundUpToPageSize(size);
     
+#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
+
     if (usage & GRALLOC_USAGE_HW_TEXTURE) {
         // enable pmem in that case, so our software GL can fallback to
         // the copybit module.
@@ -240,10 +242,6 @@ try_ashmem:
             err = -errno;
         }
     } else {
-#ifndef HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
-        LOGE("pmem not available on this target");
-        err = -1;
-#else
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
 
@@ -290,8 +288,17 @@ try_ashmem:
                 LOGE("couldn't open pmem (%s)", strerror(-errno));
             }
         }
-#endif // HAVE_ANDROID_OS
     }
+
+#else // HAVE_ANDROID_OS
+    
+    fd = ashmem_create_region("Buffer", size);
+    if (fd < 0) {
+        LOGE("couldn't create ashmem (%s)", strerror(-errno));
+        err = -errno;
+    }
+
+#endif // HAVE_ANDROID_OS
 
     if (err == 0) {
         private_handle_t* hnd = new private_handle_t(fd, size, flags);
@@ -385,12 +392,9 @@ static int gralloc_free(alloc_device_t* dev,
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
     } 
+#if HAVE_ANDROID_OS
     else if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) 
     {
-#ifndef HAVE_ANDROID_OS
-        LOGE("pmem not available on this target");
-        return -EINVAL;
-#else
         if (hnd->fd >= 0) {
             struct pmem_region sub = { hnd->offset, hnd->size };
             int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
@@ -404,8 +408,8 @@ static int gralloc_free(alloc_device_t* dev,
                 sAllocator.deallocate(hnd->offset);
             }
         }
-#endif // HAVE_ANDROID_OS
     }
+#endif // HAVE_ANDROID_OS
 
     gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
             dev->common.module);
