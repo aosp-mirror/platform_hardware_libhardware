@@ -216,6 +216,9 @@ typedef struct {
 
         /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
+
+        /* distance in centimeters */
+        float           distance;
     };
 
     /* time is in nanosecond */
