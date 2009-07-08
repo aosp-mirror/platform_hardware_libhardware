@@ -389,38 +389,36 @@ static int gralloc_free(alloc_device_t* dev,
         return -EINVAL;
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(handle);
-    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) 
-    {
+    if (hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER) {
         // free this buffer
         private_module_t* m = reinterpret_cast<private_module_t*>(
                 dev->common.module);
         const size_t bufferSize = m->finfo.line_length * m->info.yres;
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
-    } 
+    } else { 
 #if HAVE_ANDROID_OS
-    else if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) 
-    {
-        if (hnd->fd >= 0) {
-            struct pmem_region sub = { hnd->offset, hnd->size };
-            int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
-            LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
-                    "fd=%d, sub.offset=%lu, sub.size=%lu",
-                    strerror(errno), hnd->fd, hnd->offset, hnd->size);
-            if (err == 0) {
-                // we can't deallocate the memory in case of UNMAP failure
-                // because it would give that process access to someone else's
-                // surfaces, which would be a security breach.
-                sAllocator.deallocate(hnd->offset);
+        if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
+            if (hnd->fd >= 0) {
+                struct pmem_region sub = { hnd->offset, hnd->size };
+                int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
+                LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
+                        "fd=%d, sub.offset=%lu, sub.size=%lu",
+                        strerror(errno), hnd->fd, hnd->offset, hnd->size);
+                if (err == 0) {
+                    // we can't deallocate the memory in case of UNMAP failure
+                    // because it would give that process access to someone else's
+                    // surfaces, which would be a security breach.
+                    sAllocator.deallocate(hnd->offset);
+                }
             }
         }
-    }
 #endif // HAVE_ANDROID_OS
+        gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
+                dev->common.module);
+        terminateBuffer(module, const_cast<private_handle_t*>(hnd));
+    }
 
-    gralloc_module_t* m = reinterpret_cast<gralloc_module_t*>(
-            dev->common.module);
-    gralloc_unregister_buffer(m, handle);
-    
     close(hnd->fd);
     delete hnd;
     return 0;

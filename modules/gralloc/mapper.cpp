@@ -75,7 +75,14 @@ static int gralloc_unmap(gralloc_module_t const* module,
 {
     private_handle_t* hnd = (private_handle_t*)handle;
     if (!(hnd->flags & private_handle_t::PRIV_FLAGS_FRAMEBUFFER)) {
-        if (munmap((void*)hnd->base, hnd->size) < 0) {
+        void* base = (void*)hnd->base;
+        size_t size = hnd->size;
+#if PMEM_HACK
+        base = (void*)(intptr_t(base) - hnd->offset);
+        size += hnd->offset;
+#endif
+        //LOGD("unmapping from %p, size=%d", base, size);
+        if (munmap(base, size) < 0) {
             LOGE("Could not unmap %s", strerror(errno));
         }
     }
@@ -141,6 +148,33 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
         hnd->lockState  = 0;
         hnd->writeOwner = 0;
     }
+    return 0;
+}
+
+int terminateBuffer(gralloc_module_t const* module,
+        private_handle_t* hnd)
+{
+    /*
+     * If the buffer has been mapped during a lock operation, it's time
+     * to un-map it. It's an error to be here with a locked buffer.
+     */
+
+    LOGE_IF(hnd->lockState & private_handle_t::LOCK_STATE_READ_MASK,
+            "handle %p still locked (state=%08x)",
+            hnd, hnd->lockState);
+    
+    if (hnd->lockState & private_handle_t::LOCK_STATE_MAPPED) {
+        // this buffer was mapped, unmap it now
+        if ((hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) && 
+            (hnd->pid == getpid())) {
+            // ... unless it's a "master" pmem buffer, that is a buffer
+            // mapped in the process it's been allocated.
+            // (see gralloc_alloc_buffer())
+        } else {
+            gralloc_unmap(module, hnd);
+        }
+    }
+
     return 0;
 }
 

@@ -37,12 +37,14 @@
 /*****************************************************************************/
 
 struct private_module_t;
+struct private_handle_t;
 
 inline size_t roundUpToPageSize(size_t x) {
     return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
 }
 
 int mapFrameBufferLocked(struct private_module_t* module);
+int terminateBuffer(gralloc_module_t const* module, private_handle_t* hnd);
 
 /*****************************************************************************/
 
