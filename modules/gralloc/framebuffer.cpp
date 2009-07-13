@@ -44,9 +44,6 @@
 // should be a build option
 #define SUPPORTS_UPDATE_ON_DEMAND   1
 
-// fb_fix_screeninfo::id returned on msm7k
-#define MSM_DEV_FB_ID "msmfb"
-
 // numbers of buffers for page flipping
 #define NUM_BUFFERS 2
 
@@ -372,9 +369,10 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
 
 #if SUPPORTS_UPDATE_ON_DEMAND
-            if (!strcmp(m->finfo.id, MSM_DEV_FB_ID)) {
-                dev->device.setUpdateRect   = fb_setUpdateRect;
-                LOGD("msmfb driver detected, enabling UPDATE_ON_DEMAND");
+            if (m->finfo.reserved[0] == 0x5444 && 
+                    m->finfo.reserved[1] == 0x5055) {
+                dev->device.setUpdateRect = fb_setUpdateRect;
+                LOGD("UPDATE_ON_DEMAND supported");
             }
 #endif
 
