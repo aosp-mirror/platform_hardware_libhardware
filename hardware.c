@@ -68,8 +68,6 @@ static int load(const char *id,
     /* Construct the path. */
     snprintf(path, sizeof(path), "%s/%s.%s.so", HAL_LIBRARY_PATH, id, variant);
 
-    LOGV("load: E id=%s path=%s", id, path);
-
     /*
      * load the symbols resolving undefined symbols before
      * dlopen returns. Since RTLD_GLOBAL is not or'd in with
@@ -112,12 +110,13 @@ done:
             dlclose(handle);
             handle = NULL;
         }
+    } else {
+        LOGV("loaded HAL id=%s path=%s hmi=%p handle=%p",
+             id, path, *pHmi, handle);
     }
 
     *pHmi = hmi;
 
-    LOGV("load: X id=%s path=%s hmi=%p handle=%p status=%d",
-         id, path, *pHmi, handle, status);
     return status;
 }
 
@@ -135,8 +134,6 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
      * We also assume that dlopen() is thread-safe.
      */
     
-    LOGV("hal_module_info_get: Load module id=%s", id);
-
     status = -EINVAL;
 
     /* Loop through the configuration variants looking for a module */
@@ -153,7 +150,5 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     }
     
     *module = hmi;
-    LOGV("hal_module_info_get: X id=%s hmi=%p status=%d", id, hmi, status);
-
     return status;
 }
