@@ -179,6 +179,7 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 static int init_pmem_area_locked(private_module_t* m)
 {
     int err = 0;
+#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
     int master_fd = open("/dev/pmem", O_RDWR, 0);
     if (master_fd >= 0) {
         
@@ -206,6 +207,9 @@ static int init_pmem_area_locked(private_module_t* m)
         err = -errno;
     }
     return err;
+#else
+    return -1;
+#endif
 }
 
 static int init_pmem_area(private_module_t* m)
