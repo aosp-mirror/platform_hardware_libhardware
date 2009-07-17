@@ -95,12 +95,15 @@ class SimpleBestFitAllocator
 {
 public:
 
-                        SimpleBestFitAllocator(size_t size);
-    virtual             ~SimpleBestFitAllocator();
+    SimpleBestFitAllocator();
+    SimpleBestFitAllocator(size_t size);
+    ~SimpleBestFitAllocator();
 
-    virtual size_t      allocate(size_t size, uint32_t flags = 0);
-    virtual ssize_t     deallocate(size_t offset);
-    virtual size_t      size() const;
+    ssize_t     setSize(size_t size);
+
+    ssize_t     allocate(size_t size, uint32_t flags = 0);
+    ssize_t     deallocate(size_t offset);
+    size_t      size() const;
 
 private:
     struct chunk_t {
@@ -122,6 +125,5 @@ private:
     LinkedList<chunk_t> mList;
     size_t              mHeapSize;
 };
-
 
 #endif /* GRALLOC_ALLOCATOR_H_ */

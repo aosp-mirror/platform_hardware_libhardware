@@ -22,13 +22,15 @@
 // align all the memory blocks on a cache-line boundary
 const int SimpleBestFitAllocator::kMemoryAlign = 32;
 
-SimpleBestFitAllocator::SimpleBestFitAllocator(size_t size)
+SimpleBestFitAllocator::SimpleBestFitAllocator()
+    : mHeapSize(0)
 {
-    size_t pagesize = getpagesize();
-    mHeapSize = ((size + pagesize-1) & ~(pagesize-1));
+}
 
-    chunk_t* node = new chunk_t(0, mHeapSize / kMemoryAlign);
-    mList.insertHead(node);
+SimpleBestFitAllocator::SimpleBestFitAllocator(size_t size)
+    : mHeapSize(0)
+{
+    setSize(size);
 }
 
 SimpleBestFitAllocator::~SimpleBestFitAllocator()
@@ -38,14 +40,27 @@ SimpleBestFitAllocator::~SimpleBestFitAllocator()
     }
 }
 
+ssize_t SimpleBestFitAllocator::setSize(size_t size)
+{
+    Locker::Autolock _l(mLock);
+    if (mHeapSize != 0) return -EINVAL;
+    size_t pagesize = getpagesize();
+    mHeapSize = ((size + pagesize-1) & ~(pagesize-1));
+    chunk_t* node = new chunk_t(0, mHeapSize / kMemoryAlign);
+    mList.insertHead(node);
+    return size;
+}
+    
+    
 size_t SimpleBestFitAllocator::size() const
 {
     return mHeapSize;
 }
 
-size_t SimpleBestFitAllocator::allocate(size_t size, uint32_t flags)
+ssize_t SimpleBestFitAllocator::allocate(size_t size, uint32_t flags)
 {
     Locker::Autolock _l(mLock);
+    if (mHeapSize == 0) return -EINVAL;
     ssize_t offset = alloc(size, flags);
     return offset;
 }
@@ -53,6 +68,7 @@ size_t SimpleBestFitAllocator::allocate(size_t size, uint32_t flags)
 ssize_t SimpleBestFitAllocator::deallocate(size_t offset)
 {
     Locker::Autolock _l(mLock);
+    if (mHeapSize == 0) return -EINVAL;
     chunk_t const * const freed = dealloc(offset);
     if (freed) {
         return 0;

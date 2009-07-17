@@ -43,6 +43,10 @@
 
 /*****************************************************************************/
 
+static SimpleBestFitAllocator sAllocator;
+
+/*****************************************************************************/
+
 struct gralloc_context_t {
     alloc_device_t  device;
     /* our private data here */
@@ -172,14 +176,23 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
     return err;
 }
 
-static SimpleBestFitAllocator sAllocator(8*1024*1024);
-
 static int init_pmem_area_locked(private_module_t* m)
 {
     int err = 0;
     int master_fd = open("/dev/pmem", O_RDWR, 0);
     if (master_fd >= 0) {
-        void* base = mmap(0, sAllocator.size(),
+        
+        size_t size;
+        pmem_region region;
+        if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
+            LOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
+            size = 8<<20;   // 8 MiB
+        } else {
+            size = region.len;
+        }
+        sAllocator.setSize(size);
+
+        void* base = mmap(0, size, 
                 PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
         if (base == MAP_FAILED) {
             err = -errno;
