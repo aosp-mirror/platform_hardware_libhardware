@@ -65,6 +65,15 @@ __BEGIN_DECLS
  */
 #define LIGHT_FLASH_TIMED           1
 
+/**
+ * Use these definitions for the Ambient Light sensing modes.  Manual will
+ * force the display brightness based on the slider bar.  Automatic mode will
+ * force the system to control the lighting regions.
+ */
+
+#define ALS_MODE_MANUAL                      0
+#define ALS_MODE_AUTOMATIC                   1
+
 
 /**
  * The parameters that can be set for a given light.
@@ -107,6 +116,12 @@ struct light_device_t {
      */
     int (*set_light)(struct light_device_t* dev,
             struct light_state_t const* state);
+    /**
+     * Set the global ambient light sensing value.
+     *
+     * Returns: 0 on succes, error code on failure.
+     */
+    int (*set_als_mode)(int mode);
 };
 
 
