@@ -121,6 +121,8 @@ int hw_get_module(const char *id, const struct hw_module_t **module);
 
 enum {
     HAL_PIXEL_FORMAT_RGBA_8888    = 1,
+    HAL_PIXEL_FORMAT_RGBX_8888    = 2,
+    HAL_PIXEL_FORMAT_RGB_888      = 3,
     HAL_PIXEL_FORMAT_RGB_565      = 4,
     HAL_PIXEL_FORMAT_BGRA_8888    = 5,
     HAL_PIXEL_FORMAT_RGBA_5551    = 6,
