@@ -329,6 +329,7 @@ try_ashmem:
         hnd->base = int(base)+offset;
         hnd->lockState = lockState;
         *pHandle = hnd;
+        memset((void*)hnd->base, 0, size);
     }
     
     LOGE_IF(err, "gralloc failed err=%s", strerror(-err));
