@@ -300,6 +300,7 @@ try_ashmem:
                     fd = -1;
                 }
                 //LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
+                memset((char*)base + offset, 0, size);
             }
         } else {
             if ((usage & GRALLOC_USAGE_HW_2D) == 0) {
@@ -329,7 +330,6 @@ try_ashmem:
         hnd->base = int(base)+offset;
         hnd->lockState = lockState;
         *pHandle = hnd;
-        memset((void*)hnd->base, 0, size);
     }
     
     LOGE_IF(err, "gralloc failed err=%s", strerror(-err));
