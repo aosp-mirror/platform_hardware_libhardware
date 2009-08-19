@@ -106,11 +106,14 @@ struct private_handle_t : public native_handle
         LOCK_STATE_READ_MASK =   0x3FFFFFFF
     };
 
+    // file-descriptors
     int     fd;
+    // ints
     int     magic;
     int     flags;
     int     size;
     int     offset;
+
     // FIXME: the attributes below should be out-of-line
     int     base;
     int     lockState;
@@ -138,13 +141,14 @@ struct private_handle_t : public native_handle
     }
 
     static int validate(const native_handle* h) {
+        const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
-                h->numInts!=sNumInts || h->numFds!=sNumFds) {
+                h->numInts != sNumInts || h->numFds != sNumFds ||
+                hnd->magic != sMagic) 
+        {
+            LOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;
         }
-        const private_handle_t* hnd = (const private_handle_t*)h;
-        if (hnd->magic != sMagic)
-            return -EINVAL;
         return 0;
     }
 
