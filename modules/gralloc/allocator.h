@@ -21,7 +21,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "gralloc_priv.h"
+#include "gr.h"
 
 // ----------------------------------------------------------------------------
 
