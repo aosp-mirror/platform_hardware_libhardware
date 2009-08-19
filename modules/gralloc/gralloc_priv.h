@@ -18,11 +18,6 @@
 #define GRALLOC_PRIV_H_
 
 #include <stdint.h>
-#ifdef HAVE_ANDROID_OS      // just want PAGE_SIZE define
-# include <asm/page.h>
-#else
-# include <sys/user.h>
-#endif
 #include <limits.h>
 #include <sys/cdefs.h>
 #include <hardware/gralloc.h>
@@ -37,34 +32,6 @@
 /*****************************************************************************/
 
 struct private_module_t;
-struct private_handle_t;
-
-inline size_t roundUpToPageSize(size_t x) {
-    return (x + (PAGE_SIZE-1)) & ~(PAGE_SIZE-1);
-}
-
-int mapFrameBufferLocked(struct private_module_t* module);
-int terminateBuffer(gralloc_module_t const* module, private_handle_t* hnd);
-
-/*****************************************************************************/
-
-class Locker {
-    pthread_mutex_t mutex;
-public:
-    class Autolock {
-        Locker& locker;
-    public:
-        inline Autolock(Locker& locker) : locker(locker) {  locker.lock(); }
-        inline ~Autolock() { locker.unlock(); }
-    };
-    inline Locker()        { pthread_mutex_init(&mutex, 0); }
-    inline ~Locker()       { pthread_mutex_destroy(&mutex); }
-    inline void lock()     { pthread_mutex_lock(&mutex); }
-    inline void unlock()   { pthread_mutex_unlock(&mutex); }
-};
-
-/*****************************************************************************/
-
 struct private_handle_t;
 
 struct private_module_t {
@@ -93,8 +60,13 @@ struct private_module_t {
 
 /*****************************************************************************/
 
-struct private_handle_t : public native_handle
-{
+#ifdef __cplusplus
+struct private_handle_t : public native_handle {
+#else
+struct private_handle_t {
+    struct native_handle nativeHandle;
+#endif
+    
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001,
         PRIV_FLAGS_USES_PMEM   = 0x00000002,
@@ -120,6 +92,7 @@ struct private_handle_t : public native_handle
     int     writeOwner;
     int     pid;
 
+#ifdef __cplusplus
     static const int sNumInts = 8;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
@@ -158,6 +131,7 @@ struct private_handle_t : public native_handle
         }
         return NULL;
     }
+#endif
 };
 
 #endif /* GRALLOC_PRIV_H_ */
