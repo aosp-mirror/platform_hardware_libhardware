@@ -80,7 +80,7 @@ typedef const native_handle* buffer_handle_t;
  * and the fields of this data structure must begin with hw_module_t
  * followed by module specific information.
  */
-struct gralloc_module_t {
+typedef struct gralloc_module_t {
     struct hw_module_t common;
     
     
@@ -162,7 +162,7 @@ struct gralloc_module_t {
     int (*unlock)(struct gralloc_module_t const* module,
             buffer_handle_t handle);
 
-};
+} gralloc_module_t;
 
 /*****************************************************************************/
 
@@ -171,7 +171,7 @@ struct gralloc_module_t {
  * followed by module specific public methods and attributes.
  */
 
-struct alloc_device_t {
+typedef struct alloc_device_t {
     struct hw_device_t common;
 
     /* 
@@ -201,10 +201,10 @@ struct alloc_device_t {
     int (*free)(struct alloc_device_t* dev,
             buffer_handle_t handle);
 
-};
+} alloc_device_t;
 
 
-struct framebuffer_device_t {
+typedef struct framebuffer_device_t {
     struct hw_device_t common;
 
     /* flags describing some attributes of the framebuffer */
@@ -288,7 +288,8 @@ struct framebuffer_device_t {
     int (*post)(struct framebuffer_device_t* dev, buffer_handle_t buffer);
 
     void* reserved_proc[8];
-};
+
+} framebuffer_device_t;
 
 
 /** convenience API for opening and closing a supported device */

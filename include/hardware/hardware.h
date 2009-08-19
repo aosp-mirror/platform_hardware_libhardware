@@ -42,7 +42,7 @@ struct hw_device_t;
  * and the fields of this data structure must begin with hw_module_t
  * followed by module specific information.
  */
-struct hw_module_t {
+typedef struct hw_module_t {
     /** tag must be initialized to HARDWARE_MODULE_TAG */
     uint32_t tag;
 
@@ -69,19 +69,21 @@ struct hw_module_t {
 
     /** padding to 128 bytes, reserved for future use */
     uint32_t reserved[32-7];
-};
 
-struct hw_module_methods_t {
+} hw_module_t;
+
+typedef struct hw_module_methods_t {
     /** Open a specific device */
     int (*open)(const struct hw_module_t* module, const char* id,
             struct hw_device_t** device);
-};
+
+} hw_module_methods_t;
 
 /**
  * Every device data structure must begin with hw_device_t
  * followed by module specific public methods and attributes.
  */
-struct hw_device_t {
+typedef struct hw_device_t {
     /** tag must be initialized to HARDWARE_DEVICE_TAG */
     uint32_t tag;
 
@@ -96,7 +98,8 @@ struct hw_device_t {
 
     /** Close this device */
     int (*close)(struct hw_device_t* device);
-};
+
+} hw_device_t;
 
 /**
  * Name of the hal_module_info
