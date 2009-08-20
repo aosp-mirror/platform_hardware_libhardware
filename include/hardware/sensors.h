@@ -219,6 +219,9 @@ typedef struct {
 
         /* distance in centimeters */
         float           distance;
+
+	/* light in lux */
+	float           light;
     };
 
     /* time is in nanosecond */
