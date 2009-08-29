@@ -293,7 +293,16 @@ struct sensors_control_device_t {
      * @return a native_handle_t if successful, NULL on error
      */
     native_handle_t* (*open_data_source)(struct sensors_control_device_t *dev);
-    
+
+    /**
+     * Releases any resources that were created by open_data_source.
+     * This call is optional and can be NULL if not implemented
+     * by the sensor HAL.
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*close_data_source)(struct sensors_control_device_t *dev);
+
     /** Activate/deactivate one sensor.
      *
      * @param handle is the handle of the sensor to change.
