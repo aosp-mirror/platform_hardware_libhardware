@@ -162,6 +162,8 @@ typedef struct gralloc_module_t {
     int (*unlock)(struct gralloc_module_t const* module,
             buffer_handle_t handle);
 
+    /* reserved for future use */
+    void* reserved_proc[8];
 } gralloc_module_t;
 
 /*****************************************************************************/
@@ -254,7 +256,7 @@ typedef struct framebuffer_device_t {
      * the screen to the display panel, upon demand -- as opposed to
      * constantly refreshing the panel 60 times per second, for instance.
      * 
-     * Only the area defined by this rectangle is guranteed to be valid, that
+     * Only the area defined by this rectangle is guaranteed to be valid, that
      * is, the driver is not allowed to post anything outside of this
      * rectangle. 
      * 
@@ -286,6 +288,15 @@ typedef struct framebuffer_device_t {
      * Returns 0 on success or -errno on error.
      */
     int (*post)(struct framebuffer_device_t* dev, buffer_handle_t buffer);
+
+
+    /*
+     * The (*compositionComplete)() method must be called after the
+     * compositor has finished issuing GL commands for client buffers.
+     */
+
+    int (*compositionComplete)(struct framebuffer_device_t* dev);
+
 
     void* reserved_proc[8];
 
