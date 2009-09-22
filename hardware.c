@@ -41,15 +41,17 @@
  * led.default.so
  */
 
-#define HAL_DEFAULT_VARIANT     "default"
 static const char *variant_keys[] = {
     "ro.hardware",  /* This goes first so that it can pick up a different
                        file on the emulator. */
     "ro.product.board",
     "ro.board.platform",
-    "ro.arch"
+    "ro.arch",
+    "default"
 };
-#define HAL_VARIANT_KEYS_COUNT  (sizeof(variant_keys)/sizeof(variant_keys[0]))
+
+static const int HAL_VARIANT_KEYS_COUNT =
+    (sizeof(variant_keys)/sizeof(variant_keys[0]));
 
 /**
  * Load the file defined by the variant and if successful
@@ -57,16 +59,12 @@ static const char *variant_keys[] = {
  * @return 0 = success, !0 = failure.
  */
 static int load(const char *id,
-                const char *variant,
-                const struct hw_module_t **pHmi)
+        const char *path,
+        const struct hw_module_t **pHmi)
 {
     int status;
     void *handle;
     struct hw_module_t *hmi;
-    char path[PATH_MAX];
-
-    /* Construct the path. */
-    snprintf(path, sizeof(path), "%s/%s.%s.so", HAL_LIBRARY_PATH, id, variant);
 
     /*
      * load the symbols resolving undefined symbols before
@@ -76,7 +74,7 @@ static int load(const char *id,
     handle = dlopen(path, RTLD_NOW);
     if (handle == NULL) {
         char const *err_str = dlerror();
-        //LOGW("load: module=%s error=%s", path, err_str);
+        LOGE("load: module=%s\n%s", path, err_str?err_str:"unknown");
         status = -EINVAL;
         goto done;
     }
@@ -85,7 +83,6 @@ static int load(const char *id,
     const char *sym = HAL_MODULE_INFO_SYM_AS_STR;
     hmi = (struct hw_module_t *)dlsym(handle, sym);
     if (hmi == NULL) {
-        char const *err_str = dlerror();
         LOGE("load: couldn't find symbol %s", sym);
         status = -EINVAL;
         goto done;
@@ -97,13 +94,13 @@ static int load(const char *id,
         status = -EINVAL;
         goto done;
     }
-    
+
     hmi->dso = handle;
 
     /* success */
     status = 0;
 
-done:
+    done:
     if (status != 0) {
         hmi = NULL;
         if (handle != NULL) {
@@ -112,7 +109,7 @@ done:
         }
     } else {
         LOGV("loaded HAL id=%s path=%s hmi=%p handle=%p",
-             id, path, *pHmi, handle);
+                id, path, *pHmi, handle);
     }
 
     *pHmi = hmi;
@@ -126,6 +123,7 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     int i;
     const struct hw_module_t *hmi = NULL;
     char prop[PATH_MAX];
+    char path[PATH_MAX];
 
     /*
      * Here we rely on the fact that calling dlopen multiple times on
@@ -133,22 +131,26 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
      * a new copy of the library).
      * We also assume that dlopen() is thread-safe.
      */
-    
-    status = -EINVAL;
 
     /* Loop through the configuration variants looking for a module */
-    for (i = 0; (status != 0) && (i < HAL_VARIANT_KEYS_COUNT); i++) {
+    for (i=0 ; i<HAL_VARIANT_KEYS_COUNT ; i++) {
         if (property_get(variant_keys[i], prop, NULL) == 0) {
             continue;
         }
-        status = load(id, prop, &hmi);
+        snprintf(path, sizeof(path), "%s/%s.%s.so", HAL_LIBRARY_PATH, id, prop);
+        if (access(path, R_OK)) {
+            continue;
+        }
+        /* we found a library matching this id/variant */
+        break;
     }
 
-    /* Try default */
-    if (status != 0) {
-        status = load(id, HAL_DEFAULT_VARIANT, &hmi);
+    status = -ENOENT;
+    if (i < HAL_VARIANT_KEYS_COUNT) {
+        /* load the module, if this fails, we're doomed, and we should not try
+         * to load a different variant. */
+        status = load(id, path, module);
     }
-    
-    *module = hmi;
+
     return status;
 }
