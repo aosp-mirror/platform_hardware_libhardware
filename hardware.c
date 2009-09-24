@@ -46,8 +46,7 @@ static const char *variant_keys[] = {
                        file on the emulator. */
     "ro.product.board",
     "ro.board.platform",
-    "ro.arch",
-    "default"
+    "ro.arch"
 };
 
 static const int HAL_VARIANT_KEYS_COUNT =
@@ -133,11 +132,17 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
      */
 
     /* Loop through the configuration variants looking for a module */
-    for (i=0 ; i<HAL_VARIANT_KEYS_COUNT ; i++) {
-        if (property_get(variant_keys[i], prop, NULL) == 0) {
-            continue;
+    for (i=0 ; i<HAL_VARIANT_KEYS_COUNT+1 ; i++) {
+        if (i < HAL_VARIANT_KEYS_COUNT) {
+            if (property_get(variant_keys[i], prop, NULL) == 0) {
+                continue;
+            }
+            snprintf(path, sizeof(path), "%s/%s.%s.so",
+                    HAL_LIBRARY_PATH, id, prop);
+        } else {
+            snprintf(path, sizeof(path), "%s/%s.default.so",
+                    HAL_LIBRARY_PATH, id);
         }
-        snprintf(path, sizeof(path), "%s/%s.%s.so", HAL_LIBRARY_PATH, id, prop);
         if (access(path, R_OK)) {
             continue;
         }
