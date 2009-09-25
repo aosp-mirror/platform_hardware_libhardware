@@ -151,7 +151,7 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     }
 
     status = -ENOENT;
-    if (i < HAL_VARIANT_KEYS_COUNT) {
+    if (i < HAL_VARIANT_KEYS_COUNT+1) {
         /* load the module, if this fails, we're doomed, and we should not try
          * to load a different variant. */
         status = load(id, path, module);
