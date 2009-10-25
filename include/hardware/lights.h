@@ -69,6 +69,8 @@ __BEGIN_DECLS
  * Use these definitions for the Ambient Light sensing modes.  Manual will
  * force the display brightness based on the slider bar.  Automatic mode will
  * force the system to control the lighting regions.
+ * WARNING - DO NOT USE THIS FEATURE
+ * Hardware auto brightness support is deprecated and will be removed in the next release.
  */
 
 #define ALS_MODE_MANUAL                      0
@@ -120,6 +122,9 @@ struct light_device_t {
      * Set the global ambient light sensing value.
      *
      * Returns: 0 on succes, error code on failure.
+     *
+     * WARNING - DO NOT USE THIS FEATURE
+     * Hardware auto brightness support is deprecated and will be removed in the next release.
      */
     int (*set_als_mode)(int mode);
 };
