@@ -153,11 +153,6 @@ SimpleBestFitAllocator::chunk_t* SimpleBestFitAllocator::dealloc(size_t start)
                 cur = n;
             } while (cur && cur->free);
 
-            #ifndef NDEBUG
-                if (!freed->free) {
-                    dump_l("dealloc (!freed->free)");
-                }
-            #endif
             LOG_FATAL_IF(!freed->free,
                 "freed block at offset 0x%08lX of size 0x%08lX is not free!",
                 freed->start * kMemoryAlign, freed->size * kMemoryAlign);
