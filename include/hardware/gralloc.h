@@ -75,6 +75,14 @@ enum {
 
 typedef const native_handle* buffer_handle_t;
 
+enum {
+    /* FIXME: this only exists to work-around some issues with
+     * the video and camera frameworks. don't implement unless
+     * you know what you're doing.
+     */
+    GRALLOC_MODULE_PERFORM_CREATE_HANDLE_FROM_BUFFER = 0x080000001,
+};
+
 /**
  * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
  * and the fields of this data structure must begin with hw_module_t
@@ -82,7 +90,6 @@ typedef const native_handle* buffer_handle_t;
  */
 typedef struct gralloc_module_t {
     struct hw_module_t common;
-    
     
     /*
      * (*registerBuffer)() must be called before a buffer_handle_t that has not
@@ -162,8 +169,13 @@ typedef struct gralloc_module_t {
     int (*unlock)(struct gralloc_module_t const* module,
             buffer_handle_t handle);
 
+
     /* reserved for future use */
-    void* reserved_proc[8];
+    int (*perform)(struct gralloc_module_t const* module,
+            int operation, ... );
+
+    /* reserved for future use */
+    void* reserved_proc[7];
 } gralloc_module_t;
 
 /*****************************************************************************/
