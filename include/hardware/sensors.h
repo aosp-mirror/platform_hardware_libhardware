@@ -173,7 +173,20 @@ __BEGIN_DECLS
  * 
  *  All values are in micro-Tesla (uT) and measure the ambient magnetic
  *  field in the X, Y and Z axis.
- *    
+ *
+ * Proximity
+ * ---------
+ *
+ * The distance value is measured in centimeters.  Note that some proximity
+ * sensors only support a binary "close" or "far" measurement.  In this case,
+ * the sensor should report its maxRange value in the "far" state and a value
+ * less than maxRange in the "near" state.
+ *
+ * Light
+ * -----
+ *
+ * The light sensor value is returned in SI lux units.
+ *
  */
 typedef struct {
     union {
@@ -220,7 +233,7 @@ typedef struct {
         /* distance in centimeters */
         float           distance;
 
-        /* light in lux */
+        /* light in SI lux units */
         float           light;
     };
 
