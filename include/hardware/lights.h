@@ -66,6 +66,12 @@ __BEGIN_DECLS
 #define LIGHT_FLASH_TIMED           1
 
 /**
+ * To flash the light using hardware assist, set flashMode to
+ * the hardware mode.
+ */
+#define LIGHT_FLASH_HARDWARE        2
+
+/**
  * The parameters that can be set for a given light.
  *
  * Not all lights must support all parameters.  If you
