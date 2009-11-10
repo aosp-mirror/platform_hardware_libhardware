@@ -72,6 +72,16 @@ __BEGIN_DECLS
 #define LIGHT_FLASH_HARDWARE        2
 
 /**
+ * Light brightness is managed by a user setting.
+ */
+#define BRIGHTNESS_MODE_USER        0
+
+/**
+ * Light brightness is managed by a light sensor.
+ */
+#define BRIGHTNESS_MODE_SENSOR      1
+
+/**
  * The parameters that can be set for a given light.
  *
  * Not all lights must support all parameters.  If you
@@ -100,6 +110,12 @@ struct light_state_t {
     int flashMode;
     int flashOnMS;
     int flashOffMS;
+
+    /**
+     * Policy used by the framework to manage the light's brightness.
+     * Currently the values are BRIGHTNESS_MODE_USER and BRIGHTNESS_MODE_SENSOR.
+     */
+    int brightnessMode;
 };
 
 struct light_device_t {
