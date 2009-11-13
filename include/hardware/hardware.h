@@ -20,13 +20,18 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
+#include <cutils/native_handle.h>
+
 __BEGIN_DECLS
 
 /*
  * Value for the hw_module_t.tag field
  */
-#define HARDWARE_MODULE_TAG 'HWMT'
-#define HARDWARE_DEVICE_TAG 'HWDT'
+
+#define MAKE_TAG_CONSTANT(A,B,C,D) (((A) << 24) | ((B) << 16) | ((C) << 8) | (D))
+
+#define HARDWARE_MODULE_TAG MAKE_TAG_CONSTANT('H', 'W', 'M', 'T')
+#define HARDWARE_DEVICE_TAG MAKE_TAG_CONSTANT('H', 'W', 'D', 'T')
 
 struct hw_module_t;
 struct hw_module_methods_t;
@@ -37,7 +42,7 @@ struct hw_device_t;
  * and the fields of this data structure must begin with hw_module_t
  * followed by module specific information.
  */
-struct hw_module_t {
+typedef struct hw_module_t {
     /** tag must be initialized to HARDWARE_MODULE_TAG */
     uint32_t tag;
 
@@ -58,22 +63,27 @@ struct hw_module_t {
 
     /** Modules methods */
     struct hw_module_methods_t* methods;
-    
-    /** padding to 128 bytes, reserved for future use */
-    uint32_t reserved[32-6];
-};
 
-struct hw_module_methods_t {
+    /** module's dso */
+    void* dso;
+
+    /** padding to 128 bytes, reserved for future use */
+    uint32_t reserved[32-7];
+
+} hw_module_t;
+
+typedef struct hw_module_methods_t {
     /** Open a specific device */
     int (*open)(const struct hw_module_t* module, const char* id,
             struct hw_device_t** device);
-};
+
+} hw_module_methods_t;
 
 /**
  * Every device data structure must begin with hw_device_t
  * followed by module specific public methods and attributes.
  */
-struct hw_device_t {
+typedef struct hw_device_t {
     /** tag must be initialized to HARDWARE_DEVICE_TAG */
     uint32_t tag;
 
@@ -88,10 +98,11 @@ struct hw_device_t {
 
     /** Close this device */
     int (*close)(struct hw_device_t* device);
-};
+
+} hw_device_t;
 
 /**
- * Name of the hal_module_info 
+ * Name of the hal_module_info
  */
 #define HAL_MODULE_INFO_SYM         HMI
 
@@ -113,6 +124,8 @@ int hw_get_module(const char *id, const struct hw_module_t **module);
 
 enum {
     HAL_PIXEL_FORMAT_RGBA_8888    = 1,
+    HAL_PIXEL_FORMAT_RGBX_8888    = 2,
+    HAL_PIXEL_FORMAT_RGB_888      = 3,
     HAL_PIXEL_FORMAT_RGB_565      = 4,
     HAL_PIXEL_FORMAT_BGRA_8888    = 5,
     HAL_PIXEL_FORMAT_RGBA_5551    = 6,
@@ -122,7 +135,9 @@ enum {
     HAL_PIXEL_FORMAT_YCbCr_422_P  = 0x12,
     HAL_PIXEL_FORMAT_YCbCr_420_P  = 0x13,
     HAL_PIXEL_FORMAT_YCbCr_422_I  = 0x14,
-    HAL_PIXEL_FORMAT_YCbCr_420_I  = 0x15
+    HAL_PIXEL_FORMAT_YCbCr_420_I  = 0x15,
+    HAL_PIXEL_FORMAT_CbYCrY_422_I = 0x16,
+    HAL_PIXEL_FORMAT_CbYCrY_420_I = 0x17
 };
 
 

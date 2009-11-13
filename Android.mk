@@ -33,3 +33,8 @@ endif
 LOCAL_MODULE:= libhardware
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(addsuffix /Android.mk, $(addprefix $(LOCAL_PATH)/, \
+			modules/gralloc \
+		))
+		

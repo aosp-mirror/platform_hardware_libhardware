@@ -40,6 +40,8 @@ __BEGIN_DECLS
  */
 enum {
     COPYBIT_FORMAT_RGBA_8888    = HAL_PIXEL_FORMAT_RGBA_8888,
+    COPYBIT_FORMAT_RGBX_8888    = HAL_PIXEL_FORMAT_RGBX_8888,
+    COPYBIT_FORMAT_RGB_888      = HAL_PIXEL_FORMAT_RGB_888,
     COPYBIT_FORMAT_RGB_565      = HAL_PIXEL_FORMAT_RGB_565,
     COPYBIT_FORMAT_BGRA_8888    = HAL_PIXEL_FORMAT_BGRA_8888,
     COPYBIT_FORMAT_RGBA_5551    = HAL_PIXEL_FORMAT_RGBA_5551,
@@ -103,12 +105,10 @@ struct copybit_image_t {
     uint32_t    h;
     /* format COPYBIT_FORMAT_xxx */
     int32_t     format;
-    /* offset from base to first pixel */
-    uint32_t    offset;
     /* base of buffer with image */
-    void       *base;
-    /* file descriptor for image */
-    int         fd;
+    void        *base;
+    /* handle to the image */
+    native_handle_t* handle;
 };
 
 /* Rectangle */

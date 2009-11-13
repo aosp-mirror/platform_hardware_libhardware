@@ -173,7 +173,20 @@ __BEGIN_DECLS
  * 
  *  All values are in micro-Tesla (uT) and measure the ambient magnetic
  *  field in the X, Y and Z axis.
- *    
+ *
+ * Proximity
+ * ---------
+ *
+ * The distance value is measured in centimeters.  Note that some proximity
+ * sensors only support a binary "close" or "far" measurement.  In this case,
+ * the sensor should report its maxRange value in the "far" state and a value
+ * less than maxRange in the "near" state.
+ *
+ * Light
+ * -----
+ *
+ * The light sensor value is returned in SI lux units.
+ *
  */
 typedef struct {
     union {
@@ -216,6 +229,12 @@ typedef struct {
 
         /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
+
+        /* distance in centimeters */
+        float           distance;
+
+        /* light in SI lux units */
+        float           light;
     };
 
     /* time is in nanosecond */
@@ -287,7 +306,16 @@ struct sensors_control_device_t {
      * @return a native_handle_t if successful, NULL on error
      */
     native_handle_t* (*open_data_source)(struct sensors_control_device_t *dev);
-    
+
+    /**
+     * Releases any resources that were created by open_data_source.
+     * This call is optional and can be NULL if not implemented
+     * by the sensor HAL.
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*close_data_source)(struct sensors_control_device_t *dev);
+
     /** Activate/deactivate one sensor.
      *
      * @param handle is the handle of the sensor to change.
