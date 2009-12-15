@@ -35,15 +35,7 @@
 #include <hardware/gralloc.h>
 
 #include "gralloc_priv.h"
-#include "allocator.h"
-
-#if HAVE_ANDROID_OS
-#include <linux/android_pmem.h>
-#endif
-
-/*****************************************************************************/
-
-static SimpleBestFitAllocator sAllocator;
+#include "gr.h"
 
 /*****************************************************************************/
 
@@ -105,8 +97,6 @@ struct private_module_t HAL_MODULE_INFO_SYM = {
     bufferMask: 0,
     lock: PTHREAD_MUTEX_INITIALIZER,
     currentBuffer: 0,
-    pmem_master: -1,
-    pmem_master_base: 0
 };
 
 /*****************************************************************************/
@@ -146,7 +136,6 @@ static int gralloc_alloc_framebuffer_locked(alloc_device_t* dev,
     // create a "fake" handles for it
     intptr_t vaddr = intptr_t(m->framebuffer->base);
     private_handle_t* hnd = new private_handle_t(dup(m->framebuffer->fd), size,
-            private_handle_t::PRIV_FLAGS_USES_PMEM |
             private_handle_t::PRIV_FLAGS_FRAMEBUFFER);
 
     // find a free slot
@@ -176,160 +165,28 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
     return err;
 }
 
-static int init_pmem_area_locked(private_module_t* m)
-{
-    int err = 0;
-#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
-    int master_fd = open("/dev/pmem", O_RDWR, 0);
-    if (master_fd >= 0) {
-        
-        size_t size;
-        pmem_region region;
-        if (ioctl(master_fd, PMEM_GET_TOTAL_SIZE, &region) < 0) {
-            LOGE("PMEM_GET_TOTAL_SIZE failed, limp mode");
-            size = 8<<20;   // 8 MiB
-        } else {
-            size = region.len;
-        }
-        sAllocator.setSize(size);
-
-        void* base = mmap(0, size, 
-                PROT_READ|PROT_WRITE, MAP_SHARED, master_fd, 0);
-        if (base == MAP_FAILED) {
-            err = -errno;
-            base = 0;
-            close(master_fd);
-            master_fd = -1;
-        }
-        m->pmem_master = master_fd;
-        m->pmem_master_base = base;
-    } else {
-        err = -errno;
-    }
-    return err;
-#else
-    return -1;
-#endif
-}
-
-static int init_pmem_area(private_module_t* m)
-{
-    pthread_mutex_lock(&m->lock);
-    int err = m->pmem_master;
-    if (err == -1) {
-        // first time, try to initialize pmem
-        err = init_pmem_area_locked(m);
-        if (err) {
-            m->pmem_master = err;
-        }
-    } else if (err < 0) {
-        // pmem couldn't be initialized, never use it
-    } else {
-        // pmem OK
-        err = 0;
-    }
-    pthread_mutex_unlock(&m->lock);
-    return err;
-}
-
 static int gralloc_alloc_buffer(alloc_device_t* dev,
         size_t size, int usage, buffer_handle_t* pHandle)
 {
     int err = 0;
-    int flags = 0;
-
     int fd = -1;
-    void* base = 0;
-    int offset = 0;
-    int lockState = 0;
 
     size = roundUpToPageSize(size);
     
-#if HAVE_ANDROID_OS // should probably define HAVE_PMEM somewhere
-
-    if (usage & GRALLOC_USAGE_HW_TEXTURE) {
-        // enable pmem in that case, so our software GL can fallback to
-        // the copybit module.
-        flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
-    }
-    
-    if (usage & GRALLOC_USAGE_HW_2D) {
-        flags |= private_handle_t::PRIV_FLAGS_USES_PMEM;
-    }
-
-    if ((flags & private_handle_t::PRIV_FLAGS_USES_PMEM) == 0) {
-try_ashmem:
-        fd = ashmem_create_region("gralloc-buffer", size);
-        if (fd < 0) {
-            LOGE("couldn't create ashmem (%s)", strerror(-errno));
-            err = -errno;
-        }
-    } else {
-        private_module_t* m = reinterpret_cast<private_module_t*>(
-                dev->common.module);
-
-        err = init_pmem_area(m);
-        if (err == 0) {
-            // PMEM buffers are always mmapped
-            base = m->pmem_master_base;
-            lockState |= private_handle_t::LOCK_STATE_MAPPED;
-
-            offset = sAllocator.allocate(size);
-            if (offset < 0) {
-                // no more pmem memory
-                err = -ENOMEM;
-            } else {
-                struct pmem_region sub = { offset, size };
-                
-                // now create the "sub-heap"
-                fd = open("/dev/pmem", O_RDWR, 0);
-                err = fd < 0 ? fd : 0;
-                
-                // and connect to it
-                if (err == 0)
-                    err = ioctl(fd, PMEM_CONNECT, m->pmem_master);
-
-                // and make it available to the client process
-                if (err == 0)
-                    err = ioctl(fd, PMEM_MAP, &sub);
-
-                if (err < 0) {
-                    err = -errno;
-                    close(fd);
-                    sAllocator.deallocate(offset);
-                    fd = -1;
-                }
-                //LOGD_IF(!err, "allocating pmem size=%d, offset=%d", size, offset);
-                memset((char*)base + offset, 0, size);
-            }
-        } else {
-            if ((usage & GRALLOC_USAGE_HW_2D) == 0) {
-                // the caller didn't request PMEM, so we can try something else
-                flags &= ~private_handle_t::PRIV_FLAGS_USES_PMEM;
-                err = 0;
-                goto try_ashmem;
-            } else {
-                LOGE("couldn't open pmem (%s)", strerror(-errno));
-            }
-        }
-    }
-
-#else // HAVE_ANDROID_OS
-    
-    fd = ashmem_create_region("Buffer", size);
+    fd = ashmem_create_region("gralloc-buffer", size);
     if (fd < 0) {
         LOGE("couldn't create ashmem (%s)", strerror(-errno));
         err = -errno;
     }
 
-#endif // HAVE_ANDROID_OS
-
     if (err == 0) {
-        private_handle_t* hnd = new private_handle_t(fd, size, flags);
-        hnd->offset = offset;
-        hnd->base = int(base)+offset;
-        hnd->lockState = lockState;
-        *pHandle = hnd;
+        private_handle_t* hnd = new private_handle_t(fd, size, 0);
+        gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
+                dev->common.module);
+        err = mapBuffer(module, hnd);
+        if (err == 0) {
+            *pHandle = hnd;
+        }
     }
     
     LOGE_IF(err, "gralloc failed err=%s", strerror(-err));
@@ -348,7 +205,7 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     size_t size, stride;
     if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || 
-            format == HAL_PIXEL_FORMAT_YCbCr_422_SP) 
+        format == HAL_PIXEL_FORMAT_YCbCr_422_SP)
     {
         // FIXME: there is no way to return the vstride
         int vstride;
@@ -419,23 +276,6 @@ static int gralloc_free(alloc_device_t* dev,
         int index = (hnd->base - m->framebuffer->base) / bufferSize;
         m->bufferMask &= ~(1<<index); 
     } else { 
-#if HAVE_ANDROID_OS
-        if (hnd->flags & private_handle_t::PRIV_FLAGS_USES_PMEM) {
-            if (hnd->fd >= 0) {
-                struct pmem_region sub = { hnd->offset, hnd->size };
-                int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
-                LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
-                        "fd=%d, sub.offset=%lu, sub.size=%lu",
-                        strerror(errno), hnd->fd, hnd->offset, hnd->size);
-                if (err == 0) {
-                    // we can't deallocate the memory in case of UNMAP failure
-                    // because it would give that process access to someone else's
-                    // surfaces, which would be a security breach.
-                    sAllocator.deallocate(hnd->offset);
-                }
-            }
-        }
-#endif // HAVE_ANDROID_OS
         gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(
                 dev->common.module);
         terminateBuffer(module, const_cast<private_handle_t*>(hnd));
