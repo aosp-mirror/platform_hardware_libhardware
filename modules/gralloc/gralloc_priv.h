@@ -95,10 +95,6 @@ struct private_handle_t {
         magic = 0;
     }
 
-    bool usesPhysicallyContiguousMemory() {
-        return false;
-    }
-
     static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
@@ -109,13 +105,6 @@ struct private_handle_t {
             return -EINVAL;
         }
         return 0;
-    }
-
-    static private_handle_t* dynamicCast(const native_handle* in) {
-        if (validate(in) == 0) {
-            return (private_handle_t*) in;
-        }
-        return NULL;
     }
 #endif
 };
