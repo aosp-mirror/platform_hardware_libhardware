@@ -204,47 +204,29 @@ static int gralloc_alloc(alloc_device_t* dev,
         return -EINVAL;
 
     size_t size, stride;
-    if (format == HAL_PIXEL_FORMAT_YCbCr_420_SP || 
-        format == HAL_PIXEL_FORMAT_YCbCr_422_SP)
-    {
-        // FIXME: there is no way to return the vstride
-        int vstride;
-        stride = (w + 1) & ~1; 
-        switch (format) {
-            case HAL_PIXEL_FORMAT_YCbCr_420_SP:
-                size = stride * h * 2;
-                break;
-            case HAL_PIXEL_FORMAT_YCbCr_422_SP:
-                vstride = (h+1) & ~1;
-                size = (stride * vstride) + (w/2 * h/2) * 2;
-                break;
-            default:
-                return -EINVAL;
-        }
-    } else {
-        int align = 4;
-        int bpp = 0;
-        switch (format) {
-            case HAL_PIXEL_FORMAT_RGBA_8888:
-            case HAL_PIXEL_FORMAT_RGBX_8888:
-            case HAL_PIXEL_FORMAT_BGRA_8888:
-                bpp = 4;
-                break;
-            case HAL_PIXEL_FORMAT_RGB_888:
-                bpp = 3;
-                break;
-            case HAL_PIXEL_FORMAT_RGB_565:
-            case HAL_PIXEL_FORMAT_RGBA_5551:
-            case HAL_PIXEL_FORMAT_RGBA_4444:
-                bpp = 2;
-                break;
-            default:
-                return -EINVAL;
-        }
-        size_t bpr = (w*bpp + (align-1)) & ~(align-1);
-        size = bpr * h;
-        stride = bpr / bpp;
+
+    int align = 4;
+    int bpp = 0;
+    switch (format) {
+        case HAL_PIXEL_FORMAT_RGBA_8888:
+        case HAL_PIXEL_FORMAT_RGBX_8888:
+        case HAL_PIXEL_FORMAT_BGRA_8888:
+            bpp = 4;
+            break;
+        case HAL_PIXEL_FORMAT_RGB_888:
+            bpp = 3;
+            break;
+        case HAL_PIXEL_FORMAT_RGB_565:
+        case HAL_PIXEL_FORMAT_RGBA_5551:
+        case HAL_PIXEL_FORMAT_RGBA_4444:
+            bpp = 2;
+            break;
+        default:
+            return -EINVAL;
     }
+    size_t bpr = (w*bpp + (align-1)) & ~(align-1);
+    size = bpr * h;
+    stride = bpr / bpp;
 
     int err;
     if (usage & GRALLOC_USAGE_HW_FB) {
