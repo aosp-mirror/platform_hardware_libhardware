@@ -154,11 +154,11 @@ enum {
     HAL_TRANSFORM_FLIP_H    = 0x01,
     /* flip source image vertically */
     HAL_TRANSFORM_FLIP_V    = 0x02,
-    /* rotate source image 90 degres */
+    /* rotate source image 90 degrees */
     HAL_TRANSFORM_ROT_90    = 0x04,
-    /* rotate source image 180 degres */
+    /* rotate source image 180 degrees */
     HAL_TRANSFORM_ROT_180   = 0x03,
-    /* rotate source image 270 degres */
+    /* rotate source image 270 degrees */
     HAL_TRANSFORM_ROT_270   = 0x07,
 };
 
