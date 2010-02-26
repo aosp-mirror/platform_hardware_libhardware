@@ -138,8 +138,23 @@ __BEGIN_DECLS
  *  the z-axis moves toward the y-axis.
  *
  * roll: Rotation around Y axis (-90<=roll<=90), with positive values when
- *  the x-axis moves AWAY from the z-axis.
- * 
+ *  the x-axis moves towards the z-axis.
+ *
+ * Note: For historical reasons the roll angle is positive in the clockwise
+ *  direction (mathematically speaking, it should be positive in the
+ *  counter-clockwise direction):
+ *
+ *                Z
+ *                ^
+ *  (+roll)  .--> |
+ *          /     |
+ *         |      |  roll: rotation around Y axis
+ *     X <-------(.)
+ *                 Y
+ *       note that +Y == -roll
+ *
+ *
+ *
  * Note: This definition is different from yaw, pitch and roll used in aviation
  *  where the X axis is along the long side of the plane (tail to nose).
  *  
