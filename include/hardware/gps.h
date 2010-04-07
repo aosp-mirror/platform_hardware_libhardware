@@ -263,12 +263,23 @@ typedef void (* gps_sv_status_callback)(GpsSvStatus* sv_info);
 /** Callback for reporting NMEA sentences. */
 typedef void (* gps_nmea_callback)(GpsUtcTime timestamp, const char* nmea, int length);
 
+/** Callback utility for acquiring the GPS wakelock.
+    This can be used to prevent the CPU from suspending while handling GPS events. */
+typedef void (* gps_acquire_wakelock)();
+
+/** Callback utility for releasing the GPS wakelock. */
+typedef void (* gps_release_wakelock)();
+
 /** GPS callback structure. */
 typedef struct {
-        gps_location_callback location_cb;
-        gps_status_callback status_cb;
-        gps_sv_status_callback sv_status_cb;
-        gps_nmea_callback nmea_cb;
+    /** set to sizeof(GpsCallbacks) */
+    size_t      size;
+    gps_location_callback location_cb;
+    gps_status_callback status_cb;
+    gps_sv_status_callback sv_status_cb;
+    gps_nmea_callback nmea_cb;
+    gps_acquire_wakelock acquire_wakelock_cb;
+    gps_release_wakelock release_wakelock_cb;
 } GpsCallbacks;
 
 
