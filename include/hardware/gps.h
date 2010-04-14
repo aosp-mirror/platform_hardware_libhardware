@@ -37,7 +37,7 @@ typedef int64_t GpsUtcTime;
 /** Maximum number of SVs for gps_sv_status_callback(). */
 #define GPS_MAX_SVS 32
 
-/** Requested mode for GPS operation. */
+/** Requested operational mode for GPS operation. */
 typedef uint32_t GpsPositionMode;
 // IMPORTANT: Note that the following values must match
 // constants in GpsLocationProvider.java.
@@ -47,6 +47,15 @@ typedef uint32_t GpsPositionMode;
 #define GPS_POSITION_MODE_MS_BASED      1
 /** AGPS MS-Assisted mode. */
 #define GPS_POSITION_MODE_MS_ASSISTED   2
+
+/** Requested recurrence mode for GPS operation. */
+typedef uint32_t GpsPositionRecurrence;
+// IMPORTANT: Note that the following values must match
+// constants in GpsLocationProvider.java.
+/** Receive GPS fixes on a recurring basis at a specified period. */
+#define GPS_POSITION_RECURRENCE_PERIODIC    0
+/** Request a single shot GPS fix. */
+#define GPS_POSITION_RECURRENCE_SINGLE      1
 
 /** GPS status event values. */
 typedef uint16_t GpsStatusValue;
@@ -77,6 +86,20 @@ typedef uint16_t GpsLocationFlags;
 #define GPS_LOCATION_HAS_BEARING    0x0008
 /** GpsLocation has valid accuracy. */
 #define GPS_LOCATION_HAS_ACCURACY   0x0010
+
+/** Flags for the gps_set_capabilities callback. */
+
+/** GPS HAL schedules fixes for GPS_POSITION_RECURRENCE_PERIODIC mode.
+    If this is not set, then the framework will use 1000ms for min_interval
+    and will start and call start() and stop() to schedule the GPS.
+ */
+#define GPS_CAPABILITY_SCHEDULING       0x0000001
+/** GPS supports MS-Based AGPS mode */
+#define GPS_CAPABILITY_MSB              0x0000002
+/** GPS supports MS-Assisted AGPS mode */
+#define GPS_CAPABILITY_MSA              0x0000004
+/** GPS supports single-shot fixes */
+#define GPS_CAPABILITY_SINGLE_SHOT      0x0000008
 
 /** Flags used to specify which aiding data to delete
     when calling delete_aiding_data(). */
@@ -263,6 +286,10 @@ typedef void (* gps_sv_status_callback)(GpsSvStatus* sv_info);
 /** Callback for reporting NMEA sentences. */
 typedef void (* gps_nmea_callback)(GpsUtcTime timestamp, const char* nmea, int length);
 
+/** Callback to inform framework of the GPS engine's capabilities.
+    capability parameter is a bit field of GPS_CAPABILITY_* flags */
+typedef void (* gps_set_capabilities)(uint32_t capabilities);
+
 /** Callback utility for acquiring the GPS wakelock.
     This can be used to prevent the CPU from suspending while handling GPS events. */
 typedef void (* gps_acquire_wakelock)();
@@ -278,6 +305,7 @@ typedef struct {
     gps_status_callback status_cb;
     gps_sv_status_callback sv_status_cb;
     gps_nmea_callback nmea_cb;
+    gps_set_capabilities set_capabilities_cb;
     gps_acquire_wakelock acquire_wakelock_cb;
     gps_release_wakelock release_wakelock_cb;
 } GpsCallbacks;
@@ -321,10 +349,12 @@ typedef struct {
     void  (*delete_aiding_data)(GpsAidingData flags);
 
     /**
-     * fix_frequency represents the time between fixes in seconds.
-     * Set fix_frequency to zero for a single-shot fix.
+     * min_interval represents the time between fixes in milliseconds.
+     * preferred_accuracy represents the requested fix accuracy in meters.
+     * preferred_time represents the requested time to first fix in milliseconds.
      */
-    int   (*set_position_mode)(GpsPositionMode mode, int fix_frequency);
+    int   (*set_position_mode)(GpsPositionMode mode, GpsPositionRecurrence recurrence,
+            uint32_t min_interval, uint32_t preferred_accuracy, uint32_t preferred_time);
 
     /** Get a pointer to extension information. */
     const void* (*get_extension)(const char* name);
