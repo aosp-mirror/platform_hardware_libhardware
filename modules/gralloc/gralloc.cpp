@@ -425,7 +425,7 @@ static int gralloc_free(alloc_device_t* dev,
                 struct pmem_region sub = { hnd->offset, hnd->size };
                 int err = ioctl(hnd->fd, PMEM_UNMAP, &sub);
                 LOGE_IF(err<0, "PMEM_UNMAP failed (%s), "
-                        "fd=%d, sub.offset=%lu, sub.size=%lu",
+                        "fd=%d, sub.offset=%d, sub.size=%d",
                         strerror(errno), hnd->fd, hnd->offset, hnd->size);
                 if (err == 0) {
                     // we can't deallocate the memory in case of UNMAP failure
