@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <pthread.h>
 
 #include <hardware/hardware.h>
 
@@ -274,28 +275,43 @@ typedef struct {
     uint32_t    used_in_fix_mask;
 } GpsSvStatus;
 
-/** Callback with location information. */
+/** Callback with location information.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* gps_location_callback)(GpsLocation* location);
 
-/** Callback with status information. */
+/** Callback with status information.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* gps_status_callback)(GpsStatus* status);
 
-/** Callback with SV status information. */
+/** Callback with SV status information.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* gps_sv_status_callback)(GpsSvStatus* sv_info);
 
-/** Callback for reporting NMEA sentences. */
+/** Callback for reporting NMEA sentences.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* gps_nmea_callback)(GpsUtcTime timestamp, const char* nmea, int length);
 
 /** Callback to inform framework of the GPS engine's capabilities.
-    capability parameter is a bit field of GPS_CAPABILITY_* flags */
+ *  Capability parameter is a bit field of GPS_CAPABILITY_* flags.
+ */
 typedef void (* gps_set_capabilities)(uint32_t capabilities);
 
 /** Callback utility for acquiring the GPS wakelock.
-    This can be used to prevent the CPU from suspending while handling GPS events. */
+ *  This can be used to prevent the CPU from suspending while handling GPS events.
+ */
 typedef void (* gps_acquire_wakelock)();
 
 /** Callback utility for releasing the GPS wakelock. */
 typedef void (* gps_release_wakelock)();
+
+/** Callback for creating a thread that can call into the Java framework code.
+ *  This must be used to create any threads that report events up to the framework.
+ */
+typedef pthread_t (* gps_create_thread)(const char* name, void (*start)(void *), void* arg);
 
 /** GPS callback structure. */
 typedef struct {
@@ -308,6 +324,7 @@ typedef struct {
     gps_set_capabilities set_capabilities_cb;
     gps_acquire_wakelock acquire_wakelock_cb;
     gps_release_wakelock release_wakelock_cb;
+    gps_create_thread create_thread_cb;
 } GpsCallbacks;
 
 
@@ -361,13 +378,15 @@ typedef struct {
 } GpsInterface;
 
 /** Callback to request the client to download XTRA data.
-    The client should download XTRA data and inject it by calling
-     inject_xtra_data(). */
+ *  The client should download XTRA data and inject it by calling inject_xtra_data().
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* gps_xtra_download_request)();
 
 /** Callback structure for the XTRA interface. */
 typedef struct {
-        gps_xtra_download_request download_request_cb;
+    gps_xtra_download_request download_request_cb;
+    gps_create_thread create_thread_cb;
 } GpsXtraCallbacks;
 
 /** Extended interface for XTRA support. */
@@ -404,12 +423,15 @@ typedef struct {
     AGpsStatusValue status;
 } AGpsStatus;
 
-/** Callback with AGPS status information. */
+/** Callback with AGPS status information.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (* agps_status_callback)(AGpsStatus* status);
 
 /** Callback structure for the AGPS interface. */
 typedef struct {
-        agps_status_callback status_cb;
+    agps_status_callback status_cb;
+    gps_create_thread create_thread_cb;
 } AGpsCallbacks;
 
 
@@ -505,16 +527,19 @@ typedef struct {
 
 } GpsNiNotification;
 
-/** Callback with NI notification. */
+/** Callback with NI notification.
+ *  Can only be called from a thread created by create_thread_cb.
+ */
 typedef void (*gps_ni_notify_callback)(GpsNiNotification *notification);
 
 /** GPS NI callback structure. */
 typedef struct
 {
-   /**
-    * Sends the notification request from HAL to GPSLocationProvider.
-    */
-   gps_ni_notify_callback notify_cb;
+    /**
+     * Sends the notification request from HAL to GPSLocationProvider.
+     */
+    gps_ni_notify_callback notify_cb;
+    gps_create_thread create_thread_cb;
 } GpsNiCallbacks;
 
 /**
