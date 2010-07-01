@@ -64,7 +64,7 @@ enum {
     /* buffer will be used as an OpenGL ES render target */
     GRALLOC_USAGE_HW_RENDER       = 0x00000200,
     /* buffer will be used by the 2D hardware blitter */
-    GRALLOC_USAGE_HW_2D           = 0x00000C00,
+    GRALLOC_USAGE_HW_2D           = 0x00000400,
     /* buffer will be used with the framebuffer device */
     GRALLOC_USAGE_HW_FB           = 0x00001000,
     /* mask for the software usage bit-mask */
