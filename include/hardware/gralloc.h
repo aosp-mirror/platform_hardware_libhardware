@@ -69,6 +69,13 @@ enum {
     GRALLOC_USAGE_HW_FB           = 0x00001000,
     /* mask for the software usage bit-mask */
     GRALLOC_USAGE_HW_MASK         = 0x00001F00,
+
+    /* implementation-specific private usage flags */
+    GRALLOC_USAGE_PRIVATE_0       = 0x10000000,
+    GRALLOC_USAGE_PRIVATE_1       = 0x20000000,
+    GRALLOC_USAGE_PRIVATE_2       = 0x40000000,
+    GRALLOC_USAGE_PRIVATE_3       = 0x80000000,
+    GRALLOC_USAGE_PRIVATE_MASK    = 0xF0000000,
 };
 
 /*****************************************************************************/
