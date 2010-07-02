@@ -130,33 +130,48 @@ enum {
     HAL_PIXEL_FORMAT_BGRA_8888          = 5,
     HAL_PIXEL_FORMAT_RGBA_5551          = 6,
     HAL_PIXEL_FORMAT_RGBA_4444          = 7,
-    /* 0x8 - 0xF range unavailable */
-    HAL_PIXEL_FORMAT_YCbCr_422_SP       = 0x10,     // NV16
-    HAL_PIXEL_FORMAT_YCrCb_420_SP       = 0x11,     // NV21
-    HAL_PIXEL_FORMAT_YCbCr_422_P        = 0x12,     // IYUV
-    HAL_PIXEL_FORMAT_YCbCr_420_P        = 0x13,     // YUV9
-    HAL_PIXEL_FORMAT_YCbCr_422_I        = 0x14,     // YUY2
-    /* 0x15 reserved */
-    HAL_PIXEL_FORMAT_CbYCrY_422_I       = 0x16,     // UYVY
-    /* 0x17 reserved */
-    /* 0x18 - 0x1F range unavailable */
-    HAL_PIXEL_FORMAT_YCbCr_420_SP_TILED = 0x20,     // NV12_adreno_tiled
-    HAL_PIXEL_FORMAT_YCbCr_420_SP       = 0x21,     // NV12
-    HAL_PIXEL_FORMAT_YCrCb_422_SP       = 0x22,     // NV61
+
+    /* 0x8 - 0xFF range unavailable */
+
+    /*
+     * 0x100 - 0x1FF
+     *
+     * This range is reserved for HAL implementations. OEMs can use
+     * any value in this range to communicate formats between their HAL
+     * modules
+     *
+     */
+
+    /*
+     * Android YUV formats:
+     *
+     * These two formats are exposed outside of the HAL to software
+     * decoders and applications.
+     * EGLImageKHR must support them in conjunction with the
+     * OES_EGL_image_external extension.
+     *
+     * YV12 is a planar format comprised of a WxH Y plane followed
+     * by (W/2) x (H/2) Cr and Cb planes.
+     *
+     * YV16 is a planar format comprised of WxH Y, Cr and Cb planes.
+     *
+     * For both these formats, the Y plane appears first, followed by the Cr
+     * plane and then the Cb plane.
+     *
+     * Both formats *require* a 16 pixel alignment horizontally and vertically.
+     *
+     */
+    HAL_PIXEL_FORMAT_YV12 = 0x32315659, // YCrCb 4:2:0 Planar
+    HAL_PIXEL_FORMAT_YV16 = 0x36315659, // YCrCb 4:2:2 Planar
+
+
+    /* Legacy formats (deprecated), used by ImageFormat.java */
+    HAL_PIXEL_FORMAT_YCbCr_422_SP       = 0x10, // NV16
+    HAL_PIXEL_FORMAT_YCrCb_420_SP       = 0x11, // NV21
+    HAL_PIXEL_FORMAT_YCbCr_422_I        = 0x14, // YUY2
+    HAL_PIXEL_FORMAT_YCbCr_420_SP_TILED = 0x20, // NV12_adreno_tiled
 };
 
-/* fourcc mapping for the YUV formats. see http://www.fourcc.org */
-enum {
-    HAL_PIXEL_FORMAT_NV16               = HAL_PIXEL_FORMAT_YCbCr_422_SP,
-    HAL_PIXEL_FORMAT_NV21               = HAL_PIXEL_FORMAT_YCrCb_420_SP,
-    HAL_PIXEL_FORMAT_IYUV               = HAL_PIXEL_FORMAT_YCbCr_422_P,
-    HAL_PIXEL_FORMAT_YUV9               = HAL_PIXEL_FORMAT_YCbCr_420_P,
-    HAL_PIXEL_FORMAT_YUY2               = HAL_PIXEL_FORMAT_YCbCr_422_I,
-    HAL_PIXEL_FORMAT_UYVY               = HAL_PIXEL_FORMAT_CbYCrY_422_I,
-    HAL_PIXEL_FORMAT_NV12_ADRENO_TILED  = HAL_PIXEL_FORMAT_YCbCr_420_SP_TILED,
-    HAL_PIXEL_FORMAT_NV12               = HAL_PIXEL_FORMAT_YCbCr_420_SP,
-    HAL_PIXEL_FORMAT_NV61               = HAL_PIXEL_FORMAT_YCrCb_422_SP
-};
 
 /**
  * Transformation definitions
