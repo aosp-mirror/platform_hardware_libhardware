@@ -36,6 +36,7 @@ __BEGIN_DECLS
  */
 #define SENSORS_HARDWARE_CONTROL    "control"
 #define SENSORS_HARDWARE_DATA       "data"
+#define SENSORS_HARDWARE_POLL       "poll"
 
 /**
  * Handles must be higher than SENSORS_HANDLE_BASE and must be unique.
@@ -66,18 +67,7 @@ __BEGIN_DECLS
  */
 
 #define GRAVITY_SUN             (275.0f)
-#define GRAVITY_MERCURY         (3.70f)
-#define GRAVITY_VENUS           (8.87f)
 #define GRAVITY_EARTH           (9.80665f)
-#define GRAVITY_MOON            (1.6f)
-#define GRAVITY_MARS            (3.71f)
-#define GRAVITY_JUPITER         (23.12f)
-#define GRAVITY_SATURN          (8.96f)
-#define GRAVITY_URANUS          (8.69f)
-#define GRAVITY_NEPTUNE         (11.0f)
-#define GRAVITY_PLUTO           (0.6f)
-#define GRAVITY_DEATH_STAR_I    (0.000000353036145f)
-#define GRAVITY_THE_ISLAND      (4.815162342f)
 
 /** Maximum magnetic field on Earth's surface */
 #define MAGNETIC_FIELD_EARTH_MAX    (60.0f)
@@ -283,7 +273,7 @@ struct sensor_t {
     /* vendor of the hardware part */
     const char*     vendor;
     /* version of the hardware part + driver. The value of this field is
-     * left to the implementation and doesn't have to be monotonicaly
+     * left to the implementation and doesn't have to be monotonically
      * increasing.
      */    
     int             version;
@@ -309,6 +299,38 @@ struct sensor_t {
  * Every device data structure must begin with hw_device_t
  * followed by module specific public methods and attributes.
  */
+struct sensors_poll_device_t {
+    struct hw_device_t common;
+
+    /** Activate/deactivate one sensor.
+     *
+     * @param handle is the handle of the sensor to change.
+     * @param enabled set to 1 to enable, or 0 to disable the sensor.
+     *
+     * @return 0 on success, negative errno code otherwise
+     */
+    int (*activate)(struct sensors_poll_device_t *dev,
+            int handle, int enabled);
+
+    /**
+     * Set the delay between sensor events in nanoseconds for a given sensor
+     *
+     * @return 0 if successful, < 0 on error
+     */
+    int (*setDelay)(struct sensors_poll_device_t *dev,
+            int handle, int64_t ns);
+
+    /**
+     * Returns an array of sensor data.
+     *
+     * @return the number of events read on success, or -errno in case of an error.
+     *
+     */
+    int (*poll)(struct sensors_poll_device_t *dev,
+            sensors_data_t* data, int count);
+};
+
+
 struct sensors_control_device_t {
     struct hw_device_t common;
     
@@ -392,6 +414,16 @@ struct sensors_data_device_t {
 
 
 /** convenience API for opening and closing a device */
+
+static inline int sensors_open(const struct hw_module_t* module,
+        struct sensors_poll_device_t** device) {
+    return module->methods->open(module,
+            SENSORS_HARDWARE_POLL, (struct hw_device_t**)device);
+}
+
+static inline int sensors_close(struct sensors_poll_device_t* device) {
+    return device->common.close(&device->common);
+}
 
 static inline int sensors_control_open(const struct hw_module_t* module, 
         struct sensors_control_device_t** device) {
