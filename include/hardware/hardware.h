@@ -143,26 +143,28 @@ enum {
      */
 
     /*
-     * Android YUV formats:
+     * Android YUV format:
      *
-     * These two formats are exposed outside of the HAL to software
+     * This format is exposed outside of the HAL to software
      * decoders and applications.
-     * EGLImageKHR must support them in conjunction with the
+     * EGLImageKHR must support it in conjunction with the
      * OES_EGL_image_external extension.
      *
-     * YV12 is a planar format comprised of a WxH Y plane followed
+     * YV12 is 4:2:0 YCrCb planar format comprised of a WxH Y plane followed
      * by (W/2) x (H/2) Cr and Cb planes.
      *
-     * YV16 is a planar format comprised of WxH Y, Cr and Cb planes.
-     *
-     * For both these formats, the Y plane appears first, followed by the Cr
-     * plane and then the Cb plane.
-     *
-     * Both formats *require* a 16 pixel alignment horizontally and vertically.
+     * This format assumes an horizontal stride of 16 pixels for all planes
+     * and an implicit vertical stride of the image height's next multiple
+     * of two:
+     *   y_size = stride * ALIGN(height, 2)
+     *   c_size = ALIGN(stride/2, 16) * height
+     *   size = y_size + c_size * 2
+     *   cr_offset = y_size
+     *   cb_offset = y_size + c_size
      *
      */
-    HAL_PIXEL_FORMAT_YV12 = 0x32315659, // YCrCb 4:2:0 Planar
-    HAL_PIXEL_FORMAT_YV16 = 0x36315659, // YCrCb 4:2:2 Planar
+    HAL_PIXEL_FORMAT_YV12   = 0x32315659, // YCrCb 4:2:0 Planar
+
 
 
     /* Legacy formats (deprecated), used by ImageFormat.java */
