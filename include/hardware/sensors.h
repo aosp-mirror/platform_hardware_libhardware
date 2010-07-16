@@ -249,6 +249,53 @@ typedef struct {
 } sensors_data_t;
 
 
+
+/**
+ * Union of the various types of sensor data
+ * that can be returned.
+ */
+typedef struct sensors_event_t {
+    /* must be sizeof(struct sensors_event_t) */
+    int32_t version;
+
+    /* sensor identifier */
+    int32_t sensor;
+
+    /* sensor type */
+    int32_t type;
+
+    /* reserved */
+    int32_t reserved0;
+
+    /* time is in nanosecond */
+    int64_t timestamp;
+
+    union {
+        float           data[16];
+
+        /* acceleration values are in meter per second per second (m/s^2) */
+        sensors_vec_t   acceleration;
+
+        /* magnetic vector values are in micro-Tesla (uT) */
+        sensors_vec_t   magnetic;
+
+        /* orientation values are in degrees */
+        sensors_vec_t   orientation;
+
+        /* temperature is in degrees centigrade (Celsius) */
+        float           temperature;
+
+        /* distance in centimeters */
+        float           distance;
+
+        /* light in SI lux units */
+        float           light;
+    };
+    uint32_t        reserved1[4];
+} sensors_event_t;
+
+
+
 struct sensor_t;
 
 /**
@@ -327,7 +374,7 @@ struct sensors_poll_device_t {
      *
      */
     int (*poll)(struct sensors_poll_device_t *dev,
-            sensors_data_t* data, int count);
+            sensors_event_t* data, int count);
 };
 
 
