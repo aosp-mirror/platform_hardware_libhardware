@@ -82,6 +82,15 @@ int main(int argc, char** argv)
     }
 
     for (int i=0 ; i<count ; i++) {
+        err = device->activate(device, list[i].handle, 0);
+        if (err != 0) {
+            printf("deactivate() for '%s'failed (%s)\n",
+                    list[i].name, strerror(-err));
+            return 0;
+        }
+    }
+
+    for (int i=0 ; i<count ; i++) {
         err = device->activate(device, list[i].handle, 1);
         if (err != 0) {
             printf("activate() for '%s'failed (%s)\n",
@@ -108,10 +117,10 @@ int main(int argc, char** argv)
                 break;
             }
 
-            switch(data.sensor) {
+            switch(data.type) {
                 case SENSOR_TYPE_ACCELEROMETER:
                     printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.acceleration.x,
                             data.acceleration.y,
@@ -119,7 +128,7 @@ int main(int argc, char** argv)
                     break;
                 case SENSOR_TYPE_MAGNETIC_FIELD:
                     printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.magnetic.x,
                             data.magnetic.y,
@@ -127,7 +136,7 @@ int main(int argc, char** argv)
                     break;
                 case SENSOR_TYPE_ORIENTATION:
                     printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.orientation.azimuth,
                             data.orientation.pitch,
@@ -135,25 +144,25 @@ int main(int argc, char** argv)
                     break;
                 case SENSOR_TYPE_PROXIMITY:
                     printf("sensor=%s, time=%lld, value=%f\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.distance);
                     break;
                 case SENSOR_TYPE_TEMPERATURE:
                     printf("sensor=%s, time=%lld, value=%f\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.temperature);
                     break;
                 case SENSOR_TYPE_LIGHT:
                     printf("sensor=%s, time=%lld, value=%f\n",
-                            getSensorName(data.sensor),
+                            getSensorName(data.type),
                             data.timestamp,
                             data.light);
                     break;
                 default:
-                    printf("sensor=%s, time=%lld, value=<%f,%f,%f>\n",
-                            getSensorName(data.sensor),
+                    printf("sensor=%d, time=%lld, value=<%f,%f,%f>\n",
+                            data.type,
                             data.timestamp,
                             data.acceleration.x,
                             data.acceleration.y,
