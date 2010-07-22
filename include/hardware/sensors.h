@@ -34,8 +34,6 @@ __BEGIN_DECLS
 /**
  * Name of the sensors device to open
  */
-#define SENSORS_HARDWARE_CONTROL    "control"
-#define SENSORS_HARDWARE_DATA       "data"
 #define SENSORS_HARDWARE_POLL       "poll"
 
 /**
@@ -215,48 +213,6 @@ typedef struct {
  * Union of the various types of sensor data
  * that can be returned.
  */
-typedef struct {
-    /* sensor identifier */
-    int             sensor;
-
-    union {
-        /* x,y,z values of the given sensor */
-        sensors_vec_t   vector;
-
-        /* orientation values are in degrees */
-        sensors_vec_t   orientation;
-
-        /* acceleration values are in meter per second per second (m/s^2) */
-        sensors_vec_t   acceleration;
-
-        /* magnetic vector values are in micro-Tesla (uT) */
-        sensors_vec_t   magnetic;
-
-        /* temperature is in degrees centigrade (Celsius) */
-        float           temperature;
-
-        /* distance in centimeters */
-        float           distance;
-
-        /* light in SI lux units */
-        float           light;
-
-	/* pressure in hecto pascals */
-        float           pressure;
-    };
-
-    /* time is in nanosecond */
-    int64_t         time;
-
-    uint32_t        reserved;
-} sensors_data_t;
-
-
-
-/**
- * Union of the various types of sensor data
- * that can be returned.
- */
 typedef struct sensors_event_t {
     /* must be sizeof(struct sensors_event_t) */
     int32_t version;
@@ -380,89 +336,6 @@ struct sensors_poll_device_t {
             sensors_event_t* data, int count);
 };
 
-
-struct sensors_control_device_t {
-    struct hw_device_t common;
-    
-    /**
-     * Returns a native_handle_t, which will be the parameter to
-     * sensors_data_device_t::open_data(). 
-     * The caller takes ownership of this handle. This is intended to be
-     * passed cross processes.
-     *
-     * @return a native_handle_t if successful, NULL on error
-     */
-    native_handle_t* (*open_data_source)(struct sensors_control_device_t *dev);
-
-    /**
-     * Releases any resources that were created by open_data_source.
-     * This call is optional and can be NULL if not implemented
-     * by the sensor HAL.
-     *
-     * @return 0 if successful, < 0 on error
-     */
-    int (*close_data_source)(struct sensors_control_device_t *dev);
-
-    /** Activate/deactivate one sensor.
-     *
-     * @param handle is the handle of the sensor to change.
-     * @param enabled set to 1 to enable, or 0 to disable the sensor.
-     *
-     * @return 0 on success, negative errno code otherwise
-     */
-    int (*activate)(struct sensors_control_device_t *dev, 
-            int handle, int enabled);
-    
-    /**
-     * Set the delay between sensor events in ms
-     *
-     * @return 0 if successful, < 0 on error
-     */
-    int (*set_delay)(struct sensors_control_device_t *dev, int32_t ms);
-
-    /**
-     * Causes sensors_data_device_t.poll() to return -EWOULDBLOCK immediately.
-     */
-    int (*wake)(struct sensors_control_device_t *dev);
-};
-
-struct sensors_data_device_t {
-    struct hw_device_t common;
-
-    /**
-     * Prepare to read sensor data.
-     *
-     * This routine does NOT take ownership of the handle
-     * and must not close it. Typically this routine would
-     * use a duplicate of the nh parameter.
-     *
-     * @param nh from sensors_control_open.
-     *
-     * @return 0 if successful, < 0 on error
-     */
-    int (*data_open)(struct sensors_data_device_t *dev, native_handle_t* nh);
-    
-    /**
-     * Caller has completed using the sensor data.
-     * The caller will not be blocked in sensors_data_poll
-     * when this routine is called.
-     *
-     * @return 0 if successful, < 0 on error
-     */
-    int (*data_close)(struct sensors_data_device_t *dev);
-    
-    /**
-     * Return sensor data for one of the enabled sensors.
-     *
-     * @return sensor handle for the returned data, 0x7FFFFFFF when 
-     * sensors_control_device_t.wake() is called and -errno on error
-     *  
-     */
-    int (*poll)(struct sensors_data_device_t *dev, 
-            sensors_data_t* data);
-};
-
-
 /** convenience API for opening and closing a device */
 
 static inline int sensors_open(const struct hw_module_t* module,
@@ -475,27 +348,8 @@ static inline int sensors_close(struct sensors_poll_device_t* device) {
     return device->common.close(&device->common);
 }
 
-static inline int sensors_control_open(const struct hw_module_t* module, 
-        struct sensors_control_device_t** device) {
-    return module->methods->open(module, 
-            SENSORS_HARDWARE_CONTROL, (struct hw_device_t**)device);
-}
-
-static inline int sensors_control_close(struct sensors_control_device_t* device) {
-    return device->common.close(&device->common);
-}
-
-static inline int sensors_data_open(const struct hw_module_t* module, 
-        struct sensors_data_device_t** device) {
-    return module->methods->open(module, 
-            SENSORS_HARDWARE_DATA, (struct hw_device_t**)device);
-}
-
-static inline int sensors_data_close(struct sensors_data_device_t* device) {
-    return device->common.close(&device->common);
-}
-
-
 __END_DECLS
+
+#include <hardware/sensors_deprecated.h>
 
 #endif  // ANDROID_SENSORS_INTERFACE_H
