@@ -1,7 +1,6 @@
 # Copyright 2006 The Android Open Source Project
 
 # Setting LOCAL_PATH will mess up all-subdir-makefiles, so do it beforehand.
-SAVE_MAKEFILES := $(call all-subdir-makefiles)
 
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
@@ -19,8 +18,6 @@ ifneq ($(TARGET_SIMULATOR),true)
 LOCAL_SHARED_LIBRARIES += libdl
 endif
 
-include $(SAVE_MAKEFILES)
-
 LOCAL_SRC_FILES += hardware.c
 
 # need "-lrt" on Linux simulator to pick up clock_gettime
@@ -36,5 +33,6 @@ include $(BUILD_SHARED_LIBRARY)
 
 include $(addsuffix /Android.mk, $(addprefix $(LOCAL_PATH)/, \
 			modules/gralloc \
+			tests \
 		))
 		
