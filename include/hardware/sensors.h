@@ -118,6 +118,9 @@ __BEGIN_DECLS
  * 
  * All values are angles in degrees.
  * 
+ * Orientation sensors return sensor events for all 3 axes at a constant
+ * rate defined by setDelay().
+ *
  * azimuth: angle between the magnetic north direction and the Y axis, around 
  *  the Z axis (0<=azimuth<360).
  *      0=North, 90=East, 180=South, 270=West
@@ -153,6 +156,9 @@ __BEGIN_DECLS
  *  All values are in SI units (m/s^2) and measure the acceleration of the
  *  device minus the force of gravity.
  *  
+ *  Acceleration sensors return sensor events for all 3 axes at a constant
+ *  rate defined by setDelay().
+ *
  *  x: Acceleration minus Gx on the x-axis 
  *  y: Acceleration minus Gy on the y-axis 
  *  z: Acceleration minus Gz on the z-axis
@@ -177,6 +183,9 @@ __BEGIN_DECLS
  *  All values are in micro-Tesla (uT) and measure the ambient magnetic
  *  field in the X, Y and Z axis.
  *
+ *  Magnetic Field sensors return sensor events for all 3 axes at a constant
+ *  rate defined by setDelay().
+ *
  * Proximity
  * ---------
  *
@@ -185,10 +194,16 @@ __BEGIN_DECLS
  * the sensor should report its maxRange value in the "far" state and a value
  * less than maxRange in the "near" state.
  *
+ * Proximity sensors report a value only when it changes. setDelay() is
+ * ignored.
+ *
  * Light
  * -----
  *
  * The light sensor value is returned in SI lux units.
+ *
+ * Light sensors report a value only when it changes. setDelay() is
+ * ignored.
  *
  */
 typedef struct {
