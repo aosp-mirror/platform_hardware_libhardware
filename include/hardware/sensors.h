@@ -194,16 +194,16 @@ __BEGIN_DECLS
  * the sensor should report its maxRange value in the "far" state and a value
  * less than maxRange in the "near" state.
  *
- * Proximity sensors report a value only when it changes. setDelay() is
- * ignored.
+ * Proximity sensors report a value only when it changes and each time the
+ * sensor is enabled. setDelay() is ignored.
  *
  * Light
  * -----
  *
  * The light sensor value is returned in SI lux units.
  *
- * Light sensors report a value only when it changes. setDelay() is
- * ignored.
+ * Light sensors report a value only when it changes and each time the
+ * sensor is enabled. setDelay() is ignored.
  *
  */
 typedef struct {
