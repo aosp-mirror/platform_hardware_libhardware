@@ -126,6 +126,11 @@ typedef uint16_t AGpsType;
 #define AGPS_TYPE_SUPL          1
 #define AGPS_TYPE_C2K           2
 
+typedef uint16_t AGpsSetIDType;
+#define AGPS_SETID_TYPE_NONE    0
+#define AGPS_SETID_TYPE_IMSI    1
+#define AGPS_SETID_TYPE_MSISDN  2
+
 /**
  * String length constants
  */
@@ -183,6 +188,10 @@ typedef uint16_t AGpsStatusValue;
 /** AGPS data connection failed */
 #define GPS_AGPS_DATA_CONN_FAILED   5
 
+#define AGPS_REF_LOCATION_TYPE_GSM_CELLID   1
+#define AGPS_REF_LOCATION_TYPE_UMTS_CELLID  2
+#define AGPS_REG_LOCATION_TYPE_MAC          3
+
 /**
  * Name for the GPS XTRA interface.
  */
@@ -202,6 +211,11 @@ typedef uint16_t AGpsStatusValue;
  * Name for NI interface
  */
 #define GPS_NI_INTERFACE "gps-ni"
+
+/**
+ * Name for the AGPS-RIL interface.
+ */
+#define AGPS_RIL_INTERFACE      "agps_ril"
 
 /** Represents a location. */
 typedef struct {
@@ -274,6 +288,29 @@ typedef struct {
      */
     uint32_t    used_in_fix_mask;
 } GpsSvStatus;
+
+/* 2G and 3G */
+/* In 3G lac is discarded */
+typedef struct {
+    uint16_t type;
+    uint16_t mcc;
+    uint16_t mnc;
+    uint16_t lac;
+    uint32_t cid;
+} AGpsRefLocationCellID;
+
+typedef struct {
+    uint8_t mac[6];
+} AGpsRefLocationMac;
+
+/** Represents ref locations */
+typedef struct {
+    uint16_t type;
+    union {
+        AGpsRefLocationCellID   cellID;
+        AGpsRefLocationMac      mac;
+    } u;
+} AGpsRefLocation;
 
 /** Callback with location information.
  *  Can only be called from a thread created by create_thread_cb.
@@ -567,6 +604,46 @@ struct gps_device_t {
      */
     const GpsInterface* (*get_gps_interface)(struct gps_device_t* dev);
 };
+
+#define AGPS_RIL_REQUEST_SETID_IMSI     (1<<0L)
+#define AGPS_RIL_REQUEST_SETID_MSISDN   (1<<1L)
+
+#define AGPS_RIL_REQUEST_REFLOC_CELLID  (1<<0L)
+#define AGPS_RIL_REQUEST_REFLOC_MAC     (1<<1L)
+
+typedef void (*agps_ril_request_set_id)(uint32_t flags);
+typedef void (*agps_ril_request_ref_loc)(uint32_t flags);
+
+typedef struct {
+    agps_ril_request_set_id request_setid;
+    agps_ril_request_ref_loc request_refloc;
+    gps_create_thread create_thread_cb;
+} AGpsRilCallbacks;
+
+/** Extended interface for AGPS_RIL support. */
+typedef struct {
+    /** set to sizeof(AGpsRilInterface) */
+    size_t          size;
+    /**
+     * Opens the AGPS interface and provides the callback routines
+     * to the implemenation of this interface.
+     */
+    void  (*init)( AGpsRilCallbacks* callbacks );
+
+    /**
+     * Sets the reference location.
+     */
+    void (*set_ref_location) (const AGpsRefLocation *agps_reflocation, size_t sz_struct);
+    /**
+     * Sets the set ID.
+     */
+    void (*set_set_id) (AGpsSetIDType type, const char* setid);
+
+    /**
+     * Send network initiated message.
+     */
+    void (*ni_message) (uint8_t *msg, size_t len);
+} AGpsRilInterface;
 
 __END_DECLS
 
