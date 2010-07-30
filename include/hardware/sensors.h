@@ -205,6 +205,13 @@ __BEGIN_DECLS
  * Light sensors report a value only when it changes and each time the
  * sensor is enabled. setDelay() is ignored.
  *
+ * Pressure
+ * --------
+ *
+ * The pressure sensor value is returned in hectopascal (hPa)
+ *
+ * Pressure sensors report events at a constant rate defined by setDelay().
+ *
  */
 typedef struct {
     union {
@@ -264,6 +271,9 @@ typedef struct sensors_event_t {
 
         /* light in SI lux units */
         float           light;
+
+        /* pressure in hectopascal (hPa) */
+        float           pressure;
     };
     uint32_t        reserved1[4];
 } sensors_event_t;
