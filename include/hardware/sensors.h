@@ -321,8 +321,12 @@ struct sensor_t {
     float           resolution;
     /* rough estimate of this sensor's power consumption in mA */
     float           power;
+    /* minimum delay allowed between events in microseconds. A value of zero
+     * means that this sensor doesn't report events at a constant rate, but
+     * rather only when a new data is available */
+    int32_t         minDelay;
     /* reserved fields, must be zero */
-    void*           reserved[9];
+    void*           reserved[8];
 };
 
 
@@ -344,7 +348,10 @@ struct sensors_poll_device_t {
             int handle, int enabled);
 
     /**
-     * Set the delay between sensor events in nanoseconds for a given sensor
+     * Set the delay between sensor events in nanoseconds for a given sensor.
+     * It is an error to set a delay inferior to the value defined by
+     * sensor_t::minDelay. If sensor_t::minDelay is zero, setDelay() is
+     * ignored and returns 0.
      *
      * @return 0 if successful, < 0 on error
      */
@@ -353,8 +360,10 @@ struct sensors_poll_device_t {
 
     /**
      * Returns an array of sensor data.
+     * This function must block until events are available.
      *
      * @return the number of events read on success, or -errno in case of an error.
+     * This function should never return 0 (no event).
      *
      */
     int (*poll)(struct sensors_poll_device_t *dev,
