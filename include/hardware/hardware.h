@@ -142,6 +142,9 @@ enum {
      *
      */
 
+    /****** THIS IS TEMPORARY UNTIL THE ADRENO DRIVER IS FIXED ******/
+    HAL_PIXEL_FORMAT_YCrCb_420_SP_ADRENO    = 0x10A,
+
     /*
      * Android YUV format:
      *
