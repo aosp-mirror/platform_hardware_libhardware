@@ -55,9 +55,23 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 
 /*****************************************************************************/
 
+static void dump_layer(hwc_layer_t const* l) {
+    LOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
+            l->compositionType, l->flags, l->handle, l->transform, l->blending,
+            l->sourceCrop.left,
+            l->sourceCrop.top,
+            l->sourceCrop.right,
+            l->sourceCrop.bottom,
+            l->displayFrame.left,
+            l->displayFrame.top,
+            l->displayFrame.right,
+            l->displayFrame.bottom);
+}
+
 static int hwc_prepare(hwc_composer_device_t *dev, hwc_layer_list_t* list) {
     if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
         for (size_t i=0 ; i<list->numHwLayers ; i++) {
+            //dump_layer(&list->hwLayers[i]);
             list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
         }
     }
@@ -69,6 +83,10 @@ static int hwc_set(hwc_composer_device_t *dev,
         hwc_surface_t sur,
         hwc_layer_list_t* list)
 {
+    //for (size_t i=0 ; i<list->numHwLayers ; i++) {
+    //    dump_layer(&list->hwLayers[i]);
+    //}
+
     EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
     if (!sucess) {
         return HWC_EGL_ERROR;
