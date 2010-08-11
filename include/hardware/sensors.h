@@ -212,6 +212,13 @@ __BEGIN_DECLS
  *
  * Pressure sensors report events at a constant rate defined by setDelay().
  *
+ * Gyro
+ * --------
+ *
+ * The gyroscope sensor values are returned in degrees per second (dps)
+ *
+ * Gyroscope sensor report events at a constant rate defined by setDelay().
+ *
  */
 typedef struct {
     union {
@@ -262,6 +269,9 @@ typedef struct sensors_event_t {
 
         /* orientation values are in degrees */
         sensors_vec_t   orientation;
+
+	/* angular velocity in degrees per second (dps) */
+	sensors_vec_t   gyro;
 
         /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
