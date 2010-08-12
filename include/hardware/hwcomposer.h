@@ -48,13 +48,21 @@ enum {
  */
 enum {
     /*
-     * HWC can set the HWC_TRIPLE_BUFFER hint to indicate to SurfaceFlinger
+     * HWC can set the HWC_HINT_TRIPLE_BUFFER hint to indicate to SurfaceFlinger
      * that it should triple buffer this layer. Typically HWC does this when
      * the layer will be unavailable for use for an extended period of time,
      * e.g. if the display will be fetching data directly from the layer and
      * the layer can not be modified until after the next set().
      */
-    HWC_TRIPLE_BUFFER_HINT = 0x00000001,
+    HWC_HINT_TRIPLE_BUFFER  = 0x00000001,
+
+    /*
+     * HWC sets HWC_HINT_CLEAR_FB to tell SurfaceFlinger that it should clear the
+     * framebuffer with transparent pixels where this layer would be.
+     * SurfaceFlinger will only honor this flag when the layer has no blending
+     *
+     */
+    HWC_HINT_CLEAR_FB       = 0x00000002
 };
 
 /*
