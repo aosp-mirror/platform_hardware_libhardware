@@ -58,6 +58,9 @@ __BEGIN_DECLS
 #define SENSOR_TYPE_PRESSURE            6
 #define SENSOR_TYPE_TEMPERATURE         7
 #define SENSOR_TYPE_PROXIMITY           8
+#define SENSOR_TYPE_GRAVITY             9
+#define SENSOR_TYPE_LINEAR_ACCELERATION 10
+#define SENSOR_TYPE_ROTATION_VECTOR     11
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -186,6 +189,17 @@ __BEGIN_DECLS
  *  Magnetic Field sensors return sensor events for all 3 axes at a constant
  *  rate defined by setDelay().
  *
+ * Gyroscope
+ * ---------
+ *  All values are in radians/second and measure the rate of rotation
+ *  around the X, Y and Z axis.  The coordinate system is the same as is
+ *  used for the acceleration sensor.  Rotation is positive in the counter-clockwise
+ *  direction.  That is, an observer looking from some positive location on the x, y.
+ *  or z axis at a device positioned on the origin would report positive rotation
+ *  if the device appeared to be rotating counter clockwise.  Note that this is the
+ *  standard mathematical definition of positive rotation and does not agree with the
+ *  definition of roll given earlier.
+ *
  * Proximity
  * ---------
  *
@@ -219,7 +233,32 @@ __BEGIN_DECLS
  *
  * Gyroscope sensor report events at a constant rate defined by setDelay().
  *
+ * Gravity
+ * -------
+ * A gravity output indicates the direction of and magnitude of gravity in the devices's
+ * coordinates.  On Earth, the magnitude is 9.8.  Units are m/s^2.  The coordinate system
+ * is the same as is used for the acceleration sensor.
+ *
+ * Linear Acceleration
+ * -------------------
+ * Indicates the linear acceleration of the device in device coordinates, not including gravity.
+ * This output is essentially Acceleration - Gravity.  Units are m/s^2.  The coordinate system is
+ * the same as is used for the acceleration sensor.
+ *
+ * Rotation Vector
+ * ---------------
+ * A rotation vector represents the orientation of the device as a combination
+ * of an angle and an axis, in which the device has rotated through an angle
+ * theta around an axis <x, y, z>. The three elements of the rotation vector
+ * are <x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>, such that the magnitude
+ * of the rotation vector is equal to sin(theta/2), and the direction of the
+ * rotation vector is equal to the direction of the axis of rotation. The three
+ * elements of the rotation vector are equal to the last three components of a
+ * unit quaternion <cos(theta/2), x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>.
+ * Elements of the rotation vector are unitless.  The x, y, and z axis are defined
+ * in the same was as for the acceleration sensor.
  */
+
 typedef struct {
     union {
         float v[3];
