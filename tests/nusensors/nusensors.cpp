@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <string.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/cdefs.h>
