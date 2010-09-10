@@ -153,11 +153,14 @@ enum {
      * YV12 is 4:2:0 YCrCb planar format comprised of a WxH Y plane followed
      * by (W/2) x (H/2) Cr and Cb planes.
      *
-     * This format assumes an horizontal stride of 16 pixels for all planes
-     * and an implicit vertical stride of the image height's next multiple
-     * of two:
-     *   y_size = stride * ALIGN(height, 2)
-     *   c_size = ALIGN(stride/2, 16) * height
+     * This format assumes
+     * - an even width
+     * - an even height
+     * - a horizontal stride multiple of 16 pixels
+     * - a vertical stride equal to the height
+     *
+     *   y_size = stride * height
+     *   c_size = ALIGN(stride/2, 16) * height/2
      *   size = y_size + c_size * 2
      *   cr_offset = y_size
      *   cb_offset = y_size + c_size
