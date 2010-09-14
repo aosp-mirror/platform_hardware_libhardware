@@ -193,12 +193,14 @@ __BEGIN_DECLS
  * ---------
  *  All values are in radians/second and measure the rate of rotation
  *  around the X, Y and Z axis.  The coordinate system is the same as is
- *  used for the acceleration sensor.  Rotation is positive in the counter-clockwise
- *  direction.  That is, an observer looking from some positive location on the x, y.
- *  or z axis at a device positioned on the origin would report positive rotation
- *  if the device appeared to be rotating counter clockwise.  Note that this is the
- *  standard mathematical definition of positive rotation and does not agree with the
- *  definition of roll given earlier.
+ *  used for the acceleration sensor. Rotation is positive in the
+ *  counter-clockwise direction (right-hand rule). That is, an observer
+ *  looking from some positive location on the x, y or z axis at a device
+ *  positioned on the origin would report positive rotation if the device
+ *  appeared to be rotating counter clockwise. Note that this is the
+ *  standard mathematical definition of positive rotation and does not agree
+ *  with the definition of roll given earlier.
+ *  The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
  *
  * Proximity
  * ---------
@@ -301,6 +303,9 @@ typedef struct sensors_event_t {
 
         /* orientation values are in degrees */
         sensors_vec_t   orientation;
+
+        /* gyroscope values are in rad/s */
+        sensors_vec_t   gyro;
 
         /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
