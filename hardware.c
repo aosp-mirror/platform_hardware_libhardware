@@ -28,7 +28,8 @@
 #include <utils/Log.h>
 
 /** Base path of the hal modules */
-#define HAL_LIBRARY_PATH "/system/lib/hw"
+#define HAL_LIBRARY_PATH1 "/system/lib/hw"
+#define HAL_LIBRARY_PATH2 "/vendor/lib/hw"
 
 /**
  * There are a set of variant filename for modules. The form of the filename
@@ -138,16 +139,17 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
                 continue;
             }
             snprintf(path, sizeof(path), "%s/%s.%s.so",
-                    HAL_LIBRARY_PATH, id, prop);
+                    HAL_LIBRARY_PATH1, id, prop);
+            if (access(path, R_OK) == 0) break;
+
+            snprintf(path, sizeof(path), "%s/%s.%s.so",
+                     HAL_LIBRARY_PATH2, id, prop);
+            if (access(path, R_OK) == 0) break;
         } else {
             snprintf(path, sizeof(path), "%s/%s.default.so",
-                    HAL_LIBRARY_PATH, id);
+                     HAL_LIBRARY_PATH1, id);
+            if (access(path, R_OK) == 0) break;
         }
-        if (access(path, R_OK)) {
-            continue;
-        }
-        /* we found a library matching this id/variant */
-        break;
     }
 
     status = -ENOENT;
