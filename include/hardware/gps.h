@@ -192,6 +192,15 @@ typedef uint16_t AGpsStatusValue;
 #define AGPS_REF_LOCATION_TYPE_UMTS_CELLID  2
 #define AGPS_REG_LOCATION_TYPE_MAC          3
 
+/** Network types for update_network_state "type" parameter */
+#define AGPS_RIL_NETWORK_TYPE_MOBILE        0
+#define AGPS_RIL_NETWORK_TYPE_WIFI          1
+#define AGPS_RIL_NETWORK_TYPE_MOBILE_MMS    2
+#define AGPS_RIL_NETWORK_TYPE_MOBILE_SUPL   3
+#define AGPS_RIL_NETWORK_TTYPE_MOBILE_DUN   4
+#define AGPS_RIL_NETWORK_TTYPE_MOBILE_HIPRI 5
+#define AGPS_RIL_NETWORK_TTYPE_WIMAX        6
+
 /**
  * Name for the GPS XTRA interface.
  */
@@ -643,6 +652,12 @@ typedef struct {
      * Send network initiated message.
      */
     void (*ni_message) (uint8_t *msg, size_t len);
+
+    /**
+     * Notify GPS of network status changes.
+     * These parameters match values in the android.net.NetworkInfo class.
+     */
+    void (*update_network_state) (int connected, int type, int roaming, const char* extra_info);
 } AGpsRilInterface;
 
 __END_DECLS
