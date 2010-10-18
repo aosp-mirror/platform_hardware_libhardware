@@ -43,7 +43,12 @@
 /*****************************************************************************/
 
 // numbers of buffers for page flipping
+#if defined(NO_PAGE_FLIPPING)
+// page-flipping is buggy on some devices
+#define NUM_BUFFERS 1
+#else
 #define NUM_BUFFERS 2
+#endif
 
 
 enum {

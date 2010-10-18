@@ -29,4 +29,8 @@ LOCAL_SRC_FILES := 	\
 	
 LOCAL_MODULE := gralloc.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
+ifeq ($(BOARD_NO_PAGE_FLIPPING),true)
+LOCAL_CFLAGS += -DNO_PAGE_FLIPPING
+endif
+
 include $(BUILD_SHARED_LIBRARY)
