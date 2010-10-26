@@ -179,18 +179,22 @@ enum {
 
 /**
  * Transformation definitions
+ *
+ * IMPORTANT NOTE:
+ * HAL_TRANSFORM_ROT_90 is applied CLOCKWISE and AFTER HAL_TRANSFORM_FLIP_{H|V}.
+ *
  */
 
 enum {
-    /* flip source image horizontally */
+    /* flip source image horizontally (around the vertical axis) */
     HAL_TRANSFORM_FLIP_H    = 0x01,
-    /* flip source image vertically */
+    /* flip source image vertically (around the horizontal axis)*/
     HAL_TRANSFORM_FLIP_V    = 0x02,
-    /* rotate source image 90 degrees */
+    /* rotate source image 90 degrees clockwise */
     HAL_TRANSFORM_ROT_90    = 0x04,
     /* rotate source image 180 degrees */
     HAL_TRANSFORM_ROT_180   = 0x03,
-    /* rotate source image 270 degrees */
+    /* rotate source image 270 degrees clockwise */
     HAL_TRANSFORM_ROT_270   = 0x07,
 };
 
