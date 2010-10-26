@@ -185,6 +185,10 @@ enum {
     HWC_GEOMETRY_CHANGED = 0x00000001,
 };
 
+/*
+ * List of layers.
+ * The handle members of hwLayers elements must be unique.
+ */
 typedef struct hwc_layer_list {
     uint32_t flags;
     size_t numHwLayers;
