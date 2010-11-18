@@ -70,6 +70,11 @@ enum {
     /* mask for the software usage bit-mask */
     GRALLOC_USAGE_HW_MASK         = 0x00001F00,
 
+    /* buffer should be displayed full-screen on an external display when
+     * possible
+     */
+    GRALLOC_USAGE_EXTERNAL_DISP   = 0x00002000,
+
     /* implementation-specific private usage flags */
     GRALLOC_USAGE_PRIVATE_0       = 0x10000000,
     GRALLOC_USAGE_PRIVATE_1       = 0x20000000,
