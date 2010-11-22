@@ -233,12 +233,19 @@ __BEGIN_DECLS
  * A gravity output indicates the direction of and magnitude of gravity in the devices's
  * coordinates.  On Earth, the magnitude is 9.8.  Units are m/s^2.  The coordinate system
  * is the same as is used for the acceleration sensor.
+ * When the device is at rest, the output of the gravity sensor should be identical
+ * to that of the accelerometer.
  *
  * Linear Acceleration
  * -------------------
  * Indicates the linear acceleration of the device in device coordinates, not including gravity.
  * This output is essentially Acceleration - Gravity.  Units are m/s^2.  The coordinate system is
  * the same as is used for the acceleration sensor.
+ * The output of the accelerometer, gravity and  linear-acceleration sensors must obey the
+ * following relation:
+ *
+ *   acceleration = gravity + linear-acceleration
+ *
  *
  * Rotation Vector
  * ---------------
@@ -252,6 +259,14 @@ __BEGIN_DECLS
  * unit quaternion <cos(theta/2), x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>.
  * Elements of the rotation vector are unitless.  The x, y, and z axis are defined
  * in the same was as for the acceleration sensor.
+ *
+ * The rotation-vector is stored as:
+ *
+ *   sensors_event_t.data[0] = x*sin(theta/2)
+ *   sensors_event_t.data[1] = y*sin(theta/2)
+ *   sensors_event_t.data[2] = z*sin(theta/2)
+ *   sensors_event_t.data[3] =   cos(theta/2)
+ *
  */
 
 typedef struct {
