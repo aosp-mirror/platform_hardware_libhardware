@@ -148,7 +148,7 @@ typedef struct hwc_layer {
 
     /* handle of buffer to compose. this handle is guaranteed to have been
      * allocated with gralloc */
-    native_handle_t* handle;
+    const native_handle_t* handle;
 
     /* transformation to apply to the buffer during composition */
     uint32_t transform;
