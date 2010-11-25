@@ -136,10 +136,12 @@ enum {
     /*
      * 0x100 - 0x1FF
      *
-     * This range is reserved for HAL implementations. OEMs can use
-     * any value in this range to communicate formats between their HAL
-     * modules
-     *
+     * This range is reserved for pixel formats that are specific to the HAL
+     * implementation.  Implementations can use any value in this range to
+     * communicate video pixel formats between their HAL modules.  These formats
+     * must not have an alpha channel.  Additionally, an EGLimage created from a
+     * gralloc buffer of one of these formats must be supported for use with the
+     * GL_OES_EGL_image_external OpenGL ES extension.
      */
 
     /*
