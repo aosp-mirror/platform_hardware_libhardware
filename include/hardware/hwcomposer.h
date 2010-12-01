@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
+#include <hardware/gralloc.h>
 #include <hardware/hardware.h>
 #include <cutils/native_handle.h>
 
@@ -148,7 +149,7 @@ typedef struct hwc_layer {
 
     /* handle of buffer to compose. this handle is guaranteed to have been
      * allocated with gralloc */
-    const native_handle_t* handle;
+    buffer_handle_t handle;
 
     /* transformation to apply to the buffer during composition */
     uint32_t transform;
