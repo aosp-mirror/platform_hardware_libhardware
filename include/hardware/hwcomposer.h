@@ -278,8 +278,14 @@ typedef struct hwc_composer_device {
                 hwc_display_t dpy,
                 hwc_surface_t sur,
                 hwc_layer_list_t* list);
+    /*
+     * This hook is OPTIONAL.
+     *
+     * If non NULL it will be caused by SurfaceFlinger on dumpsys
+     */
+    void (*dump)(struct hwc_composer_device* dev, char *buff, int buff_len);
 
-    void* reserved_proc[8];
+    void* reserved_proc[7];
 
 } hwc_composer_device_t;
 

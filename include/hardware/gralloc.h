@@ -229,7 +229,13 @@ typedef struct alloc_device_t {
     int (*free)(struct alloc_device_t* dev,
             buffer_handle_t handle);
 
-    void* reserved_proc[8];
+    /* This hook is OPTIONAL.
+     *
+     * If non NULL it will be caused by SurfaceFlinger on dumpsys
+     */
+    void (*dump)(struct alloc_device_t *dev, char *buff, int buff_len);
+
+    void* reserved_proc[7];
 } alloc_device_t;
 
 
@@ -324,8 +330,14 @@ typedef struct framebuffer_device_t {
 
     int (*compositionComplete)(struct framebuffer_device_t* dev);
 
+    /*
+     * This hook is OPTIONAL.
+     *
+     * If non NULL it will be caused by SurfaceFlinger on dumpsys
+     */
+    void (*dump)(struct framebuffer_device_t* dev, char *buff, int buff_len);
 
-    void* reserved_proc[8];
+    void* reserved_proc[7];
 
 } framebuffer_device_t;
 
