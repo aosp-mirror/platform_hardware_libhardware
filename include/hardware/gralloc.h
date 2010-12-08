@@ -28,6 +28,8 @@
 
 __BEGIN_DECLS
 
+#define GRALLOC_API_VERSION 1
+
 /**
  * The id of this module
  */
@@ -227,6 +229,7 @@ typedef struct alloc_device_t {
     int (*free)(struct alloc_device_t* dev,
             buffer_handle_t handle);
 
+    void* reserved_proc[8];
 } alloc_device_t;
 
 

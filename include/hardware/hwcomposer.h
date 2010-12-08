@@ -27,6 +27,9 @@
 __BEGIN_DECLS
 
 /*****************************************************************************/
+
+#define HWC_API_VERSION 1
+
 /**
  * The id of this module
  */
@@ -275,6 +278,8 @@ typedef struct hwc_composer_device {
                 hwc_display_t dpy,
                 hwc_surface_t sur,
                 hwc_layer_list_t* list);
+
+    void* reserved_proc[8];
 
 } hwc_composer_device_t;
 
