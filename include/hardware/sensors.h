@@ -61,6 +61,7 @@ __BEGIN_DECLS
 #define SENSOR_TYPE_GRAVITY             9
 #define SENSOR_TYPE_LINEAR_ACCELERATION 10
 #define SENSOR_TYPE_ROTATION_VECTOR     11
+#define SENSOR_TYPE_RELATIVE_HUMIDITY   12
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -267,6 +268,14 @@ __BEGIN_DECLS
  *   sensors_event_t.data[2] = z*sin(theta/2)
  *   sensors_event_t.data[3] =   cos(theta/2)
  *
+ * Relative Humidity
+ * -----------------
+ *
+ * A relative humidity sensor measures relative ambient air humidity and
+ * returns a value in percent.
+ *
+ * Relative humidity sensors report a value only when it changes and each
+ * time the sensor is enabled. setDelay() is ignored.
  */
 
 typedef struct {
@@ -333,6 +342,9 @@ typedef struct sensors_event_t {
 
         /* pressure in hectopascal (hPa) */
         float           pressure;
+
+        /* relative humidity in percent */
+        float           relative_humidity;
     };
     uint32_t        reserved1[4];
 } sensors_event_t;
