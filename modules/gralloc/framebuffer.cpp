@@ -213,12 +213,16 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1)
         return -errno;
 
-    int refreshRate = 1000000000000000LLU /
+    uint64_t  refreshQuotient =
     (
             uint64_t( info.upper_margin + info.lower_margin + info.yres )
             * ( info.left_margin  + info.right_margin + info.xres )
             * info.pixclock
     );
+
+    /* Beware, info.pixclock might be 0 under emulation, so avoid a
+     * division-by-0 here (SIGFPE on ARM) */
+    int refreshRate = refreshQuotient > 0 ? (int)(1000000000000000LLU / refreshQuotient) : 0;
 
     if (refreshRate == 0) {
         // bleagh, bad info from the driver
