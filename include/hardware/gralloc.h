@@ -77,6 +77,14 @@ enum {
      */
     GRALLOC_USAGE_EXTERNAL_DISP   = 0x00002000,
 
+    /* Must have a hardware-protected path to external display sink for
+     * this buffer.  If a hardware-protected path is not available, then
+     * either don't composite only this buffer (preferred) to the
+     * external sink, or (less desirable) do not route the entire
+     * composition to the external sink.
+     */
+    GRALLOC_USAGE_PROTECTED       = 0x00004000,
+
     /* implementation-specific private usage flags */
     GRALLOC_USAGE_PRIVATE_0       = 0x10000000,
     GRALLOC_USAGE_PRIVATE_1       = 0x20000000,
