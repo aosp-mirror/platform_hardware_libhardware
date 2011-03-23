@@ -56,11 +56,12 @@ __BEGIN_DECLS
 #define SENSOR_TYPE_GYROSCOPE           4
 #define SENSOR_TYPE_LIGHT               5
 #define SENSOR_TYPE_PRESSURE            6
-#define SENSOR_TYPE_TEMPERATURE         7
+#define SENSOR_TYPE_TEMPERATURE         7   // deprecated
 #define SENSOR_TYPE_PROXIMITY           8
 #define SENSOR_TYPE_GRAVITY             9
 #define SENSOR_TYPE_LINEAR_ACCELERATION 10
 #define SENSOR_TYPE_ROTATION_VECTOR     11
+#define SENSOR_TYPE_AMBIENT_TEMPERATURE 13
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -273,6 +274,14 @@ __BEGIN_DECLS
  *   sensors_event_t.data[1] = y*sin(theta/2)
  *   sensors_event_t.data[2] = z*sin(theta/2)
  *   sensors_event_t.data[3] =   cos(theta/2)
+ *
+ * Ambient Temperature
+ * -------------------
+ *
+ * The ambient (room) temperature in degree Celsius.
+ *
+ * Temperature sensors report a value only when it changes and each time the
+ * sensor is enabled. setDelay() is ignored.
  *
  */
 
