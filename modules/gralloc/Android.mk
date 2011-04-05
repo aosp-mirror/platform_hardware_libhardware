@@ -32,5 +32,8 @@ LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\"
 ifeq ($(BOARD_NO_PAGE_FLIPPING),true)
 LOCAL_CFLAGS += -DNO_PAGE_FLIPPING
 endif
+ifeq ($(BOARD_NO_32BPP),true)
+LOCAL_CFLAGS += -DNO_32BPP
+endif
 
 include $(BUILD_SHARED_LIBRARY)
