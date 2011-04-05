@@ -176,6 +176,21 @@ int mapFrameBufferLocked(struct private_module_t* module)
     info.yoffset = 0;
     info.activate = FB_ACTIVATE_NOW;
 
+#if defined(NO_32BPP)
+    /*
+     * Explicitly request 5/6/5
+     */
+    info.bits_per_pixel = 16;
+    info.red.offset     = 11;
+    info.red.length     = 5;
+    info.green.offset   = 5;
+    info.green.length   = 6;
+    info.blue.offset    = 0;
+    info.blue.length    = 5;
+    info.transp.offset  = 0;
+    info.transp.length  = 0;
+#endif
+
     /*
      * Request NUM_BUFFERS screens (at lest 2 for page flipping)
      */
@@ -342,6 +357,9 @@ int fb_device_open(hw_module_t const* module, const char* name,
             int format = (m->info.bits_per_pixel == 32)
                          ? HAL_PIXEL_FORMAT_RGBX_8888
                          : HAL_PIXEL_FORMAT_RGB_565;
+#ifdef NO_32BPP
+            format = HAL_PIXEL_FORMAT_RGB_565;
+#endif
             const_cast<uint32_t&>(dev->device.flags) = 0;
             const_cast<uint32_t&>(dev->device.width) = m->info.xres;
             const_cast<uint32_t&>(dev->device.height) = m->info.yres;
