@@ -95,7 +95,7 @@ enum {
 
 /*****************************************************************************/
 
-typedef const native_handle* buffer_handle_t;
+typedef const native_handle_t* buffer_handle_t;
 
 /**
  * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
