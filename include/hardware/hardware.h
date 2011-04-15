@@ -21,6 +21,7 @@
 #include <sys/cdefs.h>
 
 #include <cutils/native_handle.h>
+#include <system/graphics.h>
 
 __BEGIN_DECLS
 
@@ -132,88 +133,6 @@ int hw_get_module(const char *id, const struct hw_module_t **module);
  */
 int hw_get_module_by_class(const char *class_id, const char *inst,
                            const struct hw_module_t **module);
-
-/**
- * pixel format definitions
- */
-
-enum {
-    HAL_PIXEL_FORMAT_RGBA_8888          = 1,
-    HAL_PIXEL_FORMAT_RGBX_8888          = 2,
-    HAL_PIXEL_FORMAT_RGB_888            = 3,
-    HAL_PIXEL_FORMAT_RGB_565            = 4,
-    HAL_PIXEL_FORMAT_BGRA_8888          = 5,
-    HAL_PIXEL_FORMAT_RGBA_5551          = 6,
-    HAL_PIXEL_FORMAT_RGBA_4444          = 7,
-
-    /* 0x8 - 0xFF range unavailable */
-
-    /*
-     * 0x100 - 0x1FF
-     *
-     * This range is reserved for pixel formats that are specific to the HAL
-     * implementation.  Implementations can use any value in this range to
-     * communicate video pixel formats between their HAL modules.  These formats
-     * must not have an alpha channel.  Additionally, an EGLimage created from a
-     * gralloc buffer of one of these formats must be supported for use with the
-     * GL_OES_EGL_image_external OpenGL ES extension.
-     */
-
-    /*
-     * Android YUV format:
-     *
-     * This format is exposed outside of the HAL to software
-     * decoders and applications.
-     * EGLImageKHR must support it in conjunction with the
-     * OES_EGL_image_external extension.
-     *
-     * YV12 is 4:2:0 YCrCb planar format comprised of a WxH Y plane followed
-     * by (W/2) x (H/2) Cr and Cb planes.
-     *
-     * This format assumes
-     * - an even width
-     * - an even height
-     * - a horizontal stride multiple of 16 pixels
-     * - a vertical stride equal to the height
-     *
-     *   y_size = stride * height
-     *   c_size = ALIGN(stride/2, 16) * height/2
-     *   size = y_size + c_size * 2
-     *   cr_offset = y_size
-     *   cb_offset = y_size + c_size
-     *
-     */
-    HAL_PIXEL_FORMAT_YV12   = 0x32315659, // YCrCb 4:2:0 Planar
-
-
-
-    /* Legacy formats (deprecated), used by ImageFormat.java */
-    HAL_PIXEL_FORMAT_YCbCr_422_SP       = 0x10, // NV16
-    HAL_PIXEL_FORMAT_YCrCb_420_SP       = 0x11, // NV21
-    HAL_PIXEL_FORMAT_YCbCr_422_I        = 0x14, // YUY2
-};
-
-
-/**
- * Transformation definitions
- *
- * IMPORTANT NOTE:
- * HAL_TRANSFORM_ROT_90 is applied CLOCKWISE and AFTER HAL_TRANSFORM_FLIP_{H|V}.
- *
- */
-
-enum {
-    /* flip source image horizontally (around the vertical axis) */
-    HAL_TRANSFORM_FLIP_H    = 0x01,
-    /* flip source image vertically (around the horizontal axis)*/
-    HAL_TRANSFORM_FLIP_V    = 0x02,
-    /* rotate source image 90 degrees clockwise */
-    HAL_TRANSFORM_ROT_90    = 0x04,
-    /* rotate source image 180 degrees */
-    HAL_TRANSFORM_ROT_180   = 0x03,
-    /* rotate source image 270 degrees clockwise */
-    HAL_TRANSFORM_ROT_270   = 0x07,
-};
 
 __END_DECLS
 
