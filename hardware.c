@@ -117,13 +117,20 @@ static int load(const char *id,
     return status;
 }
 
-int hw_get_module(const char *id, const struct hw_module_t **module) 
+int hw_get_module_by_class(const char *class_id, const char *inst,
+                           const struct hw_module_t **module)
 {
     int status;
     int i;
     const struct hw_module_t *hmi = NULL;
     char prop[PATH_MAX];
     char path[PATH_MAX];
+    char name[PATH_MAX];
+
+    if (inst)
+        snprintf(name, PATH_MAX, "%s.%s", class_id, inst);
+    else
+        strlcpy(name, class_id, PATH_MAX);
 
     /*
      * Here we rely on the fact that calling dlopen multiple times on
@@ -139,15 +146,15 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
                 continue;
             }
             snprintf(path, sizeof(path), "%s/%s.%s.so",
-                    HAL_LIBRARY_PATH1, id, prop);
+                    HAL_LIBRARY_PATH1, name, prop);
             if (access(path, R_OK) == 0) break;
 
             snprintf(path, sizeof(path), "%s/%s.%s.so",
-                     HAL_LIBRARY_PATH2, id, prop);
+                     HAL_LIBRARY_PATH2, name, prop);
             if (access(path, R_OK) == 0) break;
         } else {
             snprintf(path, sizeof(path), "%s/%s.default.so",
-                     HAL_LIBRARY_PATH1, id);
+                     HAL_LIBRARY_PATH1, name);
             if (access(path, R_OK) == 0) break;
         }
     }
@@ -156,8 +163,13 @@ int hw_get_module(const char *id, const struct hw_module_t **module)
     if (i < HAL_VARIANT_KEYS_COUNT+1) {
         /* load the module, if this fails, we're doomed, and we should not try
          * to load a different variant. */
-        status = load(id, path, module);
+        status = load(class_id, path, module);
     }
 
     return status;
+}
+
+int hw_get_module(const char *id, const struct hw_module_t **module)
+{
+    return hw_get_module_by_class(id, NULL, module);
 }

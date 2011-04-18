@@ -113,10 +113,25 @@ typedef struct hw_device_t {
 
 /**
  * Get the module info associated with a module by id.
- * @return: 0 == success, <0 == error and *pHmi == NULL
+ *
+ * @return: 0 == success, <0 == error and *module == NULL
  */
 int hw_get_module(const char *id, const struct hw_module_t **module);
 
+/**
+ * Get the module info associated with a module instance by class 'class_id'
+ * and instance 'inst'.
+ *
+ * Some modules types necessitate multiple instances. For example audio supports
+ * multiple concurrent interfaces and thus 'audio' is the module class
+ * and 'primary' or 'a2dp' are module interfaces. This implies that the files
+ * providing these modules would be named audio.primary.<variant>.so and
+ * audio.a2dp.<variant>.so
+ *
+ * @return: 0 == success, <0 == error and *module == NULL
+ */
+int hw_get_module_by_class(const char *class_id, const char *inst,
+                           const struct hw_module_t **module);
 
 /**
  * pixel format definitions
