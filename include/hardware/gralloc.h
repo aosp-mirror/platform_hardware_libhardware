@@ -345,7 +345,15 @@ typedef struct framebuffer_device_t {
      */
     void (*dump)(struct framebuffer_device_t* dev, char *buff, int buff_len);
 
-    void* reserved_proc[7];
+    /*
+     * (*enableScreen)() is used to either blank (enable=0) or
+     * unblank (enable=1) the screen this framebuffer is attached to.
+     *
+     * Returns 0 on success or -errno on error.
+     */
+    int (*enableScreen)(struct framebuffer_device_t* dev, int enable);
+
+    void* reserved_proc[6];
 
 } framebuffer_device_t;
 
