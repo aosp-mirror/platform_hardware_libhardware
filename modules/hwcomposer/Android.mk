@@ -24,4 +24,5 @@ LOCAL_SHARED_LIBRARIES := liblog libEGL
 LOCAL_SRC_FILES := hwcomposer.cpp
 LOCAL_MODULE := hwcomposer.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
+LOCAL_MODULE_TAGS := optional
 include $(BUILD_SHARED_LIBRARY)

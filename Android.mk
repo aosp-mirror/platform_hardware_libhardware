@@ -1,6 +1,7 @@
 # Copyright 2006 The Android Open Source Project
 
 # Setting LOCAL_PATH will mess up all-subdir-makefiles, so do it beforehand.
+SUBDIR_MAKEFILES := $(call all-named-subdir-makefiles,modules tests)
 
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
@@ -31,8 +32,4 @@ LOCAL_MODULE:= libhardware
 
 include $(BUILD_SHARED_LIBRARY)
 
-include $(addsuffix /Android.mk, $(addprefix $(LOCAL_PATH)/, \
-			modules/gralloc \
-			tests \
-		))
-		
+include $(SUBDIR_MAKEFILES)
