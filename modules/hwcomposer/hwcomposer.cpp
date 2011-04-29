@@ -15,7 +15,6 @@
  */
 
 #include <hardware/hardware.h>
-#include <hardware/overlay.h>
 
 #include <fcntl.h>
 #include <errno.h>

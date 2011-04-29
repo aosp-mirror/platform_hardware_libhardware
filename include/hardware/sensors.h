@@ -459,6 +459,4 @@ static inline int sensors_close(struct sensors_poll_device_t* device) {
 
 __END_DECLS
 
-#include <hardware/sensors_deprecated.h>
-
 #endif  // ANDROID_SENSORS_INTERFACE_H
