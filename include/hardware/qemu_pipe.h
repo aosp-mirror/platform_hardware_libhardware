@@ -16,6 +16,10 @@
 #ifndef ANDROID_INCLUDE_HARDWARE_QEMU_PIPE_H
 #define ANDROID_INCLUDE_HARDWARE_QEMU_PIPE_H
 
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+
 /* Try to open a new Qemu fast-pipe. This function returns a file descriptor
  * that can be used to communicate with a named service managed by the
  * emulator.
@@ -39,5 +43,7 @@
  * returned if more than one client tries to connect to it.
  */
 extern int  qemu_pipe_open(const char*  pipeName);
+
+__END_DECLS
 
 #endif /* ANDROID_INCLUDE_HARDWARE_QEMUD_PIPE_H */
