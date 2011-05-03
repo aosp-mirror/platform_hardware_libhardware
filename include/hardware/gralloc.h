@@ -18,8 +18,7 @@
 #ifndef ANDROID_GRALLOC_INTERFACE_H
 #define ANDROID_GRALLOC_INTERFACE_H
 
-#include <cutils/native_handle.h>
-
+#include <system/window.h>
 #include <hardware/hardware.h>
 
 #include <stdint.h>
@@ -94,8 +93,6 @@ enum {
 };
 
 /*****************************************************************************/
-
-typedef const native_handle_t* buffer_handle_t;
 
 /**
  * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
