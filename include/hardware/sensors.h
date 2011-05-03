@@ -268,6 +268,18 @@ __BEGIN_DECLS
  * Elements of the rotation vector are unitless.  The x, y, and z axis are defined
  * in the same was as for the acceleration sensor.
  *
+ * The reference coordinate system is defined as a direct orthonormal basis,
+ * where:
+ *
+ * - X is defined as the vector product Y.Z (It is tangential to
+ * the ground at the device's current location and roughly points East).
+ *
+ * - Y is tangential to the ground at the device's current location and
+ * points towards the magnetic North Pole.
+ *
+ * - Z points towards the sky and is perpendicular to the ground.
+ *
+ *
  * The rotation-vector is stored as:
  *
  *   sensors_event_t.data[0] = x*sin(theta/2)
