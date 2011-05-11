@@ -26,7 +26,7 @@
 #include <cutils/bitops.h>
 
 #include <hardware/hardware.h>
-#include <hardware/audio.h>
+#include <system/audio.h>
 
 __BEGIN_DECLS
 

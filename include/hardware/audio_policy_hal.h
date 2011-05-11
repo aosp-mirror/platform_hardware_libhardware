@@ -24,7 +24,7 @@
 
 #include <hardware/hardware.h>
 
-#include <hardware/audio.h>
+#include <system/audio.h>
 #include <hardware/audio_policy.h>
 
 __BEGIN_DECLS

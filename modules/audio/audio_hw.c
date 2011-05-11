@@ -25,7 +25,7 @@
 #include <cutils/log.h>
 
 #include <hardware/hardware.h>
-#include <hardware/audio.h>
+#include <system/audio.h>
 #include <hardware/audio_hal.h>
 
 struct stub_audio_device {
