@@ -146,11 +146,11 @@ int hw_get_module_by_class(const char *class_id, const char *inst,
                 continue;
             }
             snprintf(path, sizeof(path), "%s/%s.%s.so",
-                    HAL_LIBRARY_PATH1, name, prop);
+                     HAL_LIBRARY_PATH2, name, prop);
             if (access(path, R_OK) == 0) break;
 
             snprintf(path, sizeof(path), "%s/%s.%s.so",
-                     HAL_LIBRARY_PATH2, name, prop);
+                     HAL_LIBRARY_PATH1, name, prop);
             if (access(path, R_OK) == 0) break;
         } else {
             snprintf(path, sizeof(path), "%s/%s.default.so",
