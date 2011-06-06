@@ -62,13 +62,18 @@ typedef struct camera_module {
     int (*get_camera_info)(int camera_id, struct camera_info *info);
 } camera_module_t;
 
+struct camera_memory;
+typedef void (*camera_release_memory)(struct camera_memory *mem);
+
 typedef struct camera_memory {
     void *data;
     size_t size;
     void *handle;
+    camera_release_memory release;
 } camera_memory_t;
 
-typedef camera_memory_t* (*camera_request_memory)(size_t size, void *user);
+typedef camera_memory_t* (*camera_request_memory)(int fd, size_t buf_size, unsigned int num_bufs,
+                                                  void *user);
 
 typedef void (*camera_notify_callback)(int32_t msg_type,
         int32_t ext1,
@@ -76,12 +81,12 @@ typedef void (*camera_notify_callback)(int32_t msg_type,
         void *user);
 
 typedef void (*camera_data_callback)(int32_t msg_type,
-        const camera_memory_t *data,
+        const camera_memory_t *data, unsigned int index,
         void *user);
 
 typedef void (*camera_data_timestamp_callback)(int64_t timestamp,
         int32_t msg_type,
-        const camera_memory_t *data,
+        const camera_memory_t *data, unsigned int index,
         void *user);
 
 #define HAL_CAMERA_PREVIEW_WINDOW_TAG 0xcafed00d
