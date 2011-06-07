@@ -42,6 +42,13 @@ __BEGIN_DECLS
 
 /**************************************/
 
+/* standard audio parameters that the HAL may need to handle */
+#define AUDIO_PARAMETER_STREAM_ROUTING "routing"
+#define AUDIO_PARAMETER_STREAM_FORMAT "format"
+#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"
+#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"
+#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"
+
 /* common audio stream parameters and operations */
 struct audio_stream {
 
@@ -49,6 +56,10 @@ struct audio_stream {
      * sampling rate is in Hz - eg. 44100
      */
     uint32_t (*get_sample_rate)(const struct audio_stream *stream);
+
+    /* currently unused - use set_parameters with key
+     *    AUDIO_PARAMETER_STREAM_SAMPLING_RATE
+     */
     int (*set_sample_rate)(struct audio_stream *stream, uint32_t rate);
 
     /**
@@ -66,6 +77,10 @@ struct audio_stream {
      * audio format - eg. AUDIO_FORMAT_PCM_16_BIT
      */
     int (*get_format)(const struct audio_stream *stream);
+
+    /* currently unused - use set_parameters with key
+     *     AUDIO_PARAMETER_STREAM_FORMAT
+     */
     int (*set_format)(struct audio_stream *stream, int format);
 
     /**
