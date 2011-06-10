@@ -93,7 +93,7 @@ typedef void (*camera_data_timestamp_callback)(int64_t timestamp,
 
 typedef struct preview_stream_ops {
     int (*dequeue_buffer)(struct preview_stream_ops* w,
-                buffer_handle_t** buffer);
+                          buffer_handle_t** buffer, int *stride);
     int (*enqueue_buffer)(struct preview_stream_ops* w,
                 buffer_handle_t* buffer);
     int (*cancel_buffer)(struct preview_stream_ops* w,
