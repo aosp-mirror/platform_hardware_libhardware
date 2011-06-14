@@ -25,7 +25,7 @@
 #include <hardware/hardware.h>
 #include <system/audio.h>
 #include <system/audio_policy.h>
-#include <hardware/audio_policy_hal.h>
+#include <hardware/audio_policy.h>
 
 struct default_ap_module {
     struct audio_policy_module module;

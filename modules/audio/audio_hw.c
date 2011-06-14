@@ -26,7 +26,7 @@
 
 #include <hardware/hardware.h>
 #include <system/audio.h>
-#include <hardware/audio_hal.h>
+#include <hardware/audio.h>
 
 struct stub_audio_device {
     struct audio_hw_device device;
