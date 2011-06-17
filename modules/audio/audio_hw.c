@@ -116,6 +116,16 @@ static int out_get_render_position(const struct audio_stream_out *stream,
     return -EINVAL;
 }
 
+static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+{
+    return 0;
+}
+
+static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+{
+    return 0;
+}
+
 /** audio_stream_in implementation **/
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
@@ -187,6 +197,15 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     return 0;
 }
 
+static int in_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+{
+    return 0;
+}
+
+static int in_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
+{
+    return 0;
+}
 
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    uint32_t devices, int *format,
@@ -211,6 +230,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.common.dump = out_dump;
     out->stream.common.set_parameters = out_set_parameters;
     out->stream.common.get_parameters = out_get_parameters;
+    out->stream.common.add_audio_effect = out_add_audio_effect;
+    out->stream.common.remove_audio_effect = out_remove_audio_effect;
     out->stream.get_latency = out_get_latency;
     out->stream.set_volume = out_set_volume;
     out->stream.write = out_write;
@@ -303,6 +324,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev, uint32_t devices,
     in->stream.common.dump = in_dump;
     in->stream.common.set_parameters = in_set_parameters;
     in->stream.common.get_parameters = in_get_parameters;
+    in->stream.common.add_audio_effect = in_add_audio_effect;
+    in->stream.common.remove_audio_effect = in_remove_audio_effect;
     in->stream.set_gain = in_set_gain;
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;

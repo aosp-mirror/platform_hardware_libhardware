@@ -87,47 +87,47 @@ typedef struct effect_descriptor_s {
 //  +---------------------------+-----------+-----------------------------------
 //  | description               | bits      | values
 //  +---------------------------+-----------+-----------------------------------
-//  | connection mode           | 0..1      | 0 insert: after track process
+//  | connection mode           | 0..2      | 0 insert: after track process
 //  |                           |           | 1 auxiliary: connect to track auxiliary
 //  |                           |           |  output and use send level
 //  |                           |           | 2 replace: replaces track process function;
 //  |                           |           |   must implement SRC, volume and mono to stereo.
-//  |                           |           | 3 reserved
+//  |                           |           | 3 pre processing: applied below audio HAL on input
+//  |                           |           | 4 post processing: applied below audio HAL on output
+//  |                           |           | 5 - 7 reserved
 //  +---------------------------+-----------+-----------------------------------
-//  | insertion preference      | 2..4      | 0 none
+//  | insertion preference      | 3..5      | 0 none
 //  |                           |           | 1 first of the chain
 //  |                           |           | 2 last of the chain
 //  |                           |           | 3 exclusive (only effect in the insert chain)
 //  |                           |           | 4..7 reserved
 //  +---------------------------+-----------+-----------------------------------
-//  | Volume management         | 5..6      | 0 none
+//  | Volume management         | 6..8      | 0 none
 //  |                           |           | 1 implements volume control
 //  |                           |           | 2 requires volume indication
-//  |                           |           | 3 reserved
+//  |                           |           | 4 reserved
 //  +---------------------------+-----------+-----------------------------------
-//  | Device indication         | 7..8      | 0 none
+//  | Device indication         | 9..11     | 0 none
 //  |                           |           | 1 requires device updates
-//  |                           |           | 2..3 reserved
+//  |                           |           | 2, 4 reserved
 //  +---------------------------+-----------+-----------------------------------
-//  | Sample input mode         | 9..10     | 0 direct: process() function or EFFECT_CMD_CONFIGURE
+//  | Sample input mode         | 12..13    | 1 direct: process() function or EFFECT_CMD_CONFIGURE
 //  |                           |           |   command must specify a buffer descriptor
-//  |                           |           | 1 provider: process() function uses the
+//  |                           |           | 2 provider: process() function uses the
 //  |                           |           |   bufferProvider indicated by the
 //  |                           |           |   EFFECT_CMD_CONFIGURE command to request input.
 //  |                           |           |   buffers.
-//  |                           |           | 2 both: both input modes are supported
-//  |                           |           | 3 reserved
+//  |                           |           | 3 both: both input modes are supported
 //  +---------------------------+-----------+-----------------------------------
-//  | Sample output mode        | 11..12    | 0 direct: process() function or EFFECT_CMD_CONFIGURE
+//  | Sample output mode        | 14..15    | 1 direct: process() function or EFFECT_CMD_CONFIGURE
 //  |                           |           |   command must specify a buffer descriptor
-//  |                           |           | 1 provider: process() function uses the
+//  |                           |           | 2 provider: process() function uses the
 //  |                           |           |   bufferProvider indicated by the
 //  |                           |           |   EFFECT_CMD_CONFIGURE command to request output
 //  |                           |           |   buffers.
-//  |                           |           | 2 both: both output modes are supported
-//  |                           |           | 3 reserved
+//  |                           |           | 3 both: both output modes are supported
 //  +---------------------------+-----------+-----------------------------------
-//  | Hardware acceleration     | 13..15    | 0 No hardware acceleration
+//  | Hardware acceleration     | 16..17    | 0 No hardware acceleration
 //  |                           |           | 1 non tunneled hw acceleration: the process() function
 //  |                           |           |   reads the samples, send them to HW accelerated
 //  |                           |           |   effect processor, reads back the processed samples
@@ -138,57 +138,83 @@ typedef struct effect_descriptor_s {
 //  |                           |           |   global effects actually applied by the audio
 //  |                           |           |   hardware on the output stream.
 //  +---------------------------+-----------+-----------------------------------
-//  | Audio Mode indication     | 16..17    | 0 none
+//  | Audio Mode indication     | 18..19    | 0 none
 //  |                           |           | 1 requires audio mode updates
 //  |                           |           | 2..3 reserved
 //  +---------------------------+-----------+-----------------------------------
 
 // Insert mode
-#define EFFECT_FLAG_TYPE_MASK           0x00000003
-#define EFFECT_FLAG_TYPE_INSERT         0x00000000
-#define EFFECT_FLAG_TYPE_AUXILIARY      0x00000001
-#define EFFECT_FLAG_TYPE_REPLACE        0x00000002
+#define EFFECT_FLAG_TYPE_SHIFT          0
+#define EFFECT_FLAG_TYPE_SIZE           3
+#define EFFECT_FLAG_TYPE_MASK           (((1 << EFFECT_FLAG_TYPE_SIZE) -1) \
+                                            << EFFECT_FLAG_TYPE_SHIFT)
+#define EFFECT_FLAG_TYPE_INSERT         (0 << EFFECT_FLAG_TYPE_SHIFT)
+#define EFFECT_FLAG_TYPE_AUXILIARY      (1 << EFFECT_FLAG_TYPE_SHIFT)
+#define EFFECT_FLAG_TYPE_REPLACE        (2 << EFFECT_FLAG_TYPE_SHIFT)
+#define EFFECT_FLAG_TYPE_PRE_PROC       (3 << EFFECT_FLAG_TYPE_SHIFT)
+#define EFFECT_FLAG_TYPE_POST_PROC      (4 << EFFECT_FLAG_TYPE_SHIFT)
 
 // Insert preference
-#define EFFECT_FLAG_INSERT_MASK         0x0000001C
-#define EFFECT_FLAG_INSERT_ANY          0x00000000
-#define EFFECT_FLAG_INSERT_FIRST        0x00000004
-#define EFFECT_FLAG_INSERT_LAST         0x00000008
-#define EFFECT_FLAG_INSERT_EXCLUSIVE    0x0000000C
+#define EFFECT_FLAG_INSERT_SHIFT        (EFFECT_FLAG_TYPE_SHIFT + EFFECT_FLAG_TYPE_SIZE)
+#define EFFECT_FLAG_INSERT_SIZE         3
+#define EFFECT_FLAG_INSERT_MASK         (((1 << EFFECT_FLAG_INSERT_SIZE) -1) \
+                                            << EFFECT_FLAG_INSERT_SHIFT)
+#define EFFECT_FLAG_INSERT_ANY          (0 << EFFECT_FLAG_INSERT_SHIFT)
+#define EFFECT_FLAG_INSERT_FIRST        (1 << EFFECT_FLAG_INSERT_SHIFT)
+#define EFFECT_FLAG_INSERT_LAST         (2 << EFFECT_FLAG_INSERT_SHIFT)
+#define EFFECT_FLAG_INSERT_EXCLUSIVE    (3 << EFFECT_FLAG_INSERT_SHIFT)
 
 
 // Volume control
-#define EFFECT_FLAG_VOLUME_MASK         0x00000060
-#define EFFECT_FLAG_VOLUME_CTRL         0x00000020
-#define EFFECT_FLAG_VOLUME_IND          0x00000040
-#define EFFECT_FLAG_VOLUME_NONE         0x00000000
+#define EFFECT_FLAG_VOLUME_SHIFT        (EFFECT_FLAG_INSERT_SHIFT + EFFECT_FLAG_INSERT_SIZE)
+#define EFFECT_FLAG_VOLUME_SIZE         3
+#define EFFECT_FLAG_VOLUME_MASK         (((1 << EFFECT_FLAG_VOLUME_SIZE) -1) \
+                                            << EFFECT_FLAG_VOLUME_SHIFT)
+#define EFFECT_FLAG_VOLUME_CTRL         (1 << EFFECT_FLAG_VOLUME_SHIFT)
+#define EFFECT_FLAG_VOLUME_IND          (2 << EFFECT_FLAG_VOLUME_SHIFT)
+#define EFFECT_FLAG_VOLUME_NONE         (0 << EFFECT_FLAG_VOLUME_SHIFT)
 
 // Device indication
-#define EFFECT_FLAG_DEVICE_MASK         0x00000180
-#define EFFECT_FLAG_DEVICE_IND          0x00000080
-#define EFFECT_FLAG_DEVICE_NONE         0x00000000
+#define EFFECT_FLAG_DEVICE_SHIFT        (EFFECT_FLAG_VOLUME_SHIFT + EFFECT_FLAG_VOLUME_SIZE)
+#define EFFECT_FLAG_DEVICE_SIZE         3
+#define EFFECT_FLAG_DEVICE_MASK         (((1 << EFFECT_FLAG_DEVICE_SIZE) -1) \
+                                            << EFFECT_FLAG_DEVICE_SHIFT)
+#define EFFECT_FLAG_DEVICE_IND          (1 << EFFECT_FLAG_DEVICE_SHIFT)
+#define EFFECT_FLAG_DEVICE_NONE         (0 << EFFECT_FLAG_DEVICE_SHIFT)
 
 // Sample input modes
-#define EFFECT_FLAG_INPUT_MASK          0x00000600
-#define EFFECT_FLAG_INPUT_DIRECT        0x00000000
-#define EFFECT_FLAG_INPUT_PROVIDER      0x00000200
-#define EFFECT_FLAG_INPUT_BOTH          0x00000400
+#define EFFECT_FLAG_INPUT_SHIFT         (EFFECT_FLAG_DEVICE_SHIFT + EFFECT_FLAG_DEVICE_SIZE)
+#define EFFECT_FLAG_INPUT_SIZE          2
+#define EFFECT_FLAG_INPUT_MASK          (((1 << EFFECT_FLAG_INPUT_SIZE) -1) \
+                                            << EFFECT_FLAG_INPUT_SHIFT)
+#define EFFECT_FLAG_INPUT_DIRECT        (1 << EFFECT_FLAG_INPUT_SHIFT)
+#define EFFECT_FLAG_INPUT_PROVIDER      (2 << EFFECT_FLAG_INPUT_SHIFT)
+#define EFFECT_FLAG_INPUT_BOTH          (3 << EFFECT_FLAG_INPUT_SHIFT)
 
 // Sample output modes
-#define EFFECT_FLAG_OUTPUT_MASK          0x00001800
-#define EFFECT_FLAG_OUTPUT_DIRECT        0x00000000
-#define EFFECT_FLAG_OUTPUT_PROVIDER      0x00000800
-#define EFFECT_FLAG_OUTPUT_BOTH          0x00001000
+#define EFFECT_FLAG_OUTPUT_SHIFT        (EFFECT_FLAG_INPUT_SHIFT + EFFECT_FLAG_INPUT_SIZE)
+#define EFFECT_FLAG_OUTPUT_SIZE         2
+#define EFFECT_FLAG_OUTPUT_MASK         (((1 << EFFECT_FLAG_OUTPUT_SIZE) -1) \
+                                            << EFFECT_FLAG_OUTPUT_SHIFT)
+#define EFFECT_FLAG_OUTPUT_DIRECT       (1 << EFFECT_FLAG_OUTPUT_SHIFT)
+#define EFFECT_FLAG_OUTPUT_PROVIDER     (2 << EFFECT_FLAG_OUTPUT_SHIFT)
+#define EFFECT_FLAG_OUTPUT_BOTH         (3 << EFFECT_FLAG_OUTPUT_SHIFT)
 
 // Hardware acceleration mode
-#define EFFECT_FLAG_HW_ACC_MASK          0x00006000
-#define EFFECT_FLAG_HW_ACC_SIMPLE        0x00002000
-#define EFFECT_FLAG_HW_ACC_TUNNEL        0x00004000
+#define EFFECT_FLAG_HW_ACC_SHIFT        (EFFECT_FLAG_OUTPUT_SHIFT + EFFECT_FLAG_OUTPUT_SIZE)
+#define EFFECT_FLAG_HW_ACC_SIZE         2
+#define EFFECT_FLAG_HW_ACC_MASK         (((1 << EFFECT_FLAG_HW_ACC_SIZE) -1) \
+                                            << EFFECT_FLAG_HW_ACC_SHIFT)
+#define EFFECT_FLAG_HW_ACC_SIMPLE       (1 << EFFECT_FLAG_HW_ACC_SHIFT)
+#define EFFECT_FLAG_HW_ACC_TUNNEL       (2 << EFFECT_FLAG_HW_ACC_SHIFT)
 
 // Audio mode indication
-#define EFFECT_FLAG_AUDIO_MODE_MASK      0x00018000
-#define EFFECT_FLAG_AUDIO_MODE_IND       0x00008000
-#define EFFECT_FLAG_AUDIO_MODE_NONE      0x00000000
+#define EFFECT_FLAG_AUDIO_MODE_SHIFT    (EFFECT_FLAG_HW_ACC_SHIFT + EFFECT_FLAG_HW_ACC_SIZE)
+#define EFFECT_FLAG_AUDIO_MODE_SIZE     2
+#define EFFECT_FLAG_AUDIO_MODE_MASK     (((1 << EFFECT_FLAG_AUDIO_MODE_SIZE) -1) \
+                                            << EFFECT_FLAG_AUDIO_MODE_SHIFT)
+#define EFFECT_FLAG_AUDIO_MODE_IND      (1 << EFFECT_FLAG_AUDIO_MODE_SHIFT)
+#define EFFECT_FLAG_AUDIO_MODE_NONE     (0 << EFFECT_FLAG_AUDIO_MODE_SHIFT)
 
 
 #define EFFECT_MAKE_API_VERSION(M, m)  (((M)<<16) | ((m) & 0xFFFF))
@@ -204,17 +230,12 @@ typedef struct effect_descriptor_s {
 // Effect control interface version 2.0
 #define EFFECT_CONTROL_API_VERSION EFFECT_MAKE_API_VERSION(2,0)
 
+// Effect control interface structure: effect_interface_s
 // The effect control interface is exposed by each effect engine implementation. It consists of
 // a set of functions controlling the configuration, activation and process of the engine.
-// The functions are grouped in a structure of type effect_interface_s:
-//    struct effect_interface_s {
-//        effect_process_t process;
-//        effect_command_t command;
-//        effect_get_descriptor_t get_descriptor;
-//    };
-
-
-// effect_handle_t: Effect control interface handle.
+// The functions are grouped in a structure of type effect_interface_s.
+//
+// Effect control interface handle: effect_handle_t
 // The effect_handle_t serves two purposes regarding the implementation of the effect engine:
 // - 1 it is the address of a pointer to an effect_interface_s structure where the functions
 // of the effect control API for a particular effect are located.
@@ -233,91 +254,139 @@ typedef struct effect_interface_s **effect_handle_t;
 // Forward definition of type audio_buffer_t
 typedef struct audio_buffer_s audio_buffer_t;
 
-////////////////////////////////////////////////////////////////////////////////
-//
-//    Function:       process
-//
-//    Description:    Effect process function. Takes input samples as specified
-//          (count and location) in input buffer descriptor and output processed
-//          samples as specified in output buffer descriptor. If the buffer descriptor
-//          is not specified the function must use either the buffer or the
-//          buffer provider function installed by the EFFECT_CMD_CONFIGURE command.
-//          The effect framework will call the process() function after the EFFECT_CMD_ENABLE
-//          command is received and until the EFFECT_CMD_DISABLE is received. When the engine
-//          receives the EFFECT_CMD_DISABLE command it should turn off the effect gracefully
-//          and when done indicate that it is OK to stop calling the process() function by
-//          returning the -ENODATA status.
-//
-//    NOTE: the process() function implementation should be "real-time safe" that is
-//      it should not perform blocking calls: malloc/free, sleep, read/write/open/close,
-//      pthread_cond_wait/pthread_mutex_lock...
-//
-//    Input:
-//          effect_handle_t: handle to the effect interface this function
-//              is called on.
-//          inBuffer:   buffer descriptor indicating where to read samples to process.
-//              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
-//
-//          inBuffer:   buffer descriptor indicating where to write processed samples.
-//              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
-//
-//    Output:
-//        returned value:    0 successful operation
-//                          -ENODATA the engine has finished the disable phase and the framework
-//                                  can stop calling process()
-//                          -EINVAL invalid interface handle or
-//                                  invalid input/output buffer description
-////////////////////////////////////////////////////////////////////////////////
-typedef int32_t (*effect_process_t)(effect_handle_t self,
-                                    audio_buffer_t *inBuffer,
-                                    audio_buffer_t *outBuffer);
-
-////////////////////////////////////////////////////////////////////////////////
-//
-//    Function:       command
-//
-//    Description:    Send a command and receive a response to/from effect engine.
-//
-//    Input:
-//          effect_handle_t: handle to the effect interface this function
-//              is called on.
-//          cmdCode:    command code: the command can be a standardized command defined in
-//              effect_command_e (see below) or a proprietary command.
-//          cmdSize:    size of command in bytes
-//          pCmdData:   pointer to command data
-//          pReplyData: pointer to reply data
-//
-//    Input/Output:
-//          replySize: maximum size of reply data as input
-//                      actual size of reply data as output
-//
-//    Output:
-//          returned value: 0       successful operation
-//                          -EINVAL invalid interface handle or
-//                                  invalid command/reply size or format according to command code
-//              The return code should be restricted to indicate problems related to the this
-//              API specification. Status related to the execution of a particular command should be
-//              indicated as part of the reply field.
-//
-//          *pReplyData updated with command response
-//
-////////////////////////////////////////////////////////////////////////////////
-typedef int32_t (*effect_command_t)(effect_handle_t self,
-                                    uint32_t cmdCode,
-                                    uint32_t cmdSize,
-                                    void *pCmdData,
-                                    uint32_t *replySize,
-                                    void *pReplyData);
 
 
-typedef int32_t (*effect_get_descriptor_t)(effect_handle_t self,
-                                           effect_descriptor_t *pDescriptor);
+
+
 
 // Effect control interface definition
 struct effect_interface_s {
-    effect_process_t process;
-    effect_command_t command;
-    effect_get_descriptor_t get_descriptor;
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    //    Function:       process
+    //
+    //    Description:    Effect process function. Takes input samples as specified
+    //          (count and location) in input buffer descriptor and output processed
+    //          samples as specified in output buffer descriptor. If the buffer descriptor
+    //          is not specified the function must use either the buffer or the
+    //          buffer provider function installed by the EFFECT_CMD_CONFIGURE command.
+    //          The effect framework will call the process() function after the EFFECT_CMD_ENABLE
+    //          command is received and until the EFFECT_CMD_DISABLE is received. When the engine
+    //          receives the EFFECT_CMD_DISABLE command it should turn off the effect gracefully
+    //          and when done indicate that it is OK to stop calling the process() function by
+    //          returning the -ENODATA status.
+    //
+    //    NOTE: the process() function implementation should be "real-time safe" that is
+    //      it should not perform blocking calls: malloc/free, sleep, read/write/open/close,
+    //      pthread_cond_wait/pthread_mutex_lock...
+    //
+    //    Input:
+    //          self:       handle to the effect interface this function
+    //              is called on.
+    //          inBuffer:   buffer descriptor indicating where to read samples to process.
+    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
+    //
+    //          outBuffer:   buffer descriptor indicating where to write processed samples.
+    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
+    //
+    //    Output:
+    //        returned value:    0 successful operation
+    //                          -ENODATA the engine has finished the disable phase and the framework
+    //                                  can stop calling process()
+    //                          -EINVAL invalid interface handle or
+    //                                  invalid input/output buffer description
+    ////////////////////////////////////////////////////////////////////////////////
+    int32_t (*process)(effect_handle_t self,
+                       audio_buffer_t *inBuffer,
+                       audio_buffer_t *outBuffer);
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    //    Function:       command
+    //
+    //    Description:    Send a command and receive a response to/from effect engine.
+    //
+    //    Input:
+    //          self:       handle to the effect interface this function
+    //              is called on.
+    //          cmdCode:    command code: the command can be a standardized command defined in
+    //              effect_command_e (see below) or a proprietary command.
+    //          cmdSize:    size of command in bytes
+    //          pCmdData:   pointer to command data
+    //          pReplyData: pointer to reply data
+    //
+    //    Input/Output:
+    //          replySize: maximum size of reply data as input
+    //                      actual size of reply data as output
+    //
+    //    Output:
+    //          returned value: 0       successful operation
+    //                          -EINVAL invalid interface handle or
+    //                                  invalid command/reply size or format according to command code
+    //              The return code should be restricted to indicate problems related to the this
+    //              API specification. Status related to the execution of a particular command should be
+    //              indicated as part of the reply field.
+    //
+    //          *pReplyData updated with command response
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+    int32_t (*command)(effect_handle_t self,
+                       uint32_t cmdCode,
+                       uint32_t cmdSize,
+                       void *pCmdData,
+                       uint32_t *replySize,
+                       void *pReplyData);
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    //    Function:        get_descriptor
+    //
+    //    Description:    Returns the effect descriptor
+    //
+    //    Input:
+    //          self:       handle to the effect interface this function
+    //              is called on.
+    //
+    //    Input/Output:
+    //          pDescriptor:    address where to return the effect descriptor.
+    //
+    //    Output:
+    //        returned value:    0          successful operation.
+    //                          -EINVAL     invalid interface handle or invalid pDescriptor
+    //        *pDescriptor:     updated with the effect descriptor.
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+    int32_t (*get_descriptor)(effect_handle_t self,
+                              effect_descriptor_t *pDescriptor);
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    //    Function:       process_reverse
+    //
+    //    Description:    Process reverse stream function. This function is used to pass
+    //          a reference stream to the effect engine. If the engine does not need a reference
+    //          stream, this function pointer can be set to NULL.
+    //          This function would typically implemented by an Echo Canceler.
+    //
+    //    Input:
+    //          self:       handle to the effect interface this function
+    //              is called on.
+    //          inBuffer:   buffer descriptor indicating where to read samples to process.
+    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE_REVERSE command.
+    //
+    //          outBuffer:   buffer descriptor indicating where to write processed samples.
+    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE_REVERSE command.
+    //              If the buffer and buffer provider in the configuration received by
+    //              EFFECT_CMD_CONFIGURE_REVERSE are also NULL, do not return modified reverse
+    //              stream data
+    //
+    //    Output:
+    //        returned value:    0 successful operation
+    //                          -ENODATA the engine has finished the disable phase and the framework
+    //                                  can stop calling process_reverse()
+    //                          -EINVAL invalid interface handle or
+    //                                  invalid input/output buffer description
+    ////////////////////////////////////////////////////////////////////////////////
+    int32_t (*process_reverse)(effect_handle_t self,
+                               audio_buffer_t *inBuffer,
+                               audio_buffer_t *outBuffer);
 };
 
 
@@ -337,6 +406,8 @@ enum effect_command_e {
    EFFECT_CMD_SET_DEVICE,           // set audio device (see audio.h, audio_devices_t)
    EFFECT_CMD_SET_VOLUME,           // set volume
    EFFECT_CMD_SET_AUDIO_MODE,       // set the audio mode (normal, ring, ...)
+   EFFECT_CMD_CONFIGURE_REVERSE,    // configure effect engine reverse stream(see effect_config_t)
+   EFFECT_CMD_SET_INPUT_DEVICE,     // set capture device (see audio.h, audio_devices_t)
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -514,6 +585,35 @@ enum effect_command_e {
 //  size: 0
 //  data: N/A
 //==================================================================================================
+// command: EFFECT_CMD_CONFIGURE_REVERSE
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Apply new audio parameters configurations for input and output buffers of reverse stream
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(effect_config_t)
+//  data: effect_config_t
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(int)
+//  data: status
+//==================================================================================================
+// command: EFFECT_CMD_SET_INPUT_DEVICE
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Set the capture device the audio input path is connected to. See audio.h, audio_devices_t
+//  for device values.
+//  The effect implementation must set EFFECT_FLAG_DEVICE_IND flag in its descriptor to receive this
+//  command when the device changes
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(uint32_t)
+//  data: uint32_t
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: 0
+//  data: N/A
+//==================================================================================================
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
 // description:
@@ -564,7 +664,7 @@ typedef struct buffer_provider_s {
 // The buffer_config_s structure specifies the input or output audio format
 // to be used by the effect engine. It is part of the effect_config_t
 // structure that defines both input and output buffer configurations and is
-// passed by the EFFECT_CMD_CONFIGURE command.
+// passed by the EFFECT_CMD_CONFIGURE or EFFECT_CMD_CONFIGURE_REVERSE command.
 typedef struct buffer_config_s {
     audio_buffer_t  buffer;     // buffer for use by process() function if not passed explicitly
     uint32_t   samplingRate;    // sampling rate
@@ -601,7 +701,7 @@ enum effect_buffer_access_e {
 // command to configure audio parameters and buffers for effect engine input and output.
 typedef struct effect_config_s {
     buffer_config_t   inputCfg;
-    buffer_config_t   outputCfg;;
+    buffer_config_t   outputCfg;
 } effect_config_t;
 
 
