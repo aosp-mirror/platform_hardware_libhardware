@@ -105,9 +105,10 @@ typedef struct preview_stream_ops {
                 int left, int top, int right, int bottom);
     int (*set_usage)(struct preview_stream_ops* w, int usage);
     int (*set_swap_interval)(struct preview_stream_ops *w, int interval);
-
     int (*get_min_undequeued_buffer_count)(const struct preview_stream_ops *w,
                 int *count);
+    int (*lock_buffer)(struct preview_stream_ops* w,
+                buffer_handle_t* buffer);
 } preview_stream_ops_t;
 
 struct camera_device;
