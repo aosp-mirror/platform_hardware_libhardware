@@ -27,6 +27,7 @@
 
 #include <hardware/hardware.h>
 #include <system/audio.h>
+#include <hardware/audio_effect.h>
 
 __BEGIN_DECLS
 
@@ -116,6 +117,10 @@ struct audio_stream {
      */
     char * (*get_parameters)(const struct audio_stream *stream,
                              const char *keys);
+    int (*add_audio_effect)(const struct audio_stream *stream,
+                             effect_handle_t effect);
+    int (*remove_audio_effect)(const struct audio_stream *stream,
+                             effect_handle_t effect);
 };
 typedef struct audio_stream audio_stream_t;
 
