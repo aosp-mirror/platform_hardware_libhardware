@@ -267,8 +267,18 @@ typedef struct camera_device_ops {
      */
     int (*set_parameters)(struct camera_device *, const char *parms);
 
-    /** Return the camera parameters. */
+    /** Retrieve the camera parameters.  The buffer returned by the camera HAL
+        must be returned back to it with put_parameters, if put_parameters
+        is not NULL.
+     */
     char *(*get_parameters)(struct camera_device *);
+
+    /** The camera HAL uses its own memory to pass us the parameters when we
+        call get_parameters.  Use this function to return the memory back to
+        the camera HAL, if put_parameters is not NULL.  If put_parameters
+        is NULL, then you have to use free() to release the memory.
+    */
+    void (*put_parameters)(struct camera_device *, char *);
 
     /**
      * Send command to camera driver.
