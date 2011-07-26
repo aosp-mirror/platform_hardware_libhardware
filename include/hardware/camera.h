@@ -109,6 +109,11 @@ typedef struct preview_stream_ops {
                 int *count);
     int (*lock_buffer)(struct preview_stream_ops* w,
                 buffer_handle_t* buffer);
+    // Timestamps are measured in nanoseconds, and must be comparable
+    // and monotonically increasing between two frames in the same
+    // preview stream. They do not need to be comparable between
+    // consecutive or parallel preview streams, cameras, or app runs.
+    int (*set_timestamp)(struct preview_stream_ops *w, int64_t timestamp);
 } preview_stream_ops_t;
 
 struct camera_device;
