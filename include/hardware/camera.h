@@ -82,7 +82,7 @@ typedef void (*camera_notify_callback)(int32_t msg_type,
 
 typedef void (*camera_data_callback)(int32_t msg_type,
         const camera_memory_t *data, unsigned int index,
-        void *user);
+        camera_frame_metadata_t *metadata, void *user);
 
 typedef void (*camera_data_timestamp_callback)(int64_t timestamp,
         int32_t msg_type,
