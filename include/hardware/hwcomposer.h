@@ -205,8 +205,26 @@ typedef void* hwc_display_t;
 /* This represents a surface, typically an EGLSurface object  */
 typedef void* hwc_surface_t;
 
-/*****************************************************************************/
 
+/* see hwc_composer_device::registerProcs()
+ * Any of the callbacks can be NULL, in which case the corresponding
+ * functionality is not supported.
+ */
+typedef struct hwc_procs {
+    /*
+     * (*invalidate)() triggers a screen refresh, in particular prepare and set
+     * will be called shortly after this call is made. Note that there is
+     * NO GUARANTEE that the screen refresh will happen after invalidate()
+     * returns (in particular, it could happen before).
+     * invalidate() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL and
+     * it is safe to call invalidate() from any of hwc_composer_device
+     * hooks, unless noted otherwise.
+     */
+    void (*invalidate)(struct hwc_procs* procs);
+} hwc_procs_t;
+
+
+/*****************************************************************************/
 
 typedef struct hwc_module {
     struct hw_module_t common;
@@ -281,11 +299,27 @@ typedef struct hwc_composer_device {
     /*
      * This hook is OPTIONAL.
      *
-     * If non NULL it will be caused by SurfaceFlinger on dumpsys
+     * If non NULL it will be called by SurfaceFlinger on dumpsys
      */
     void (*dump)(struct hwc_composer_device* dev, char *buff, int buff_len);
 
-    void* reserved_proc[7];
+    /*
+     * This hook is OPTIONAL.
+     *
+     * (*registerProcs)() registers a set of callbacks the h/w composer HAL
+     * can later use. It is FORBIDDEN to call any of the callbacks from
+     * within registerProcs(). registerProcs() must save the hwc_procs_t pointer
+     * which is needed when calling a registered callback.
+     * Each call to registerProcs replaces the previous set of callbacks.
+     * registerProcs is called with NULL to unregister all callbacks.
+     *
+     * Any of the callbacks can be NULL, in which case the corresponding
+     * functionality is not supported.
+     */
+    void (*registerProcs)(struct hwc_composer_device* dev,
+            hwc_procs_t const* procs);
+
+    void* reserved_proc[6];
 
 } hwc_composer_device_t;
 
