@@ -43,6 +43,11 @@ __BEGIN_DECLS
 
 /**************************************/
 
+/* BT SCO Noise Reduction + Echo Cancellation parameters */
+#define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
+#define AUDIO_PARAMETER_VALUE_ON "on"
+#define AUDIO_PARAMETER_VALUE_OFF "off"
+
 /* standard audio parameters that the HAL may need to handle */
 #define AUDIO_PARAMETER_STREAM_ROUTING "routing"
 #define AUDIO_PARAMETER_STREAM_FORMAT "format"
