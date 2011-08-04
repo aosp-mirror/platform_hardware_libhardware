@@ -659,6 +659,12 @@ typedef struct {
      * These parameters match values in the android.net.NetworkInfo class.
      */
     void (*update_network_state) (int connected, int type, int roaming, const char* extra_info);
+
+    /**
+     * Notify GPS of network status changes.
+     * These parameters match values in the android.net.NetworkInfo class.
+     */
+    void (*update_network_availability) (int avaiable, const char* apn);
 } AGpsRilInterface;
 
 __END_DECLS
