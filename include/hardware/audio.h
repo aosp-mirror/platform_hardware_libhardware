@@ -43,17 +43,37 @@ __BEGIN_DECLS
 
 /**************************************/
 
+/**
+ *  standard audio parameters that the HAL may need to handle
+ */
+
+/**
+ *  audio device parameters
+ */
+
 /* BT SCO Noise Reduction + Echo Cancellation parameters */
 #define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
 #define AUDIO_PARAMETER_VALUE_ON "on"
 #define AUDIO_PARAMETER_VALUE_OFF "off"
 
-/* standard audio parameters that the HAL may need to handle */
+/* TTY mode selection */
+#define AUDIO_PARAMETER_KEY_TTY_MODE "tty_mode"
+#define AUDIO_PARAMETER_VALUE_TTY_OFF "tty_off"
+#define AUDIO_PARAMETER_VALUE_TTY_VCO "tty_vco"
+#define AUDIO_PARAMETER_VALUE_TTY_HCO "tty_hco"
+#define AUDIO_PARAMETER_VALUE_TTY_FULL "tty_full"
+
+/**
+ *  audio stream parameters
+ */
+
 #define AUDIO_PARAMETER_STREAM_ROUTING "routing"
 #define AUDIO_PARAMETER_STREAM_FORMAT "format"
 #define AUDIO_PARAMETER_STREAM_CHANNELS "channels"
 #define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"
 #define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"
+
+/**************************************/
 
 /* common audio stream parameters and operations */
 struct audio_stream {
