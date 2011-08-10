@@ -20,8 +20,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <hardware/qemud.h>
-#include <hardware/qemu_pipe.h>
 #include <pthread.h>  /* for pthread_once() */
 #include <stdlib.h>
 #include <stdio.h>
