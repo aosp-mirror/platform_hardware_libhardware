@@ -196,6 +196,11 @@ static int ap_unregister_effect(struct audio_policy *pol, int id)
     return -ENOSYS;
 }
 
+static int ap_set_effect_enabled(struct audio_policy *pol, int id, bool enabled)
+{
+    return -ENOSYS;
+}
+
 static bool ap_is_stream_active(const struct audio_policy *pol, int stream,
                                 uint32_t in_past_ms)
 {
@@ -250,6 +255,7 @@ static int create_default_ap(const struct audio_policy_device *device,
     dap->policy.get_output_for_effect = ap_get_output_for_effect;
     dap->policy.register_effect = ap_register_effect;
     dap->policy.unregister_effect = ap_unregister_effect;
+    dap->policy.set_effect_enabled = ap_set_effect_enabled;
     dap->policy.is_stream_active = ap_is_stream_active;
     dap->policy.dump = ap_dump;
 
