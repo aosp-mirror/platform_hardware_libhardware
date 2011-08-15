@@ -39,7 +39,7 @@ static int64_t ltdev_get_local_time(struct local_time_hw_device* dev)
 
     ret = clock_gettime(CLOCK_MONOTONIC, &ts);
     if (ret < 0) {
-        LOGW("%s failed to fetch CLOCK_MONOTONIC value! (res = %d)",
+        ALOGW("%s failed to fetch CLOCK_MONOTONIC value! (res = %d)",
                 dev->common.module->name, ret);
         return 0;
     }
