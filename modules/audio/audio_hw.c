@@ -126,6 +126,12 @@ static int out_remove_audio_effect(const struct audio_stream *stream, effect_han
     return 0;
 }
 
+static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
+                                        int64_t *timestamp)
+{
+    return -EINVAL;
+}
+
 /** audio_stream_in implementation **/
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
@@ -236,6 +242,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.set_volume = out_set_volume;
     out->stream.write = out_write;
     out->stream.get_render_position = out_get_render_position;
+    out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
     *stream_out = &out->stream;
     return 0;
@@ -274,6 +281,12 @@ static int adev_set_voice_volume(struct audio_hw_device *dev, float volume)
 }
 
 static int adev_set_master_volume(struct audio_hw_device *dev, float volume)
+{
+    return -ENOSYS;
+}
+
+static int adev_get_master_volume(struct audio_hw_device *dev,
+                                  float *volume)
 {
     return -ENOSYS;
 }
@@ -401,6 +414,7 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->device.init_check = adev_init_check;
     adev->device.set_voice_volume = adev_set_voice_volume;
     adev->device.set_master_volume = adev_set_master_volume;
+    adev->device.get_master_volume = adev_get_master_volume;
     adev->device.set_mode = adev_set_mode;
     adev->device.set_mic_mute = adev_set_mic_mute;
     adev->device.get_mic_mute = adev_get_mic_mute;
