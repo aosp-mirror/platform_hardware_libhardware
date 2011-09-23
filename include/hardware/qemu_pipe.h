@@ -68,7 +68,7 @@ qemu_pipe_open(const char*  pipeName)
     fd = open("/dev/qemu_pipe", O_RDWR);
     if (fd < 0) {
         D("%s: Could not open /dev/qemu_pipe: %s", __FUNCTION__, strerror(errno));
-        errno = ENOSYS;
+        //errno = ENOSYS;
         return -1;
     }
 
