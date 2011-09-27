@@ -23,6 +23,7 @@
 #include <cutils/log.h>
 
 #include <hardware/sensors.h>
+#include <utils/Timers.h>
 
 char const* getSensorName(int type) {
     switch(type) {
@@ -32,12 +33,26 @@ char const* getSensorName(int type) {
             return "Mag";
         case SENSOR_TYPE_ORIENTATION:
             return "Ori";
-        case SENSOR_TYPE_PROXIMITY:
-            return "Prx";
-        case SENSOR_TYPE_TEMPERATURE:
-            return "Tmp";
+        case SENSOR_TYPE_GYROSCOPE:
+            return "Gyr";
         case SENSOR_TYPE_LIGHT:
             return "Lux";
+        case SENSOR_TYPE_PRESSURE:
+            return "Bar";
+        case SENSOR_TYPE_TEMPERATURE:
+            return "Tmp";
+        case SENSOR_TYPE_PROXIMITY:
+            return "Prx";
+        case SENSOR_TYPE_GRAVITY:
+            return "Grv";
+        case SENSOR_TYPE_LINEAR_ACCELERATION:
+            return "Lac";
+        case SENSOR_TYPE_ROTATION_VECTOR:
+            return "Rot";
+        case SENSOR_TYPE_RELATIVE_HUMIDITY:
+            return "Hum";
+        case SENSOR_TYPE_AMBIENT_TEMPERATURE:
+            return "Tam";
     }
     return "ukn";
 }
@@ -54,8 +69,15 @@ int main(int argc, char** argv)
         return 0;
     }
 
+    err = sensors_open(&module->common, &device);
+    if (err != 0) {
+        printf("sensors_open() failed (%s)\n", strerror(-err));
+        return 0;
+    }
+
     struct sensor_t const* list;
     int count = module->get_sensors_list(module, &list);
+    printf("%d sensors found:\n", count);
     for (int i=0 ; i<count ; i++) {
         printf("%s\n"
                 "\tvendor: %s\n"
@@ -75,13 +97,8 @@ int main(int argc, char** argv)
                 list[i].power);
     }
 
-    sensors_event_t buffer[16];
-
-    err = sensors_open(&module->common, &device);
-    if (err != 0) {
-        printf("sensors_open() failed (%s)\n", strerror(-err));
-        return 0;
-    }
+    static const size_t numEvents = 16;
+    sensors_event_t buffer[numEvents];
 
     for (int i=0 ; i<count ; i++) {
         err = device->activate(device, list[i].handle, 0);
@@ -99,11 +116,11 @@ int main(int argc, char** argv)
                     list[i].name, strerror(-err));
             return 0;
         }
-        device->setDelay(device, list[i].handle, 10000000);
+        device->setDelay(device, list[i].handle, ms2ns(10));
     }
 
     do {
-        int n = device->poll(device, buffer, 16);
+        int n = device->poll(device, buffer, numEvents);
         if (n < 0) {
             printf("poll() failed (%s)\n", strerror(-err));
             break;
@@ -121,59 +138,42 @@ int main(int argc, char** argv)
 
             switch(data.type) {
                 case SENSOR_TYPE_ACCELEROMETER:
-                    printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
-                            getSensorName(data.type),
-                            data.timestamp,
-                            data.acceleration.x,
-                            data.acceleration.y,
-                            data.acceleration.z);
-                    break;
                 case SENSOR_TYPE_MAGNETIC_FIELD:
-                    printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
-                            getSensorName(data.type),
-                            data.timestamp,
-                            data.magnetic.x,
-                            data.magnetic.y,
-                            data.magnetic.z);
-                    break;
                 case SENSOR_TYPE_ORIENTATION:
+                case SENSOR_TYPE_GYROSCOPE:
+                case SENSOR_TYPE_GRAVITY:
+                case SENSOR_TYPE_LINEAR_ACCELERATION:
+                case SENSOR_TYPE_ROTATION_VECTOR:
                     printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
                             getSensorName(data.type),
                             data.timestamp,
-                            data.orientation.azimuth,
-                            data.orientation.pitch,
-                            data.orientation.roll);
+                            data.data[0],
+                            data.data[1],
+                            data.data[2]);
                     break;
-                case SENSOR_TYPE_PROXIMITY:
-                    printf("sensor=%s, time=%lld, value=%f\n",
-                            getSensorName(data.type),
-                            data.timestamp,
-                            data.distance);
-                    break;
-                case SENSOR_TYPE_TEMPERATURE:
-                    printf("sensor=%s, time=%lld, value=%f\n",
-                            getSensorName(data.type),
-                            data.timestamp,
-                            data.temperature);
-                    break;
+
                 case SENSOR_TYPE_LIGHT:
+                case SENSOR_TYPE_PRESSURE:
+                case SENSOR_TYPE_TEMPERATURE:
+                case SENSOR_TYPE_PROXIMITY:
+                case SENSOR_TYPE_RELATIVE_HUMIDITY:
+                case SENSOR_TYPE_AMBIENT_TEMPERATURE:
                     printf("sensor=%s, time=%lld, value=%f\n",
                             getSensorName(data.type),
                             data.timestamp,
-                            data.light);
+                            data.data[0]);
                     break;
+
                 default:
-                    printf("sensor=%d, time=%lld, value=<%f,%f,%f>\n",
+                    printf("sensor=%d, time=%lld, value=<%f,%f,%f, ...>\n",
                             data.type,
                             data.timestamp,
-                            data.acceleration.x,
-                            data.acceleration.y,
-                            data.acceleration.z);
+                            data.data[0],
+                            data.data[1],
+                            data.data[2]);
                     break;
             }
         }
-
-
     } while (1); // fix that
 
 
