@@ -213,7 +213,7 @@ __BEGIN_DECLS
  * less than maxRange in the "near" state.
  *
  * Proximity sensors report a value only when it changes and each time the
- * sensor is enabled. setDelay() is ignored.
+ * sensor is enabled.
  *
  * Light
  * -----
@@ -221,7 +221,7 @@ __BEGIN_DECLS
  * The light sensor value is returned in SI lux units.
  *
  * Light sensors report a value only when it changes and each time the
- * sensor is enabled. setDelay() is ignored.
+ * sensor is enabled.
  *
  * Pressure
  * --------
@@ -296,7 +296,7 @@ __BEGIN_DECLS
  * returns a value in percent.
  *
  * Relative humidity sensors report a value only when it changes and each
- * time the sensor is enabled. setDelay() is ignored.
+ * time the sensor is enabled.
  *
  *
  * Ambient Temperature
@@ -305,7 +305,7 @@ __BEGIN_DECLS
  * The ambient (room) temperature in degree Celsius.
  *
  * Temperature sensors report a value only when it changes and each time the
- * sensor is enabled. setDelay() is ignored.
+ * sensor is enabled.
  *
  */
 
@@ -451,9 +451,12 @@ struct sensors_poll_device_t {
 
     /**
      * Set the delay between sensor events in nanoseconds for a given sensor.
+     *
      * It is an error to set a delay inferior to the value defined by
-     * sensor_t::minDelay. If sensor_t::minDelay is zero, setDelay() is
-     * ignored and returns 0.
+     * sensor_t::minDelay.
+     *
+     * If sensor_t::minDelay is zero, setDelay() returns an error if the
+     * requested delay is inferior to 1ms.
      *
      * @return 0 if successful, < 0 on error
      */
