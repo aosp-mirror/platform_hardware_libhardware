@@ -287,6 +287,11 @@ typedef struct hwc_composer_device {
      * entire composition has been handled by SurfaceFlinger with OpenGL ES.
      * In this case, (*set)() behaves just like eglSwapBuffers().
      *
+     * IMPORTANT NOTE: there is an implicit layer containing opaque black
+     * pixels behind all the layers in the list.
+     * It is the responsibility of the hwcomposer module to make
+     * sure black pixels are output (or blended from).
+     *
      * returns: 0 on success. An negative error code on error:
      *    HWC_EGL_ERROR: eglGetError() will provide the proper error code
      *    Another code for non EGL errors.
