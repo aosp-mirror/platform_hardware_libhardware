@@ -287,6 +287,11 @@ typedef struct hwc_composer_device {
      * entire composition has been handled by SurfaceFlinger with OpenGL ES.
      * In this case, (*set)() behaves just like eglSwapBuffers().
      *
+     * dpy, sur, and list are set to NULL to indicate that the screen is
+     * turning off. This happens WITHOUT prepare() being called first.
+     * This is a good time to free h/w resources and/or power
+     * the relevant h/w blocks down.
+     *
      * IMPORTANT NOTE: there is an implicit layer containing opaque black
      * pixels behind all the layers in the list.
      * It is the responsibility of the hwcomposer module to make
