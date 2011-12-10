@@ -91,7 +91,7 @@ struct audio_policy {
                                        audio_policy_dev_state_t state,
                                        const char *device_address);
 
-    /* retreive a device connection status */
+    /* retrieve a device connection status */
     audio_policy_dev_state_t (*get_device_connection_state)(
                                             const struct audio_policy *pol,
                                             audio_devices_t device,
@@ -110,7 +110,7 @@ struct audio_policy {
                           audio_policy_force_use_t usage,
                           audio_policy_forced_cfg_t config);
 
-    /* retreive current device category forced for a given usage */
+    /* retrieve current device category forced for a given usage */
     audio_policy_forced_cfg_t (*get_force_use)(const struct audio_policy *pol,
                                                audio_policy_force_use_t usage);
 
@@ -174,22 +174,36 @@ struct audio_policy {
      */
 
     /* initialises stream volume conversion parameters by specifying volume
-     * index range. */
+     * index range. The index range for each stream is defined by AudioService. */
     void (*init_stream_volume)(struct audio_policy *pol,
                                audio_stream_type_t stream,
                                int index_min,
                                int index_max);
 
     /* sets the new stream volume at a level corresponding to the supplied
-     * index */
+     * index. The index is within the range specified by init_stream_volume() */
     int (*set_stream_volume_index)(struct audio_policy *pol,
                                    audio_stream_type_t stream,
                                    int index);
 
-    /* retreive current volume index for the specified stream */
+    /* retrieve current volume index for the specified stream */
     int (*get_stream_volume_index)(const struct audio_policy *pol,
                                    audio_stream_type_t stream,
                                    int *index);
+
+    /* sets the new stream volume at a level corresponding to the supplied
+     * index for the specified device.
+     * The index is within the range specified by init_stream_volume() */
+    int (*set_stream_volume_index_for_device)(struct audio_policy *pol,
+                                   audio_stream_type_t stream,
+                                   int index,
+                                   audio_devices_t device);
+
+    /* retrieve current volume index for the specified stream for the specified device */
+    int (*get_stream_volume_index_for_device)(const struct audio_policy *pol,
+                                   audio_stream_type_t stream,
+                                   int *index,
+                                   audio_devices_t device);
 
     /* return the strategy corresponding to a given stream type */
     uint32_t (*get_strategy_for_stream)(const struct audio_policy *pol,

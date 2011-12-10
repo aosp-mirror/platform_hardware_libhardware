@@ -163,6 +163,22 @@ static int ap_get_stream_volume_index(const struct audio_policy *pol,
     return -ENOSYS;
 }
 
+static int ap_set_stream_volume_index_for_device(struct audio_policy *pol,
+                                      audio_stream_type_t stream,
+                                      int index,
+                                      audio_devices_t device)
+{
+    return -ENOSYS;
+}
+
+static int ap_get_stream_volume_index_for_device(const struct audio_policy *pol,
+                                      audio_stream_type_t stream,
+                                      int *index,
+                                      audio_devices_t device)
+{
+    return -ENOSYS;
+}
+
 static uint32_t ap_get_strategy_for_stream(const struct audio_policy *pol,
                                            audio_stream_type_t stream)
 {
@@ -250,6 +266,8 @@ static int create_default_ap(const struct audio_policy_device *device,
     dap->policy.init_stream_volume = ap_init_stream_volume;
     dap->policy.set_stream_volume_index = ap_set_stream_volume_index;
     dap->policy.get_stream_volume_index = ap_get_stream_volume_index;
+    dap->policy.set_stream_volume_index_for_device = ap_set_stream_volume_index_for_device;
+    dap->policy.get_stream_volume_index_for_device = ap_get_stream_volume_index_for_device;
     dap->policy.get_strategy_for_stream = ap_get_strategy_for_stream;
     dap->policy.get_devices_for_stream = ap_get_devices_for_stream;
     dap->policy.get_output_for_effect = ap_get_output_for_effect;
