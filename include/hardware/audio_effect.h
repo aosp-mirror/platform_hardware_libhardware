@@ -111,19 +111,19 @@ typedef struct effect_descriptor_s {
 //  |                           |           | 1 requires device updates
 //  |                           |           | 2, 4 reserved
 //  +---------------------------+-----------+-----------------------------------
-//  | Sample input mode         | 12..13    | 1 direct: process() function or EFFECT_CMD_CONFIGURE
+//  | Sample input mode         | 12..13    | 1 direct: process() function or EFFECT_CMD_SET_CONFIG
 //  |                           |           |   command must specify a buffer descriptor
 //  |                           |           | 2 provider: process() function uses the
 //  |                           |           |   bufferProvider indicated by the
-//  |                           |           |   EFFECT_CMD_CONFIGURE command to request input.
+//  |                           |           |   EFFECT_CMD_SET_CONFIG command to request input.
 //  |                           |           |   buffers.
 //  |                           |           | 3 both: both input modes are supported
 //  +---------------------------+-----------+-----------------------------------
-//  | Sample output mode        | 14..15    | 1 direct: process() function or EFFECT_CMD_CONFIGURE
+//  | Sample output mode        | 14..15    | 1 direct: process() function or EFFECT_CMD_SET_CONFIG
 //  |                           |           |   command must specify a buffer descriptor
 //  |                           |           | 2 provider: process() function uses the
 //  |                           |           |   bufferProvider indicated by the
-//  |                           |           |   EFFECT_CMD_CONFIGURE command to request output
+//  |                           |           |   EFFECT_CMD_SET_CONFIG command to request output
 //  |                           |           |   buffers.
 //  |                           |           | 3 both: both output modes are supported
 //  +---------------------------+-----------+-----------------------------------
@@ -269,7 +269,7 @@ struct effect_interface_s {
     //          (count and location) in input buffer descriptor and output processed
     //          samples as specified in output buffer descriptor. If the buffer descriptor
     //          is not specified the function must use either the buffer or the
-    //          buffer provider function installed by the EFFECT_CMD_CONFIGURE command.
+    //          buffer provider function installed by the EFFECT_CMD_SET_CONFIG command.
     //          The effect framework will call the process() function after the EFFECT_CMD_ENABLE
     //          command is received and until the EFFECT_CMD_DISABLE is received. When the engine
     //          receives the EFFECT_CMD_DISABLE command it should turn off the effect gracefully
@@ -284,10 +284,10 @@ struct effect_interface_s {
     //          self:       handle to the effect interface this function
     //              is called on.
     //          inBuffer:   buffer descriptor indicating where to read samples to process.
-    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
+    //              If NULL, use the configuration passed by EFFECT_CMD_SET_CONFIG command.
     //
     //          outBuffer:   buffer descriptor indicating where to write processed samples.
-    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE command.
+    //              If NULL, use the configuration passed by EFFECT_CMD_SET_CONFIG command.
     //
     //    Output:
     //        returned value:    0 successful operation
@@ -369,12 +369,12 @@ struct effect_interface_s {
     //          self:       handle to the effect interface this function
     //              is called on.
     //          inBuffer:   buffer descriptor indicating where to read samples to process.
-    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE_REVERSE command.
+    //              If NULL, use the configuration passed by EFFECT_CMD_SET_CONFIG_REVERSE command.
     //
     //          outBuffer:   buffer descriptor indicating where to write processed samples.
-    //              If NULL, use the configuration passed by EFFECT_CMD_CONFIGURE_REVERSE command.
+    //              If NULL, use the configuration passed by EFFECT_CMD_SET_CONFIG_REVERSE command.
     //              If the buffer and buffer provider in the configuration received by
-    //              EFFECT_CMD_CONFIGURE_REVERSE are also NULL, do not return modified reverse
+    //              EFFECT_CMD_SET_CONFIG_REVERSE are also NULL, do not return modified reverse
     //              stream data
     //
     //    Output:
@@ -395,7 +395,7 @@ struct effect_interface_s {
 //
 enum effect_command_e {
    EFFECT_CMD_INIT,                 // initialize effect engine
-   EFFECT_CMD_CONFIGURE,            // configure effect engine (see effect_config_t)
+   EFFECT_CMD_SET_CONFIG,           // configure effect engine (see effect_config_t)
    EFFECT_CMD_RESET,                // reset effect engine
    EFFECT_CMD_ENABLE,               // enable effect process
    EFFECT_CMD_DISABLE,              // disable effect process
@@ -406,8 +406,10 @@ enum effect_command_e {
    EFFECT_CMD_SET_DEVICE,           // set audio device (see audio.h, audio_devices_t)
    EFFECT_CMD_SET_VOLUME,           // set volume
    EFFECT_CMD_SET_AUDIO_MODE,       // set the audio mode (normal, ring, ...)
-   EFFECT_CMD_CONFIGURE_REVERSE,    // configure effect engine reverse stream(see effect_config_t)
+   EFFECT_CMD_SET_CONFIG_REVERSE,   // configure effect engine reverse stream(see effect_config_t)
    EFFECT_CMD_SET_INPUT_DEVICE,     // set capture device (see audio.h, audio_devices_t)
+   EFFECT_CMD_GET_CONFIG,           // read effect engine configuration
+   EFFECT_CMD_GET_CONFIG_REVERSE,   // read configure effect engine reverse stream configuration
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -425,7 +427,7 @@ enum effect_command_e {
 //  size: sizeof(int)
 //  data: status
 //==================================================================================================
-// command: EFFECT_CMD_CONFIGURE
+// command: EFFECT_CMD_SET_CONFIG
 //--------------------------------------------------------------------------------------------------
 // description:
 //  Apply new audio parameters configurations for input and output buffers
@@ -585,10 +587,11 @@ enum effect_command_e {
 //  size: 0
 //  data: N/A
 //==================================================================================================
-// command: EFFECT_CMD_CONFIGURE_REVERSE
+// command: EFFECT_CMD_SET_CONFIG_REVERSE
 //--------------------------------------------------------------------------------------------------
 // description:
-//  Apply new audio parameters configurations for input and output buffers of reverse stream
+//  Apply new audio parameters configurations for input and output buffers of reverse stream.
+//  An example of reverse stream is the echo reference supplied to an Acoustic Echo Canceler.
 //--------------------------------------------------------------------------------------------------
 // command format:
 //  size: sizeof(effect_config_t)
@@ -613,6 +616,32 @@ enum effect_command_e {
 // reply format:
 //  size: 0
 //  data: N/A
+//==================================================================================================
+// command: EFFECT_CMD_GET_CONFIG
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Read audio parameters configurations for input and output buffers
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: 0
+//  data: N/A
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(effect_config_t)
+//  data: effect_config_t
+//==================================================================================================
+// command: EFFECT_CMD_GET_CONFIG_REVERSE
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Read audio parameters configurations for input and output buffers of reverse stream
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: 0
+//  data: N/A
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(effect_config_t)
+//  data: effect_config_t
 //==================================================================================================
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
@@ -649,7 +678,7 @@ struct audio_buffer_s {
 // with getBuffer() is not needed anymore.
 // The process function should use the buffer provider mechanism to retrieve
 // input or output buffer if the inBuffer or outBuffer passed as argument is NULL
-// and the buffer configuration (buffer_config_t) given by the EFFECT_CMD_CONFIGURE
+// and the buffer configuration (buffer_config_t) given by the EFFECT_CMD_SET_CONFIG
 // command did not specify an audio buffer.
 
 typedef int32_t (* buffer_function_t)(void *cookie, audio_buffer_t *buffer);
@@ -664,7 +693,7 @@ typedef struct buffer_provider_s {
 // The buffer_config_s structure specifies the input or output audio format
 // to be used by the effect engine. It is part of the effect_config_t
 // structure that defines both input and output buffer configurations and is
-// passed by the EFFECT_CMD_CONFIGURE or EFFECT_CMD_CONFIGURE_REVERSE command.
+// passed by the EFFECT_CMD_SET_CONFIG or EFFECT_CMD_SET_CONFIG_REVERSE command.
 typedef struct buffer_config_s {
     audio_buffer_t  buffer;     // buffer for use by process() function if not passed explicitly
     uint32_t   samplingRate;    // sampling rate
@@ -685,7 +714,7 @@ enum effect_buffer_access_e {
 };
 
 // Values for bit field "mask" in buffer_config_t. If a bit is set, the corresponding field
-// in buffer_config_t must be taken into account when executing the EFFECT_CMD_CONFIGURE command
+// in buffer_config_t must be taken into account when executing the EFFECT_CMD_SET_CONFIG command
 #define EFFECT_CONFIG_BUFFER    0x0001  // buffer field must be taken into account
 #define EFFECT_CONFIG_SMP_RATE  0x0002  // samplingRate field must be taken into account
 #define EFFECT_CONFIG_CHANNELS  0x0004  // channels field must be taken into account
@@ -697,7 +726,7 @@ enum effect_buffer_access_e {
                            EFFECT_CONFIG_ACC_MODE | EFFECT_CONFIG_PROVIDER)
 
 
-// effect_config_s structure describes the format of the pCmdData argument of EFFECT_CMD_CONFIGURE
+// effect_config_s structure describes the format of the pCmdData argument of EFFECT_CMD_SET_CONFIG
 // command to configure audio parameters and buffers for effect engine input and output.
 typedef struct effect_config_s {
     buffer_config_t   inputCfg;
