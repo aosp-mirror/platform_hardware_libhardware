@@ -275,6 +275,7 @@ struct audio_hw_device {
      * setMode is called when the audio mode changes. AUDIO_MODE_NORMAL mode
      * is for standard audio playback, AUDIO_MODE_RINGTONE when a ringtone is
      * playing, and AUDIO_MODE_IN_CALL when a call is in progress.
+     * Actual type of mode is enum audio_mode_t defined in <system/audio.h>.
      */
     int (*set_mode)(struct audio_hw_device *dev, int mode);
 
