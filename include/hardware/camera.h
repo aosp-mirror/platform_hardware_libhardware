@@ -14,53 +14,28 @@
  * limitations under the License.
  */
 
-// FIXME: add well-defined names for cameras
-
 #ifndef ANDROID_INCLUDE_CAMERA_H
 #define ANDROID_INCLUDE_CAMERA_H
 
-#include <stdint.h>
-#include <sys/cdefs.h>
-#include <sys/types.h>
-#include <cutils/native_handle.h>
-#include <system/camera.h>
-#include <hardware/hardware.h>
-#include <hardware/gralloc.h>
-
-__BEGIN_DECLS
+#include "camera_common.h"
 
 /**
- * The id of this module
+ * Camera device HAL, initial version [ HARDWARE_DEVICE_API_VERSION(1,0) ]
+ *
+ * Supports the android.hardware.Camera API.
+ *
+ * Camera devices that support this version of the HAL must return a value in
+ * the range HARDWARE_DEVICE_API_VERSION(0,0)-(1,FF) in
+ * camera_device_t.common.version.
+ *
+ * Camera modules that implement version 2.0 or higher of camera_module_t must
+ * also return the value of camera_device_t.common.version in
+ * camera_info_t.device_version.
+ *
+ * See camera_common.h for more details.
  */
-#define CAMERA_HARDWARE_MODULE_ID "camera"
 
-struct camera_info {
-    /**
-     * The direction that the camera faces to. It should be CAMERA_FACING_BACK
-     * or CAMERA_FACING_FRONT.
-     */
-    int facing;
-
-    /**
-     * The orientation of the camera image. The value is the angle that the
-     * camera image needs to be rotated clockwise so it shows correctly on the
-     * display in its natural orientation. It should be 0, 90, 180, or 270.
-     *
-     * For example, suppose a device has a naturally tall screen. The
-     * back-facing camera sensor is mounted in landscape. You are looking at
-     * the screen. If the top side of the camera sensor is aligned with the
-     * right edge of the screen in natural orientation, the value should be
-     * 90. If the top side of a front-facing camera sensor is aligned with the
-     * right of the screen, the value should be 270.
-     */
-    int orientation;
-};
-
-typedef struct camera_module {
-    hw_module_t common;
-    int (*get_number_of_cameras)(void);
-    int (*get_camera_info)(int camera_id, struct camera_info *info);
-} camera_module_t;
+__BEGIN_DECLS
 
 struct camera_memory;
 typedef void (*camera_release_memory)(struct camera_memory *mem);
@@ -304,6 +279,10 @@ typedef struct camera_device_ops {
 } camera_device_ops_t;
 
 typedef struct camera_device {
+    /**
+     * camera_device.common.version must be in the range
+     * HARDWARE_DEVICE_API_VERSION(0,0)-(1,FF). (1,0) is recommended.
+     */
     hw_device_t common;
     camera_device_ops_t *ops;
     void *priv;
@@ -311,4 +290,4 @@ typedef struct camera_device {
 
 __END_DECLS
 
-#endif /* ANDROID_INCLUDE_CAMERA_H */
+#endif /* #ifdef ANDROID_INCLUDE_CAMERA_H */
