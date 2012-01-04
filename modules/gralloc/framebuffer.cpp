@@ -222,7 +222,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
     float ydpi = (info.yres * 25.4f) / info.height;
     float fps  = refreshRate / 1000.0f;
 
-    LOGI(   "using (fd=%d)\n"
+    ALOGI(   "using (fd=%d)\n"
             "id           = %s\n"
             "xres         = %d px\n"
             "yres         = %d px\n"
@@ -244,7 +244,7 @@ int mapFrameBufferLocked(struct private_module_t* module)
             info.blue.offset, info.blue.length
     );
 
-    LOGI(   "width        = %d mm (%f dpi)\n"
+    ALOGI(   "width        = %d mm (%f dpi)\n"
             "height       = %d mm (%f dpi)\n"
             "refresh rate = %.2f Hz\n",
             info.width,  xdpi,
