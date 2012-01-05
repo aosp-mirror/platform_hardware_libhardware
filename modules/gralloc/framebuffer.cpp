@@ -181,14 +181,14 @@ int mapFrameBufferLocked(struct private_module_t* module)
     if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
         info.yres_virtual = info.yres;
         flags &= ~PAGE_FLIP;
-        LOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
+        ALOGW("FBIOPUT_VSCREENINFO failed, page flipping not supported");
     }
 
     if (info.yres_virtual < info.yres * 2) {
         // we need at least 2 for page-flipping
         info.yres_virtual = info.yres;
         flags &= ~PAGE_FLIP;
-        LOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
+        ALOGW("page flipping not supported (yres_virtual=%d, requested=%d)",
                 info.yres_virtual, info.yres*2);
     }
 
