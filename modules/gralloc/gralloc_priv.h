@@ -101,7 +101,7 @@ struct private_handle_t {
                 h->numInts != sNumInts || h->numFds != sNumFds ||
                 hnd->magic != sMagic) 
         {
-            LOGE("invalid gralloc handle (at %p)", h);
+            ALOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;
         }
         return 0;
