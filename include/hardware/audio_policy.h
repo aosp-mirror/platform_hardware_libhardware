@@ -215,7 +215,7 @@ struct audio_policy {
     int (*set_effect_enabled)(struct audio_policy *pol, int id, bool enabled);
 
     bool (*is_stream_active)(const struct audio_policy *pol,
-                             int stream,
+                             audio_stream_type_t stream,
                              uint32_t in_past_ms);
 
     /* dump state */
