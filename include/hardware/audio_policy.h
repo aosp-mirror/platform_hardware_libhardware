@@ -131,7 +131,7 @@ struct audio_policy {
     audio_io_handle_t (*get_output)(struct audio_policy *pol,
                                     audio_stream_type_t stream,
                                     uint32_t samplingRate,
-                                    uint32_t format,
+                                    audio_format_t format,
                                     uint32_t channels,
                                     audio_policy_output_flags_t flags);
 
@@ -156,7 +156,7 @@ struct audio_policy {
      * supplied parameters. */
     audio_io_handle_t (*get_input)(struct audio_policy *pol, int inputSource,
                                    uint32_t samplingRate,
-                                   uint32_t format,
+                                   audio_format_t format,
                                    uint32_t channels,
                                    audio_in_acoustics_t acoustics);
 
@@ -242,7 +242,7 @@ struct audio_policy_service_ops {
     audio_io_handle_t (*open_output)(void *service,
                                      uint32_t *pDevices,
                                      uint32_t *pSamplingRate,
-                                     uint32_t *pFormat,
+                                     audio_format_t *pFormat,
                                      uint32_t *pChannels,
                                      uint32_t *pLatencyMs,
                                      audio_policy_output_flags_t flags);
@@ -277,7 +277,7 @@ struct audio_policy_service_ops {
     audio_io_handle_t (*open_input)(void *service,
                                     uint32_t *pDevices,
                                     uint32_t *pSamplingRate,
-                                    uint32_t *pFormat,
+                                    audio_format_t *pFormat,
                                     uint32_t *pChannels,
                                     uint32_t acoustics);
 
