@@ -215,9 +215,9 @@ typedef struct audio_stream_in audio_stream_in_t;
 /**
  * return the frame size (number of bytes per sample).
  */
-static inline uint32_t audio_stream_frame_size(struct audio_stream *s)
+static inline size_t audio_stream_frame_size(struct audio_stream *s)
 {
-    int chan_samp_sz;
+    size_t chan_samp_sz;
 
     switch (s->get_format(s)) {
     case AUDIO_FORMAT_PCM_16_BIT:
