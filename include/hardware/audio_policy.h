@@ -99,7 +99,7 @@ struct audio_policy {
 
     /* indicate a change in phone state. Valid phones states are defined
      * by audio_mode_t */
-    void (*set_phone_state)(struct audio_policy *pol, int state);
+    void (*set_phone_state)(struct audio_policy *pol, audio_mode_t state);
 
     /* indicate a change in ringer mode */
     void (*set_ringer_mode)(struct audio_policy *pol, uint32_t mode,

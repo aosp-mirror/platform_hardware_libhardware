@@ -58,7 +58,7 @@ static audio_policy_dev_state_t ap_get_device_connection_state(
     return AUDIO_POLICY_DEVICE_STATE_UNAVAILABLE;
 }
 
-static void ap_set_phone_state(struct audio_policy *pol, int state)
+static void ap_set_phone_state(struct audio_policy *pol, audio_mode_t state)
 {
 }
 

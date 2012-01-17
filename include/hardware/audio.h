@@ -272,12 +272,11 @@ struct audio_hw_device {
     int (*set_master_volume)(struct audio_hw_device *dev, float volume);
 
     /**
-     * setMode is called when the audio mode changes. AUDIO_MODE_NORMAL mode
+     * set_mode is called when the audio mode changes. AUDIO_MODE_NORMAL mode
      * is for standard audio playback, AUDIO_MODE_RINGTONE when a ringtone is
      * playing, and AUDIO_MODE_IN_CALL when a call is in progress.
-     * Actual type of mode is enum audio_mode_t defined in <system/audio.h>.
      */
-    int (*set_mode)(struct audio_hw_device *dev, int mode);
+    int (*set_mode)(struct audio_hw_device *dev, audio_mode_t mode);
 
     /* mic mute */
     int (*set_mic_mute)(struct audio_hw_device *dev, bool state);
