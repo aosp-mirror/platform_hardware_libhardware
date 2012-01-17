@@ -410,6 +410,9 @@ enum effect_command_e {
    EFFECT_CMD_SET_INPUT_DEVICE,     // set capture device (see audio.h, audio_devices_t)
    EFFECT_CMD_GET_CONFIG,           // read effect engine configuration
    EFFECT_CMD_GET_CONFIG_REVERSE,   // read configure effect engine reverse stream configuration
+   EFFECT_CMD_GET_FEATURE_SUPPORTED_CONFIGS,// get all supported configurations for a feature.
+   EFFECT_CMD_GET_FEATURE_CONFIG,   // get current feature configuration
+   EFFECT_CMD_SET_FEATURE_CONFIG,   // set current feature configuration
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -581,7 +584,7 @@ enum effect_command_e {
 //--------------------------------------------------------------------------------------------------
 // command format:
 //  size: sizeof(uint32_t)
-//  data: audio_mode_e
+//  data: audio_mode_t
 //--------------------------------------------------------------------------------------------------
 // reply format:
 //  size: 0
@@ -642,6 +645,65 @@ enum effect_command_e {
 // reply format:
 //  size: sizeof(effect_config_t)
 //  data: effect_config_t
+//==================================================================================================
+// command: EFFECT_CMD_GET_FEATURE_SUPPORTED_CONFIGS
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Queries for supported configurations for a particular feature (e.g. get the supported
+// combinations of main and auxiliary channels for a noise suppressor).
+// The command parameter is the feature identifier (See effect_feature_e for a list of defined
+// features) followed by the maximum number of configuration descriptor to return.
+// The reply is composed of:
+//  - status (uint32_t):
+//          - 0 if feature is supported
+//          - -ENOSYS if the feature is not supported,
+//          - -ENOMEM if the feature is supported but the total number of supported configurations
+//          exceeds the maximum number indicated by the caller.
+//  - total number of supported configurations (uint32_t)
+//  - an array of configuration descriptors.
+// The actual number of descriptors returned must not exceed the maximum number indicated by
+// the caller.
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: 2 x sizeof(uint32_t)
+//  data: effect_feature_e + maximum number of configurations to return
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: 2 x sizeof(uint32_t) + n x sizeof (<config descriptor>)
+//  data: status + total number of configurations supported + array of n config descriptors
+//==================================================================================================
+// command: EFFECT_CMD_GET_FEATURE_CONFIG
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Retrieves current configuration for a given feature.
+// The reply status is:
+//      - 0 if feature is supported
+//      - -ENOSYS if the feature is not supported,
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(uint32_t)
+//  data: effect_feature_e
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(uint32_t) + sizeof (<config descriptor>)
+//  data: status + config descriptor
+//==================================================================================================
+// command: EFFECT_CMD_SET_FEATURE_CONFIG
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Sets current configuration for a given feature.
+// The reply status is:
+//      - 0 if feature is supported
+//      - -ENOSYS if the feature is not supported,
+//      - -EINVAL if the configuration is invalid
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(uint32_t) + sizeof (<config descriptor>)
+//  data: effect_feature_e + config descriptor
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(uint32_t)
+//  data: status
 //==================================================================================================
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
@@ -712,6 +774,20 @@ enum effect_buffer_access_e {
     EFFECT_BUFFER_ACCESS_ACCUMULATE
 
 };
+
+// feature identifiers for EFFECT_CMD_GET_FEATURE_SUPPORTED_CONFIGS command
+enum effect_feature_e {
+    EFFECT_FEATURE_AUX_CHANNELS, // supports auxiliary channels (e.g. dual mic noise suppressor)
+    EFFECT_FEATURE_CNT
+};
+
+// EFFECT_FEATURE_AUX_CHANNELS feature configuration descriptor. Describe a combination
+// of main and auxiliary channels supported
+typedef struct channel_config_s {
+    uint32_t   main_channels;   // channel mask for main channels
+    uint32_t   aux_channels;    // channel mask for auxiliary channels
+} channel_config_t;
+
 
 // Values for bit field "mask" in buffer_config_t. If a bit is set, the corresponding field
 // in buffer_config_t must be taken into account when executing the EFFECT_CMD_SET_CONFIG command
