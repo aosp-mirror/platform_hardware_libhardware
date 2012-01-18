@@ -62,6 +62,7 @@ static void ap_set_phone_state(struct audio_policy *pol, audio_mode_t state)
 {
 }
 
+// deprecated, never called
 static void ap_set_ringer_mode(struct audio_policy *pol, uint32_t mode,
                                uint32_t mask)
 {

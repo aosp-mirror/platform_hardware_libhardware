@@ -101,7 +101,7 @@ struct audio_policy {
      * by audio_mode_t */
     void (*set_phone_state)(struct audio_policy *pol, audio_mode_t state);
 
-    /* indicate a change in ringer mode */
+    /* deprecated, never called (was "indicate a change in ringer mode") */
     void (*set_ringer_mode)(struct audio_policy *pol, uint32_t mode,
                             uint32_t mask);
 
