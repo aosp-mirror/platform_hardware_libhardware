@@ -102,12 +102,12 @@ struct audio_stream {
     /**
      * audio format - eg. AUDIO_FORMAT_PCM_16_BIT
      */
-    int (*get_format)(const struct audio_stream *stream);
+    audio_format_t (*get_format)(const struct audio_stream *stream);
 
     /* currently unused - use set_parameters with key
      *     AUDIO_PARAMETER_STREAM_FORMAT
      */
-    int (*set_format)(struct audio_stream *stream, int format);
+    int (*set_format)(struct audio_stream *stream, audio_format_t format);
 
     /**
      * Put the audio hardware input/output into standby mode.
@@ -296,12 +296,12 @@ struct audio_hw_device {
      * 0 if one of the parameters is not supported
      */
     size_t (*get_input_buffer_size)(const struct audio_hw_device *dev,
-                                    uint32_t sample_rate, int format,
+                                    uint32_t sample_rate, audio_format_t format,
                                     int channel_count);
 
     /** This method creates and opens the audio hardware output stream */
     int (*open_output_stream)(struct audio_hw_device *dev, uint32_t devices,
-                              int *format, uint32_t *channels,
+                              audio_format_t *format, uint32_t *channels,
                               uint32_t *sample_rate,
                               struct audio_stream_out **out);
 
@@ -310,7 +310,7 @@ struct audio_hw_device {
 
     /** This method creates and opens the audio hardware input stream */
     int (*open_input_stream)(struct audio_hw_device *dev, uint32_t devices,
-                             int *format, uint32_t *channels,
+                             audio_format_t *format, uint32_t *channels,
                              uint32_t *sample_rate,
                              audio_in_acoustics_t acoustics,
                              struct audio_stream_in **stream_in);

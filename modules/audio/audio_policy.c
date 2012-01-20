@@ -97,7 +97,7 @@ static int ap_init_check(const struct audio_policy *pol)
 static audio_io_handle_t ap_get_output(struct audio_policy *pol,
                                        audio_stream_type_t stream,
                                        uint32_t sampling_rate,
-                                       uint32_t format,
+                                       audio_format_t format,
                                        uint32_t channels,
                                        audio_policy_output_flags_t flags)
 {
@@ -123,7 +123,7 @@ static void ap_release_output(struct audio_policy *pol,
 
 static audio_io_handle_t ap_get_input(struct audio_policy *pol, int inputSource,
                                       uint32_t sampling_rate,
-                                      uint32_t format,
+                                      audio_format_t format,
                                       uint32_t channels,
                                       audio_in_acoustics_t acoustics)
 {
