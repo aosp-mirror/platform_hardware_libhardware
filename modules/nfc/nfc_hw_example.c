@@ -44,6 +44,7 @@ static int nfc_open(const hw_module_t* module, const char* name,
         dev->linktype = PN544_LINK_TYPE_INVALID;
         dev->device_node = NULL;
         dev->enable_i2c_workaround = 0;
+        dev->i2c_device_address = 0;
 
         *device = (hw_device_t*) dev;
         return 0;
