@@ -293,7 +293,7 @@ struct audio_policy_service_ops {
                                     uint32_t *pSamplingRate,
                                     audio_format_t *pFormat,
                                     uint32_t *pChannels,
-                                    uint32_t acoustics);
+                                    audio_in_acoustics_t acoustics);
 
     /* closes an audio input */
     int (*close_input)(void *service, audio_io_handle_t input);
