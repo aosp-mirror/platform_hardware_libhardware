@@ -152,9 +152,9 @@ struct audio_policy {
     /* releases the output. */
     void (*release_output)(struct audio_policy *pol, audio_io_handle_t output);
 
-    /* request an input appriate for record from the supplied device with
+    /* request an input appropriate for record from the supplied device with
      * supplied parameters. */
-    audio_io_handle_t (*get_input)(struct audio_policy *pol, int inputSource,
+    audio_io_handle_t (*get_input)(struct audio_policy *pol, audio_source_t inputSource,
                                    uint32_t samplingRate,
                                    audio_format_t format,
                                    uint32_t channels,

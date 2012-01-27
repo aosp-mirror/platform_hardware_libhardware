@@ -121,7 +121,7 @@ static void ap_release_output(struct audio_policy *pol,
 {
 }
 
-static audio_io_handle_t ap_get_input(struct audio_policy *pol, int inputSource,
+static audio_io_handle_t ap_get_input(struct audio_policy *pol, audio_source_t inputSource,
                                       uint32_t sampling_rate,
                                       audio_format_t format,
                                       uint32_t channels,
