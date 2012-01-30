@@ -945,7 +945,7 @@ typedef struct audio_effect_library_s {
     //        *pHandle:         updated with the effect interface handle.
     //
     ////////////////////////////////////////////////////////////////////////////////
-    int32_t (*create_effect)(effect_uuid_t *uuid,
+    int32_t (*create_effect)(const effect_uuid_t *uuid,
                              int32_t sessionId,
                              int32_t ioId,
                              effect_handle_t *pHandle);
@@ -987,7 +987,7 @@ typedef struct audio_effect_library_s {
     //        *pDescriptor:     updated with the effect descriptor.
     //
     ////////////////////////////////////////////////////////////////////////////////
-    int32_t (*get_descriptor)(effect_uuid_t *uuid,
+    int32_t (*get_descriptor)(const effect_uuid_t *uuid,
                               effect_descriptor_t *pDescriptor);
 } audio_effect_library_t;
 
