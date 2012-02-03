@@ -28,7 +28,7 @@ __BEGIN_DECLS
 
 /*****************************************************************************/
 
-#define HWC_API_VERSION 1
+#define HWC_API_VERSION HARDWARE_DEVICE_API_VERSION(0,2)
 
 /**
  * The id of this module
@@ -91,6 +91,10 @@ enum {
 
     /* this layer will be handled in the HWC */
     HWC_OVERLAY = 1,
+
+    /* this is the background layer. it's used to set the background color.
+     * there is only a single background layer */
+    HWC_BACKGROUND = 2,
 };
 
 /*
@@ -123,6 +127,12 @@ enum {
     HWC_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
 };
 
+/* attributes queriable with query() */
+enum {
+    /* must return 1 if the background layer is supported, 0 otherwise */
+    HWC_BACKGROUND_LAYER_SUPPORTED      = 0,
+};
+
 typedef struct hwc_rect {
     int left;
     int top;
@@ -135,12 +145,29 @@ typedef struct hwc_region {
     hwc_rect_t const* rects;
 } hwc_region_t;
 
+typedef struct hwc_color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} hwc_color_t;
+
 typedef struct hwc_layer {
     /*
-     * initially set to HWC_FRAMEBUFFER, indicates the layer will
-     * be drawn into the framebuffer using OpenGL ES.
-     * The HWC can toggle this value to HWC_OVERLAY, to indicate
-     * it will handle the layer.
+     * initially set to HWC_FRAMEBUFFER or HWC_BACKGROUND.
+     * HWC_FRAMEBUFFER
+     *   indicates the layer will be drawn into the framebuffer
+     *   using OpenGL ES.
+     *   The HWC can toggle this value to HWC_OVERLAY, to indicate
+     *   it will handle the layer.
+     *
+     * HWC_BACKGROUND
+     *   indicates this is a special "background"  layer. The only valid
+     *   field is backgroundColor. HWC_BACKGROUND can only be used with
+     *   HWC_API_VERSION >= 0.2
+     *   The HWC can toggle this value to HWC_FRAMEBUFFER, to indicate
+     *   it CANNOT handle the background color
+     *
      */
     int32_t compositionType;
 
@@ -150,35 +177,43 @@ typedef struct hwc_layer {
     /* see hwc_layer_t::flags above */
     uint32_t flags;
 
-    /* handle of buffer to compose. This handle is guaranteed to have been
-     * allocated from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag. If
-     * the layer's handle is unchanged across two consecutive prepare calls and
-     * the HWC_GEOMETRY_CHANGED flag is not set for the second call then the
-     * HWComposer implementation may assume that the contents of the buffer have
-     * not changed. */
-    buffer_handle_t handle;
+    union {
+        /* color of the background.  hwc_color_t.a is ignored */
+        hwc_color_t backgroundColor;
 
-    /* transformation to apply to the buffer during composition */
-    uint32_t transform;
+        struct {
 
-    /* blending to apply during composition */
-    int32_t blending;
+            /* handle of buffer to compose. This handle is guaranteed to have been
+             * allocated from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag. If
+             * the layer's handle is unchanged across two consecutive prepare calls and
+             * the HWC_GEOMETRY_CHANGED flag is not set for the second call then the
+             * HWComposer implementation may assume that the contents of the buffer have
+             * not changed. */
+            buffer_handle_t handle;
 
-    /* area of the source to consider, the origin is the top-left corner of
-     * the buffer */
-    hwc_rect_t sourceCrop;
+            /* transformation to apply to the buffer during composition */
+            uint32_t transform;
 
-    /* where to composite the sourceCrop onto the display. The sourceCrop
-     * is scaled using linear filtering to the displayFrame. The origin is the
-     * top-left corner of the screen.
-     */
-    hwc_rect_t displayFrame;
+            /* blending to apply during composition */
+            int32_t blending;
 
-    /* visible region in screen space. The origin is the
-     * top-left corner of the screen.
-     * The visible region INCLUDES areas overlapped by a translucent layer.
-     */
-    hwc_region_t visibleRegionScreen;
+            /* area of the source to consider, the origin is the top-left corner of
+             * the buffer */
+            hwc_rect_t sourceCrop;
+
+            /* where to composite the sourceCrop onto the display. The sourceCrop
+             * is scaled using linear filtering to the displayFrame. The origin is the
+             * top-left corner of the screen.
+             */
+            hwc_rect_t displayFrame;
+
+            /* visible region in screen space. The origin is the
+             * top-left corner of the screen.
+             * The visible region INCLUDES areas overlapped by a translucent layer.
+             */
+            hwc_region_t visibleRegionScreen;
+        };
+    };
 } hwc_layer_t;
 
 
@@ -333,7 +368,17 @@ typedef struct hwc_composer_device {
     void (*registerProcs)(struct hwc_composer_device* dev,
             hwc_procs_t const* procs);
 
-    void* reserved_proc[6];
+    /*
+     * This hook is OPTIONAL.
+     *
+     * Used to retrieve information about the h/w composer
+     *
+     * Returns 0 on success or -errno on error.
+     */
+    int (*query)(struct hwc_composer_device* dev, int what, int* value);
+
+
+    void* reserved_proc[5];
 
 } hwc_composer_device_t;
 
