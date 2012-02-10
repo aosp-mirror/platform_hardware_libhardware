@@ -126,7 +126,7 @@ struct audio_policy {
      * Audio routing query functions
      */
 
-    /* request an output appriate for playback of the supplied stream type and
+    /* request an output appropriate for playback of the supplied stream type and
      * parameters */
     audio_io_handle_t (*get_output)(struct audio_policy *pol,
                                     audio_stream_type_t stream,
@@ -329,7 +329,7 @@ struct audio_policy_service_ops {
      * audio hardware interface to audio policy manager.
      *
      * Returns a pointer to a heap allocated string. The caller is responsible
-     * for freeing the memory for it.
+     * for freeing the memory for it using free().
      */
 
     char * (*get_parameters)(void *service, audio_io_handle_t io_handle,

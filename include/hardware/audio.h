@@ -70,11 +70,12 @@ __BEGIN_DECLS
  *  audio stream parameters
  */
 
-#define AUDIO_PARAMETER_STREAM_ROUTING "routing"
-#define AUDIO_PARAMETER_STREAM_FORMAT "format"
-#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"
-#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"
-#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"
+#define AUDIO_PARAMETER_STREAM_ROUTING "routing"            // audio_devices_t
+#define AUDIO_PARAMETER_STREAM_FORMAT "format"              // audio_format_t
+#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"          // audio_channel_mask_t
+#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"    // size_t
+#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"  // audio_source_t
+#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" // uint32_t
 
 /**************************************/
 
@@ -82,7 +83,7 @@ __BEGIN_DECLS
 struct audio_stream {
 
     /**
-     * sampling rate is in Hz - eg. 44100
+     * Return the sampling rate in Hz - eg. 44100.
      */
     uint32_t (*get_sample_rate)(const struct audio_stream *stream);
 
@@ -92,18 +93,19 @@ struct audio_stream {
     int (*set_sample_rate)(struct audio_stream *stream, uint32_t rate);
 
     /**
-     * size of output buffer in bytes - eg. 4800
+     * Return size of input/output buffer in bytes for this stream - eg. 4800.
+     * It should be a multiple of the frame size.  See also get_input_buffer_size.
      */
     size_t (*get_buffer_size)(const struct audio_stream *stream);
 
     /**
-     * the channel mask -
+     * Return the channel mask -
      *  e.g. AUDIO_CHANNEL_OUT_STEREO or AUDIO_CHANNEL_IN_STEREO
      */
     uint32_t (*get_channels)(const struct audio_stream *stream);
 
     /**
-     * audio format - eg. AUDIO_FORMAT_PCM_16_BIT
+     * Return the audio format - e.g. AUDIO_FORMAT_PCM_16_BIT
      */
     audio_format_t (*get_format)(const struct audio_stream *stream);
 
@@ -114,6 +116,7 @@ struct audio_stream {
 
     /**
      * Put the audio hardware input/output into standby mode.
+     * Driver should exit from standby mode at the next I/O operation.
      * Returns 0 on success and <0 on failure.
      */
     int (*standby)(struct audio_stream *stream);
@@ -121,7 +124,15 @@ struct audio_stream {
     /** dump the state of the audio input/output device */
     int (*dump)(const struct audio_stream *stream, int fd);
 
+    /** Return the set of device(s) which this stream is connected to */
     audio_devices_t (*get_device)(const struct audio_stream *stream);
+
+    /**
+     * Currently unused - set_device() corresponds to set_parameters() with key
+     * AUDIO_PARAMETER_STREAM_ROUTING for both input and output.
+     * AUDIO_PARAMETER_STREAM_INPUT_SOURCE is an additional information used by
+     * input streams only.
+     */
     int (*set_device)(struct audio_stream *stream, audio_devices_t device);
 
     /**
@@ -141,7 +152,7 @@ struct audio_stream {
 
     /*
      * Returns a pointer to a heap allocated string. The caller is responsible
-     * for freeing the memory for it.
+     * for freeing the memory for it using free().
      */
     char * (*get_parameters)(const struct audio_stream *stream,
                              const char *keys);
@@ -163,7 +174,7 @@ struct audio_stream_out {
     struct audio_stream common;
 
     /**
-     * return the audio hardware driver latency in milli seconds.
+     * Return the audio hardware driver estimated latency in milliseconds.
      */
     uint32_t (*get_latency)(const struct audio_stream_out *stream);
 
@@ -177,7 +188,10 @@ struct audio_stream_out {
     int (*set_volume)(struct audio_stream_out *stream, float left, float right);
 
     /**
-     * write audio buffer to driver. Returns number of bytes written
+     * Write audio buffer to driver. Returns number of bytes written, or a
+     * negative status_t. If at least one frame was written successfully prior to the error,
+     * it is suggested that the driver return that successful (short) byte count
+     * and then return an error in the subsequent call.
      */
     ssize_t (*write)(struct audio_stream_out *stream, const void* buffer,
                      size_t bytes);
@@ -189,8 +203,8 @@ struct audio_stream_out {
                                uint32_t *dsp_frames);
 
     /**
-     * get the local time at which the next write to the audio driver will be
-     * presented
+     * get the local time at which the next write to the audio driver will be presented.
+     * The units are microseconds, where the epoch is decided by the local audio HAL.
      */
     int (*get_next_write_timestamp)(const struct audio_stream_out *stream,
                                     int64_t *timestamp);
@@ -205,7 +219,10 @@ struct audio_stream_in {
      *  for future use */
     int (*set_gain)(struct audio_stream_in *stream, float gain);
 
-    /** read audio buffer in from audio driver */
+    /** Read audio buffer in from audio driver. Returns number of bytes read, or a
+     *  negative status_t. If at least one frame was read prior to the error,
+     *  read should return that byte count and then return an error in the subsequent call.
+     */
     ssize_t (*read)(struct audio_stream_in *stream, void* buffer,
                     size_t bytes);
 
@@ -307,13 +324,14 @@ struct audio_hw_device {
 
     /*
      * Returns a pointer to a heap allocated string. The caller is responsible
-     * for freeing the memory for it.
+     * for freeing the memory for it using free().
      */
     char * (*get_parameters)(const struct audio_hw_device *dev,
                              const char *keys);
 
     /* Returns audio input buffer size according to parameters passed or
-     * 0 if one of the parameters is not supported
+     * 0 if one of the parameters is not supported.
+     * See also get_buffer_size which is for a particular stream.
      */
     size_t (*get_input_buffer_size)(const struct audio_hw_device *dev,
                                     uint32_t sample_rate, audio_format_t format,
