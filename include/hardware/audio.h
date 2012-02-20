@@ -291,7 +291,7 @@ typedef struct audio_stream_in audio_stream_in_t;
 /**
  * return the frame size (number of bytes per sample).
  */
-static inline size_t audio_stream_frame_size(struct audio_stream *s)
+static inline size_t audio_stream_frame_size(const struct audio_stream *s)
 {
     size_t chan_samp_sz;
 

@@ -215,10 +215,10 @@ struct audio_policy {
 
     /* Audio effect management */
     audio_io_handle_t (*get_output_for_effect)(struct audio_policy *pol,
-                                            struct effect_descriptor_s *desc);
+                                            const struct effect_descriptor_s *desc);
 
     int (*register_effect)(struct audio_policy *pol,
-                           struct effect_descriptor_s *desc,
+                           const struct effect_descriptor_s *desc,
                            audio_io_handle_t output,
                            uint32_t strategy,
                            int session,

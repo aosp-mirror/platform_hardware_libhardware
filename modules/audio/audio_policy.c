@@ -193,13 +193,13 @@ static audio_devices_t ap_get_devices_for_stream(const struct audio_policy *pol,
 }
 
 static audio_io_handle_t ap_get_output_for_effect(struct audio_policy *pol,
-                                            struct effect_descriptor_s *desc)
+                                            const struct effect_descriptor_s *desc)
 {
     return 0;
 }
 
 static int ap_register_effect(struct audio_policy *pol,
-                              struct effect_descriptor_s *desc,
+                              const struct effect_descriptor_s *desc,
                               audio_io_handle_t output,
                               uint32_t strategy,
                               int session,
