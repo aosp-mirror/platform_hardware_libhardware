@@ -150,8 +150,12 @@ typedef struct hwc_layer {
     /* see hwc_layer_t::flags above */
     uint32_t flags;
 
-    /* handle of buffer to compose. this handle is guaranteed to have been
-     * allocated with gralloc */
+    /* handle of buffer to compose. This handle is guaranteed to have been
+     * allocated from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag. If
+     * the layer's handle is unchanged across two consecutive prepare calls and
+     * the HWC_GEOMETRY_CHANGED flag is not set for the second call then the
+     * HWComposer implementation may assume that the contents of the buffer have
+     * not changed. */
     buffer_handle_t handle;
 
     /* transformation to apply to the buffer during composition */
