@@ -715,7 +715,7 @@ enum effect_command_e {
 
 // Audio buffer descriptor used by process(), bufferProvider() functions and buffer_config_t
 // structure. Multi-channel audio is always interleaved. The channel order is from LSB to MSB with
-// regard to the channel mask definition in audio.h, audio_channels_t e.g :
+// regard to the channel mask definition in audio.h, audio_channel_mask_t e.g :
 // Stereo: left, right
 // 5 point 1: front left, front right, front center, low frequency, back left, back right
 // The buffer size is expressed in frame count, a frame being composed of samples for all
@@ -759,7 +759,7 @@ typedef struct buffer_provider_s {
 typedef struct buffer_config_s {
     audio_buffer_t  buffer;     // buffer for use by process() function if not passed explicitly
     uint32_t   samplingRate;    // sampling rate
-    uint32_t   channels;        // channel mask (see audio_channels_t in audio.h)
+    uint32_t   channels;        // channel mask (see audio_channel_mask_t in audio.h)
     buffer_provider_t bufferProvider;   // buffer provider
     uint8_t    format;          // Audio format  (see see audio_format_t in audio.h)
     uint8_t    accessMode;      // read/write or accumulate in buffer (effect_buffer_access_e)
