@@ -186,7 +186,7 @@ static uint32_t ap_get_strategy_for_stream(const struct audio_policy *pol,
     return 0;
 }
 
-static uint32_t ap_get_devices_for_stream(const struct audio_policy *pol,
+static audio_devices_t ap_get_devices_for_stream(const struct audio_policy *pol,
                                           audio_stream_type_t stream)
 {
     return 0;

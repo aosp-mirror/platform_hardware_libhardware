@@ -210,7 +210,7 @@ struct audio_policy {
                                         audio_stream_type_t stream);
 
     /* return the enabled output devices for the given stream type */
-    uint32_t (*get_devices_for_stream)(const struct audio_policy *pol,
+    audio_devices_t (*get_devices_for_stream)(const struct audio_policy *pol,
                                        audio_stream_type_t stream);
 
     /* Audio effect management */
