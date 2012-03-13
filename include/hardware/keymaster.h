@@ -32,16 +32,50 @@ __BEGIN_DECLS
 
 #define KEYSTORE_KEYMASTER "keymaster"
 
+/**
+ * The API level of this version of the header. The allows the implementing
+ * module to recognize which API level of the client it is dealing with in
+ * the case of pre-compiled binary clients.
+ */
+#define KEYMASTER_API_VERSION 1
+
 struct keystore_module {
-    struct hw_module_t common;
+    hw_module_t common;
 };
 
 /**
- * Key algorithm for imported keypairs.
+ * Asymmetric key pair types.
  */
 typedef enum {
-    ALGORITHM_RSA,
-} keymaster_keypair_algorithm_t;
+    TYPE_RSA = 1,
+} keymaster_keypair_t;
+
+/**
+ * Parameters needed to generate an RSA key.
+ */
+typedef struct {
+    uint32_t modulus_size;
+    uint64_t public_exponent;
+} keymaster_rsa_keygen_params_t;
+
+/**
+ * Digest type used for RSA operations.
+ */
+typedef enum {
+    DIGEST_NONE,
+} keymaster_rsa_digest_t;
+
+/**
+ * Type of padding used for RSA operations.
+ */
+typedef enum {
+    PADDING_NONE,
+} keymaster_rsa_padding_t;
+
+typedef struct {
+    keymaster_rsa_digest_t digest_type;
+    keymaster_rsa_padding_t padding_type;
+} keymaster_rsa_sign_params_t;
 
 /**
  * The parameters that can be set for a given keymaster implementation.
@@ -49,52 +83,95 @@ typedef enum {
 struct keymaster_device {
     struct hw_device_t common;
 
+    uint32_t client_version;
+
     void* context;
 
     /**
      * Generates a public and private key. The key-blob returned is opaque
-     * and will subsequently provided for signing and verification.
+     * and must subsequently provided for signing and verification.
      *
      * Returns: 0 on success or an error code less than 0.
      */
-    int (*generate_rsa_keypair)(const struct keymaster_device* dev,
-            int modulus_size, unsigned long public_exponent,
-            uint8_t** keyBlob, size_t* keyBlobLength);
+    int (*generate_keypair)(const struct keymaster_device* dev,
+            const keymaster_keypair_t key_type, const void* key_params,
+            uint8_t** key_blob, size_t* key_blob_length);
 
     /**
-     * Imports a public and private key pair. The imported keys should be in
-     * DER format. The key-blob returned is opaque and can be subsequently
-     * provided for signing and verification.
+     * Imports a public and private key pair. The imported keys will be in
+     * PKCS#8 format with DER encoding (Java standard). The key-blob
+     * returned is opaque and will be subsequently provided for signing
+     * and verification.
      *
      * Returns: 0 on success or an error code less than 0.
      */
     int (*import_keypair)(const struct keymaster_device* dev,
-            keymaster_keypair_algorithm_t algorithm,
-            uint8_t* privateKey, size_t* privateKeyLength,
-            uint8_t* publicKey, size_t* publicKeyLength,
-            uint8_t** keyBlob, size_t* keyBlobLength);
+            const uint8_t* key, const size_t key_length,
+            uint8_t** key_blob, size_t* key_blob_length);
 
     /**
-     * Signs data using a key-blob generated before.
+     * Gets the public key part of a key pair. The public key must be in
+     * X.509 format (Java standard) encoded byte array.
+     *
+     * Returns: 0 on success or an error code less than 0.
+     * On error, x509_data should not be allocated.
+     */
+    int (*get_keypair_public)(const struct keymaster_device* dev,
+            const uint8_t* key_blob, const size_t key_blob_length,
+            uint8_t** x509_data, size_t* x509_data_length);
+
+    /**
+     * Deletes the key pair associated with the key blob.
+     */
+    int (*delete_keypair)(const struct keymaster_device* dev,
+            const uint8_t* key_blob, const size_t key_blob_length);
+
+    /**
+     * Signs data using a key-blob generated before. This can use either
+     * an asymmetric key or a secret key.
      *
      * Returns: 0 on success or an error code less than 0.
      */
     int (*sign_data)(const struct keymaster_device* dev,
-            const uint8_t* keyBlob, const size_t keyBlobLength,
-            const uint8_t* data, const size_t dataLength,
-            uint8_t** signedData, size_t* signedDataLength);
+            const void* signing_params,
+            const uint8_t* key_blob, const size_t key_blob_length,
+            const uint8_t* data, const size_t data_length,
+            uint8_t** signed_data, size_t* signed_data_length);
 
     /**
-     * Verifies data signed with a key-blob.
+     * Verifies data signed with a key-blob. This can use either
+     * an asymmetric key or a secret key.
      *
      * Returns: 0 on successful verification or an error code less than 0.
      */
     int (*verify_data)(const struct keymaster_device* dev,
-            const uint8_t* keyBlob, const size_t keyBlobLength,
-            const uint8_t* signedData, const size_t signedDataLength,
-            const uint8_t* signature, const size_t signatureLength);
+            const void* signing_params,
+            const uint8_t* key_blob, const size_t key_blob_length,
+            const uint8_t* signed_data, const size_t signed_data_length,
+            const uint8_t* signature, const size_t signature_length);
 };
 typedef struct keymaster_device keymaster_device_t;
+
+
+/* Convenience API for opening and closing keymaster devices */
+
+static inline int keymaster_open(const struct hw_module_t* module,
+        keymaster_device_t** device)
+{
+    int rc = module->methods->open(module, KEYSTORE_KEYMASTER,
+            (struct hw_device_t**) device);
+
+    if (!rc) {
+        (*device)->client_version = KEYMASTER_API_VERSION;
+    }
+
+    return rc;
+}
+
+static inline int keymaster_close(keymaster_device_t* device)
+{
+    return device->common.close(&device->common);
+}
 
 __END_DECLS
 
