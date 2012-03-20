@@ -69,6 +69,12 @@ typedef struct hw_module_t {
      * versions outside of the supplied range.
      */
     uint16_t module_api_version;
+#define version_major module_api_version
+    /**
+     * version_major/version_minor defines are supplied here for temporary
+     * source code compatibility. They will be removed in the next version.
+     * ALL clients must convert to the new version format.
+     */
 
     /**
      * The API version of the HAL module interface. This is meant to
@@ -81,6 +87,7 @@ typedef struct hw_module_t {
      * Presently, 0 is the only valid value.
      */
     uint16_t hal_api_version;
+#define version_minor hal_api_version
 
     /** Identifier of module */
     const char *id;
