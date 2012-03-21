@@ -34,6 +34,29 @@ __BEGIN_DECLS
 #define HARDWARE_MODULE_TAG MAKE_TAG_CONSTANT('H', 'W', 'M', 'T')
 #define HARDWARE_DEVICE_TAG MAKE_TAG_CONSTANT('H', 'W', 'D', 'T')
 
+#define HARDWARE_MAKE_API_VERSION(maj,min) \
+            ((((maj) & 0xff) << 8) | ((min) & 0xff))
+
+/*
+ * The current HAL API version.
+ *
+ * All module implementations must set the hw_module_t.hal_api_version field
+ * to this value when declaring the module with HAL_MODULE_INFO_SYM.
+ *
+ * Note that previous implementations have always set this field to 0.
+ * Therefore, libhardware HAL API will always consider versions 0.0 and 1.0
+ * to be 100% binary compatible.
+ *
+ */
+#define HARDWARE_HAL_API_VERSION HARDWARE_MAKE_API_VERSION(1, 0)
+
+/*
+ * Helper macro for module implementors.
+ *
+ * Use this macro to set the hw_module_t.module_api_version field.
+ */
+#define HARDWARE_MODULE_API_VERSION(maj,min) HARDWARE_MAKE_API_VERSION(maj,min)
+
 struct hw_module_t;
 struct hw_module_methods_t;
 struct hw_device_t;
