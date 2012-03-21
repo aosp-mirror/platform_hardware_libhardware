@@ -51,11 +51,16 @@ __BEGIN_DECLS
 #define HARDWARE_HAL_API_VERSION HARDWARE_MAKE_API_VERSION(1, 0)
 
 /*
- * Helper macro for module implementors.
+ * Helper macros for module implementors.
  *
  * Use this macro to set the hw_module_t.module_api_version field.
  */
 #define HARDWARE_MODULE_API_VERSION(maj,min) HARDWARE_MAKE_API_VERSION(maj,min)
+
+/*
+ * Use this macro to set the hw_device_t.version field
+ */
+#define HARDWARE_DEVICE_API_VERSION(maj,min) HARDWARE_MAKE_API_VERSION(maj,min)
 
 struct hw_module_t;
 struct hw_module_methods_t;
