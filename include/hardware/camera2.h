@@ -98,7 +98,7 @@ typedef struct camera2_metadata_queue_dst_ops {
     /**
      * Notify destination that the queue is no longer empty
      */
-    int (*notify_queue_not_empty)(struct camera2_metadata_queue_dst_ops *)
+    int (*notify_queue_not_empty)(struct camera2_metadata_queue_dst_ops *);
 } camera2_metadata_queue_dst_ops_t;
 
 /* Defined in camera_metadata.h */
@@ -122,12 +122,12 @@ enum {
      * A serious error has occurred. Argument ext1 contains the error code, and
      * ext2 and user contain any error-specific information.
      */
-    CAMERA_MSG_ERROR   = 0x0001,
+    CAMERA2_MSG_ERROR   = 0x0001,
     /**
      * The exposure of a given request has begun. Argument ext1 contains the
      * request id.
      */
-    CAMERA_MSG_SHUTTER = 0x0002
+    CAMERA2_MSG_SHUTTER = 0x0002
 };
 
 /**
@@ -139,18 +139,18 @@ enum {
      * no further frames or buffer streams will be produced by the
      * device. Device should be treated as closed.
      */
-    CAMERA_MSG_ERROR_HARDWARE_FAULT = 0x0001,
+    CAMERA2_MSG_ERROR_HARDWARE_FAULT = 0x0001,
     /**
      * A serious failure occured. No further frames or buffer streams will be
      * produced by the device. Device should be treated as closed. The client
      * must reopen the device to use it again.
      */
-    CAMERA_MSG_ERROR_DEVICE_FAULT =   0x0002,
+    CAMERA2_MSG_ERROR_DEVICE_FAULT =   0x0002,
     /**
      * The camera service has failed. Device should be treated as released. The client
      * must reopen the device to use it again.
      */
-    CAMERA_MSG_ERROR_SERVER_FAULT =   0x0003
+    CAMERA2_MSG_ERROR_SERVER_FAULT =   0x0003
 };
 
 
