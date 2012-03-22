@@ -16,6 +16,7 @@
 
 #define LOG_TAG "keymaster_test"
 #include <utils/Log.h>
+#include <utils/UniquePtr.h>
 
 #include <hardware/keymaster.h>
 
@@ -23,7 +24,6 @@
 
 #include <fstream>
 #include <iostream>
-#include <UniquePtr.h>
 
 namespace android {
 

@@ -9,7 +9,6 @@ LOCAL_SRC_FILES:= \
 # Note that "bionic" is needed because of stlport
 LOCAL_C_INCLUDES := \
     bionic \
-    libcore/include \
     external/gtest/include \
     external/stlport/stlport
 
