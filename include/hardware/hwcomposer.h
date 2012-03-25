@@ -28,7 +28,10 @@ __BEGIN_DECLS
 
 /*****************************************************************************/
 
-#define HWC_API_VERSION HARDWARE_DEVICE_API_VERSION(0,2)
+#define HWC_DEVICE_API_VERSION      HARDWARE_DEVICE_API_VERSION(0, 2)
+#define HWC_MODULE_API_VERSION      HARDWARE_MODULE_API_VERSION(0, 1)
+// for compatibility
+#define HWC_API_VERSION             HWC_DEVICE_API_VERSION
 
 /**
  * The id of this module
