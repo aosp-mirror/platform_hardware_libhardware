@@ -67,7 +67,7 @@ __BEGIN_DECLS
 #define CAMERA_DEVICE_API_VERSION HARDWARE_DEVICE_API_VERSION(1, 0)
 
 /**
- * Defined in /system/media/camera/include/camera_metadata.h
+ * Defined in /system/media/camera/include/system/camera_metadata.h
  */
 typedef struct camera_metadata camera_metadata_t;
 
