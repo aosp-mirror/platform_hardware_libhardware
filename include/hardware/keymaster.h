@@ -122,9 +122,25 @@ struct keymaster_device {
 
     /**
      * Deletes the key pair associated with the key blob.
+     *
+     * This function is optional and should be set to NULL if it is not
+     * implemented.
+     *
+     * Returns 0 on success or an error code less than 0.
      */
     int (*delete_keypair)(const struct keymaster_device* dev,
             const uint8_t* key_blob, const size_t key_blob_length);
+
+    /**
+     * Deletes all keys in the hardware keystore. Used when keystore is
+     * reset completely.
+     *
+     * This function is optional and should be set to NULL if it is not
+     * implemented.
+     *
+     * Returns 0 on success or an error code less than 0.
+     */
+    int (*delete_all)(const struct keymaster_device* dev);
 
     /**
      * Signs data using a key-blob generated before. This can use either

@@ -751,4 +751,43 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullSignature_Failure) {
             << "Should fail on null signature";
 }
 
+TEST_F(KeymasterTest, EraseAll_Success) {
+    uint8_t *key1_blob, *key2_blob;
+    size_t key1_blob_length, key2_blob_length;
+
+    // Only test this if the device says it supports delete_all
+    if (sDevice->delete_all == NULL) {
+        return;
+    }
+
+    ASSERT_EQ(0,
+            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+                    &key1_blob, &key1_blob_length))
+            << "Should successfully import an RSA key";
+    UniqueKey key1(&sDevice, key1_blob, key1_blob_length);
+
+    ASSERT_EQ(0,
+            sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+                    &key2_blob, &key2_blob_length))
+            << "Should successfully import an RSA key";
+    UniqueKey key2(&sDevice, key2_blob, key2_blob_length);
+
+    EXPECT_EQ(0, sDevice->delete_all(sDevice))
+            << "Should erase all keys";
+
+    key1.reset();
+
+    uint8_t* x509_data;
+    size_t x509_data_length;
+    ASSERT_EQ(-1,
+            sDevice->get_keypair_public(sDevice, key1_blob, key1_blob_length,
+                    &x509_data, &x509_data_length))
+            << "Should be able to retrieve RSA public key 1 successfully";
+
+    ASSERT_EQ(-1,
+            sDevice->get_keypair_public(sDevice, key2_blob, key2_blob_length,
+                    &x509_data, &x509_data_length))
+            << "Should be able to retrieve RSA public key 2 successfully";
+}
+
 }
