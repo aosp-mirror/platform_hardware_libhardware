@@ -39,6 +39,20 @@ __BEGIN_DECLS
  */
 #define KEYMASTER_API_VERSION 1
 
+/**
+ * Flags for keymaster_device::flags
+ */
+enum {
+    /*
+     * Indicates this keymaster implementation does not have hardware that
+     * keeps private keys out of user space.
+     *
+     * This should not be implemented on anything other than the default
+     * implementation.
+     */
+    KEYMASTER_SOFTWARE_ONLY = 0x00000001,
+};
+
 struct keystore_module {
     hw_module_t common;
 };
@@ -84,6 +98,11 @@ struct keymaster_device {
     struct hw_device_t common;
 
     uint32_t client_version;
+
+    /**
+     * See flags defined for keymaster_device::flags above.
+     */
+    uint32_t flags;
 
     void* context;
 
