@@ -20,13 +20,14 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL, initial version [ HARDWARE_DEVICE_API_VERSION(1,0) ]
+ * Camera device HAL, initial version [ CAMERA_DEVICE_API_VERSION_1_0 ]
  *
  * Supports the android.hardware.Camera API.
  *
  * Camera devices that support this version of the HAL must return a value in
  * the range HARDWARE_DEVICE_API_VERSION(0,0)-(1,FF) in
- * camera_device_t.common.version.
+ * camera_device_t.common.version. CAMERA_DEVICE_API_VERSION_1_0 is the
+ * recommended value.
  *
  * Camera modules that implement version 2.0 or higher of camera_module_t must
  * also return the value of camera_device_t.common.version in
@@ -281,7 +282,8 @@ typedef struct camera_device_ops {
 typedef struct camera_device {
     /**
      * camera_device.common.version must be in the range
-     * HARDWARE_DEVICE_API_VERSION(0,0)-(1,FF). (1,0) is recommended.
+     * HARDWARE_DEVICE_API_VERSION(0,0)-(1,FF). CAMERA_DEVICE_API_VERSION_1_0 is
+     * recommended.
      */
     hw_device_t common;
     camera_device_ops_t *ops;

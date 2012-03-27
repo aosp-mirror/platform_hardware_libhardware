@@ -41,7 +41,7 @@ __BEGIN_DECLS
  * the minor version.
  *
  *******************************************************************************
- * Versions: 0.X-1.X
+ * Versions: 0.X - 1.X [CAMERA_MODULE_API_VERSION_1_0]
  *
  *   Camera modules that report these version numbers implement the initial
  *   camera module HAL interface. All camera devices openable through this
@@ -51,7 +51,7 @@ __BEGIN_DECLS
  *   devices.
  *
  *******************************************************************************
- * Version: 2.0
+ * Version: 2.0 [CAMERA_MODULE_API_VERSION_2_0]
  *
  *   Camera modules that report this version number implement the second version
  *   of the camera module HAL interface. Camera devices openable through this
@@ -61,10 +61,28 @@ __BEGIN_DECLS
  *   device_version field is 2.0 or higher.
  */
 
+/**
+ * Predefined macros for currently-defined version numbers
+ */
 
-#define CAMERA_MODULE_API_VERSION HARDWARE_MODULE_API_VERSION(2, 0)
-// Stable version for device, version 2.0 is experimental
-#define CAMERA_DEVICE_API_VERSION HARDWARE_DEVICE_API_VERSION(1, 0)
+/**
+ * All module versions <= HARDWARE_MODULE_API_VERSION(1, 0xFF) must be treated
+ * as CAMERA_MODULE_API_VERSION_1_0
+ */
+#define CAMERA_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
+#define CAMERA_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
+
+#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_0
+
+/**
+ * All device versions <= HARDWARE_DEVICE_API_VERSION(1, 0xFF) must be treated
+ * as CAMERA_DEVICE_API_VERSION_1_0
+ */
+#define CAMERA_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
+#define CAMERA_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
+
+// Device version 2.0 is experimental
+#define CAMERA_DEVICE_API_VERSION_CURRENT CAMERA_DEVICE_API_VERSION_1_0
 
 /**
  * Defined in /system/media/camera/include/system/camera_metadata.h
@@ -103,12 +121,12 @@ struct camera_info {
      *
      * Version information (based on camera_module_t.common.module_api_version):
      *
-     *  HARDWARE_MODULE_API_VERSION(0, 0)-(1, FF):
+     *  CAMERA_MODULE_API_VERSION_1_0:
      *
-     *    Not valid. Can be assumed to be HARDWARE_DEVICE_API_VERSION(1,0). Do
+     *    Not valid. Can be assumed to be CAMERA_DEVICE_API_VERSION_1_0. Do
      *    not read this field.
      *
-     *  HARDWARE_MODULE_API_VERSION(2, 0):
+     *  CAMERA_MODULE_API_VERSION_2_0:
      *
      *    Always valid
      *
@@ -121,15 +139,15 @@ struct camera_info {
      *
      * Version information (based on camera_module_t.common.module_api_version):
      *
-     *  HARDWARE_MODULE_API_VERSION(0, 0)-(1, FF):
+     *  CAMERA_MODULE_API_VERSION_1_0:
      *
      *    Not valid. Extra characteristics are not available. Do not read this
      *    field.
      *
-     *  HARDWARE_MODULE_API_VERSION(2, 0):
+     *  CAMERA_MODULE_API_VERSION_2_0:
      *
-     *    Valid if device_version >= HARDWARE_DEVICE_API_VERSION(2,0). Do not
-     *    read otherwise.
+     *    Valid if device_version >= CAMERA_DEVICE_API_VERSION_2_0. Do not read
+     *    otherwise.
      *
      */
     camera_metadata_t *static_camera_characteristics;
