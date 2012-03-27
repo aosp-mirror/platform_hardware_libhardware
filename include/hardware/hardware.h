@@ -53,6 +53,10 @@ __BEGIN_DECLS
 /*
  * Helper macros for module implementors.
  *
+ * The derived modules should provide convenience macros for supported
+ * versions so that implementations can explicitly specify module/device
+ * versions at definition time.
+ *
  * Use this macro to set the hw_module_t.module_api_version field.
  */
 #define HARDWARE_MODULE_API_VERSION(maj,min) HARDWARE_MAKE_API_VERSION(maj,min)
