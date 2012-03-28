@@ -236,6 +236,10 @@ struct audio_policy {
     int (*dump)(const struct audio_policy *pol, int fd);
 };
 
+/* audio hw module handle used by load_hw_module(), open_output_on_module()
+ * and open_input_on_module() */
+typedef int audio_module_handle_t;
+
 struct audio_policy_service_ops {
     /*
      * Audio output Control functions
@@ -254,10 +258,10 @@ struct audio_policy_service_ops {
      * suitable or not and act accordingly.
      */
     audio_io_handle_t (*open_output)(void *service,
-                                     uint32_t *pDevices,
+                                     audio_devices_t *pDevices,
                                      uint32_t *pSamplingRate,
                                      audio_format_t *pFormat,
-                                     uint32_t *pChannels,
+                                     audio_channel_mask_t *pChannelMask,
                                      uint32_t *pLatencyMs,
                                      audio_policy_output_flags_t flags);
 
@@ -289,10 +293,10 @@ struct audio_policy_service_ops {
 
     /* opens an audio input */
     audio_io_handle_t (*open_input)(void *service,
-                                    uint32_t *pDevices,
+                                    audio_devices_t *pDevices,
                                     uint32_t *pSamplingRate,
                                     audio_format_t *pFormat,
-                                    uint32_t *pChannels,
+                                    audio_channel_mask_t *pChannelMask,
                                     audio_in_acoustics_t acoustics);
 
     /* closes an audio input */
@@ -355,6 +359,41 @@ struct audio_policy_service_ops {
                         int session,
                         audio_io_handle_t src_output,
                         audio_io_handle_t dst_output);
+
+    /* loads an audio hw module.
+     *
+     * The module name passed is the base name of the HW module library, e.g "primary" or "a2dp".
+     * The function returns a handle on the module that will be used to specify a particular
+     * module when calling open_output_on_module() or open_input_on_module()
+     */
+    audio_module_handle_t (*load_hw_module)(void *service,
+                                              const char *name);
+
+    /* Opens an audio output on a particular HW module.
+     *
+     * Same as open_output() but specifying a specific HW module on which the output must be opened.
+     */
+    audio_io_handle_t (*open_output_on_module)(void *service,
+                                     audio_module_handle_t module,
+                                     audio_devices_t *pDevices,
+                                     uint32_t *pSamplingRate,
+                                     audio_format_t *pFormat,
+                                     audio_channel_mask_t *pChannelMask,
+                                     uint32_t *pLatencyMs,
+                                     audio_policy_output_flags_t flags);
+
+    /* Opens an audio input on a particular HW module.
+     *
+     * Same as open_input() but specifying a specific HW module on which the input must be opened.
+     * Also removed deprecated acoustics parameter
+     */
+    audio_io_handle_t (*open_input_on_module)(void *service,
+                                    audio_module_handle_t module,
+                                    audio_devices_t *pDevices,
+                                    uint32_t *pSamplingRate,
+                                    audio_format_t *pFormat,
+                                    audio_channel_mask_t *pChannelMask);
+
 };
 
 /**********************************************************************/
