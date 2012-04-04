@@ -28,9 +28,15 @@ __BEGIN_DECLS
 
 /*****************************************************************************/
 
-#define HWC_DEVICE_API_VERSION      HARDWARE_DEVICE_API_VERSION(0, 2)
-#define HWC_MODULE_API_VERSION      HARDWARE_MODULE_API_VERSION(0, 1)
+#define HWC_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
+
+#define HWC_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION(0, 1)
+#define HWC_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION(0, 2)
+#define HWC_DEVICE_API_VERSION_0_3  HARDWARE_DEVICE_API_VERSION(0, 3)
+
 // for compatibility
+#define HWC_MODULE_API_VERSION      HWC_MODULE_API_VERSION_0_1
+#define HWC_DEVICE_API_VERSION      HWC_DEVICE_API_VERSION_0_1
 #define HWC_API_VERSION             HWC_DEVICE_API_VERSION
 
 /**
@@ -132,9 +138,57 @@ enum {
 
 /* attributes queriable with query() */
 enum {
-    /* must return 1 if the background layer is supported, 0 otherwise */
+    /*
+     * availability: HWC_DEVICE_API_VERSION_0_2
+     * must return 1 if the background layer is supported, 0 otherwise
+     */
     HWC_BACKGROUND_LAYER_SUPPORTED      = 0,
+
+    /*
+     * availability: HWC_DEVICE_API_VERSION_0_3
+     * returns the vsync period in nanosecond
+     */
+    HWC_VSYNC_PERIOD                    = 1,
 };
+
+/* Allowed events for hwc_methods::eventControl() */
+enum {
+    HWC_EVENT_VSYNC     = 0
+};
+
+struct hwc_composer_device;
+
+/*
+ * availability: HWC_DEVICE_API_VERSION_0_3
+ *
+ * struct hwc_methods cannot be embedded in other structures as
+ * sizeof(struct hwc_methods) cannot be relied upon.
+ *
+ */
+typedef struct hwc_methods {
+
+    /*************************************************************************
+     * HWC_DEVICE_API_VERSION_0_3
+     *************************************************************************/
+
+    /*
+     * eventControl(..., event, enabled)
+     * Enables or disables h/w composer events.
+     *
+     * eventControl can be called from any thread and takes effect
+     * immediately.
+     *
+     *  Supported events are:
+     *      HWC_EVENT_VSYNC
+     *
+     * returns -EINVAL if the "event" parameter is not one of the value above
+     * or if the "enabled" parameter is not 0 or 1.
+     */
+
+    int (*eventControl)(
+            struct hwc_composer_device* dev, int event, int enabled);
+
+} hwc_methods_t;
 
 typedef struct hwc_rect {
     int left;
@@ -185,7 +239,6 @@ typedef struct hwc_layer {
         hwc_color_t backgroundColor;
 
         struct {
-
             /* handle of buffer to compose. This handle is guaranteed to have been
              * allocated from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag. If
              * the layer's handle is unchanged across two consecutive prepare calls and
@@ -263,6 +316,23 @@ typedef struct hwc_procs {
      * hooks, unless noted otherwise.
      */
     void (*invalidate)(struct hwc_procs* procs);
+
+    /*
+     * (*vsync)() is called by the h/w composer HAL when a vsync event is
+     * received and HWC_EVENT_VSYNC is enabled (see: hwc_event_control).
+     *
+     * the "zero" parameter must always be 0.
+     * the "timestamp" parameter is the timestamp in nanosecond of when the
+     *   vsync event happened.
+     *
+     * vsync() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL.
+     *
+     * It is expected that vsync() is called from a thread of at least
+     * ANDROID_URGENT_DISPLAY_PRIORITY with as little latency as possible,
+     * typically less than 0.5 ms.
+     *
+     */
+    void (*vsync)(struct hwc_procs* procs, int zero, int64_t timestamp);
 } hwc_procs_t;
 
 
@@ -349,14 +419,14 @@ typedef struct hwc_composer_device {
                 hwc_surface_t sur,
                 hwc_layer_list_t* list);
     /*
-     * This hook is OPTIONAL.
+     * This field is OPTIONAL and can be NULL.
      *
      * If non NULL it will be called by SurfaceFlinger on dumpsys
      */
     void (*dump)(struct hwc_composer_device* dev, char *buff, int buff_len);
 
     /*
-     * This hook is OPTIONAL.
+     * This field is OPTIONAL and can be NULL.
      *
      * (*registerProcs)() registers a set of callbacks the h/w composer HAL
      * can later use. It is FORBIDDEN to call any of the callbacks from
@@ -372,7 +442,8 @@ typedef struct hwc_composer_device {
             hwc_procs_t const* procs);
 
     /*
-     * This hook is OPTIONAL.
+     * This field is OPTIONAL and can be NULL.
+     * availability: HWC_DEVICE_API_VERSION_0_2
      *
      * Used to retrieve information about the h/w composer
      *
@@ -380,8 +451,16 @@ typedef struct hwc_composer_device {
      */
     int (*query)(struct hwc_composer_device* dev, int what, int* value);
 
+    /*
+     * Reserved for future use. Must be NULL.
+     */
+    void* reserved_proc[4];
 
-    void* reserved_proc[5];
+    /*
+     * This field is OPTIONAL and can be NULL.
+     * availability: HWC_DEVICE_API_VERSION_0_3
+     */
+    hwc_methods_t const *methods;
 
 } hwc_composer_device_t;
 
