@@ -41,6 +41,20 @@ __BEGIN_DECLS
  */
 #define AUDIO_HARDWARE_INTERFACE "audio_hw_if"
 
+
+/* Use version 0.1 to be compatible with first generation of audio hw module with version_major
+ * hardcoded to 1. No audio module API change.
+ */
+#define AUDIO_MODULE_API_VERSION_0_1 HARDWARE_MODULE_API_VERSION(0, 1)
+#define AUDIO_MODULE_API_VERSION_CURRENT AUDIO_MODULE_API_VERSION_0_1
+
+/* First generation of audio devices had version hardcoded to 0. all devices with versions < 1.0
+ * will be considered of first generation API.
+ */
+#define AUDIO_DEVICE_API_VERSION_0_0 HARDWARE_DEVICE_API_VERSION(0, 0)
+#define AUDIO_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
+#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_1_0
+
 /**
  * List of known audio HAL modules. This is the base name of the audio HAL
  * library composed of the "audio." prefix, one of the base names below and
@@ -88,7 +102,17 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"  // audio_source_t
 #define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" // uint32_t
 
+
 /**************************************/
+
+/* common audio stream configuration parameters */
+struct audio_config {
+    uint32_t sample_rate;
+    audio_channel_mask_t channel_mask;
+    audio_format_t  format;
+};
+
+typedef struct audio_config audio_config_t;
 
 /* common audio stream parameters and operations */
 struct audio_stream {
@@ -113,7 +137,7 @@ struct audio_stream {
      * Return the channel mask -
      *  e.g. AUDIO_CHANNEL_OUT_STEREO or AUDIO_CHANNEL_IN_STEREO
      */
-    uint32_t (*get_channels)(const struct audio_stream *stream);
+    audio_channel_mask_t (*get_channels)(const struct audio_stream *stream);
 
     /**
      * Return the audio format - e.g. AUDIO_FORMAT_PCM_16_BIT
@@ -345,27 +369,28 @@ struct audio_hw_device {
      * See also get_buffer_size which is for a particular stream.
      */
     size_t (*get_input_buffer_size)(const struct audio_hw_device *dev,
-                                    uint32_t sample_rate, audio_format_t format,
-                                    int channel_count);
+                                    const struct audio_config *config);
 
     /** This method creates and opens the audio hardware output stream */
-    int (*open_output_stream)(struct audio_hw_device *dev, uint32_t devices,
-                              audio_format_t *format, uint32_t *channels,
-                              uint32_t *sample_rate,
-                              struct audio_stream_out **out);
+    int (*open_output_stream)(struct audio_hw_device *dev,
+                              audio_io_handle_t handle,
+                              audio_devices_t devices,
+                              audio_output_flags_t flags,
+                              struct audio_config *config,
+                              struct audio_stream_out **stream_out);
 
     void (*close_output_stream)(struct audio_hw_device *dev,
-                                struct audio_stream_out* out);
+                                struct audio_stream_out* stream_out);
 
     /** This method creates and opens the audio hardware input stream */
-    int (*open_input_stream)(struct audio_hw_device *dev, uint32_t devices,
-                             audio_format_t *format, uint32_t *channels,
-                             uint32_t *sample_rate,
-                             audio_in_acoustics_t acoustics,
+    int (*open_input_stream)(struct audio_hw_device *dev,
+                             audio_io_handle_t handle,
+                             audio_devices_t devices,
+                             struct audio_config *config,
                              struct audio_stream_in **stream_in);
 
     void (*close_input_stream)(struct audio_hw_device *dev,
-                               struct audio_stream_in *in);
+                               struct audio_stream_in *stream_in);
 
     /** This method dumps the state of the audio hardware */
     int (*dump)(const struct audio_hw_device *dev, int fd);
