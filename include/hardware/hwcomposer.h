@@ -331,6 +331,11 @@ typedef struct hwc_procs {
      * ANDROID_URGENT_DISPLAY_PRIORITY with as little latency as possible,
      * typically less than 0.5 ms.
      *
+     * It is a (silent) error to have HWC_EVENT_VSYNC enabled when calling
+     * hwc_composer_device.set(..., 0, 0, 0) (screen off). The implementation
+     * can either stop or continue to process VSYNC events, but must not
+     * crash or cause other problems.
+     *
      */
     void (*vsync)(struct hwc_procs* procs, int zero, int64_t timestamp);
 } hwc_procs_t;
