@@ -41,6 +41,8 @@
 
 __BEGIN_DECLS
 
+struct camera2_device;
+
 /**
  * Output image stream queue management
  */
@@ -53,6 +55,8 @@ typedef struct camera2_stream_ops {
     int (*cancel_buffer)(struct camera2_stream_ops* w,
                 buffer_handle_t* buffer);
     int (*set_buffer_count)(struct camera2_stream_ops* w, int count);
+    int (*set_buffers_geometry)(struct camera2_stream_ops* pw,
+                int w, int h, int format);
     int (*set_crop)(struct camera2_stream_ops *w,
                 int left, int top, int right, int bottom);
     // Timestamps are measured in nanoseconds, and must be comparable
@@ -62,7 +66,6 @@ typedef struct camera2_stream_ops {
     // The timestamp must be the time at the start of image exposure.
     int (*set_timestamp)(struct camera2_stream_ops *w, int64_t timestamp);
     int (*set_usage)(struct camera2_stream_ops* w, int usage);
-    int (*set_swap_interval)(struct camera2_stream_ops *w, int interval);
     int (*get_min_undequeued_buffer_count)(const struct camera2_stream_ops *w,
                 int *count);
     int (*lock_buffer)(struct camera2_stream_ops* w,
@@ -72,6 +75,32 @@ typedef struct camera2_stream_ops {
 /**
  * Metadata queue management, used for requests sent to HAL module, and for
  * frames produced by the HAL.
+ *
+ * Queue protocol:
+ *
+ * The source holds the queue and its contents. At start, the queue is empty.
+ *
+ * 1. When the first metadata buffer is placed into the queue, the source must
+ *    signal the destination by calling notify_queue_not_empty().
+ *
+ * 2. After receiving notify_queue_not_empty, the destination must call
+ *    dequeue() once it's ready to handle the next buffer.
+ *
+ * 3. Once the destination has processed a buffer, it should try to dequeue
+ *    another buffer. If there are no more buffers available, dequeue() will
+ *    return NULL. In this case, when a buffer becomes available, the source
+ *    must call notify_queue_not_empty() again. If the destination receives a
+ *    NULL return from dequeue, it does not need to query the queue again until
+ *    a notify_queue_not_empty() call is received from the source.
+ *
+ * 4. If the destination calls buffer_count() and receives 0, this does not mean
+ *    that the source will provide a notify_queue_not_empty() call. The source
+ *    must only provide such a call after the destination has received a NULL
+ *    from dequeue, or on initial startup.
+ *
+ * 5. The dequeue() call in response to notify_queue_not_empty() may be on the
+ *    same thread as the notify_queue_not_empty() call. The source must not
+ *    deadlock in that case.
  */
 
 typedef struct camera2_metadata_queue_src_ops {
@@ -99,6 +128,7 @@ typedef struct camera2_metadata_queue_dst_ops {
      * Notify destination that the queue is no longer empty
      */
     int (*notify_queue_not_empty)(struct camera2_metadata_queue_dst_ops *);
+
 } camera2_metadata_queue_dst_ops_t;
 
 /* Defined in camera_metadata.h */
@@ -153,32 +183,33 @@ enum {
     CAMERA2_MSG_ERROR_SERVER_FAULT =   0x0003
 };
 
-
-struct camera2_device;
 typedef struct camera2_device_ops {
     /**
      * Input request queue methods
      */
-    int (*set_request_queue_ops)(struct camera2_device *,
-            camera2_metadata_queue_src_ops *request_queue_src_ops);
+    int (*set_request_queue_src_ops)(struct camera2_device *,
+            camera2_metadata_queue_src_ops *queue_src_ops);
 
-    camera2_metadata_queue_dst_ops_t *request_queue_dst_ops;
+    int (*get_request_queue_dst_ops)(struct camera2_device *,
+            camera2_metadata_queue_dst_ops **queue_dst_ops);
 
     /**
      * Input reprocessing queue methods
      */
     int (*set_reprocess_queue_ops)(struct camera2_device *,
-            camera2_metadata_queue_src_ops *reprocess_queue_src_ops);
+            camera2_metadata_queue_src_ops *queue_src_ops);
 
-    camera2_metadata_queue_dst_ops_t *reprocess_queue_dst_ops;
+    int (*get_reprocess_queue_dst_ops)(struct camera2_device *,
+            camera2_metadata_queue_dst_ops **queue_dst_ops);
 
     /**
      * Output frame queue methods
      */
-    int (*set_frame_queue_ops)(struct camera2_device *,
-            camera2_metadata_queue_dst_ops *frame_queue_dst_ops);
+    int (*set_frame_queue_dst_ops)(struct camera2_device *,
+            camera2_metadata_queue_dst_ops *queue_dst_ops);
 
-    camera2_metadata_queue_src_ops_t *frame_queue_src_ops;
+    int (*get_frame_queue_src_ops)(struct camera2_device *,
+            camera2_metadata_queue_src_ops **queue_dst_ops);
 
     /**
      * Pass in notification methods
@@ -209,7 +240,8 @@ typedef struct camera2_device_ops {
     /**
      * Operations on the input reprocessing stream
      */
-    camera2_stream_ops_t *reprocess_stream_ops;
+    int (*get_reprocess_stream_ops)(struct camera2_device *,
+            camera2_stream_ops_t **stream_ops);
 
     /**
      * Get the number of streams that can be simultaneously allocated.
@@ -231,7 +263,7 @@ typedef struct camera2_device_ops {
         uint32_t stream_slot,
         uint32_t width,
         uint32_t height,
-        int format,
+        uint32_t format,
         camera2_stream_ops_t *camera2_stream_ops);
 
     /**
@@ -244,17 +276,18 @@ typedef struct camera2_device_ops {
         uint32_t stream_slot);
 
     /**
+     * Get methods to query for vendor extension metadata tag infomation. May
+     * set ops to NULL if no vendor extension tags are defined.
+     */
+    int (*get_metadata_vendor_tag_ops)(struct camera2_device*,
+            vendor_tag_query_ops_t **ops);
+
+    /**
      * Release the camera hardware.  Requests that are in flight will be
      * canceled. No further buffers will be pushed into any allocated pipelines
      * once this call returns.
      */
     void (*release)(struct camera2_device *);
-
-    /**
-     * Methods to query for vendor extension metadata tag infomation. May be NULL
-     * if no vendor extension tags are defined.
-     */
-    vendor_tag_query_ops *camera_metadata_vendor_tag_ops;
 
     /**
      * Dump state of the camera hardware
