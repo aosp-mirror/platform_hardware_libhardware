@@ -133,7 +133,7 @@ struct audio_policy {
                                     uint32_t samplingRate,
                                     audio_format_t format,
                                     uint32_t channels,
-                                    audio_policy_output_flags_t flags);
+                                    audio_output_flags_t flags);
 
     /* indicates to the audio policy manager that the output starts being used
      * by corresponding stream. */
@@ -263,7 +263,7 @@ struct audio_policy_service_ops {
                                      audio_format_t *pFormat,
                                      audio_channel_mask_t *pChannelMask,
                                      uint32_t *pLatencyMs,
-                                     audio_policy_output_flags_t flags);
+                                     audio_output_flags_t flags);
 
     /* creates a special output that is duplicated to the two outputs passed as
      * arguments. The duplication is performed by
@@ -380,7 +380,7 @@ struct audio_policy_service_ops {
                                      audio_format_t *pFormat,
                                      audio_channel_mask_t *pChannelMask,
                                      uint32_t *pLatencyMs,
-                                     audio_policy_output_flags_t flags);
+                                     audio_output_flags_t flags);
 
     /* Opens an audio input on a particular HW module.
      *

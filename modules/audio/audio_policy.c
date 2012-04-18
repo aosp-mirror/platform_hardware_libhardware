@@ -99,7 +99,7 @@ static audio_io_handle_t ap_get_output(struct audio_policy *pol,
                                        uint32_t sampling_rate,
                                        audio_format_t format,
                                        uint32_t channels,
-                                       audio_policy_output_flags_t flags)
+                                       audio_output_flags_t flags)
 {
     return 0;
 }
