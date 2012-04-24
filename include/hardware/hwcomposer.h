@@ -328,7 +328,7 @@ typedef struct hwc_procs {
      * vsync() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL.
      *
      * It is expected that vsync() is called from a thread of at least
-     * ANDROID_URGENT_DISPLAY_PRIORITY with as little latency as possible,
+     * HAL_PRIORITY_URGENT_DISPLAY with as little latency as possible,
      * typically less than 0.5 ms.
      *
      * It is a (silent) error to have HWC_EVENT_VSYNC enabled when calling
