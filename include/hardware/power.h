@@ -30,6 +30,17 @@ __BEGIN_DECLS
  */
 #define POWER_HARDWARE_MODULE_ID "power"
 
+/*
+ * Power hint identifiers passed to (*powerHint)
+ */
+
+typedef enum {
+    /*
+     * VSYNC pulse request from SurfaceFlinger started or stopped.
+     */
+    POWER_HINT_VSYNC = 0x00000001,
+} power_hint_t;
+
 /**
  * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
  * and the fields of this data structure must begin with hw_module_t
@@ -40,7 +51,9 @@ typedef struct power_module {
 
     /*
      * (*init)() performs power management setup actions at runtime
-     * startup, such as to set default cpufreq parameters.
+     * startup, such as to set default cpufreq parameters.  This is
+     * called only by the Power HAL instance loaded by
+     * PowerManagerService.
      */
     void (*init)(struct power_module *module);
 
@@ -71,6 +84,25 @@ typedef struct power_module {
      * interactive state prior to turning on the screen.
      */
     void (*setInteractive)(struct power_module *module, int on);
+
+    /*
+     * (*powerHint) is called to pass hints on power requirements, which
+     * may result in adjustment of power/performance parameters of the
+     * cpufreq governor and other controls.  The possible hints are:
+     *
+     * POWER_HINT_VSYNC
+     *
+     *     Foreground app has started or stopped requesting a VSYNC pulse
+     *     from SurfaceFlinger.  If the app has started requesting VSYNC
+     *     then CPU and GPU load is expected soon, and it may be appropriate
+     *     to raise speeds of CPU, memory bus, etc.  The data parameter is
+     *     non-zero to indicate VSYNC pulse is now requested, or zero for
+     *     VSYNC pulse no longer requested.
+     *
+     * A particular platform may choose to ignore any hint.
+     */
+    void (*powerHint)(struct power_module *module, power_hint_t hint,
+                      void *data);
 } power_module_t;
 
 

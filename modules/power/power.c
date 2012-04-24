@@ -59,6 +59,13 @@ static void power_set_interactive(struct power_module *module, int on)
     }
 }
 
+static void power_hint(struct power_module *module, power_hint_t hint,
+                       void *data) {
+    switch (hint) {
+    default:
+        break;
+    }
+}
 
 static struct hw_module_methods_t power_module_methods = {
     .open = NULL,
@@ -77,4 +84,5 @@ struct power_module HAL_MODULE_INFO_SYM = {
 
     .init = power_init,
     .setInteractive = power_set_interactive,
+    .powerHint = power_hint,
 };
