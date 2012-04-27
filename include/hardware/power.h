@@ -25,6 +25,10 @@
 
 __BEGIN_DECLS
 
+#define POWER_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
+#define POWER_MODULE_API_VERSION_0_2  HARDWARE_MODULE_API_VERSION(0, 2)
+
+
 /**
  * The id of this module
  */
@@ -100,6 +104,9 @@ typedef struct power_module {
      *     VSYNC pulse no longer requested.
      *
      * A particular platform may choose to ignore any hint.
+     *
+     * availability: version 0.2
+     *
      */
     void (*powerHint)(struct power_module *module, power_hint_t hint,
                       void *data);
