@@ -322,8 +322,8 @@ typedef struct hwc_procs {
      * received and HWC_EVENT_VSYNC is enabled (see: hwc_event_control).
      *
      * the "zero" parameter must always be 0.
-     * the "timestamp" parameter is the timestamp in nanosecond of when the
-     *   vsync event happened.
+     * the "timestamp" parameter is the system monotonic clock timestamp in
+     *   nanosecond of when the vsync event happened.
      *
      * vsync() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL.
      *
