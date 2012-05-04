@@ -39,10 +39,8 @@ __BEGIN_DECLS
  */
 
 typedef enum {
-    /*
-     * VSYNC pulse request from SurfaceFlinger started or stopped.
-     */
     POWER_HINT_VSYNC = 0x00000001,
+    POWER_HINT_INTERACTION = 0x00000002,
 } power_hint_t;
 
 /**
@@ -102,6 +100,13 @@ typedef struct power_module {
      *     to raise speeds of CPU, memory bus, etc.  The data parameter is
      *     non-zero to indicate VSYNC pulse is now requested, or zero for
      *     VSYNC pulse no longer requested.
+     *
+     * POWER_HINT_INTERACTION
+     *
+     *     User is interacting with the device, for example, touchscreen
+     *     events are incoming.  CPU and GPU load may be expected soon,
+     *     and it may be appropriate to raise speeds of CPU, memory bus,
+     *     etc.  The data parameter is unused.
      *
      * A particular platform may choose to ignore any hint.
      *
