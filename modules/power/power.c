@@ -25,38 +25,12 @@
 #include <hardware/hardware.h>
 #include <hardware/power.h>
 
-/*
- * This module implements the legacy interface for requesting early
- * suspend and late resume
- */
-
-#define LEGACY_SYS_POWER_STATE "/sys/power/state"
-
-static int sPowerStatefd;
-static const char *pwr_states[] = { "mem", "on" };
-
 static void power_init(struct power_module *module)
 {
-    char buf[80];
-
-    sPowerStatefd = open(LEGACY_SYS_POWER_STATE, O_RDWR);
-
-    if (sPowerStatefd < 0) {
-        strerror_r(errno, buf, sizeof(buf));
-        ALOGE("Error opening %s: %s\n", LEGACY_SYS_POWER_STATE, buf);
-    }
 }
 
 static void power_set_interactive(struct power_module *module, int on)
 {
-    char buf[80];
-    int len;
-
-    len = write(sPowerStatefd, pwr_states[!!on], strlen(pwr_states[!!on]));
-    if (len < 0) {
-        strerror_r(errno, buf, sizeof(buf));
-        ALOGE("Error writing to %s: %s\n", LEGACY_SYS_POWER_STATE, buf);
-    }
 }
 
 static void power_hint(struct power_module *module, power_hint_t hint,
