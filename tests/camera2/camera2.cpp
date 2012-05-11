@@ -234,52 +234,43 @@ class Camera2Test: public testing::Test {
         ASSERT_GT(mStreams.size(), i) << "Stream id not found:" << id;
     }
 
-    void getResolutionList(uint32_t format,
-            uint32_t **list,
+    void getResolutionList(int32_t format,
+            int32_t **list,
             size_t *count) {
 
-        uint32_t *availableFormats;
-        size_t   availableFormatsCount;
         status_t res;
+        camera_metadata_entry_t availableFormats;
         res = find_camera_metadata_entry(mStaticInfo,
                 ANDROID_SCALER_AVAILABLE_FORMATS,
-                NULL,
-                (void**)&availableFormats,
-                &availableFormatsCount);
+                &availableFormats);
         ASSERT_EQ(OK, res);
 
         uint32_t formatIdx;
-        for (formatIdx=0; formatIdx < availableFormatsCount; formatIdx++) {
-            if (availableFormats[formatIdx] == format) break;
+        for (formatIdx=0; formatIdx < availableFormats.count; formatIdx++) {
+            if (availableFormats.data.i32[formatIdx] == format) break;
         }
-        ASSERT_NE(availableFormatsCount, formatIdx)
+        ASSERT_NE(availableFormats.count, formatIdx)
                 << "No support found for format 0x" << std::hex << format;
 
-        uint32_t *availableSizesPerFormat;
-        size_t    availableSizesPerFormatCount;
+        camera_metadata_entry_t availableSizesPerFormat;
         res = find_camera_metadata_entry(mStaticInfo,
                 ANDROID_SCALER_AVAILABLE_SIZES_PER_FORMAT,
-                NULL,
-                (void**)&availableSizesPerFormat,
-                &availableSizesPerFormatCount);
+                &availableSizesPerFormat);
         ASSERT_EQ(OK, res);
 
         int size_offset = 0;
         for (unsigned int i=0; i < formatIdx; i++) {
-            size_offset += availableSizesPerFormat[i];
+            size_offset += availableSizesPerFormat.data.i32[i];
         }
 
-        uint32_t *availableSizes;
-        size_t    availableSizesCount;
+        camera_metadata_entry_t availableSizes;
         res = find_camera_metadata_entry(mStaticInfo,
                 ANDROID_SCALER_AVAILABLE_SIZES,
-                NULL,
-                (void**)&availableSizes,
-                &availableSizesCount);
+                &availableSizes);
         ASSERT_EQ(OK, res);
 
-        *list = availableSizes + size_offset;
-        *count = availableSizesPerFormat[formatIdx];
+        *list = availableSizes.data.i32 + size_offset;
+        *count = availableSizesPerFormat.data.i32[formatIdx];
     }
 
     virtual void SetUp() {
@@ -349,14 +340,14 @@ TEST_F(Camera2Test, Capture1Raw) {
         sp<FrameWaiter> rawWaiter = new FrameWaiter();
         rawConsumer->setFrameAvailableListener(rawWaiter);
 
-        uint32_t *rawResolutions;
-        size_t    rawResolutionsCount;
+        int32_t *rawResolutions;
+        size_t   rawResolutionsCount;
 
         int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
 
         getResolutionList(format,
                 &rawResolutions, &rawResolutionsCount);
-        ASSERT_LT((uint32_t)0, rawResolutionsCount);
+        ASSERT_LT((size_t)0, rawResolutionsCount);
 
         // Pick first available raw resolution
         int width = rawResolutions[0];
@@ -379,7 +370,7 @@ TEST_F(Camera2Test, Capture1Raw) {
                 ANDROID_REQUEST_OUTPUT_STREAMS,
                 (void**)&outputStreams, 1);
 
-        uint64_t exposureTime = 2*MSEC;
+        uint64_t exposureTime = 10000*MSEC;
         add_camera_metadata_entry(request,
                 ANDROID_SENSOR_EXPOSURE_TIME,
                 (void**)&exposureTime, 1);
@@ -392,7 +383,7 @@ TEST_F(Camera2Test, Capture1Raw) {
                 ANDROID_SENSOR_SENSITIVITY,
                 (void**)&sensitivity, 1);
 
-        uint32_t hourOfDay = 12;
+        uint32_t hourOfDay = 22;
         add_camera_metadata_entry(request,
                 0x80000000, // EMULATOR_HOUROFDAY
                 &hourOfDay, 1);
@@ -461,7 +452,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         sp<FrameWaiter> rawWaiter = new FrameWaiter();
         rawConsumer->setFrameAvailableListener(rawWaiter);
 
-        uint32_t *rawResolutions;
+        int32_t *rawResolutions;
         size_t    rawResolutionsCount;
 
         int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
@@ -514,7 +505,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 
         // Enqueue numCaptures requests with increasing exposure time
 
-        uint64_t exposureTime = 1 * MSEC;
+        uint64_t exposureTime = 100 * USEC;
         for (int reqCount = 0; reqCount < numCaptures; reqCount++ ) {
             camera_metadata_t *req;
             req = allocate_camera_metadata(20, 2000);
@@ -531,8 +522,9 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         }
 
         // Get frames and image buffers one by one
+        uint64_t expectedExposureTime = 100 * USEC;
         for (int frameCount = 0; frameCount < 10; frameCount++) {
-            res = mFrames.waitForBuffer(SEC);
+            res = mFrames.waitForBuffer(SEC + expectedExposureTime);
             ASSERT_EQ(NO_ERROR, res) << "No frame to get: " << strerror(-res);
 
             camera_metadata_t *frame;
@@ -540,14 +532,14 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
             ASSERT_EQ(NO_ERROR, res);
             ASSERT_TRUE(frame != NULL);
 
-            uint32_t *frameNumber;
+            camera_metadata_entry_t frameNumber;
             res = find_camera_metadata_entry(frame,
                     ANDROID_REQUEST_FRAME_COUNT,
-                    NULL, (void**)&frameNumber, NULL);
+                    &frameNumber);
             ASSERT_EQ(NO_ERROR, res);
-            ASSERT_EQ(frameCount, *frameNumber);
+            ASSERT_EQ(frameCount, *frameNumber.data.i32);
 
-            res = rawWaiter->waitForFrame(SEC);
+            res = rawWaiter->waitForFrame(SEC + expectedExposureTime);
             ASSERT_EQ(NO_ERROR, res) <<
                     "Never got raw data for capture " << frameCount;
 
@@ -558,7 +550,8 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
             IF_ALOGV() {
                 char dumpname[60];
                 snprintf(dumpname, 60,
-                        "/data/local/tmp/camera2_test-capture1raw-dump_%d.raw",
+                        "/data/local/tmp/camera2_test-"
+                        "captureBurstRaw-dump_%d.raw",
                         frameCount);
                 ALOGV("Dumping raw buffer to %s", dumpname);
                 // Write to file
@@ -573,6 +566,8 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 
             res = rawConsumer->unlockBuffer(buffer);
             ASSERT_EQ(NO_ERROR, res);
+
+            expectedExposureTime *= 2;
         }
     }
 }
