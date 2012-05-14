@@ -572,4 +572,34 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
     }
 }
 
+TEST_F(Camera2Test, ConstructDefaultRequests) {
+    status_t res;
+
+    for (int id = 0; id < getNumCameras(); id++) {
+        if (!isHal2Supported(id)) continue;
+
+        ASSERT_NO_FATAL_FAILURE(setUpCamera(id));
+
+        for (int i = CAMERA2_TEMPLATE_PREVIEW; i < CAMERA2_TEMPLATE_COUNT;
+             i++) {
+            camera_metadata_t *request = NULL;
+            res = mDevice->ops->construct_default_request(mDevice,
+                    i,
+                    &request);
+            EXPECT_EQ(NO_ERROR, res) <<
+                    "Unable to construct request from template type %d", i;
+            EXPECT_TRUE(request != NULL);
+            EXPECT_LT((size_t)0, get_camera_metadata_entry_count(request));
+            EXPECT_LT((size_t)0, get_camera_metadata_data_count(request));
+
+            IF_ALOGV() {
+                std::cout << "  ** Template type " << i << ":"<<std::endl;
+                dump_camera_metadata(request, 0, 2);
+            }
+
+            free_camera_metadata(request);
+        }
+    }
+}
+
 } // namespace android
