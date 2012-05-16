@@ -400,7 +400,10 @@ enum {
      * full-resolution images without compromising preview frame rate. 3A on
      * auto.
      */
-    CAMERA2_TEMPLATE_ZERO_SHUTTER_LAG
+    CAMERA2_TEMPLATE_ZERO_SHUTTER_LAG,
+
+    /* Total number of templates */
+    CAMERA2_TEMPLATE_COUNT
 };
 
 
