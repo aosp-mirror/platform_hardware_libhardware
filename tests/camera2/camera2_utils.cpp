@@ -50,7 +50,7 @@ MetadataQueue::~MetadataQueue() {
 }
 
 // Interface to camera2 HAL as consumer (input requests/reprocessing)
-camera2_request_queue_src_ops_t* MetadataQueue::getToConsumerInterface() {
+const camera2_request_queue_src_ops_t* MetadataQueue::getToConsumerInterface() {
     return static_cast<camera2_request_queue_src_ops_t*>(this);
 }
 
@@ -58,7 +58,7 @@ void MetadataQueue::setFromConsumerInterface(camera2_device_t *d) {
     mDevice = d;
 }
 
-camera2_frame_queue_dst_ops_t* MetadataQueue::getToProducerInterface() {
+const camera2_frame_queue_dst_ops_t* MetadataQueue::getToProducerInterface() {
     return static_cast<camera2_frame_queue_dst_ops_t*>(this);
 }
 
@@ -181,26 +181,38 @@ status_t MetadataQueue::freeBuffers(List<camera_metadata_t*>::iterator start,
     return OK;
 }
 
+MetadataQueue* MetadataQueue::getInstance(
+        const camera2_request_queue_src_ops_t *q) {
+    const MetadataQueue* cmq = static_cast<const MetadataQueue*>(q);
+    return const_cast<MetadataQueue*>(cmq);
+}
+
+MetadataQueue* MetadataQueue::getInstance(
+        const camera2_frame_queue_dst_ops_t *q) {
+    const MetadataQueue* cmq = static_cast<const MetadataQueue*>(q);
+    return const_cast<MetadataQueue*>(cmq);
+}
+
 int MetadataQueue::consumer_buffer_count(
-        camera2_request_queue_src_ops_t *q) {
-    MetadataQueue *queue = static_cast<MetadataQueue *>(q);
+        const camera2_request_queue_src_ops_t *q) {
+    MetadataQueue *queue = getInstance(q);
     return queue->getBufferCount();
 }
 
-int MetadataQueue::consumer_dequeue(camera2_request_queue_src_ops_t *q,
+int MetadataQueue::consumer_dequeue(const camera2_request_queue_src_ops_t *q,
         camera_metadata_t **buffer) {
-    MetadataQueue *queue = static_cast<MetadataQueue *>(q);
+    MetadataQueue *queue = getInstance(q);
     return queue->dequeue(buffer, true);
 }
 
-int MetadataQueue::consumer_free(camera2_request_queue_src_ops_t *q,
+int MetadataQueue::consumer_free(const camera2_request_queue_src_ops_t *q,
         camera_metadata_t *old_buffer) {
-    MetadataQueue *queue = static_cast<MetadataQueue *>(q);
+    MetadataQueue *queue = getInstance(q);
     free_camera_metadata(old_buffer);
     return OK;
 }
 
-int MetadataQueue::producer_dequeue(camera2_frame_queue_dst_ops_t *q,
+int MetadataQueue::producer_dequeue(const camera2_frame_queue_dst_ops_t *q,
         size_t entries, size_t bytes,
         camera_metadata_t **buffer) {
     camera_metadata_t *new_buffer =
@@ -210,15 +222,15 @@ int MetadataQueue::producer_dequeue(camera2_frame_queue_dst_ops_t *q,
         return OK;
 }
 
-int MetadataQueue::producer_cancel(camera2_frame_queue_dst_ops_t *q,
+int MetadataQueue::producer_cancel(const camera2_frame_queue_dst_ops_t *q,
         camera_metadata_t *old_buffer) {
     free_camera_metadata(old_buffer);
     return OK;
 }
 
-int MetadataQueue::producer_enqueue(camera2_frame_queue_dst_ops_t *q,
+int MetadataQueue::producer_enqueue(const camera2_frame_queue_dst_ops_t *q,
         camera_metadata_t *filled_buffer) {
-    MetadataQueue *queue = static_cast<MetadataQueue *>(q);
+    MetadataQueue *queue = getInstance(q);
     return queue->enqueue(filled_buffer);
 }
 
@@ -486,18 +498,18 @@ int StreamAdapter::getId() {
     return mId;
 }
 
-camera2_stream_ops *StreamAdapter::getStreamOps() {
+const camera2_stream_ops *StreamAdapter::getStreamOps() {
     return static_cast<camera2_stream_ops *>(this);
 }
 
-ANativeWindow* StreamAdapter::toANW(camera2_stream_ops_t *w) {
-    return static_cast<StreamAdapter*>(w)->mConsumerInterface.get();
+ANativeWindow* StreamAdapter::toANW(const camera2_stream_ops_t *w) {
+    return static_cast<const StreamAdapter*>(w)->mConsumerInterface.get();
 }
 
-int StreamAdapter::dequeue_buffer(camera2_stream_ops_t *w,
+int StreamAdapter::dequeue_buffer(const camera2_stream_ops_t *w,
         buffer_handle_t** buffer) {
     int res;
-    int state = static_cast<StreamAdapter*>(w)->mState;
+    int state = static_cast<const StreamAdapter*>(w)->mState;
     if (state != ACTIVE) {
         ALOGE("%s: Called when in bad state: %d", __FUNCTION__, state);
         return INVALID_OPERATION;
@@ -515,10 +527,10 @@ int StreamAdapter::dequeue_buffer(camera2_stream_ops_t *w,
     return res;
 }
 
-int StreamAdapter::enqueue_buffer(camera2_stream_ops_t* w,
+int StreamAdapter::enqueue_buffer(const camera2_stream_ops_t* w,
         int64_t timestamp,
         buffer_handle_t* buffer) {
-    int state = static_cast<StreamAdapter*>(w)->mState;
+    int state = static_cast<const StreamAdapter*>(w)->mState;
     if (state != ACTIVE) {
         ALOGE("%s: Called when in bad state: %d", __FUNCTION__, state);
         return INVALID_OPERATION;
@@ -531,9 +543,9 @@ int StreamAdapter::enqueue_buffer(camera2_stream_ops_t* w,
             container_of(buffer, ANativeWindowBuffer, handle));
 }
 
-int StreamAdapter::cancel_buffer(camera2_stream_ops_t* w,
+int StreamAdapter::cancel_buffer(const camera2_stream_ops_t* w,
         buffer_handle_t* buffer) {
-    int state = static_cast<StreamAdapter*>(w)->mState;
+    int state = static_cast<const StreamAdapter*>(w)->mState;
     if (state != ACTIVE) {
         ALOGE("%s: Called when in bad state: %d", __FUNCTION__, state);
         return INVALID_OPERATION;
@@ -543,9 +555,9 @@ int StreamAdapter::cancel_buffer(camera2_stream_ops_t* w,
             container_of(buffer, ANativeWindowBuffer, handle));
 }
 
-int StreamAdapter::set_crop(camera2_stream_ops_t* w,
+int StreamAdapter::set_crop(const camera2_stream_ops_t* w,
         int left, int top, int right, int bottom) {
-    int state = static_cast<StreamAdapter*>(w)->mState;
+    int state = static_cast<const StreamAdapter*>(w)->mState;
     if (state != ACTIVE) {
         ALOGE("%s: Called when in bad state: %d", __FUNCTION__, state);
         return INVALID_OPERATION;

@@ -40,10 +40,10 @@ class MetadataQueue: public camera2_request_queue_src_ops_t,
 
     // Interface to camera2 HAL device, either for requests (device is consumer)
     // or for frames (device is producer)
-    camera2_request_queue_src_ops_t*   getToConsumerInterface();
+    const camera2_request_queue_src_ops_t*   getToConsumerInterface();
     void setFromConsumerInterface(camera2_device_t *d);
 
-    camera2_frame_queue_dst_ops_t* getToProducerInterface();
+    const camera2_frame_queue_dst_ops_t* getToProducerInterface();
 
     // Real interfaces. On enqueue, queue takes ownership of buffer pointer
     // On dequeue, user takes ownership of buffer pointer.
@@ -76,22 +76,25 @@ class MetadataQueue: public camera2_request_queue_src_ops_t,
 
     bool mSignalConsumer;
 
-    static int consumer_buffer_count(camera2_request_queue_src_ops_t *q);
+    static MetadataQueue* getInstance(const camera2_frame_queue_dst_ops_t *q);
+    static MetadataQueue* getInstance(const camera2_request_queue_src_ops_t *q);
 
-    static int consumer_dequeue(camera2_request_queue_src_ops_t *q,
+    static int consumer_buffer_count(const camera2_request_queue_src_ops_t *q);
+
+    static int consumer_dequeue(const camera2_request_queue_src_ops_t *q,
             camera_metadata_t **buffer);
 
-    static int consumer_free(camera2_request_queue_src_ops_t *q,
+    static int consumer_free(const camera2_request_queue_src_ops_t *q,
             camera_metadata_t *old_buffer);
 
-    static int producer_dequeue(camera2_frame_queue_dst_ops_t *q,
+    static int producer_dequeue(const camera2_frame_queue_dst_ops_t *q,
             size_t entries, size_t bytes,
             camera_metadata_t **buffer);
 
-    static int producer_cancel(camera2_frame_queue_dst_ops_t *q,
+    static int producer_cancel(const camera2_frame_queue_dst_ops_t *q,
             camera_metadata_t *old_buffer);
 
-    static int producer_enqueue(camera2_frame_queue_dst_ops_t *q,
+    static int producer_enqueue(const camera2_frame_queue_dst_ops_t *q,
             camera_metadata_t *filled_buffer);
 
 };
@@ -193,21 +196,21 @@ class StreamAdapter: public camera2_stream_ops {
 
     int mFormatRequested;
 
-    camera2_stream_ops *getStreamOps();
+    const camera2_stream_ops *getStreamOps();
 
-    static ANativeWindow* toANW(camera2_stream_ops_t *w);
+    static ANativeWindow* toANW(const camera2_stream_ops_t *w);
 
-    static int dequeue_buffer(camera2_stream_ops_t *w,
+    static int dequeue_buffer(const camera2_stream_ops_t *w,
             buffer_handle_t** buffer);
 
-    static int enqueue_buffer(camera2_stream_ops_t* w,
+    static int enqueue_buffer(const camera2_stream_ops_t* w,
             int64_t timestamp,
             buffer_handle_t* buffer);
 
-    static int cancel_buffer(camera2_stream_ops_t* w,
+    static int cancel_buffer(const camera2_stream_ops_t* w,
             buffer_handle_t* buffer);
 
-    static int set_crop(camera2_stream_ops_t* w,
+    static int set_crop(const camera2_stream_ops_t* w,
             int left, int top, int right, int bottom);
 
 };

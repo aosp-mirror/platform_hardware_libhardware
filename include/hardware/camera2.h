@@ -64,7 +64,7 @@ typedef struct camera2_stream_ops {
      * will have been allocated based on the usage flags provided by
      * allocate_stream, and will be locked for use.
      */
-    int (*dequeue_buffer)(struct camera2_stream_ops* w,
+    int (*dequeue_buffer)(const struct camera2_stream_ops* w,
             buffer_handle_t** buffer);
 
     /**
@@ -79,19 +79,19 @@ typedef struct camera2_stream_ops {
      * same timestamp for that buffer, and that timestamp must match the
      * timestamp in the output frame metadata.
      */
-    int (*enqueue_buffer)(struct camera2_stream_ops* w,
+    int (*enqueue_buffer)(const struct camera2_stream_ops* w,
             int64_t timestamp,
             buffer_handle_t* buffer);
     /**
      * Return a buffer to the queue without marking it as filled.
      */
-    int (*cancel_buffer)(struct camera2_stream_ops* w,
+    int (*cancel_buffer)(const struct camera2_stream_ops* w,
             buffer_handle_t* buffer);
     /**
      * Set the crop window for subsequently enqueued buffers. The parameters are
      * measured in pixels relative to the buffer width and height.
      */
-    int (*set_crop)(struct camera2_stream_ops *w,
+    int (*set_crop)(const struct camera2_stream_ops *w,
             int left, int top, int right, int bottom);
 
 } camera2_stream_ops_t;
@@ -119,12 +119,12 @@ typedef struct camera2_stream_in_ops {
      * stride and other details should be queried from the platform gralloc
      * module as needed. The buffer will already be locked for use.
      */
-    int (*acquire_buffer)(struct camera2_stream_in_ops *w,
+    int (*acquire_buffer)(const struct camera2_stream_in_ops *w,
             buffer_handle_t** buffer);
     /**
      * Return a used buffer to the buffer queue for reuse.
      */
-    int (*release_buffer)(struct camera2_stream_in_ops *w,
+    int (*release_buffer)(const struct camera2_stream_in_ops *w,
             buffer_handle_t* buffer);
 
 } camera2_stream_in_ops_t;
@@ -180,7 +180,7 @@ typedef struct camera2_request_queue_src_ops {
      * whether the notify_request_queue_not_empty() method will be called by the
      * framework.
      */
-    int (*request_count)(struct camera2_request_queue_src_ops *q);
+    int (*request_count)(const struct camera2_request_queue_src_ops *q);
 
     /**
      * Get a metadata buffer from the framework. Returns OK if there is no
@@ -189,13 +189,13 @@ typedef struct camera2_request_queue_src_ops {
      * attempting to dequeue again. Buffers obtained in this way must be
      * returned to the framework with free_request().
      */
-    int (*dequeue_request)(struct camera2_request_queue_src_ops *q,
+    int (*dequeue_request)(const struct camera2_request_queue_src_ops *q,
             camera_metadata_t **buffer);
     /**
      * Return a metadata buffer to the framework once it has been used, or if
      * an error or shutdown occurs.
      */
-    int (*free_request)(struct camera2_request_queue_src_ops *q,
+    int (*free_request)(const struct camera2_request_queue_src_ops *q,
             camera_metadata_t *old_buffer);
 
 } camera2_request_queue_src_ops_t;
@@ -222,7 +222,7 @@ typedef struct camera2_frame_queue_dst_ops {
      * data_bytes worth of extra storage. Frames dequeued here must be returned
      * to the framework with either cancel_frame or enqueue_frame.
      */
-    int (*dequeue_frame)(struct camera2_frame_queue_dst_ops *q,
+    int (*dequeue_frame)(const struct camera2_frame_queue_dst_ops *q,
             size_t entries, size_t data_bytes,
             camera_metadata_t **buffer);
 
@@ -230,13 +230,13 @@ typedef struct camera2_frame_queue_dst_ops {
      * Return a dequeued metadata buffer to the framework for reuse; do not mark it as
      * filled. Use when encountering errors, or flushing the internal request queue.
      */
-    int (*cancel_frame)(struct camera2_frame_queue_dst_ops *q,
+    int (*cancel_frame)(const struct camera2_frame_queue_dst_ops *q,
             camera_metadata_t *buffer);
 
     /**
      * Place a completed metadata frame on the frame output queue.
      */
-    int (*enqueue_frame)(struct camera2_frame_queue_dst_ops *q,
+    int (*enqueue_frame)(const struct camera2_frame_queue_dst_ops *q,
             camera_metadata_t *buffer);
 
 } camera2_frame_queue_dst_ops_t;
@@ -421,21 +421,21 @@ typedef struct camera2_device_ops {
     /**
      * Pass in input request queue interface methods.
      */
-    int (*set_request_queue_src_ops)(struct camera2_device *,
-            camera2_request_queue_src_ops_t *request_src_ops);
+    int (*set_request_queue_src_ops)(const struct camera2_device *,
+            const camera2_request_queue_src_ops_t *request_src_ops);
 
     /**
      * Notify device that the request queue is no longer empty. Must only be
      * called when the first buffer is added a new queue, or after the source
      * has returned NULL in response to a dequeue call.
      */
-    int (*notify_request_queue_not_empty)(struct camera2_device *);
+    int (*notify_request_queue_not_empty)(const struct camera2_device *);
 
     /**
      * Pass in output frame queue interface methods
      */
-    int (*set_frame_queue_dst_ops)(struct camera2_device *,
-            camera2_frame_queue_dst_ops_t *frame_dst_ops);
+    int (*set_frame_queue_dst_ops)(const struct camera2_device *,
+            const camera2_frame_queue_dst_ops_t *frame_dst_ops);
 
     /**
      * Number of camera requests being processed by the device at the moment
@@ -443,7 +443,7 @@ typedef struct camera2_device_ops {
      * yet been enqueued onto output pipeline(s) ). No streams may be released
      * by the framework until the in-progress count is 0.
      */
-    int (*get_in_progress_count)(struct camera2_device *);
+    int (*get_in_progress_count)(const struct camera2_device *);
 
     /**
      * Flush all in-progress captures. This includes all dequeued requests
@@ -452,7 +452,7 @@ typedef struct camera2_device_ops {
      * normally. No new requests may be dequeued from the request queue until
      * the flush completes.
      */
-    int (*flush_captures_in_progress)(struct camera2_device *);
+    int (*flush_captures_in_progress)(const struct camera2_device *);
 
     /**
      * Create a filled-in default request for standard camera use cases.
@@ -465,7 +465,7 @@ typedef struct camera2_device_ops {
      * The metadata buffer returned must be allocated with
      * allocate_camera_metadata. The framework takes ownership of the buffer.
      */
-    int (*construct_default_request)(struct camera2_device *,
+    int (*construct_default_request)(const struct camera2_device *,
             int request_template,
             camera_metadata_t **request);
 
@@ -526,12 +526,12 @@ typedef struct camera2_device_ops {
      *
      */
     int (*allocate_stream)(
-            struct camera2_device *,
+            const struct camera2_device *,
             // inputs
             uint32_t width,
             uint32_t height,
             int      format,
-            camera2_stream_ops_t *stream_ops,
+            const camera2_stream_ops_t *stream_ops,
             // outputs
             uint32_t *stream_id,
             uint32_t *format_actual,
@@ -548,7 +548,7 @@ typedef struct camera2_device_ops {
      * buffers must be ready to be returned to the queue.
      */
     int (*register_stream_buffers)(
-            struct camera2_device *,
+            const struct camera2_device *,
             uint32_t stream_id,
             int num_buffers,
             buffer_handle_t *buffers);
@@ -558,7 +558,7 @@ typedef struct camera2_device_ops {
      * is non-zero, or if the stream id is invalid.
      */
     int (*release_stream)(
-            struct camera2_device *,
+            const struct camera2_device *,
             uint32_t stream_id);
 
     /**
@@ -598,11 +598,11 @@ typedef struct camera2_device_ops {
      *   acquired at the same time than this value.
      *
      */
-    int (*allocate_reprocess_stream)(struct camera2_device *,
+    int (*allocate_reprocess_stream)(const struct camera2_device *,
             uint32_t width,
             uint32_t height,
             uint32_t format,
-            camera2_stream_in_ops_t *reprocess_stream_ops,
+            const camera2_stream_in_ops_t *reprocess_stream_ops,
             // outputs
             uint32_t *stream_id,
             uint32_t *consumer_usage,
@@ -614,7 +614,7 @@ typedef struct camera2_device_ops {
      * valid.
      */
     int (*release_reprocess_stream)(
-            struct camera2_device *,
+            const struct camera2_device *,
             uint32_t stream_id);
 
     /**********************************************************************
@@ -627,7 +627,7 @@ typedef struct camera2_device_ops {
      * documentation for CAMERA2_TRIGGER_* above for details of the trigger ids
      * and their arguments.
      */
-    int (*trigger_action)(struct camera2_device *,
+    int (*trigger_action)(const struct camera2_device *,
             uint32_t trigger_id,
             int ext1,
             int ext2);
@@ -635,7 +635,7 @@ typedef struct camera2_device_ops {
     /**
      * Notification callback setup
      */
-    int (*set_notify_callback)(struct camera2_device *,
+    int (*set_notify_callback)(const struct camera2_device *,
             camera2_notify_callback notify_cb,
             void *user);
 
@@ -643,13 +643,13 @@ typedef struct camera2_device_ops {
      * Get methods to query for vendor extension metadata tag infomation. May
      * set ops to NULL if no vendor extension tags are defined.
      */
-    int (*get_metadata_vendor_tag_ops)(struct camera2_device*,
+    int (*get_metadata_vendor_tag_ops)(const struct camera2_device*,
             vendor_tag_query_ops_t **ops);
 
     /**
      * Dump state of the camera hardware
      */
-    int (*dump)(struct camera2_device *, int fd);
+    int (*dump)(const struct camera2_device *, int fd);
 
 } camera2_device_ops_t;
 
