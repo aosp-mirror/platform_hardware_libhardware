@@ -239,38 +239,36 @@ class Camera2Test: public testing::Test {
             size_t *count) {
 
         status_t res;
-        camera_metadata_entry_t availableFormats;
-        res = find_camera_metadata_entry(mStaticInfo,
-                ANDROID_SCALER_AVAILABLE_FORMATS,
-                &availableFormats);
-        ASSERT_EQ(OK, res);
+        if (format != CAMERA2_HAL_PIXEL_FORMAT_OPAQUE) {
+            camera_metadata_entry_t availableFormats;
+            res = find_camera_metadata_entry(mStaticInfo,
+                    ANDROID_SCALER_AVAILABLE_FORMATS,
+                    &availableFormats);
+            ASSERT_EQ(OK, res);
 
-        uint32_t formatIdx;
-        for (formatIdx=0; formatIdx < availableFormats.count; formatIdx++) {
-            if (availableFormats.data.i32[formatIdx] == format) break;
-        }
-        ASSERT_NE(availableFormats.count, formatIdx)
+            uint32_t formatIdx;
+            for (formatIdx=0; formatIdx < availableFormats.count; formatIdx++) {
+                if (availableFormats.data.i32[formatIdx] == format) break;
+            }
+            ASSERT_NE(availableFormats.count, formatIdx)
                 << "No support found for format 0x" << std::hex << format;
-
-        camera_metadata_entry_t availableSizesPerFormat;
-        res = find_camera_metadata_entry(mStaticInfo,
-                ANDROID_SCALER_AVAILABLE_SIZES_PER_FORMAT,
-                &availableSizesPerFormat);
-        ASSERT_EQ(OK, res);
-
-        int size_offset = 0;
-        for (unsigned int i=0; i < formatIdx; i++) {
-            size_offset += availableSizesPerFormat.data.i32[i];
         }
 
         camera_metadata_entry_t availableSizes;
-        res = find_camera_metadata_entry(mStaticInfo,
-                ANDROID_SCALER_AVAILABLE_SIZES,
-                &availableSizes);
-        ASSERT_EQ(OK, res);
+        if (format == HAL_PIXEL_FORMAT_RAW_SENSOR) {
+            res = find_camera_metadata_entry(mStaticInfo,
+                    ANDROID_SCALER_AVAILABLE_RAW_SIZES,
+                    &availableSizes);
+            ASSERT_EQ(OK, res);
+        } else {
+            res = find_camera_metadata_entry(mStaticInfo,
+                    ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
+                    &availableSizes);
+            ASSERT_EQ(OK, res);
+        }
 
-        *list = availableSizes.data.i32 + size_offset;
-        *count = availableSizesPerFormat.data.i32[formatIdx];
+        *list = availableSizes.data.i32;
+        *count = availableSizes.count;
     }
 
     virtual void SetUp() {
@@ -370,7 +368,7 @@ TEST_F(Camera2Test, Capture1Raw) {
                 ANDROID_REQUEST_OUTPUT_STREAMS,
                 (void**)&outputStreams, 1);
 
-        uint64_t exposureTime = 10000*MSEC;
+        uint64_t exposureTime = 10*MSEC;
         add_camera_metadata_entry(request,
                 ANDROID_SENSOR_EXPOSURE_TIME,
                 (void**)&exposureTime, 1);
@@ -383,7 +381,7 @@ TEST_F(Camera2Test, Capture1Raw) {
                 ANDROID_SENSOR_SENSITIVITY,
                 (void**)&sensitivity, 1);
 
-        uint32_t hourOfDay = 22;
+        uint32_t hourOfDay = 12;
         add_camera_metadata_entry(request,
                 0x80000000, // EMULATOR_HOUROFDAY
                 &hourOfDay, 1);
