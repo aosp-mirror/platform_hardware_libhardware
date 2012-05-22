@@ -10,7 +10,8 @@ LOCAL_SHARED_LIBRARIES := \
 	libstlport \
 	libhardware \
 	libcamera_metadata \
-	libgui
+	libgui \
+	libui
 
 LOCAL_STATIC_LIBRARIES := \
 	libgtest \
