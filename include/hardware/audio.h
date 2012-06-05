@@ -102,6 +102,16 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"  // audio_source_t
 #define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" // uint32_t
 
+/* Query supported formats. The response is a '|' separated list of strings from
+ * audio_format_t enum e.g: "sup_formats=AUDIO_FORMAT_PCM_16_BIT" */
+#define AUDIO_PARAMETER_STREAM_SUP_FORMATS "sup_formats"
+/* Query supported channel masks. The response is a '|' separated list of strings from
+ * audio_channel_mask_t enum e.g: "sup_channels=AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_MONO" */
+#define AUDIO_PARAMETER_STREAM_SUP_CHANNELS "sup_channels"
+/* Query supported sampling rates. The response is a '|' separated list of integer values e.g:
+ * "sup_sampling_rates=44100|48000" */
+#define AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES "sup_sampling_rates"
+
 
 /**************************************/
 
