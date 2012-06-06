@@ -14,53 +14,31 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_H
-#define ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_H
-
-#include <stdint.h>
-#include <sys/cdefs.h>
-
-#include <hardware/gralloc.h>
-#include <hardware/hardware.h>
-#include <cutils/native_handle.h>
-
-#include <hardware/hwcomposer_defs.h>
-
-__BEGIN_DECLS
-
-/*****************************************************************************/
-
-/* for compatibility */
-#define HWC_MODULE_API_VERSION      HWC_MODULE_API_VERSION_0_1
-#define HWC_DEVICE_API_VERSION      HWC_DEVICE_API_VERSION_0_1
-#define HWC_API_VERSION             HWC_DEVICE_API_VERSION
-
-/* Users of this header can define HWC_REMOVE_DEPRECATED_VERSIONS to test that
- * they still work with just the current version declared, before the
- * deprecated versions are actually removed.
- *
- * To find code that still depends on the old versions, set the #define to 1
- * here. Code that explicitly sets it to zero (rather than simply not defining
- * it) will still see the old versions.
+/* This header contains deprecated HWCv0 interface declarations. Don't include
+ * this header directly; it will be included by <hardware/hwcomposer.h> unless
+ * HWC_REMOVE_DEPRECATED_VERSIONS is defined to non-zero.
  */
-#if !defined(HWC_REMOVE_DEPRECATED_VERSIONS)
-#define HWC_REMOVE_DEPRECATED_VERSIONS 0
+#ifndef ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_H
+#error "This header should only be included by hardware/hwcomposer.h"
 #endif
 
-/*****************************************************************************/
+#ifndef ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_V0_H
+#define ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_V0_H
 
-/**
- * The id of this module
+struct hwc_composer_device;
+
+/*
+ * availability: HWC_DEVICE_API_VERSION_0_3
+ *
+ * struct hwc_methods cannot be embedded in other structures as
+ * sizeof(struct hwc_methods) cannot be relied upon.
+ *
  */
-#define HWC_HARDWARE_MODULE_ID "hwcomposer"
+typedef struct hwc_methods {
 
-/**
- * Name of the sensors device to open
- */
-#define HWC_HARDWARE_COMPOSER   "composer"
-
-struct hwc_composer_device_1;
-typedef struct hwc_methods_1 {
+    /*************************************************************************
+     * HWC_DEVICE_API_VERSION_0_3
+     *************************************************************************/
 
     /*
      * eventControl(..., event, enabled)
@@ -77,30 +55,11 @@ typedef struct hwc_methods_1 {
      */
 
     int (*eventControl)(
-            struct hwc_composer_device_1* dev, int event, int enabled);
+            struct hwc_composer_device* dev, int event, int enabled);
 
-} hwc_methods_1_t;
+} hwc_methods_t;
 
-typedef struct hwc_rect {
-    int left;
-    int top;
-    int right;
-    int bottom;
-} hwc_rect_t;
-
-typedef struct hwc_region {
-    size_t numRects;
-    hwc_rect_t const* rects;
-} hwc_region_t;
-
-typedef struct hwc_color {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
-} hwc_color_t;
-
-typedef struct hwc_layer_1 {
+typedef struct hwc_layer {
     /*
      * initially set to HWC_FRAMEBUFFER or HWC_BACKGROUND.
      * HWC_FRAMEBUFFER
@@ -159,123 +118,23 @@ typedef struct hwc_layer_1 {
              * The visible region INCLUDES areas overlapped by a translucent layer.
              */
             hwc_region_t visibleRegionScreen;
-
-            /* Sync fence object that will be signaled when the buffer's
-             * contents are available. May be -1 if the contents are already
-             * available. This field is only valid during set(), and should be
-             * ignored during prepare(). The set() call must not wait for the
-             * fence to be signaled before returning, but the HWC must wait for
-             * all buffers to be signaled before reading from them.
-             *
-             * The HWC takes ownership of the acquireFenceFd and is responsible
-             * for closing it when no longer needed.
-             */
-            int acquireFenceFd;
-
-            /* During set() the HWC must set this field to a file descriptor for
-             * a sync fence object that will signal after the HWC has finished
-             * reading from the buffer. The field is ignored by prepare(). Each
-             * layer should have a unique file descriptor, even if more than one
-             * refer to the same underlying fence object; this allows each to be
-             * closed independently.
-             *
-             * If buffer reads can complete at significantly different times,
-             * then using independent fences is preferred. For example, if the
-             * HWC handles some layers with a blit engine and others with
-             * overlays, then the blit layers can be reused immediately after
-             * the blit completes, but the overlay layers can't be reused until
-             * a subsequent frame has been displayed.
-             *
-             * The HWC client taks ownership of the releaseFenceFd and is
-             * responsible for closing it when no longer needed.
-             */
-            int releaseFenceFd;
         };
     };
-
-    /* Allow for expansion w/o breaking binary compatibility.
-     * Pad layer to 96 bytes, assuming 32-bit pointers.
-     */
-    int32_t reserved[24 - 18];
-
-} hwc_layer_1_t;
-
-/*
- * hwc_layer_list_t::flags values
- */
-enum {
-    /*
-     * HWC_GEOMETRY_CHANGED is set by SurfaceFlinger to indicate that the list
-     * passed to (*prepare)() has changed by more than just the buffer handles
-     * and acquire fences.
-     */
-    HWC_GEOMETRY_CHANGED = 0x00000001,
-};
+} hwc_layer_t;
 
 /*
  * List of layers.
  * The handle members of hwLayers elements must be unique.
  */
-typedef struct hwc_layer_list_1 {
+typedef struct hwc_layer_list {
     uint32_t flags;
     size_t numHwLayers;
-    hwc_layer_1_t hwLayers[0];
-} hwc_layer_list_1_t;
-
-/* This represents a display, typically an EGLDisplay object */
-typedef void* hwc_display_t;
-
-/* This represents a surface, typically an EGLSurface object  */
-typedef void* hwc_surface_t;
-
-
-/* see hwc_composer_device::registerProcs()
- * Any of the callbacks can be NULL, in which case the corresponding
- * functionality is not supported.
- */
-typedef struct hwc_procs {
-    /*
-     * (*invalidate)() triggers a screen refresh, in particular prepare and set
-     * will be called shortly after this call is made. Note that there is
-     * NO GUARANTEE that the screen refresh will happen after invalidate()
-     * returns (in particular, it could happen before).
-     * invalidate() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL and
-     * it is safe to call invalidate() from any of hwc_composer_device
-     * hooks, unless noted otherwise.
-     */
-    void (*invalidate)(struct hwc_procs* procs);
-
-    /*
-     * (*vsync)() is called by the h/w composer HAL when a vsync event is
-     * received and HWC_EVENT_VSYNC is enabled (see: hwc_event_control).
-     *
-     * the "zero" parameter must always be 0.
-     * the "timestamp" parameter is the system monotonic clock timestamp in
-     *   nanosecond of when the vsync event happened.
-     *
-     * vsync() is GUARANTEED TO NOT CALL BACK into the h/w composer HAL.
-     *
-     * It is expected that vsync() is called from a thread of at least
-     * HAL_PRIORITY_URGENT_DISPLAY with as little latency as possible,
-     * typically less than 0.5 ms.
-     *
-     * It is a (silent) error to have HWC_EVENT_VSYNC enabled when calling
-     * hwc_composer_device.set(..., 0, 0, 0) (screen off). The implementation
-     * can either stop or continue to process VSYNC events, but must not
-     * crash or cause other problems.
-     *
-     */
-    void (*vsync)(struct hwc_procs* procs, int zero, int64_t timestamp);
-} hwc_procs_t;
-
+    hwc_layer_t hwLayers[0];
+} hwc_layer_list_t;
 
 /*****************************************************************************/
 
-typedef struct hwc_module {
-    struct hw_module_t common;
-} hwc_module_t;
-
-typedef struct hwc_composer_device_1 {
+typedef struct hwc_composer_device {
     struct hw_device_t common;
 
     /*
@@ -301,8 +160,7 @@ typedef struct hwc_composer_device_1 {
      * returned, SurfaceFlinger will assume that none of the layer will be
      * handled by the HWC.
      */
-    int (*prepare)(struct hwc_composer_device_1 *dev,
-                    hwc_layer_list_1_t* list);
+    int (*prepare)(struct hwc_composer_device *dev, hwc_layer_list_t* list);
 
     /*
      * (*set)() is used in place of eglSwapBuffers(), and assumes the same
@@ -346,17 +204,17 @@ typedef struct hwc_composer_device_1 {
      *    Another code for non EGL errors.
      *
      */
-    int (*set)(struct hwc_composer_device_1 *dev,
+    int (*set)(struct hwc_composer_device *dev,
                 hwc_display_t dpy,
                 hwc_surface_t sur,
-                hwc_layer_list_1_t* list);
+                hwc_layer_list_t* list);
 
     /*
      * This field is OPTIONAL and can be NULL.
      *
      * If non NULL it will be called by SurfaceFlinger on dumpsys
      */
-    void (*dump)(struct hwc_composer_device_1* dev, char *buff, int buff_len);
+    void (*dump)(struct hwc_composer_device* dev, char *buff, int buff_len);
 
     /*
      * This field is OPTIONAL and can be NULL.
@@ -371,17 +229,18 @@ typedef struct hwc_composer_device_1 {
      * Any of the callbacks can be NULL, in which case the corresponding
      * functionality is not supported.
      */
-    void (*registerProcs)(struct hwc_composer_device_1* dev,
+    void (*registerProcs)(struct hwc_composer_device* dev,
             hwc_procs_t const* procs);
 
     /*
      * This field is OPTIONAL and can be NULL.
+     * availability: HWC_DEVICE_API_VERSION_0_2
      *
      * Used to retrieve information about the h/w composer
      *
      * Returns 0 on success or -errno on error.
      */
-    int (*query)(struct hwc_composer_device_1* dev, int what, int* value);
+    int (*query)(struct hwc_composer_device* dev, int what, int* value);
 
     /*
      * Reserved for future use. Must be NULL.
@@ -390,29 +249,24 @@ typedef struct hwc_composer_device_1 {
 
     /*
      * This field is OPTIONAL and can be NULL.
+     * availability: HWC_DEVICE_API_VERSION_0_3
      */
-    hwc_methods_1_t const *methods;
+    hwc_methods_t const *methods;
 
-} hwc_composer_device_1_t;
+} hwc_composer_device_t;
 
 /** convenience API for opening and closing a device */
 
-static inline int hwc_open_1(const struct hw_module_t* module,
-        hwc_composer_device_1_t** device) {
+static inline int hwc_open(const struct hw_module_t* module,
+        hwc_composer_device_t** device) {
     return module->methods->open(module,
             HWC_HARDWARE_COMPOSER, (struct hw_device_t**)device);
 }
 
-static inline int hwc_close_1(hwc_composer_device_1_t* device) {
+static inline int hwc_close(hwc_composer_device_t* device) {
     return device->common.close(&device->common);
 }
 
 /*****************************************************************************/
 
-#if !HWC_REMOVE_DEPRECATED_VERSIONS
-#include <hardware/hwcomposer_v0.h>
-#endif
-
-__END_DECLS
-
-#endif /* ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_H */
+#endif /* ANDROID_INCLUDE_HARDWARE_HWCOMPOSER_V0_H */
