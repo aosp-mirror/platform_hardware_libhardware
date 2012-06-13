@@ -11,6 +11,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libhardware \
 	libcamera_metadata \
 	libgui \
+	libsync \
 	libui
 
 LOCAL_STATIC_LIBRARIES := \
