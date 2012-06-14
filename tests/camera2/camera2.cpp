@@ -24,6 +24,7 @@
 
 #include <utils/Vector.h>
 #include <gui/CpuConsumer.h>
+#include <ui/PixelFormat.h>
 #include <system/camera_metadata.h>
 
 #include "camera2_utils.h"
@@ -237,7 +238,7 @@ class Camera2Test: public testing::Test {
     void getResolutionList(int32_t format,
             int32_t **list,
             size_t *count) {
-
+        ALOGV("Getting resolutions for format %x", format);
         status_t res;
         if (format != CAMERA2_HAL_PIXEL_FORMAT_OPAQUE) {
             camera_metadata_entry_t availableFormats;
@@ -259,13 +260,16 @@ class Camera2Test: public testing::Test {
             res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_RAW_SIZES,
                     &availableSizes);
-            ASSERT_EQ(OK, res);
+        } else if (format == HAL_PIXEL_FORMAT_BLOB) {
+            res = find_camera_metadata_entry(mStaticInfo,
+                    ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
+                    &availableSizes);
         } else {
             res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
                     &availableSizes);
-            ASSERT_EQ(OK, res);
         }
+        ASSERT_EQ(OK, res);
 
         *list = availableSizes.data.i32;
         *count = availableSizes.count;
@@ -420,9 +424,11 @@ TEST_F(Camera2Test, Capture1Raw) {
             ALOGV("Dumping raw buffer to %s", dumpname);
             // Write to file
             std::ofstream rawFile(dumpname);
+            size_t bpp = 2;
             for (unsigned int y = 0; y < buffer.height; y++) {
-                rawFile.write((const char *)(buffer.data + y * buffer.stride * 2),
-                        buffer.width * 2);
+                rawFile.write(
+                        (const char *)(buffer.data + y * buffer.stride * bpp),
+                        buffer.width * bpp);
             }
             rawFile.close();
         }
@@ -599,5 +605,120 @@ TEST_F(Camera2Test, ConstructDefaultRequests) {
         }
     }
 }
+
+TEST_F(Camera2Test, Capture1Jpeg) {
+    status_t res;
+
+    for (int id = 0; id < getNumCameras(); id++) {
+        if (!isHal2Supported(id)) continue;
+
+        ASSERT_NO_FATAL_FAILURE(setUpCamera(id));
+
+        sp<CpuConsumer> jpegConsumer = new CpuConsumer(1);
+        sp<FrameWaiter> jpegWaiter = new FrameWaiter();
+        jpegConsumer->setFrameAvailableListener(jpegWaiter);
+
+        int32_t *jpegResolutions;
+        size_t   jpegResolutionsCount;
+
+        int format = HAL_PIXEL_FORMAT_BLOB;
+
+        getResolutionList(format,
+                &jpegResolutions, &jpegResolutionsCount);
+        ASSERT_LT((size_t)0, jpegResolutionsCount);
+
+        // Pick first available JPEG resolution
+        int width = jpegResolutions[0];
+        int height = jpegResolutions[1];
+
+        int streamId;
+        ASSERT_NO_FATAL_FAILURE(
+            setUpStream(jpegConsumer->getProducerInterface(),
+                    width, height, format, &streamId) );
+
+        camera_metadata_t *request;
+        request = allocate_camera_metadata(20, 2000);
+
+        uint8_t metadataMode = ANDROID_REQUEST_METADATA_FULL;
+        add_camera_metadata_entry(request,
+                ANDROID_REQUEST_METADATA_MODE,
+                (void**)&metadataMode, 1);
+        uint32_t outputStreams = streamId;
+        add_camera_metadata_entry(request,
+                ANDROID_REQUEST_OUTPUT_STREAMS,
+                (void**)&outputStreams, 1);
+
+        uint64_t exposureTime = 10*MSEC;
+        add_camera_metadata_entry(request,
+                ANDROID_SENSOR_EXPOSURE_TIME,
+                (void**)&exposureTime, 1);
+        uint64_t frameDuration = 30*MSEC;
+        add_camera_metadata_entry(request,
+                ANDROID_SENSOR_FRAME_DURATION,
+                (void**)&frameDuration, 1);
+        uint32_t sensitivity = 100;
+        add_camera_metadata_entry(request,
+                ANDROID_SENSOR_SENSITIVITY,
+                (void**)&sensitivity, 1);
+
+        uint32_t hourOfDay = 12;
+        add_camera_metadata_entry(request,
+                0x80000000, // EMULATOR_HOUROFDAY
+                &hourOfDay, 1);
+
+        IF_ALOGV() {
+            std::cout << "Input request: " << std::endl;
+            dump_camera_metadata(request, 0, 1);
+        }
+
+        res = mRequests.enqueue(request);
+        ASSERT_EQ(NO_ERROR, res) << "Can't enqueue request: " << strerror(-res);
+
+        res = mFrames.waitForBuffer(exposureTime + SEC);
+        ASSERT_EQ(NO_ERROR, res) << "No frame to get: " << strerror(-res);
+
+        camera_metadata_t *frame;
+        res = mFrames.dequeue(&frame);
+        ASSERT_EQ(NO_ERROR, res);
+        ASSERT_TRUE(frame != NULL);
+
+        IF_ALOGV() {
+            std::cout << "Output frame:" << std::endl;
+            dump_camera_metadata(frame, 0, 1);
+        }
+
+        res = jpegWaiter->waitForFrame(exposureTime + SEC);
+        ASSERT_EQ(NO_ERROR, res);
+
+        CpuConsumer::LockedBuffer buffer;
+        res = jpegConsumer->lockNextBuffer(&buffer);
+        ASSERT_EQ(NO_ERROR, res);
+
+        IF_ALOGV() {
+            const char *dumpname =
+                    "/data/local/tmp/camera2_test-capture1jpeg-dump.jpeg";
+            ALOGV("Dumping raw buffer to %s", dumpname);
+            // Write to file
+            std::ofstream jpegFile(dumpname);
+            size_t bpp = 1;
+            for (unsigned int y = 0; y < buffer.height; y++) {
+                jpegFile.write(
+                        (const char *)(buffer.data + y * buffer.stride * bpp),
+                        buffer.width * bpp);
+            }
+            jpegFile.close();
+        }
+
+        res = jpegConsumer->unlockBuffer(buffer);
+        ASSERT_EQ(NO_ERROR, res);
+
+        ASSERT_NO_FATAL_FAILURE(disconnectStream(streamId));
+
+        res = closeCameraDevice(mDevice);
+        ASSERT_EQ(NO_ERROR, res) << "Failed to close camera device";
+
+    }
+}
+
 
 } // namespace android

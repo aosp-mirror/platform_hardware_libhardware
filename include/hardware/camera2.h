@@ -109,8 +109,8 @@ enum {
 
 /**
  * Input reprocess stream queue management. A set of these methods is provided
- * to the HAL device in allocate_reprocess_stream(); they are used to interact with the
- * reprocess stream's input gralloc buffer queue.
+ * to the HAL device in allocate_reprocess_stream(); they are used to interact
+ * with the reprocess stream's input gralloc buffer queue.
  */
 typedef struct camera2_stream_in_ops {
     /**
@@ -460,7 +460,7 @@ typedef struct camera2_device_ops {
      * The device must return a complete request that is configured to meet the
      * requested use case, which must be one of the CAMERA2_TEMPLATE_*
      * enums. All request control fields must be included, except for
-     * android.request.outputStreams and android.request.frameNumber.
+     * android.request.outputStreams.
      *
      * The metadata buffer returned must be allocated with
      * allocate_camera_metadata. The framework takes ownership of the buffer.
