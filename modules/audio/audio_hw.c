@@ -55,7 +55,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     return 4096;
 }
 
-static uint32_t out_get_channels(const struct audio_stream *stream)
+static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
     return AUDIO_CHANNEL_OUT_STEREO;
 }
@@ -148,7 +148,7 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
     return 320;
 }
 
-static uint32_t in_get_channels(const struct audio_stream *stream)
+static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
     return AUDIO_CHANNEL_IN_MONO;
 }

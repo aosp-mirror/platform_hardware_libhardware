@@ -784,8 +784,8 @@ enum effect_feature_e {
 // EFFECT_FEATURE_AUX_CHANNELS feature configuration descriptor. Describe a combination
 // of main and auxiliary channels supported
 typedef struct channel_config_s {
-    uint32_t   main_channels;   // channel mask for main channels
-    uint32_t   aux_channels;    // channel mask for auxiliary channels
+    audio_channel_mask_t main_channels; // channel mask for main channels
+    audio_channel_mask_t aux_channels;  // channel mask for auxiliary channels
 } channel_config_t;
 
 

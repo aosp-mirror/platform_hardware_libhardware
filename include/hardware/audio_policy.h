@@ -132,7 +132,7 @@ struct audio_policy {
                                     audio_stream_type_t stream,
                                     uint32_t samplingRate,
                                     audio_format_t format,
-                                    uint32_t channels,
+                                    audio_channel_mask_t channelMask,
                                     audio_output_flags_t flags);
 
     /* indicates to the audio policy manager that the output starts being used
@@ -157,7 +157,7 @@ struct audio_policy {
     audio_io_handle_t (*get_input)(struct audio_policy *pol, audio_source_t inputSource,
                                    uint32_t samplingRate,
                                    audio_format_t format,
-                                   uint32_t channels,
+                                   audio_channel_mask_t channelMask,
                                    audio_in_acoustics_t acoustics);
 
     /* indicates to the audio policy manager that the input starts being used */
