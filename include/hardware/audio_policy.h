@@ -291,7 +291,10 @@ struct audio_policy_service_ops {
     /* Audio input Control functions */
     /* */
 
-    /* opens an audio input */
+    /* opens an audio input
+     * deprecated - new implementations should use open_input_on_module,
+     * and the acoustics parameter is ignored
+     */
     audio_io_handle_t (*open_input)(void *service,
                                     audio_devices_t *pDevices,
                                     uint32_t *pSamplingRate,
