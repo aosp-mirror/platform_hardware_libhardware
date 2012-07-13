@@ -79,6 +79,21 @@ typedef struct hwc_methods_1 {
     int (*eventControl)(
             struct hwc_composer_device_1* dev, int event, int enabled);
 
+    /*
+     * This field is OPTIONAL and can be NULL.
+     *
+     * blank(..., blank)
+     * Blanks or unblanks the screen.
+     *
+     * Turns the screen off when blank is nonzero, on when blank is zero.
+     * Blanking may also be triggered by a call to set..., 0, 0, 0).  Multiple
+     * sequential calls with the same blank value must be supported.
+     *
+     * returns 0 on success, negative on error.
+     */
+
+    int (*blank)(struct hwc_composer_device_1* dev, int blank);
+
 } hwc_methods_1_t;
 
 typedef struct hwc_rect {
