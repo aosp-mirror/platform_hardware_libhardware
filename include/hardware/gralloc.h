@@ -76,8 +76,12 @@ enum {
     GRALLOC_USAGE_HW_FB                 = 0x00001000,
     /* buffer will be used with the HW video encoder */
     GRALLOC_USAGE_HW_VIDEO_ENCODER      = 0x00010000,
+    /* buffer will be written by the HW camera pipeline */
+    GRALLOC_USAGE_HW_CAMERA_WRITE       = 0x00020000,
+    /* buffer will be read by the HW camera pipeline */
+    GRALLOC_USAGE_HW_CAMERA_READ        = 0x00040000,
     /* mask for the software usage bit-mask */
-    GRALLOC_USAGE_HW_MASK               = 0x00011F00,
+    GRALLOC_USAGE_HW_MASK               = 0x00071F00,
 
     /* buffer should be displayed full-screen on an external display when
      * possible
