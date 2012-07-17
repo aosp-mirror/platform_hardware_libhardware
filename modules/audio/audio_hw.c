@@ -285,8 +285,17 @@ static int adev_set_master_volume(struct audio_hw_device *dev, float volume)
     return -ENOSYS;
 }
 
-static int adev_get_master_volume(struct audio_hw_device *dev,
-                                  float *volume)
+static int adev_get_master_volume(struct audio_hw_device *dev, float *volume)
+{
+    return -ENOSYS;
+}
+
+static int adev_set_master_mute(struct audio_hw_device *dev, bool muted)
+{
+    return -ENOSYS;
+}
+
+static int adev_get_master_mute(struct audio_hw_device *dev, bool *muted)
 {
     return -ENOSYS;
 }
@@ -415,6 +424,8 @@ static int adev_open(const hw_module_t* module, const char* name,
     adev->device.set_voice_volume = adev_set_voice_volume;
     adev->device.set_master_volume = adev_set_master_volume;
     adev->device.get_master_volume = adev_get_master_volume;
+    adev->device.set_master_mute = adev_set_master_mute;
+    adev->device.get_master_mute = adev_get_master_mute;
     adev->device.set_mode = adev_set_mode;
     adev->device.set_mic_mute = adev_set_mic_mute;
     adev->device.get_mic_mute = adev_get_mic_mute;
