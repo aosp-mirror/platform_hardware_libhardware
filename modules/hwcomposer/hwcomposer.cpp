@@ -67,26 +67,26 @@ static void dump_layer(hwc_layer_1_t const* l) {
             l->displayFrame.bottom);
 }
 
-static int hwc_prepare(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays) {
-    if (displays && (displays[0]->flags & HWC_GEOMETRY_CHANGED)) {
-        for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
+static int hwc_prepare(hwc_composer_device_1_t *dev, hwc_layer_list_1_t* list) {
+    if (list && (list->flags & HWC_GEOMETRY_CHANGED)) {
+        for (size_t i=0 ; i<list->numHwLayers ; i++) {
             //dump_layer(&list->hwLayers[i]);
-            displays[0]->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
+            list->hwLayers[i].compositionType = HWC_FRAMEBUFFER;
         }
     }
     return 0;
 }
 
 static int hwc_set(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays)
+        hwc_display_t dpy,
+        hwc_surface_t sur,
+        hwc_layer_list_1_t* list)
 {
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
 
-    EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[0]->dpy,
-            (EGLSurface)displays[0]->sur);
+    EGLBoolean sucess = eglSwapBuffers((EGLDisplay)dpy, (EGLSurface)sur);
     if (!sucess) {
         return HWC_EGL_ERROR;
     }
