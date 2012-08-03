@@ -94,8 +94,8 @@ class Camera2Test: public testing::Test {
                 ASSERT_TRUE(NULL != info.static_camera_characteristics);
                 IF_ALOGV() {
                     std::cout << "    Static camera metadata:"  << std::endl;
-                    dump_camera_metadata(info.static_camera_characteristics,
-                            0, 1);
+                    dump_indented_camera_metadata(info.static_camera_characteristics,
+                            0, 1, 6);
                 }
             } else {
                 sCameraSupportsHal2[i] = false;
@@ -392,7 +392,7 @@ TEST_F(Camera2Test, Capture1Raw) {
 
         IF_ALOGV() {
             std::cout << "Input request: " << std::endl;
-            dump_camera_metadata(request, 0, 1);
+            dump_indented_camera_metadata(request, 0, 1, 2);
         }
 
         res = mRequests.enqueue(request);
@@ -408,7 +408,7 @@ TEST_F(Camera2Test, Capture1Raw) {
 
         IF_ALOGV() {
             std::cout << "Output frame:" << std::endl;
-            dump_camera_metadata(frame, 0, 1);
+            dump_indented_camera_metadata(frame, 0, 1, 2);
         }
 
         res = rawWaiter->waitForFrame(exposureTime + SEC);
@@ -502,7 +502,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 
         IF_ALOGV() {
             std::cout << "Input request template: " << std::endl;
-            dump_camera_metadata(request, 0, 1);
+            dump_indented_camera_metadata(request, 0, 1, 2);
         }
 
         int numCaptures = 10;
@@ -598,7 +598,7 @@ TEST_F(Camera2Test, ConstructDefaultRequests) {
 
             IF_ALOGV() {
                 std::cout << "  ** Template type " << i << ":"<<std::endl;
-                dump_camera_metadata(request, 0, 2);
+                dump_indented_camera_metadata(request, 0, 2, 4);
             }
 
             free_camera_metadata(request);
@@ -668,7 +668,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
 
         IF_ALOGV() {
             std::cout << "Input request: " << std::endl;
-            dump_camera_metadata(request, 0, 1);
+            dump_indented_camera_metadata(request, 0, 1, 4);
         }
 
         res = mRequests.enqueue(request);
@@ -684,7 +684,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
 
         IF_ALOGV() {
             std::cout << "Output frame:" << std::endl;
-            dump_camera_metadata(frame, 0, 1);
+            dump_indented_camera_metadata(frame, 0, 1, 4);
         }
 
         res = jpegWaiter->waitForFrame(exposureTime + SEC);
