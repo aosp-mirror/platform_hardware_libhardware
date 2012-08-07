@@ -64,7 +64,7 @@ typedef struct hwc_methods_1 {
 
     /*
      * eventControl(..., event, enabled)
-     * Enables or disables h/w composer events.
+     * Enables or disables h/w composer events for a display.
      *
      * eventControl can be called from any thread and takes effect
      * immediately.
@@ -77,13 +77,14 @@ typedef struct hwc_methods_1 {
      */
 
     int (*eventControl)(
-            struct hwc_composer_device_1* dev, int event, int enabled);
+            struct hwc_composer_device_1* dev, int dpy,
+            int event, int enabled);
 
     /*
      * This field is OPTIONAL and can be NULL.
      *
      * blank(..., blank)
-     * Blanks or unblanks the screen.
+     * Blanks or unblanks a display's screen.
      *
      * Turns the screen off when blank is nonzero, on when blank is zero.
      * Blanking may also be triggered by a call to set..., 0, 0, 0).  Multiple
@@ -92,7 +93,7 @@ typedef struct hwc_methods_1 {
      * returns 0 on success, negative on error.
      */
 
-    int (*blank)(struct hwc_composer_device_1* dev, int blank);
+    int (*blank)(struct hwc_composer_device_1* dev, int dpy, int blank);
 
 } hwc_methods_1_t;
 
@@ -215,8 +216,14 @@ typedef struct hwc_layer_1 {
 
 } hwc_layer_1_t;
 
+/* This represents a display, typically an EGLDisplay object */
+typedef void* hwc_display_t;
+
+/* This represents a surface, typically an EGLSurface object  */
+typedef void* hwc_surface_t;
+
 /*
- * hwc_layer_list_t::flags values
+ * hwc_display_contents_1_t::flags values
  */
 enum {
     /*
@@ -228,21 +235,36 @@ enum {
 };
 
 /*
- * List of layers.
- * The handle members of hwLayers elements must be unique.
+ * Description of the contents to output on a display.
+ *
+ * This is the top-level structure passed to the prepare and set calls to
+ * negotiate and commit the composition of a display image.
  */
-typedef struct hwc_layer_list_1 {
+typedef struct hwc_display_contents_1 {
+    /* File descriptor referring to a Sync HAL fence object which will signal
+     * when this display image is no longer visible, i.e. when the following
+     * set() takes effect. The fence object is created and returned by the set
+     * call; this field will be -1 on entry to prepare and set. SurfaceFlinger
+     * will close the returned file descriptor.
+     */
+    int flipFenceFd;
+
+    /* (dpy, sur) is the target of SurfaceFlinger's OpenGL ES composition.
+     * They aren't relevant to prepare. The set call should commit this surface
+     * atomically to the display along with any overlay layers.
+     */
+    hwc_display_t dpy;
+    hwc_surface_t sur;
+
+    /* List of layers that will be composed on the display. The buffer handles
+     * in the list will be unique. If numHwLayers is 0 and/or hwLayers is NULL,
+     * all composition will be performed by SurfaceFlinger.
+     */
     uint32_t flags;
     size_t numHwLayers;
     hwc_layer_1_t hwLayers[0];
-} hwc_layer_list_1_t;
 
-/* This represents a display, typically an EGLDisplay object */
-typedef void* hwc_display_t;
-
-/* This represents a surface, typically an EGLSurface object  */
-typedef void* hwc_surface_t;
-
+} hwc_display_contents_1_t;
 
 /* see hwc_composer_device::registerProcs()
  * Any of the callbacks can be NULL, in which case the corresponding
@@ -262,9 +284,10 @@ typedef struct hwc_procs {
 
     /*
      * (*vsync)() is called by the h/w composer HAL when a vsync event is
-     * received and HWC_EVENT_VSYNC is enabled (see: hwc_event_control).
+     * received and HWC_EVENT_VSYNC is enabled on a display
+     * (see: hwc_event_control).
      *
-     * the "zero" parameter must always be 0.
+     * the "dpy" parameter indicates which display the vsync event is for.
      * the "timestamp" parameter is the system monotonic clock timestamp in
      *   nanosecond of when the vsync event happened.
      *
@@ -278,9 +301,8 @@ typedef struct hwc_procs {
      * hwc_composer_device.set(..., 0, 0, 0) (screen off). The implementation
      * can either stop or continue to process VSYNC events, but must not
      * crash or cause other problems.
-     *
      */
-    void (*vsync)(struct hwc_procs* procs, int zero, int64_t timestamp);
+    void (*vsync)(struct hwc_procs* procs, int dpy, int64_t timestamp);
 } hwc_procs_t;
 
 
@@ -299,72 +321,55 @@ typedef struct hwc_composer_device_1 {
      *
      * (*prepare)() can be called more than once, the last call prevails.
      *
-     * The HWC responds by setting the compositionType field to either
-     * HWC_FRAMEBUFFER or HWC_OVERLAY. In the former case, the composition for
-     * this layer is handled by SurfaceFlinger with OpenGL ES, in the later
-     * case, the HWC will have to handle this layer's composition.
+     * The HWC responds by setting the compositionType field in each layer to
+     * either HWC_FRAMEBUFFER or HWC_OVERLAY. In the former case, the
+     * composition for the layer is handled by SurfaceFlinger with OpenGL ES,
+     * in the later case, the HWC will have to handle the layer's composition.
      *
      * (*prepare)() is called with HWC_GEOMETRY_CHANGED to indicate that the
      * list's geometry has changed, that is, when more than just the buffer's
      * handles have been updated. Typically this happens (but is not limited to)
      * when a window is added, removed, resized or moved.
      *
-     * a NULL list parameter or a numHwLayers of zero indicates that the
-     * entire composition will be handled by SurfaceFlinger with OpenGL ES.
-     *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
      * handled by the HWC.
      */
     int (*prepare)(struct hwc_composer_device_1 *dev,
-                    hwc_layer_list_1_t* list);
+                    size_t numDisplays, hwc_display_contents_1_t** displays);
 
     /*
      * (*set)() is used in place of eglSwapBuffers(), and assumes the same
      * functionality, except it also commits the work list atomically with
      * the actual eglSwapBuffers().
      *
-     * The list parameter is guaranteed to be the same as the one returned
-     * from the last call to (*prepare)().
+     * The layer lists are guaranteed to be the same as the ones returned from
+     * the last call to (*prepare)().
      *
-     * When this call returns the caller assumes that:
+     * When this call returns the caller assumes that the displays will be
+     * updated in the near future with the content of their work lists, without
+     * artifacts during the transition from the previous frame.
      *
-     * - the display will be updated in the near future with the content
-     *   of the work list, without artifacts during the transition from the
-     *   previous frame.
-     *
-     * - all objects are available for immediate access or destruction, in
-     *   particular, hwc_region_t::rects data and hwc_layer_t::layer's buffer.
-     *   Note that this means that immediately accessing (potentially from a
-     *   different process) a buffer used in this call will not result in
-     *   screen corruption, the driver must apply proper synchronization or
-     *   scheduling (eg: block the caller, such as gralloc_module_t::lock(),
-     *   OpenGL ES, Camera, Codecs, etc..., or schedule the caller's work
-     *   after the buffer is freed from the actual composition).
-     *
-     * a NULL list parameter or a numHwLayers of zero indicates that the
-     * entire composition has been handled by SurfaceFlinger with OpenGL ES.
+     * A display with a NULL layer list or a numHwLayers of zero indicates that
+     * the entire composition has been handled by SurfaceFlinger with OpenGL ES.
      * In this case, (*set)() behaves just like eglSwapBuffers().
      *
-     * dpy, sur, and list are set to NULL to indicate that the screen is
-     * turning off. This happens WITHOUT prepare() being called first.
-     * This is a good time to free h/w resources and/or power
-     * the relevant h/w blocks down.
+     * The dpy, surf, and layers fields are set to NULL to indicate that the
+     * screen is turning off. This happens WITHOUT prepare() being called first.
+     * This is a good time to free h/w resources and/or power down the relevant
+     * h/w blocks.
      *
      * IMPORTANT NOTE: there is an implicit layer containing opaque black
-     * pixels behind all the layers in the list.
-     * It is the responsibility of the hwcomposer module to make
-     * sure black pixels are output (or blended from).
+     * pixels behind all the layers in the list. It is the responsibility of
+     * the hwcomposer module to make sure black pixels are output (or blended
+     * from).
      *
      * returns: 0 on success. An negative error code on error:
      *    HWC_EGL_ERROR: eglGetError() will provide the proper error code
      *    Another code for non EGL errors.
-     *
      */
     int (*set)(struct hwc_composer_device_1 *dev,
-                hwc_display_t dpy,
-                hwc_surface_t sur,
-                hwc_layer_list_1_t* list);
+                size_t numDisplays, hwc_display_contents_1_t** displays);
 
     /*
      * This field is OPTIONAL and can be NULL.
