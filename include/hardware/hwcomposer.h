@@ -75,24 +75,19 @@ typedef struct hwc_methods_1 {
      * returns -EINVAL if the "event" parameter is not one of the value above
      * or if the "enabled" parameter is not 0 or 1.
      */
-
     int (*eventControl)(
             struct hwc_composer_device_1* dev, int dpy,
             int event, int enabled);
 
     /*
-     * This field is OPTIONAL and can be NULL.
-     *
      * blank(..., blank)
      * Blanks or unblanks a display's screen.
      *
      * Turns the screen off when blank is nonzero, on when blank is zero.
-     * Blanking may also be triggered by a call to set..., 0, 0, 0).  Multiple
-     * sequential calls with the same blank value must be supported.
+     * Multiple sequential calls with the same blank value must be supported.
      *
      * returns 0 on success, negative on error.
      */
-
     int (*blank)(struct hwc_composer_device_1* dev, int dpy, int blank);
 
 } hwc_methods_1_t;
@@ -257,8 +252,8 @@ typedef struct hwc_display_contents_1 {
     hwc_surface_t sur;
 
     /* List of layers that will be composed on the display. The buffer handles
-     * in the list will be unique. If numHwLayers is 0 and/or hwLayers is NULL,
-     * all composition will be performed by SurfaceFlinger.
+     * in the list will be unique. If numHwLayers is 0, all composition will be
+     * performed by SurfaceFlinger.
      */
     uint32_t flags;
     size_t numHwLayers;
@@ -331,6 +326,9 @@ typedef struct hwc_composer_device_1 {
      * handles have been updated. Typically this happens (but is not limited to)
      * when a window is added, removed, resized or moved.
      *
+     * The numDisplays parameter will always be greater than zero, displays
+     * will be non-NULL, and the array entries will be non-NULL.
+     *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
      * handled by the HWC.
@@ -350,14 +348,12 @@ typedef struct hwc_composer_device_1 {
      * updated in the near future with the content of their work lists, without
      * artifacts during the transition from the previous frame.
      *
-     * A display with a NULL layer list or a numHwLayers of zero indicates that
-     * the entire composition has been handled by SurfaceFlinger with OpenGL ES.
-     * In this case, (*set)() behaves just like eglSwapBuffers().
+     * A display with zero layers indicates that the entire composition has
+     * been handled by SurfaceFlinger with OpenGL ES. In this case, (*set)()
+     * behaves just like eglSwapBuffers().
      *
-     * The dpy, surf, and layers fields are set to NULL to indicate that the
-     * screen is turning off. This happens WITHOUT prepare() being called first.
-     * This is a good time to free h/w resources and/or power down the relevant
-     * h/w blocks.
+     * The numDisplays parameter will always be greater than zero, displays
+     * will be non-NULL, and the array entries will be non-NULL.
      *
      * IMPORTANT NOTE: there is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
@@ -409,7 +405,7 @@ typedef struct hwc_composer_device_1 {
     void* reserved_proc[4];
 
     /*
-     * This field is OPTIONAL and can be NULL.
+     * This field is REQUIRED and must not be NULL.
      */
     hwc_methods_1_t const *methods;
 
