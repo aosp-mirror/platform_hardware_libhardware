@@ -22,6 +22,10 @@
 
 #include <gtest/gtest.h>
 
+#include <openssl/bn.h>
+#include <openssl/evp.h>
+#include <openssl/x509.h>
+
 #include <fstream>
 #include <iostream>
 
@@ -92,6 +96,34 @@ public:
 private:
     keymaster_device_t** mDevice;
 };
+
+struct BIGNUM_Delete {
+    void operator()(BIGNUM* p) const {
+        BN_free(p);
+    }
+};
+typedef UniquePtr<BIGNUM, BIGNUM_Delete> Unique_BIGNUM;
+
+struct EVP_PKEY_Delete {
+    void operator()(EVP_PKEY* p) const {
+        EVP_PKEY_free(p);
+    }
+};
+typedef UniquePtr<EVP_PKEY, EVP_PKEY_Delete> Unique_EVP_PKEY;
+
+struct PKCS8_PRIV_KEY_INFO_Delete {
+    void operator()(PKCS8_PRIV_KEY_INFO* p) const {
+        PKCS8_PRIV_KEY_INFO_free(p);
+    }
+};
+typedef UniquePtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_Delete> Unique_PKCS8_PRIV_KEY_INFO;
+
+struct RSA_Delete {
+    void operator()(RSA* p) const {
+        RSA_free(p);
+    }
+};
+typedef UniquePtr<RSA, RSA_Delete> Unique_RSA;
 
 /*
  * DER-encoded PKCS#8 format RSA key. Generated using:
@@ -209,8 +241,8 @@ static uint8_t TEST_KEY_1[] = {
 static unsigned char BOGUS_KEY_1[] = { 0xFF, 0xFF, 0xFF, 0xFF };
 
 
-class KeymasterTest : public testing::Test {
-protected:
+class KeymasterBaseTest : public ::testing::Test {
+public:
     static void SetUpTestCase() {
         const hw_module_t* mod;
         ASSERT_EQ(0, hw_get_module_by_class(KEYSTORE_HARDWARE_MODULE_ID, NULL, &mod))
@@ -241,22 +273,24 @@ protected:
         ASSERT_EQ(0, keymaster_close(sDevice));
     }
 
-    virtual void SetUp() {
-    }
-
-    virtual void TearDown() {
-    }
-
+protected:
     static keymaster_device_t* sDevice;
 };
 
-keymaster_device_t* KeymasterTest::sDevice = NULL;
+keymaster_device_t* KeymasterBaseTest::sDevice = NULL;
 
-TEST_F(KeymasterTest, GenerateKeyPair_RSA_512_Success) {
+class KeymasterTest : public KeymasterBaseTest {
+};
+
+class KeymasterGenerateTest : public KeymasterBaseTest,
+                              public ::testing::WithParamInterface<uint32_t> {
+};
+
+TEST_P(KeymasterGenerateTest, GenerateKeyPair_RSA_Success) {
     keymaster_keypair_t key_type = TYPE_RSA;
     keymaster_rsa_keygen_params_t params = {
-            modulus_size: 512,
-            public_exponent: 0x10001L,
+            modulus_size: GetParam(),
+            public_exponent: RSA_F4,
     };
 
     uint8_t* key_blob;
@@ -266,39 +300,38 @@ TEST_F(KeymasterTest, GenerateKeyPair_RSA_512_Success) {
             sDevice->generate_keypair(sDevice, key_type, &params, &key_blob, &key_blob_length))
             << "Should generate an RSA key with 512 bit modulus size";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
-}
 
-TEST_F(KeymasterTest, GenerateKeyPair_RSA_1024_Success) {
-    keymaster_keypair_t key_type = TYPE_RSA;
-    keymaster_rsa_keygen_params_t params = {
-            modulus_size: 1024,
-            public_exponent: 0x3L,
-    };
-
-    uint8_t* key_blob;
-    size_t key_blob_length;
-
+    uint8_t* x509_data = NULL;
+    size_t x509_data_length;
     EXPECT_EQ(0,
-            sDevice->generate_keypair(sDevice, key_type, &params, &key_blob, &key_blob_length))
-            << "Should generate an RSA key with 2048 bit modulus size";
-    UniqueKey key(&sDevice, key_blob, key_blob_length);
+            sDevice->get_keypair_public(sDevice, key_blob, key_blob_length,
+                    &x509_data, &x509_data_length))
+            << "Should be able to retrieve RSA public key successfully";
+    UniqueBlob x509_blob(x509_data, x509_data_length);
+    ASSERT_FALSE(x509_blob.get() == NULL)
+            << "X509 data should be allocated";
+
+    const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
+    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+            static_cast<long>(x509_blob.length())));
+
+    ASSERT_EQ(EVP_PKEY_RSA, EVP_PKEY_type(actual.get()->type))
+            << "Generated key type should be of type RSA";
+
+    Unique_RSA rsa(EVP_PKEY_get1_RSA(actual.get()));
+    ASSERT_FALSE(rsa.get() == NULL)
+            << "Should be able to extract RSA key from EVP_PKEY";
+
+    EXPECT_EQ(static_cast<unsigned long>(RSA_F4), BN_get_word(rsa.get()->e))
+            << "Exponent should be RSA_F4";
+
+    EXPECT_EQ(GetParam() / 8, static_cast<uint32_t>(RSA_size(rsa.get())))
+            << "Modulus size should be the specified parameter";
 }
 
-TEST_F(KeymasterTest, GenerateKeyPair_RSA_2048_Success) {
-    keymaster_keypair_t key_type = TYPE_RSA;
-    keymaster_rsa_keygen_params_t params = {
-            modulus_size: 2048,
-            public_exponent: 0x3L,
-    };
-
-    uint8_t* key_blob;
-    size_t key_blob_length;
-
-    EXPECT_EQ(0,
-            sDevice->generate_keypair(sDevice, key_type, &params, &key_blob, &key_blob_length))
-            << "Should generate an RSA key with 2048 bit modulus size";
-    UniqueKey key(&sDevice, key_blob, key_blob_length);
-}
+INSTANTIATE_TEST_CASE_P(RSA,
+                        KeymasterGenerateTest,
+                        ::testing::Values(512, 1024, 2048));
 
 TEST_F(KeymasterTest, GenerateKeyPair_RSA_NullParams_Failure) {
     keymaster_keypair_t key_type = TYPE_RSA;
@@ -331,6 +364,31 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
+
+    uint8_t* x509_data;
+    size_t x509_data_length;
+    EXPECT_EQ(0,
+            sDevice->get_keypair_public(sDevice, key_blob, key_blob_length,
+                    &x509_data, &x509_data_length))
+            << "Should be able to retrieve RSA public key successfully";
+    UniqueBlob x509_blob(x509_data, x509_data_length);
+
+    const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
+    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+            static_cast<long>(x509_blob.length())));
+
+    EXPECT_EQ(EVP_PKEY_type(actual.get()->type), EVP_PKEY_RSA)
+            << "Generated key type should be of type RSA";
+
+    const unsigned char *expectedTmp = static_cast<const unsigned char*>(TEST_KEY_1);
+    Unique_PKCS8_PRIV_KEY_INFO expectedPkcs8(
+            d2i_PKCS8_PRIV_KEY_INFO((PKCS8_PRIV_KEY_INFO**) NULL, &expectedTmp,
+                    sizeof(TEST_KEY_1)));
+
+    Unique_EVP_PKEY expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
+
+    EXPECT_EQ(1, EVP_PKEY_cmp(expected.get(), actual.get()))
+            << "Expected and actual keys should match";
 }
 
 TEST_F(KeymasterTest, ImportKeyPair_BogusKey_Failure) {
