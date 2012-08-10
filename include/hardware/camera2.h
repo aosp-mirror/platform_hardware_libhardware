@@ -96,15 +96,22 @@ typedef struct camera2_stream_ops {
 
 } camera2_stream_ops_t;
 
-/**
- * Special pixel format value used to indicate that the framework does not care
- * what exact pixel format is to be used for an output stream. The device HAL is
- * free to select any pixel format, platform-specific and otherwise, and this
- * opaque value will be passed on to the platform gralloc module when buffers
- * need to be allocated for the stream.
- */
 enum {
-    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE = -1
+    /**
+     * Special pixel format value used to indicate that the framework does not care
+     * what exact pixel format is to be used for an output stream. The device HAL is
+     * free to select any pixel format, platform-specific and otherwise, and this
+     * opaque value will be passed on to the platform gralloc module when buffers
+     * need to be allocated for the stream.
+     */
+    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE     = -1,
+    /**
+     * Special pixel format value used to indicate that the framework will use
+     * the output buffers for zero-shutter-lag mode; these buffers should be
+     * efficient to produce at full sensor resolution, and efficient to send
+     * into a reprocess stream for final output processing.
+     */
+    CAMERA2_HAL_PIXEL_FORMAT_ZSL = -2
 };
 
 /**
@@ -278,15 +285,16 @@ enum {
     /**
      * The autofocus routine has changed state. Argument ext1 contains the new
      * state; the values are the same as those for the metadata field
-     * android.control.afState. Ext2 contains the latest value passed to
-     * trigger_action(CAMERA2_TRIGGER_AUTOFOCUS), or 0 if that method has not
-     * been called.
+     * android.control.afState. Ext2 contains the latest trigger ID passed to
+     * trigger_action(CAMERA2_TRIGGER_AUTOFOCUS) or
+     * trigger_action(CAMERA2_TRIGGER_CANCEL_AUTOFOCUS), or 0 if trigger has not
+     * been called with either of those actions.
      */
     CAMERA2_MSG_AUTOFOCUS = 0x0020,
     /**
      * The autoexposure routine has changed state. Argument ext1 contains the
      * new state; the values are the same as those for the metadata field
-     * android.control.aeState. Ext2 containst the latest value passed to
+     * android.control.aeState. Ext2 contains the latest trigger ID value passed to
      * trigger_action(CAMERA2_TRIGGER_PRECAPTURE_METERING), or 0 if that method
      * has not been called.
      */
@@ -294,7 +302,9 @@ enum {
     /**
      * The auto-whitebalance routine has changed state. Argument ext1 contains
      * the new state; the values are the same as those for the metadata field
-     * android.control.awbState.
+     * android.control.awbState. Ext2 contains the latest trigger ID passed to
+     * trigger_action(CAMERA2_TRIGGER_PRECAPTURE_METERING), or 0 if that method
+     * has not been called.
      */
     CAMERA2_MSG_AUTOWB = 0x0022
 };
@@ -350,23 +360,87 @@ enum {
     /**
      * Trigger an autofocus cycle. The effect of the trigger depends on the
      * autofocus mode in effect when the trigger is received, which is the mode
-     * listed in the latest capture request to be dequeued. If the mode is off,
-     * the trigger has no effect. If autofocus is already scanning, the trigger
-     * has no effect. In AUTO, MACRO, or CONTINUOUS_* modes, the trigger
-     * otherwise begins an appropriate scan of the scene for focus. The state of
+     * listed in the latest capture request to be dequeued by the HAL. If the
+     * mode is OFF, EDOF, or FIXED, the trigger has no effect. In AUTO, MACRO,
+     * or CONTINUOUS_* modes, see below for the expected behavior. The state of
      * the autofocus cycle can be tracked in android.control.afMode and the
-     * corresponding notification. Ext1 is an id that must be returned in
-     * subsequent auto-focus state change notifications.
+     * corresponding notifications.
+     *
+     **
+     * In AUTO or MACRO mode, the AF state transitions (and notifications)
+     * when calling with trigger ID = N with the previous ID being K are:
+     *
+     * Initial state       Transitions
+     * INACTIVE (K)         -> ACTIVE_SCAN (N) -> AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * AF_FOCUSED (K)       -> ACTIVE_SCAN (N) -> AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * AF_NOT_FOCUSED (K)   -> ACTIVE_SCAN (N) -> AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * ACTIVE_SCAN (K)      -> AF_FOCUSED(N) or AF_NOT_FOCUSED(N)
+     * PASSIVE_SCAN (K)      Not used in AUTO/MACRO mode
+     * PASSIVE_FOCUSED (K)   Not used in AUTO/MACRO mode
+     *
+     **
+     * In CONTINUOUS_PICTURE mode, triggering AF must lock the AF to the current
+     * lens position and transition the AF state to either AF_FOCUSED or
+     * NOT_FOCUSED. If a passive scan is underway, that scan must complete and
+     * then lock the lens position and change AF state. TRIGGER_CANCEL_AUTOFOCUS
+     * will allow the AF to restart its operation.
+     *
+     * Initial state      Transitions
+     * INACTIVE (K)        -> immediate AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * PASSIVE_FOCUSED (K) -> immediate AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * PASSIVE_SCAN (K)    -> AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * AF_FOCUSED (K)      no effect except to change next notification ID to N
+     * AF_NOT_FOCUSED (K)  no effect except to change next notification ID to N
+     *
+     **
+     * In CONTINUOUS_VIDEO mode, triggering AF must lock the AF to the current
+     * lens position and transition the AF state to either AF_FOCUSED or
+     * NOT_FOCUSED. If a passive scan is underway, it must immediately halt, in
+     * contrast with CONTINUOUS_PICTURE mode. TRIGGER_CANCEL_AUTOFOCUS will
+     * allow the AF to restart its operation.
+     *
+     * Initial state      Transitions
+     * INACTIVE (K)        -> immediate AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * PASSIVE_FOCUSED (K) -> immediate AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * PASSIVE_SCAN (K)    -> immediate AF_FOCUSED (N) or AF_NOT_FOCUSED (N)
+     * AF_FOCUSED (K)      no effect except to change next notification ID to N
+     * AF_NOT_FOCUSED (K)  no effect except to change next notification ID to N
+     *
+     * Ext1 is an ID that must be returned in subsequent auto-focus state change
+     * notifications through camera2_notify_callback() and stored in
+     * android.control.afTriggerId.
      */
     CAMERA2_TRIGGER_AUTOFOCUS = 0x0001,
+    /**
+     * Send a cancel message to the autofocus algorithm. The effect of the
+     * cancellation depends on the autofocus mode in effect when the trigger is
+     * received, which is the mode listed in the latest capture request to be
+     * dequeued by the HAL. If the AF mode is OFF or EDOF, the cancel has no
+     * effect.  For other modes, the lens should return to its default position,
+     * any current autofocus scan must be canceled, and the AF state should be
+     * set to INACTIVE.
+     *
+     * The state of the autofocus cycle can be tracked in android.control.afMode
+     * and the corresponding notification. Continuous autofocus modes may resume
+     * focusing operations thereafter exactly as if the camera had just been set
+     * to a continuous AF mode.
+     *
+     * Ext1 is an ID that must be returned in subsequent auto-focus state change
+     * notifications through camera2_notify_callback() and stored in
+     * android.control.afTriggerId.
+     */
+    CAMERA2_TRIGGER_CANCEL_AUTOFOCUS,
     /**
      * Trigger a pre-capture metering cycle, which may include firing the flash
      * to determine proper capture parameters. Typically, this trigger would be
      * fired for a half-depress of a camera shutter key, or before a snapshot
      * capture in general. The state of the metering cycle can be tracked in
      * android.control.aeMode and the corresponding notification.  If the
-     * auto-exposure mode is OFF, the trigger does nothing. Ext1 is an id that
-     * must be returned in subsequent auto-exposure state change notifications.
+     * auto-exposure mode is OFF, the trigger does nothing.
+     *
+     * Ext1 is an ID that must be returned in subsequent
+     * auto-exposure/auto-white balance state change notifications through
+     * camera2_notify_callback() and stored in android.control.aePrecaptureId.
      */
      CAMERA2_TRIGGER_PRECAPTURE_METERING
 };
@@ -395,7 +469,7 @@ enum {
     CAMERA2_TEMPLATE_VIDEO_SNAPSHOT,
     /**
      * Zero-shutter-lag mode. Application will request preview and
-     * full-resolution YUV data for each frame, and reprocess it to JPEG when a
+     * full-resolution data for each frame, and reprocess it to JPEG when a
      * still image is requested by user. Settings should provide highest-quality
      * full-resolution images without compromising preview frame rate. 3A on
      * auto.
@@ -629,8 +703,8 @@ typedef struct camera2_device_ops {
      */
     int (*trigger_action)(const struct camera2_device *,
             uint32_t trigger_id,
-            int ext1,
-            int ext2);
+            int32_t ext1,
+            int32_t ext2);
 
     /**
      * Notification callback setup
