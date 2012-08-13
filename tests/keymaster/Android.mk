@@ -10,11 +10,13 @@ LOCAL_SRC_FILES:= \
 LOCAL_C_INCLUDES := \
     bionic \
     external/gtest/include \
+    external/openssl/include \
     external/stlport/stlport
 
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
+    libcrypto \
     libstlport \
     libhardware
 
