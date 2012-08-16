@@ -113,20 +113,30 @@ typedef struct hwc_color {
 
 typedef struct hwc_layer_1 {
     /*
-     * initially set to HWC_FRAMEBUFFER or HWC_BACKGROUND.
+     * Initially set to HWC_FRAMEBUFFER, HWC_BACKGROUND, or
+     * HWC_FRAMEBUFFER_TARGET.
+     *
      * HWC_FRAMEBUFFER
-     *   indicates the layer will be drawn into the framebuffer
-     *   using OpenGL ES.
-     *   The HWC can toggle this value to HWC_OVERLAY, to indicate
-     *   it will handle the layer.
+     *   Indicates the layer will be drawn into the framebuffer
+     *   using OpenGL ES. The HWC can toggle this value to HWC_OVERLAY to
+     *   indicate it will handle the layer.
      *
      * HWC_BACKGROUND
-     *   indicates this is a special "background"  layer. The only valid
-     *   field is backgroundColor. HWC_BACKGROUND can only be used with
-     *   HWC_API_VERSION >= 0.2
-     *   The HWC can toggle this value to HWC_FRAMEBUFFER, to indicate
-     *   it CANNOT handle the background color
+     *   Indicates this is a special "background" layer. The only valid field
+     *   is backgroundColor. The HWC can toggle this value to HWC_FRAMEBUFFER
+     *   to indicate it CANNOT handle the background color.
      *
+     * HWC_FRAMEBUFFER_TARGET
+     *   Indicates this layer is the framebuffer surface used as the target of
+     *   OpenGL ES composition. If the HWC sets all other layers to HWC_OVERLAY
+     *   or HWC_BACKGROUND, then no OpenGL ES composition will be done, and
+     *   this layer should be ignored during set(); the HWC_SKIP_LAYER flag
+     *   will indicate this case.
+     *
+     *   This flag (and the framebuffer surface layer) will only be used if the
+     *   HWC version is HWC_DEVICE_API_VERSION_1_1 or higher. In older versions,
+     *   the OpenGL ES target surface is communicated by the (dpy, sur) fields
+     *   in hwc_compositor_device_1_t.
      */
     int32_t compositionType;
 
@@ -244,9 +254,13 @@ typedef struct hwc_display_contents_1 {
      */
     int flipFenceFd;
 
-    /* (dpy, sur) is the target of SurfaceFlinger's OpenGL ES composition.
-     * They aren't relevant to prepare. The set call should commit this surface
-     * atomically to the display along with any overlay layers.
+    /* (dpy, sur) is the target of SurfaceFlinger's OpenGL ES composition for
+     * HWC versions before HWC_DEVICE_VERSION_1_1. They aren't relevant to
+     * prepare. The set call should commit this surface atomically to the
+     * display along with any overlay layers.
+     *
+     * For HWC_DEVICE_VERSION_1_1 and later, these will always be set to
+     * EGL_NO_DISPLAY and EGL_NO_SURFACE.
      */
     hwc_display_t dpy;
     hwc_surface_t sur;
