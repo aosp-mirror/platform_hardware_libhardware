@@ -85,6 +85,8 @@ typedef struct hwc_methods_1 {
      *
      * Turns the screen off when blank is nonzero, on when blank is zero.
      * Multiple sequential calls with the same blank value must be supported.
+     * The screen state transition must be be complete when the function
+     * returns.
      *
      * returns 0 on success, negative on error.
      */
