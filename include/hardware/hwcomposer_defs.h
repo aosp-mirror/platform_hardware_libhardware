@@ -89,6 +89,10 @@ enum {
     /* this is the background layer. it's used to set the background color.
      * there is only a single background layer */
     HWC_BACKGROUND = 2,
+
+    /* this layer holds the result of compositing the HWC_FRAMEBUFFER layers.
+     * Added in HWC_DEVICE_API_VERSION_1_1. */
+    HWC_FRAMEBUFFER_TARGET = 3,
 };
 
 /*
