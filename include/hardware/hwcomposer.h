@@ -342,8 +342,16 @@ typedef struct hwc_composer_device_1 {
      * handles have been updated. Typically this happens (but is not limited to)
      * when a window is added, removed, resized or moved.
      *
-     * The numDisplays parameter will always be greater than zero, displays
-     * will be non-NULL, and the array entries will be non-NULL.
+     * For HWC 1.0, numDisplays will always be one, and displays[0] will be
+     * non-NULL.
+     *
+     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
+     * for unsupported or disabled/disconnected display types will be NULL.
+     *
+     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
+     * The extra entries correspond to enabled virtual displays, and will be
+     * non-NULL. In HWC 1.2, support for one virtual display is required, and
+     * no more than one will be used. Future HWC versions might require more.
      *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
@@ -368,8 +376,16 @@ typedef struct hwc_composer_device_1 {
      * been handled by SurfaceFlinger with OpenGL ES. In this case, (*set)()
      * behaves just like eglSwapBuffers().
      *
-     * The numDisplays parameter will always be greater than zero, displays
-     * will be non-NULL, and the array entries will be non-NULL.
+     * For HWC 1.0, numDisplays will always be one, and displays[0] will be
+     * non-NULL.
+     *
+     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
+     * for unsupported or disabled/disconnected display types will be NULL.
+     *
+     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
+     * The extra entries correspond to enabled virtual displays, and will be
+     * non-NULL. In HWC 1.2, support for one virtual display is required, and
+     * no more than one will be used. Future HWC versions might require more.
      *
      * IMPORTANT NOTE: there is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
