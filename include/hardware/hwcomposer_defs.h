@@ -139,11 +139,29 @@ enum {
      * returns the vsync period in nanosecond
      */
     HWC_VSYNC_PERIOD                    = 1,
+
+    /*
+     * availability: HWC_DEVICE_API_VERSION_1_1
+     * returns a mask of supported display types
+     */
+    HWC_DISPLAY_TYPES_SUPPORTED         = 2,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
 enum {
     HWC_EVENT_VSYNC     = 0
+};
+
+/* Display types and associated mask bits. */
+enum {
+    HWC_DISPLAY_PRIMARY     = 0,
+    HWC_DISPLAY_EXTERNAL    = 1,    // HDMI, DP, etc.
+    HWC_NUM_DISPLAY_TYPES
+};
+
+enum {
+    HWC_DISPLAY_PRIMARY_BIT     = 1 << HWC_DISPLAY_PRIMARY,
+    HWC_DISPLAY_EXTERNAL_BIT    = 1 << HWC_DISPLAY_EXTERNAL,
 };
 
 /*****************************************************************************/
