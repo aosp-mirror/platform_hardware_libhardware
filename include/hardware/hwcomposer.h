@@ -59,41 +59,6 @@ __BEGIN_DECLS
  */
 #define HWC_HARDWARE_COMPOSER   "composer"
 
-struct hwc_composer_device_1;
-typedef struct hwc_methods_1 {
-
-    /*
-     * eventControl(..., event, enabled)
-     * Enables or disables h/w composer events for a display.
-     *
-     * eventControl can be called from any thread and takes effect
-     * immediately.
-     *
-     *  Supported events are:
-     *      HWC_EVENT_VSYNC
-     *
-     * returns -EINVAL if the "event" parameter is not one of the value above
-     * or if the "enabled" parameter is not 0 or 1.
-     */
-    int (*eventControl)(
-            struct hwc_composer_device_1* dev, int dpy,
-            int event, int enabled);
-
-    /*
-     * blank(..., blank)
-     * Blanks or unblanks a display's screen.
-     *
-     * Turns the screen off when blank is nonzero, on when blank is zero.
-     * Multiple sequential calls with the same blank value must be supported.
-     * The screen state transition must be be complete when the function
-     * returns.
-     *
-     * returns 0 on success, negative on error.
-     */
-    int (*blank)(struct hwc_composer_device_1* dev, int dpy, int blank);
-
-} hwc_methods_1_t;
-
 typedef struct hwc_rect {
     int left;
     int top;
@@ -190,6 +155,10 @@ typedef struct hwc_layer_1 {
              * fence to be signaled before returning, but the HWC must wait for
              * all buffers to be signaled before reading from them.
              *
+             * HWC_FRAMEBUFFER layers will never have an acquire fence, since
+             * reads from them are complete before the framebuffer is ready for
+             * display.
+             *
              * The HWC takes ownership of the acquireFenceFd and is responsible
              * for closing it when no longer needed.
              */
@@ -208,6 +177,10 @@ typedef struct hwc_layer_1 {
              * overlays, then the blit layers can be reused immediately after
              * the blit completes, but the overlay layers can't be reused until
              * a subsequent frame has been displayed.
+             *
+             * Since HWC doesn't read from HWC_FRAMEBUFFER layers, it shouldn't
+             * produce a release fence for them. The releaseFenceFd will be -1
+             * for these layers when set() is called.
              *
              * The HWC client taks ownership of the releaseFenceFd and is
              * responsible for closing it when no longer needed.
@@ -278,8 +251,7 @@ typedef struct hwc_display_contents_1 {
 } hwc_display_contents_1_t;
 
 /* see hwc_composer_device::registerProcs()
- * Any of the callbacks can be NULL, in which case the corresponding
- * functionality is not supported.
+ * All of the callbacks are required and non-NULL unless otherwise noted.
  */
 typedef struct hwc_procs {
     /*
@@ -291,7 +263,7 @@ typedef struct hwc_procs {
      * it is safe to call invalidate() from any of hwc_composer_device
      * hooks, unless noted otherwise.
      */
-    void (*invalidate)(struct hwc_procs* procs);
+    void (*invalidate)(const struct hwc_procs* procs);
 
     /*
      * (*vsync)() is called by the h/w composer HAL when a vsync event is
@@ -313,7 +285,7 @@ typedef struct hwc_procs {
      * can either stop or continue to process VSYNC events, but must not
      * crash or cause other problems.
      */
-    void (*vsync)(struct hwc_procs* procs, int dpy, int64_t timestamp);
+    void (*vsync)(const struct hwc_procs* procs, int dpy, int64_t timestamp);
 } hwc_procs_t;
 
 
@@ -400,31 +372,35 @@ typedef struct hwc_composer_device_1 {
                 size_t numDisplays, hwc_display_contents_1_t** displays);
 
     /*
-     * This field is OPTIONAL and can be NULL.
+     * eventControl(..., event, enabled)
+     * Enables or disables h/w composer events for a display.
      *
-     * If non NULL it will be called by SurfaceFlinger on dumpsys
+     * eventControl can be called from any thread and takes effect
+     * immediately.
+     *
+     *  Supported events are:
+     *      HWC_EVENT_VSYNC
+     *
+     * returns -EINVAL if the "event" parameter is not one of the value above
+     * or if the "enabled" parameter is not 0 or 1.
      */
-    void (*dump)(struct hwc_composer_device_1* dev, char *buff, int buff_len);
+    int (*eventControl)(struct hwc_composer_device_1* dev, int dpy,
+            int event, int enabled);
 
     /*
-     * This field is OPTIONAL and can be NULL.
+     * blank(..., blank)
+     * Blanks or unblanks a display's screen.
      *
-     * (*registerProcs)() registers a set of callbacks the h/w composer HAL
-     * can later use. It is FORBIDDEN to call any of the callbacks from
-     * within registerProcs(). registerProcs() must save the hwc_procs_t pointer
-     * which is needed when calling a registered callback.
-     * Each call to registerProcs replaces the previous set of callbacks.
-     * registerProcs is called with NULL to unregister all callbacks.
+     * Turns the screen off when blank is nonzero, on when blank is zero.
+     * Multiple sequential calls with the same blank value must be supported.
+     * The screen state transition must be be complete when the function
+     * returns.
      *
-     * Any of the callbacks can be NULL, in which case the corresponding
-     * functionality is not supported.
+     * returns 0 on success, negative on error.
      */
-    void (*registerProcs)(struct hwc_composer_device_1* dev,
-            hwc_procs_t const* procs);
+    int (*blank)(struct hwc_composer_device_1* dev, int dpy, int blank);
 
     /*
-     * This field is OPTIONAL and can be NULL.
-     *
      * Used to retrieve information about the h/w composer
      *
      * Returns 0 on success or -errno on error.
@@ -432,14 +408,26 @@ typedef struct hwc_composer_device_1 {
     int (*query)(struct hwc_composer_device_1* dev, int what, int* value);
 
     /*
+     * (*registerProcs)() registers callbacks that the h/w composer HAL can
+     * later use. It will be called immediately after the composer device is
+     * opened with non-NULL procs. It is FORBIDDEN to call any of the callbacks
+     * from within registerProcs(). registerProcs() must save the hwc_procs_t
+     * pointer which is needed when calling a registered callback.
+     */
+    void (*registerProcs)(struct hwc_composer_device_1* dev,
+            hwc_procs_t const* procs);
+
+    /*
+     * This field is OPTIONAL and can be NULL.
+     *
+     * If non NULL it will be called by SurfaceFlinger on dumpsys
+     */
+    void (*dump)(struct hwc_composer_device_1* dev, char *buff, int buff_len);
+
+    /*
      * Reserved for future use. Must be NULL.
      */
     void* reserved_proc[4];
-
-    /*
-     * This field is REQUIRED and must not be NULL.
-     */
-    hwc_methods_1_t const *methods;
 
 } hwc_composer_device_1_t;
 
