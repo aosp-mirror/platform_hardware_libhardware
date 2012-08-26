@@ -236,13 +236,13 @@ class Camera2Test: public testing::Test {
     }
 
     void getResolutionList(int32_t format,
-            const int32_t **list,
+            int32_t **list,
             size_t *count) {
         ALOGV("Getting resolutions for format %x", format);
         status_t res;
         if (format != CAMERA2_HAL_PIXEL_FORMAT_OPAQUE) {
-            camera_metadata_ro_entry_t availableFormats;
-            res = find_camera_metadata_ro_entry(mStaticInfo,
+            camera_metadata_entry_t availableFormats;
+            res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_FORMATS,
                     &availableFormats);
             ASSERT_EQ(OK, res);
@@ -255,17 +255,17 @@ class Camera2Test: public testing::Test {
                 << "No support found for format 0x" << std::hex << format;
         }
 
-        camera_metadata_ro_entry_t availableSizes;
+        camera_metadata_entry_t availableSizes;
         if (format == HAL_PIXEL_FORMAT_RAW_SENSOR) {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
+            res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_RAW_SIZES,
                     &availableSizes);
         } else if (format == HAL_PIXEL_FORMAT_BLOB) {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
+            res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
                     &availableSizes);
         } else {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
+            res = find_camera_metadata_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
                     &availableSizes);
         }
@@ -293,7 +293,7 @@ class Camera2Test: public testing::Test {
     }
 
     camera2_device    *mDevice;
-    const camera_metadata_t *mStaticInfo;
+    camera_metadata_t *mStaticInfo;
 
     MetadataQueue    mRequests;
     MetadataQueue    mFrames;
@@ -342,7 +342,7 @@ TEST_F(Camera2Test, Capture1Raw) {
         sp<FrameWaiter> rawWaiter = new FrameWaiter();
         rawConsumer->setFrameAvailableListener(rawWaiter);
 
-        const int32_t *rawResolutions;
+        int32_t *rawResolutions;
         size_t   rawResolutionsCount;
 
         int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
@@ -456,7 +456,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         sp<FrameWaiter> rawWaiter = new FrameWaiter();
         rawConsumer->setFrameAvailableListener(rawWaiter);
 
-        const int32_t *rawResolutions;
+        int32_t *rawResolutions;
         size_t    rawResolutionsCount;
 
         int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
@@ -618,7 +618,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
         sp<FrameWaiter> jpegWaiter = new FrameWaiter();
         jpegConsumer->setFrameAvailableListener(jpegWaiter);
 
-        const int32_t *jpegResolutions;
+        int32_t *jpegResolutions;
         size_t   jpegResolutionsCount;
 
         int format = HAL_PIXEL_FORMAT_BLOB;
