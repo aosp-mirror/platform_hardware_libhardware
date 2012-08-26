@@ -135,9 +135,7 @@ struct camera_info {
 
     /**
      * The camera's fixed characteristics, which include all camera metadata in
-     * the android.*.info.* sections. This should be a sorted metadata buffer,
-     * and may not be modified or freed by the caller. The pointer should remain
-     * valid for the lifetime of the camera module.
+     * the android.*.info.* sections.
      *
      * Version information (based on camera_module_t.common.module_api_version):
      *
@@ -152,7 +150,7 @@ struct camera_info {
      *    otherwise.
      *
      */
-    const camera_metadata_t *static_camera_characteristics;
+    camera_metadata_t *static_camera_characteristics;
 };
 
 typedef struct camera_module {
