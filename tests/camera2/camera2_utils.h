@@ -194,8 +194,6 @@ class StreamAdapter: public camera2_stream_ops {
     uint32_t mMaxProducerBuffers;
     uint32_t mMaxConsumerBuffers;
 
-    int mFormatRequested;
-
     const camera2_stream_ops *getStreamOps();
 
     static ANativeWindow* toANW(const camera2_stream_ops_t *w);

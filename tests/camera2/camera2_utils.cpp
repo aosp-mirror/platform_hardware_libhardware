@@ -317,7 +317,7 @@ void NotifierListener::notify_callback_dispatch(int32_t msg_type,
 StreamAdapter::StreamAdapter(sp<ISurfaceTexture> consumer):
         mState(UNINITIALIZED), mDevice(NULL),
         mId(-1),
-        mWidth(0), mHeight(0), mFormatRequested(0)
+        mWidth(0), mHeight(0), mFormat(0)
 {
     mConsumerInterface = new SurfaceTextureClient(consumer);
     camera2_stream_ops::dequeue_buffer = dequeue_buffer;
@@ -342,16 +342,16 @@ status_t StreamAdapter::connectToDevice(camera2_device_t *d,
 
     mWidth = width;
     mHeight = height;
-    mFormatRequested = format;
+    mFormat = format;
 
     // Allocate device-side stream interface
 
     uint32_t id;
-    uint32_t formatActual;
+    uint32_t formatActual; // ignored
     uint32_t usage;
     uint32_t maxBuffers = 2;
     res = d->ops->allocate_stream(d,
-            mWidth, mHeight, mFormatRequested, getStreamOps(),
+            mWidth, mHeight, mFormat, getStreamOps(),
             &id, &formatActual, &usage, &maxBuffers);
     if (res != OK) {
         ALOGE("%s: Device stream allocation failed: %s (%d)",
@@ -362,7 +362,6 @@ status_t StreamAdapter::connectToDevice(camera2_device_t *d,
     mDevice = d;
 
     mId = id;
-    mFormat = formatActual;
     mUsage = usage;
     mMaxProducerBuffers = maxBuffers;
 

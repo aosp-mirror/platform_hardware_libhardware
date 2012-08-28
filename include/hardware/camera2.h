@@ -96,22 +96,11 @@ typedef struct camera2_stream_ops {
 
 } camera2_stream_ops_t;
 
+/**
+ * Temporary definition during transition. TODO: Remove once HALs no longer
+ * reference this */
 enum {
-    /**
-     * Special pixel format value used to indicate that the framework does not care
-     * what exact pixel format is to be used for an output stream. The device HAL is
-     * free to select any pixel format, platform-specific and otherwise, and this
-     * opaque value will be passed on to the platform gralloc module when buffers
-     * need to be allocated for the stream.
-     */
-    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE     = -1,
-    /**
-     * Special pixel format value used to indicate that the framework will use
-     * the output buffers for zero-shutter-lag mode; these buffers should be
-     * efficient to produce at full sensor resolution, and efficient to send
-     * into a reprocess stream for final output processing.
-     */
-    CAMERA2_HAL_PIXEL_FORMAT_ZSL = -2
+    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
 };
 
 /**
@@ -564,11 +553,12 @@ typedef struct camera2_device_ops {
      * Input parameters:
      *
      * - width, height, format: Specification for the buffers to be sent through
-     *   this stream. Format is a value from the HAL_PIXEL_FORMAT_* list, or
-     *   CAMERA2_HAL_PIXEL_FORMAT_OPAQUE. In the latter case, the camera device
-     *   must select an appropriate (possible platform-specific) HAL pixel
-     *   format to return in format_actual. In the former case, format_actual
-     *   must be set to match format.
+     *   this stream. Format is a value from the HAL_PIXEL_FORMAT_* list. If
+     *   HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED is used, then the platform
+     *   gralloc module will select a format based on the usage flags provided
+     *   by the camera HAL and the consumer of the stream. The camera HAL should
+     *   inspect the buffers handed to it in the register_stream_buffers call to
+     *   obtain the implementation-specific format if necessary.
      *
      * - stream_ops: A structure of function pointers for obtaining and queuing
      *   up buffers for this stream. The underlying stream will be configured
@@ -580,15 +570,6 @@ typedef struct camera2_device_ops {
      * - stream_id: An unsigned integer identifying this stream. This value is
      *   used in incoming requests to identify the stream, and in releasing the
      *   stream.
-     *
-     * - format_actual: If the input format is CAMERA2_HAL_PIXEL_FORMAT_OPAQUE,
-     *   then device must select the appropriate (possible platform-specific)
-     *   pixel format and return it in *format_actual. It will be treated as an
-     *   opaque value by the framework, and simply passed to the gralloc module
-     *   when new buffers need to be allocated. If the input format is one of
-     *   the values from HAL_PIXEL_FORMAT_* list, then *format_actual must be
-     *   set equal to format. In the latter case, format_actual may also be
-     *   NULL, in which case it can be ignored as an output.
      *
      * - usage: The gralloc usage mask needed by the HAL device for producing
      *   the requested type of data. This is used in allocating new gralloc
@@ -608,7 +589,7 @@ typedef struct camera2_device_ops {
             const camera2_stream_ops_t *stream_ops,
             // outputs
             uint32_t *stream_id,
-            uint32_t *format_actual,
+            uint32_t *format_actual, // IGNORED, will be removed
             uint32_t *usage,
             uint32_t *max_buffers);
 
@@ -619,7 +600,10 @@ typedef struct camera2_device_ops {
      * otherwise prepare the buffers for later use. num_buffers is guaranteed to
      * be at least max_buffers (from allocate_stream), but may be larger. The
      * buffers will already be locked for use. At the end of the call, all the
-     * buffers must be ready to be returned to the queue.
+     * buffers must be ready to be returned to the queue. If the stream format
+     * was set to HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, the camera HAL should
+     * inspect the passed-in buffers here to determine any platform-private
+     * pixel format information.
      */
     int (*register_stream_buffers)(
             const struct camera2_device *,
