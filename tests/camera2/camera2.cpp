@@ -240,7 +240,7 @@ class Camera2Test: public testing::Test {
             size_t *count) {
         ALOGV("Getting resolutions for format %x", format);
         status_t res;
-        if (format != CAMERA2_HAL_PIXEL_FORMAT_OPAQUE) {
+        if (format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
             camera_metadata_ro_entry_t availableFormats;
             res = find_camera_metadata_ro_entry(mStaticInfo,
                     ANDROID_SCALER_AVAILABLE_FORMATS,

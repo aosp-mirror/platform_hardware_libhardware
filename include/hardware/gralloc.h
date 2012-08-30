@@ -80,6 +80,8 @@ enum {
     GRALLOC_USAGE_HW_CAMERA_WRITE       = 0x00020000,
     /* buffer will be read by the HW camera pipeline */
     GRALLOC_USAGE_HW_CAMERA_READ        = 0x00040000,
+    /* buffer will be used as part of zero-shutter-lag queue */
+    GRALLOC_USAGE_HW_CAMERA_ZSL         = 0x00080000,
     /* mask for the software usage bit-mask */
     GRALLOC_USAGE_HW_MASK               = 0x00071F00,
 
