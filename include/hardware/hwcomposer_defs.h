@@ -132,22 +132,49 @@ enum {
 /* attributes queriable with query() */
 enum {
     /*
-     * availability: HWC_DEVICE_API_VERSION_0_2
-     * must return 1 if the background layer is supported, 0 otherwise
+     * Availability: HWC_DEVICE_API_VERSION_0_2
+     * Must return 1 if the background layer is supported, 0 otherwise.
      */
     HWC_BACKGROUND_LAYER_SUPPORTED      = 0,
 
     /*
-     * availability: HWC_DEVICE_API_VERSION_0_3
-     * returns the vsync period in nanosecond
+     * Availability: HWC_DEVICE_API_VERSION_0_3
+     * Returns the vsync period in nanoseconds.
+     *
+     * This query is not used for HWC_DEVICE_API_VERSION_1_1 and later.
+     * Instead, the per-display attribute HWC_DISPLAY_VSYNC_PERIOD is used.
      */
     HWC_VSYNC_PERIOD                    = 1,
 
     /*
-     * availability: HWC_DEVICE_API_VERSION_1_1
-     * returns a mask of supported display types
+     * Availability: HWC_DEVICE_API_VERSION_1_1
+     * Returns a mask of supported display types.
      */
     HWC_DISPLAY_TYPES_SUPPORTED         = 2,
+};
+
+/* display attributes returned by getDisplayAttributes() */
+enum {
+    /* Indicates the end of an attribute list */
+    HWC_DISPLAY_NO_ATTRIBUTE                = 0,
+
+    /* The vsync period in nanoseconds */
+    HWC_DISPLAY_VSYNC_PERIOD                = 1,
+
+    /* The number of pixels in the horizontal and vertical directions. */
+    HWC_DISPLAY_RESOLUTION_X                = 2,
+    HWC_DISPLAY_RESOLUTION_Y                = 3,
+
+    /* The number of pixels per thousand inches of this configuration.
+     *
+     * Scaling DPI by 1000 allows it to be stored in an int without losing
+     * too much precision.
+     *
+     * If the DPI for a configuration is unavailable or the HWC implementation
+     * considers it unreliable, it should set these attributes to zero.
+     */
+    HWC_DISPLAY_DPI_X                       = 4,
+    HWC_DISPLAY_DPI_Y                       = 5,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
