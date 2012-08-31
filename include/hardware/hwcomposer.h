@@ -270,7 +270,7 @@ typedef struct hwc_procs {
      * received and HWC_EVENT_VSYNC is enabled on a display
      * (see: hwc_event_control).
      *
-     * the "dpy" parameter indicates which display the vsync event is for.
+     * the "disp" parameter indicates which display the vsync event is for.
      * the "timestamp" parameter is the system monotonic clock timestamp in
      *   nanosecond of when the vsync event happened.
      *
@@ -285,7 +285,27 @@ typedef struct hwc_procs {
      * can either stop or continue to process VSYNC events, but must not
      * crash or cause other problems.
      */
-    void (*vsync)(const struct hwc_procs* procs, int dpy, int64_t timestamp);
+    void (*vsync)(const struct hwc_procs* procs, int disp, int64_t timestamp);
+
+    /*
+     * (*hotplug)() is called by the h/w composer HAL when a display is
+     * connected or disconnected. The PRIMARY display is always connected and
+     * the hotplug callback should not be called for it.
+     *
+     * The disp parameter indicates which display type this event is for.
+     * The connected parameter indicates whether the display has just been
+     *   connected (1) or disconnected (0).
+     *
+     * The hotplug() callback may call back into the h/w composer on the same
+     * thread to query refresh rate and dpi for the display. Additionally,
+     * other threads may be calling into the h/w composer while the callback
+     * is in progress.
+     *
+     * This callback will be NULL if the h/w composer is using
+     * HWC_DEVICE_API_VERSION_1_0.
+     */
+    void (*hotplug)(const struct hwc_procs* procs, int disp, int connected);
+
 } hwc_procs_t;
 
 
@@ -384,7 +404,7 @@ typedef struct hwc_composer_device_1 {
      * returns -EINVAL if the "event" parameter is not one of the value above
      * or if the "enabled" parameter is not 0 or 1.
      */
-    int (*eventControl)(struct hwc_composer_device_1* dev, int dpy,
+    int (*eventControl)(struct hwc_composer_device_1* dev, int disp,
             int event, int enabled);
 
     /*
@@ -398,7 +418,7 @@ typedef struct hwc_composer_device_1 {
      *
      * returns 0 on success, negative on error.
      */
-    int (*blank)(struct hwc_composer_device_1* dev, int dpy, int blank);
+    int (*blank)(struct hwc_composer_device_1* dev, int disp, int blank);
 
     /*
      * Used to retrieve information about the h/w composer
@@ -423,6 +443,47 @@ typedef struct hwc_composer_device_1 {
      * If non NULL it will be called by SurfaceFlinger on dumpsys
      */
     void (*dump)(struct hwc_composer_device_1* dev, char *buff, int buff_len);
+
+    /*
+     * (*getDisplayConfigs)() returns handles for the configurations available
+     * on the connected display. These handles must remain valid as long as the
+     * display is connected.
+     *
+     * Configuration handles are written to configs. The number of entries
+     * allocated by the caller is passed in *numConfigs; getDisplayConfigs must
+     * not try to write more than this number of config handles. On return, the
+     * total number of configurations available for the display is returned in
+     * *numConfigs. If *numConfigs is zero on entry, then configs may be NULL.
+     *
+     * HWC_DEVICE_API_VERSION_1_1 does not provide a way to choose a config.
+     * For displays that support multiple configurations, the h/w composer
+     * implementation should choose one and report it as the first config in
+     * the list. Reporting the not-chosen configs is not required.
+     *
+     * Returns 0 on success or -errno on error.
+     *
+     * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
+     * It should be NULL for previous versions.
+     */
+    int (*getDisplayConfigs)(struct hwc_composer_device_1* dev, int disp,
+            uint32_t* configs, size_t* numConfigs);
+
+    /*
+     * (*getDisplayAttributes)() returns attributes for a specific config of a
+     * connected display. The config parameter is one of the config handles
+     * returned by getDisplayConfigs.
+     *
+     * The list of attributes to return is provided in the attributes
+     * parameter, terminated by HWC_DISPLAY_NO_ATTRIBUTE. The value for each
+     * requested attribute is written in order to the values array. The
+     * HWC_DISPLAY_NO_ATTRIBUTE attribute does not have a value, so the values
+     * array will have one less value than the attributes array.
+     *
+     * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
+     * It should be NULL for previous versions.
+     */
+    void (*getDisplayAttributes)(struct hwc_composer_device_1* dev, int disp,
+            uint32_t config, const uint32_t* attributes, int32_t* values);
 
     /*
      * Reserved for future use. Must be NULL.
