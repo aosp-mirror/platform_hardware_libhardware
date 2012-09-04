@@ -667,48 +667,6 @@ typedef struct camera2_device_ops {
             uint32_t *max_buffers);
 
     /**
-     * allocate_reprocess_stream_from_stream:
-     *
-     * Allocate a new input stream for use, which will use the buffers allocated
-     * for an existing output stream. That is, after the HAL enqueues a buffer
-     * onto the output stream, it may see that same buffer handed to it from
-     * this input reprocessing stream. After the HAL releases the buffer back to
-     * the reprocessing stream, it will be returned to the output queue for
-     * reuse.
-     *
-     * Error conditions:
-     *
-     * - Using an output stream of unsuitable size/format for the basis of the
-     *   reprocessing stream.
-     *
-     * - Attempting to allocatee too many reprocessing streams at once.
-     *
-     * Input parameters:
-     *
-     * - output_stream_id: The ID of an existing output stream which has
-     *   a size and format suitable for reprocessing.
-     *
-     * - reprocess_stream_ops: A structure of function pointers for acquiring
-     *   and releasing buffers for this stream. The underlying stream will use
-     *   the same graphics buffer handles as the output stream uses.
-     *
-     * Output parameters:
-     *
-     * - stream_id: An unsigned integer identifying this stream. This value is
-     *   used in incoming requests to identify the stream, and in releasing the
-     *   stream. These ids are numbered separately from the input stream ids.
-     *
-     * The HAL client must always release the reprocessing stream before it
-     * releases the output stream it is based on.
-     *
-     */
-    int (*allocate_reprocess_stream_from_stream)(const struct camera2_device *,
-            uint32_t output_stream_id,
-            const camera2_stream_in_ops_t *reprocess_stream_ops,
-            // outputs
-            uint32_t *stream_id);
-
-    /**
      * Release a reprocessing stream. Returns an error if called when
      * get_in_progress_count is non-zero, or if the stream id is not
      * valid.
