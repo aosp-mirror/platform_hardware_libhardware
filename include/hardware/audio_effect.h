@@ -142,6 +142,10 @@ typedef struct effect_descriptor_s {
 //  |                           |           | 1 requires audio mode updates
 //  |                           |           | 2..3 reserved
 //  +---------------------------+-----------+-----------------------------------
+//  | Audio source indication   | 20..21    | 0 none
+//  |                           |           | 1 requires audio source updates
+//  |                           |           | 2..3 reserved
+//  +---------------------------+-----------+-----------------------------------
 
 // Insert mode
 #define EFFECT_FLAG_TYPE_SHIFT          0
@@ -216,6 +220,13 @@ typedef struct effect_descriptor_s {
 #define EFFECT_FLAG_AUDIO_MODE_IND      (1 << EFFECT_FLAG_AUDIO_MODE_SHIFT)
 #define EFFECT_FLAG_AUDIO_MODE_NONE     (0 << EFFECT_FLAG_AUDIO_MODE_SHIFT)
 
+// Audio source indication
+#define EFFECT_FLAG_AUDIO_SOURCE_SHIFT  (EFFECT_FLAG_AUDIO_MODE_SHIFT + EFFECT_FLAG_AUDIO_MODE_SIZE)
+#define EFFECT_FLAG_AUDIO_SOURCE_SIZE   2
+#define EFFECT_FLAG_AUDIO_SOURCE_MASK   (((1 << EFFECT_FLAG_AUDIO_SOURCE_SIZE) -1) \
+                                          << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
+#define EFFECT_FLAG_AUDIO_SOURCE_IND    (1 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
+#define EFFECT_FLAG_AUDIO_SOURCE_NONE   (0 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
 
 #define EFFECT_MAKE_API_VERSION(M, m)  (((M)<<16) | ((m) & 0xFFFF))
 #define EFFECT_API_VERSION_MAJOR(v)    ((v)>>16)
@@ -413,6 +424,7 @@ enum effect_command_e {
    EFFECT_CMD_GET_FEATURE_SUPPORTED_CONFIGS,// get all supported configurations for a feature.
    EFFECT_CMD_GET_FEATURE_CONFIG,   // get current feature configuration
    EFFECT_CMD_SET_FEATURE_CONFIG,   // set current feature configuration
+   EFFECT_CMD_SET_AUDIO_SOURCE,     // set the audio source (see audio.h, audio_source_t)
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -704,6 +716,20 @@ enum effect_command_e {
 // reply format:
 //  size: sizeof(uint32_t)
 //  data: status
+//==================================================================================================
+// command: EFFECT_CMD_SET_AUDIO_SOURCE
+//--------------------------------------------------------------------------------------------------
+// description:
+//  Set the audio source the capture path is configured for (Camcorder, voice recognition...).
+//  See audio.h, audio_source_t for values.
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(uint32_t)
+//  data: uint32_t
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: 0
+//  data: N/A
 //==================================================================================================
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
