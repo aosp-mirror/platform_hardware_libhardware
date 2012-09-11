@@ -65,6 +65,7 @@ __BEGIN_DECLS
 #define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
 #define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
 #define AUDIO_HARDWARE_MODULE_ID_USB "usb"
+#define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
 
 /**************************************/
 
