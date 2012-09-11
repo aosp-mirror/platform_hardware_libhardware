@@ -649,16 +649,6 @@ static int adev_close(hw_device_t *device)
     return 0;
 }
 
-static uint32_t adev_get_supported_devices(const struct audio_hw_device *dev)
-{
-    ALOGI("adev_get_supported_devices() returns %08x",
-            AUDIO_DEVICE_OUT_REMOTE_SUBMIX |AUDIO_DEVICE_IN_REMOTE_SUBMIX);
-    return (/* OUT */
-            AUDIO_DEVICE_OUT_REMOTE_SUBMIX |
-            /* IN */
-            AUDIO_DEVICE_IN_REMOTE_SUBMIX);
-}
-
 static int adev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
@@ -673,11 +663,10 @@ static int adev_open(const hw_module_t* module, const char* name,
         return -ENOMEM;
 
     rsxadev->device.common.tag = HARDWARE_DEVICE_TAG;
-    rsxadev->device.common.version = AUDIO_DEVICE_API_VERSION_1_0;
+    rsxadev->device.common.version = AUDIO_DEVICE_API_VERSION_2_0;
     rsxadev->device.common.module = (struct hw_module_t *) module;
     rsxadev->device.common.close = adev_close;
 
-    rsxadev->device.get_supported_devices = adev_get_supported_devices;
     rsxadev->device.init_check = adev_init_check;
     rsxadev->device.set_voice_volume = adev_set_voice_volume;
     rsxadev->device.set_master_volume = adev_set_master_volume;
