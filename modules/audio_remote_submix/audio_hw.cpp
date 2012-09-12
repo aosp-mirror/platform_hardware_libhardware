@@ -40,7 +40,7 @@ extern "C" {
 namespace android {
 
 #define MAX_PIPE_DEPTH_IN_FRAMES     (1024*4)
-#define MAX_READ_ATTEMPTS            10
+#define MAX_READ_ATTEMPTS            3
 #define READ_ATTEMPT_SLEEP_MS        10 // 10ms between two read attempts when pipe is empty
 #define DEFAULT_RATE_HZ              48000 // default sample rate
 
@@ -78,6 +78,8 @@ struct submix_stream_in {
     struct audio_stream_in stream;
     struct submix_audio_device *dev;
 };
+
+static struct timespec currentTs;
 
 
 /* audio HAL functions */
@@ -202,8 +204,10 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         if (written == (ssize_t)NEGOTIATE) {
             ALOGE("out_write() write to pipe returned NEGOTIATE");
             written = 0;
+            return 0;
         } else {
             // write() returned UNDERRUN or WOULD_BLOCK, retry
+            ALOGE("out_write() write to pipe returned unexpected %16lx", written);
             written = sink->write(buffer, frames);
         }
     }
@@ -214,17 +218,25 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     pthread_mutex_unlock(&out->dev->lock);
 
-    if (written > 0) {
-        // fake timing for audio output, we can't return right after pushing the data in the pipe
-        // TODO who's doing the flow control here? the wifi display link, or the audio HAL?
-        usleep(written * 1000000 / out_get_sample_rate(&stream->common));
-        return written * audio_stream_frame_size(&stream->common);;
-    } else {
-        // error occurred, fake timing
-        usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
-        ALOGE("out_write error=%16lx", written);
-        return 0;
+    struct timespec newTs;
+    int toSleepUs = 0;
+    int rc = clock_gettime(CLOCK_MONOTONIC, &newTs);
+    if (rc == 0) {
+        time_t sec = newTs.tv_sec - currentTs.tv_sec;
+        long nsec = newTs.tv_nsec - currentTs.tv_nsec;
+        if (nsec < 0) {
+            --sec;
+            nsec += 1000000000;
+        }
+        if ((nsec / 1000) < (frames * 1000000 / out_get_sample_rate(&stream->common))) {
+            toSleepUs = (frames * 1000000 / out_get_sample_rate(&stream->common)) - (nsec/1000);
+            ALOGI("sleeping %dus", toSleepUs);
+            usleep(toSleepUs);
+        }
     }
+    clock_gettime(CLOCK_MONOTONIC, &currentTs);
+    //ALOGV("out_write(bytes=%d) written=%d", bytes, written);
+    return written * audio_stream_frame_size(&stream->common);
 }
 
 static int out_get_render_position(const struct audio_stream_out *stream,
@@ -319,6 +331,7 @@ static int in_set_gain(struct audio_stream_in *stream, float gain)
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                        size_t bytes)
 {
+    //ALOGV("in_read bytes=%u", bytes);
     ssize_t frames_read = -1977;
     const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
     const size_t frame_size = audio_stream_frame_size(&stream->common);
@@ -337,13 +350,14 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     pthread_mutex_unlock(&in->dev->lock);
 
+
     int attempts = MAX_READ_ATTEMPTS;
     size_t remaining_frames = bytes / frame_size;
     char* buff = (char*)buffer;
     while (attempts > 0) {
         frames_read = source->read(buff, remaining_frames, AudioBufferProvider::kInvalidPTS);
         if (frames_read > 0) {
-            //ALOGV("in_read frames=%ld size=%u", remaining_frames, frame_size);
+            //ALOGV("  in_read got frames=%u size=%u attempts=%d", remaining_frames, frame_size, attempts);
             remaining_frames -= frames_read;
             buff += frames_read * frame_size;
             if (remaining_frames == 0) {
@@ -359,6 +373,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             }
         } else if (frames_read == 0) {
             // TODO sleep should be tied to how much data is expected
+            //ALOGW("sleeping %dms", READ_ATTEMPT_SLEEP_MS);
             usleep(READ_ATTEMPT_SLEEP_MS*1000);
             attempts--;
         } else { // frames_read is an error code
@@ -375,11 +390,17 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     pthread_mutex_unlock(&in->dev->lock);
 
-    // TODO how to handle partial reads?
+    if (remaining_frames > 0) {
+        ALOGW("remaining_frames = %d", remaining_frames);
+        memset(((char*)buffer)+ bytes - (remaining_frames * frame_size), 0,
+                remaining_frames * frame_size);
+        return bytes;
+    }
 
     if (frames_read < 0) {
         ALOGE("in_read error=%16lx", frames_read);
     }
+    ALOGE_IF(attempts == 0, "attempts == 0 ");
     return 0;
 }
 
