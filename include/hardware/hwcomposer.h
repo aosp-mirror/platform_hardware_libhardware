@@ -222,23 +222,49 @@ enum {
  */
 typedef struct hwc_display_contents_1 {
     /* File descriptor referring to a Sync HAL fence object which will signal
-     * when this display image is no longer visible, i.e. when the following
-     * set() takes effect. The fence object is created and returned by the set
-     * call; this field will be -1 on entry to prepare and set. SurfaceFlinger
-     * will close the returned file descriptor.
+     * when this composition is retired. For a physical display, a composition
+     * is retired when it has been replaced on-screen by a subsequent set. For
+     * a virtual display, the composition is retired when the writes to
+     * outputBuffer are complete and can be read. The fence object is created
+     * and returned by the set call; this field will be -1 on entry to prepare
+     * and set. SurfaceFlinger will close the returned file descriptor.
      */
-    int flipFenceFd;
+    int retireFenceFd;
 
-    /* (dpy, sur) is the target of SurfaceFlinger's OpenGL ES composition for
-     * HWC versions before HWC_DEVICE_VERSION_1_1. They aren't relevant to
-     * prepare. The set call should commit this surface atomically to the
-     * display along with any overlay layers.
-     *
-     * For HWC_DEVICE_VERSION_1_1 and later, these will always be set to
-     * EGL_NO_DISPLAY and EGL_NO_SURFACE.
-     */
-    hwc_display_t dpy;
-    hwc_surface_t sur;
+    union {
+        /* Fields only relevant for HWC_DEVICE_VERSION_1_0. */
+        struct {
+            /* (dpy, sur) is the target of SurfaceFlinger's OpenGL ES
+             * composition for HWC_DEVICE_VERSION_1_0. They aren't relevant to
+             * prepare. The set call should commit this surface atomically to
+             * the display along with any overlay layers.
+             */
+            hwc_display_t dpy;
+            hwc_surface_t sur;
+        };
+
+        /* Fields only relevant for HWC_DEVICE_VERSION_1_2 and later. */
+        struct {
+            /* outbuf is the buffer that receives the composed image for
+             * virtual displays. Writes to the outbuf must wait until
+             * outbufAcquireFenceFd signals. A fence that will signal when
+             * writes to outbuf are complete should be returned in
+             * retireFenceFd.
+             *
+             * For physical displays, outbuf will be NULL.
+             */
+            buffer_handle_t outbuf;
+
+            /* File descriptor for a fence that will signal when outbuf is
+             * ready to be written. The h/w composer is responsible for closing
+             * this when no longer needed.
+             *
+             * Will be -1 whenever outbuf is NULL, or when the outbuf can be
+             * written immediately.
+             */
+            int outbufAcquireFenceFd;
+        };
+    };
 
     /* List of layers that will be composed on the display. The buffer handles
      * in the list will be unique. If numHwLayers is 0, all composition will be

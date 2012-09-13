@@ -162,8 +162,8 @@ enum {
     HWC_DISPLAY_VSYNC_PERIOD                = 1,
 
     /* The number of pixels in the horizontal and vertical directions. */
-    HWC_DISPLAY_RESOLUTION_X                = 2,
-    HWC_DISPLAY_RESOLUTION_Y                = 3,
+    HWC_DISPLAY_WIDTH                       = 2,
+    HWC_DISPLAY_HEIGHT                      = 3,
 
     /* The number of pixels per thousand inches of this configuration.
      *
