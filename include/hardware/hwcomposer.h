@@ -97,8 +97,7 @@ typedef struct hwc_layer_1 {
      *   Indicates this layer is the framebuffer surface used as the target of
      *   OpenGL ES composition. If the HWC sets all other layers to HWC_OVERLAY
      *   or HWC_BACKGROUND, then no OpenGL ES composition will be done, and
-     *   this layer should be ignored during set(); the HWC_SKIP_LAYER flag
-     *   will indicate this case.
+     *   this layer should be ignored during set().
      *
      *   This flag (and the framebuffer surface layer) will only be used if the
      *   HWC version is HWC_DEVICE_API_VERSION_1_1 or higher. In older versions,

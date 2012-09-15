@@ -97,10 +97,20 @@ typedef struct camera2_stream_ops {
 } camera2_stream_ops_t;
 
 /**
- * Temporary definition during transition. TODO: Remove once HALs no longer
- * reference this */
+ * Temporary definition during transition.
+ *
+ * These formats will be removed and replaced with
+ * HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED.  To maximize forward compatibility,
+ * HAL implementations are strongly recommended to treat FORMAT_OPAQUE and
+ * FORMAT_ZSL as equivalent to HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, and
+ * return HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED in the format_actual output
+ * parameter of allocate_stream, allowing the gralloc module to select the
+ * specific format based on the usage flags from the camera and the stream
+ * consumer.
+ */
 enum {
-    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED
+    CAMERA2_HAL_PIXEL_FORMAT_OPAQUE = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
+    CAMERA2_HAL_PIXEL_FORMAT_ZSL = -1
 };
 
 /**
