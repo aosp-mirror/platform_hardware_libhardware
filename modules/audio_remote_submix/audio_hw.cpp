@@ -15,7 +15,7 @@
  */
 
 #define LOG_TAG "r_submix"
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 
 #include <errno.h>
 #include <pthread.h>
