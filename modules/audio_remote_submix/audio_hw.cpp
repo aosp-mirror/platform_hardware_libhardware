@@ -212,7 +212,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     MonoPipe* sink = out->dev->rsxSink.get();
     if (sink != NULL) {
-        out->dev->rsxSink->incStrong(buffer);
+        sink->incStrong(buffer);
     } else {
         pthread_mutex_unlock(&out->dev->lock);
         ALOGE("out_write without a pipe!");
@@ -230,7 +230,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             ALOGE("out_write() write to pipe returned NEGOTIATE");
 
             pthread_mutex_lock(&out->dev->lock);
-            out->dev->rsxSink->decStrong(buffer);
+            sink->decStrong(buffer);
             pthread_mutex_unlock(&out->dev->lock);
 
             written_frames = 0;
@@ -244,7 +244,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     pthread_mutex_lock(&out->dev->lock);
 
-    out->dev->rsxSink->decStrong(buffer);
+    sink->decStrong(buffer);
 
     pthread_mutex_unlock(&out->dev->lock);
 
@@ -382,7 +382,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     MonoPipeReader* source = in->dev->rsxSource.get();
     if (source != NULL) {
-        in->dev->rsxSource->incStrong(in);
+        source->incStrong(buffer);
     } else {
         ALOGE("no audio pipe yet we're trying to read!");
         pthread_mutex_unlock(&in->dev->lock);
@@ -414,7 +414,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     // done using the source
     pthread_mutex_lock(&in->dev->lock);
 
-    in->dev->rsxSource->decStrong(in);
+    source->decStrong(buffer);
 
     pthread_mutex_unlock(&in->dev->lock);
 
