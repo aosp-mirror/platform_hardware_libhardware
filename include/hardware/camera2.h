@@ -114,6 +114,26 @@ enum {
 };
 
 /**
+ * Transport header for compressed JPEG buffers in output streams.
+ *
+ * To capture JPEG images, a stream is created using the pixel format
+ * HAL_PIXEL_FORMAT_BLOB, and the static metadata field android.jpeg.maxSize is
+ * used as the buffer size. Since compressed JPEG images are of variable size,
+ * the HAL needs to include the final size of the compressed image using this
+ * structure inside the output stream buffer. The JPEG blob ID field must be set
+ * to CAMERA2_JPEG_BLOB_ID.
+ */
+typedef struct camera2_jpeg_blob {
+    uint16_t jpeg_blob_id;
+    uint32_t jpeg_size;
+    uint8_t  jpeg_data[0];
+};
+
+enum {
+    CAMERA2_JPEG_BLOB_ID = 0x00FF
+};
+
+/**
  * Input reprocess stream queue management. A set of these methods is provided
  * to the HAL device in allocate_reprocess_stream(); they are used to interact
  * with the reprocess stream's input gralloc buffer queue.
