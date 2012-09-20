@@ -326,6 +326,9 @@ typedef struct hwc_procs {
      * other threads may be calling into the h/w composer while the callback
      * is in progress.
      *
+     * The h/w composer must serialize calls to the hotplug callback; only
+     * one thread may call it at a time.
+     *
      * This callback will be NULL if the h/w composer is using
      * HWC_DEVICE_API_VERSION_1_0.
      */
@@ -485,7 +488,8 @@ typedef struct hwc_composer_device_1 {
      * implementation should choose one and report it as the first config in
      * the list. Reporting the not-chosen configs is not required.
      *
-     * Returns 0 on success or -errno on error.
+     * Returns 0 on success or -errno on error. If disp is a hotpluggable
+     * display type and no display is connected, an error should be returned.
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
      * It should be NULL for previous versions.
@@ -506,8 +510,12 @@ typedef struct hwc_composer_device_1 {
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
      * It should be NULL for previous versions.
+     *
+     * If disp is a hotpluggable display type and no display is connected,
+     * or if config is not a valid configuration for the display, a negative
+     * value should be returned.
      */
-    void (*getDisplayAttributes)(struct hwc_composer_device_1* dev, int disp,
+    int (*getDisplayAttributes)(struct hwc_composer_device_1* dev, int disp,
             uint32_t config, const uint32_t* attributes, int32_t* values);
 
     /*
