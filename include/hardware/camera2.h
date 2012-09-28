@@ -122,11 +122,16 @@ enum {
  * the HAL needs to include the final size of the compressed image using this
  * structure inside the output stream buffer. The JPEG blob ID field must be set
  * to CAMERA2_JPEG_BLOB_ID.
+ *
+ * Transport header should be at the end of the JPEG output stream buffer.  That
+ * means the jpeg_blob_id must start at byte[android.jpeg.maxSize -
+ * sizeof(camera2_jpeg_blob)].  Any HAL using this transport header must
+ * account for it in android.jpeg.maxSize.  The JPEG data itself starts at
+ * byte[0] and should be jpeg_size bytes long.
  */
 typedef struct camera2_jpeg_blob {
     uint16_t jpeg_blob_id;
     uint32_t jpeg_size;
-    uint8_t  jpeg_data[0];
 };
 
 enum {
