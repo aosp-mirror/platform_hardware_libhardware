@@ -31,11 +31,12 @@
 #include <system/audio.h>
 #include <hardware/audio.h>
 
-//#include <media/nbaio/Pipe.h>
-//#include <media/nbaio/PipeReader.h>
 #include <media/nbaio/MonoPipe.h>
 #include <media/nbaio/MonoPipeReader.h>
 #include <media/AudioBufferProvider.h>
+
+#include <utils/String8.h>
+#include <media/AudioParameter.h>
 
 extern "C" {
 
@@ -175,6 +176,32 @@ static int out_dump(const struct audio_stream *stream, int fd)
 
 static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
+    int exiting = -1;
+    AudioParameter parms = AudioParameter(String8(kvpairs));
+    // FIXME this is using hard-coded strings but in the future, this functionality will be
+    //       converted to use audio HAL extensions required to support tunneling
+    if ((parms.getInt(String8("exiting"), exiting) == NO_ERROR) && (exiting > 0)) {
+        const struct submix_stream_out *out =
+                reinterpret_cast<const struct submix_stream_out *>(stream);
+
+        pthread_mutex_lock(&out->dev->lock);
+
+        MonoPipe* sink = out->dev->rsxSink.get();
+        if (sink != NULL) {
+            sink->incStrong(out);
+        } else {
+            pthread_mutex_unlock(&out->dev->lock);
+            return 0;
+        }
+
+        ALOGI("shutdown");
+        sink->shutdown(true);
+
+        sink->decStrong(out);
+
+        pthread_mutex_unlock(&out->dev->lock);
+    }
+
     return 0;
 }
 
