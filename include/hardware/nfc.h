@@ -71,11 +71,10 @@ enum {
     HAL_NFC_OPEN_CPLT_EVT           = 0x00,
     HAL_NFC_CLOSE_CPLT_EVT          = 0x01,
     HAL_NFC_POST_INIT_CPLT_EVT      = 0x02,
-    HAL_NFC_NCI_RX_EVT              = 0x03,
-    HAL_NFC_PRE_DISCOVER_CPLT_EVT   = 0x04,
-    HAL_NFC_REQUEST_CONTROL_EVT     = 0x05,
-    HAL_NFC_RELEASE_CONTROL_EVT     = 0x06,
-    HAL_NFC_ERROR_EVT               = 0x07
+    HAL_NFC_PRE_DISCOVER_CPLT_EVT   = 0x03,
+    HAL_NFC_REQUEST_CONTROL_EVT     = 0x04,
+    HAL_NFC_RELEASE_CONTROL_EVT     = 0x05,
+    HAL_NFC_ERROR_EVT               = 0x06
 };
 
 /*
@@ -92,27 +91,16 @@ enum {
 };
 
 /*
- * nfc_rx_data
- * Struct used to pass received NCI packets up to the stack
- */
-typedef struct nfc_rx_data {
-    uint16_t len;
-    uint8_t *p_data;
-} nfc_rx_data_t;
-
-/*
- */
-typedef union
-{
-    nfc_status_t    status;
-    nfc_rx_data_t   nci_rx;
-} nfc_event_data_t;
-
-/*
  * The callback passed in from the NFC stack that the HAL
  * can use to pass events back to the stack.
  */
-typedef void (nfc_stack_callback_t) (nfc_event_t event, nfc_event_data_t* p_data);
+typedef void (nfc_stack_callback_t) (nfc_event_t event, nfc_status_t event_status);
+
+/*
+ * The callback passed in from the NFC stack that the HAL
+ * can use to pass incomming data to the stack.
+ */
+typedef void (nfc_stack_data_callback_t) (uint16_t data_len, uint8_t* p_data);
 
 /* nfc_nci_device_t starts with a hw_device_t struct,
  * followed by device-specific methods and members.
@@ -135,7 +123,8 @@ typedef struct nfc_nci_device {
      * If open() returns any other value, the NCI stack will stop.
      *
      */
-    int (*open)(const struct nfc_nci_device *p_dev, nfc_stack_callback_t *p_cback);
+    int (*open)(const struct nfc_nci_device *p_dev, nfc_stack_callback_t *p_cback,
+            nfc_stack_data_callback_t *p_data_cback);
 
     /*
      * (*write)() Performs an NCI write.

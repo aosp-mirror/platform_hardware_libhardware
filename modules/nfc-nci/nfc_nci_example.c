@@ -25,7 +25,7 @@
  * NCI HAL method implementations. These must be overriden
  */
 static int hal_open(const struct nfc_nci_device *dev,
-        nfc_stack_callback_t *p_cback) {
+        nfc_stack_callback_t *p_cback, nfc_stack_data_callback_t *p_data_cback) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
