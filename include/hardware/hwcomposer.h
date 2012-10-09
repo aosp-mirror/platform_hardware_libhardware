@@ -407,13 +407,20 @@ typedef struct hwc_composer_device_1 {
      * non-NULL. In HWC 1.2, support for one virtual display is required, and
      * no more than one will be used. Future HWC versions might require more.
      *
-     * IMPORTANT NOTE: there is an implicit layer containing opaque black
+     * IMPORTANT NOTE: There is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
      * the hwcomposer module to make sure black pixels are output (or blended
      * from).
      *
-     * returns: 0 on success. An negative error code on error:
-     *    HWC_EGL_ERROR: eglGetError() will provide the proper error code
+     * IMPORTANT NOTE: In the event of an error this call *MUST* still cause
+     * any fences returned in the previous call to set to eventually become
+     * signaled.  The caller may have already issued wait commands on these
+     * fences, and having set return without causing those fences to signal
+     * will likely result in a deadlock.
+     *
+     * returns: 0 on success. A negative error code on error:
+     *    HWC_EGL_ERROR: eglGetError() will provide the proper error code (only
+     *        allowed prior to HWComposer 1.1)
      *    Another code for non EGL errors.
      */
     int (*set)(struct hwc_composer_device_1 *dev,
