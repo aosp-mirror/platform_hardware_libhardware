@@ -232,6 +232,9 @@ struct audio_policy {
                              audio_stream_type_t stream,
                              uint32_t in_past_ms);
 
+    bool (*is_source_active)(const struct audio_policy *pol,
+                             audio_source_t source);
+
     /* dump state */
     int (*dump)(const struct audio_policy *pol, int fd);
 };
