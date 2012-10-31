@@ -233,12 +233,22 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     ssize_t written_frames = 0;
     struct submix_stream_out *out = reinterpret_cast<struct submix_stream_out *>(stream);
 
+    const size_t frame_size = audio_stream_frame_size(&stream->common);
+    const size_t frames = bytes / frame_size;
+
     pthread_mutex_lock(&out->dev->lock);
 
     out->dev->output_standby = false;
 
     MonoPipe* sink = out->dev->rsxSink.get();
     if (sink != NULL) {
+        if (sink->isShutdown()) {
+            pthread_mutex_unlock(&out->dev->lock);
+            // the pipe has already been shutdown, this buffer will be lost but we must
+            //   simulate timing so we don't drain the output faster than realtime
+            usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
+            return bytes;
+        }
         sink->incStrong(buffer);
     } else {
         pthread_mutex_unlock(&out->dev->lock);
@@ -249,8 +259,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     pthread_mutex_unlock(&out->dev->lock);
 
-    const size_t frame_size = audio_stream_frame_size(&stream->common);
-    const size_t frames = bytes / frame_size;
     written_frames = sink->write(buffer, frames);
     if (written_frames < 0) {
         if (written_frames == (ssize_t)NEGOTIATE) {
@@ -740,6 +748,12 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
 
     pthread_mutex_lock(&rsxadev->lock);
+
+    MonoPipe* sink = rsxadev->rsxSink.get();
+    if (sink != NULL) {
+        ALOGI("shutdown");
+        sink->shutdown(true);
+    }
 
     free(stream);
 
