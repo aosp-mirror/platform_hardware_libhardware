@@ -571,8 +571,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     // initialize pipe
     {
         ALOGV("  initializing pipe");
-        const NBAIO_Format format =
-                config->sample_rate == 48000 ? Format_SR48_C2_I16 : Format_SR44_1_C2_I16;
+        const NBAIO_Format format = Format_from_SR_C(config->sample_rate, 2);
         const NBAIO_Format offers[1] = {format};
         size_t numCounterOffers = 0;
         // creating a MonoPipe with optional blocking set to true.
