@@ -27,6 +27,8 @@
 #include <utils/Condition.h>
 
 namespace android {
+namespace camera2 {
+namespace tests {
 
 /**
  * Queue class for both sending requests to a camera2 device, and for receiving
@@ -233,4 +235,11 @@ class FrameWaiter : public CpuConsumer::FrameAvailableListener {
     Condition mCondition;
 };
 
+struct HWModuleHelpers {
+    /* attempt to unload the library with dlclose */
+    static int closeModule(hw_module_t* module);
+};
+
+}
+}
 }

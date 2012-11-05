@@ -21,8 +21,11 @@
 
 #include "utils/Log.h"
 #include "camera2_utils.h"
+#include <dlfcn.h>
 
 namespace android {
+namespace camera2 {
+namespace tests {
 
 /**
  * MetadataQueue
@@ -578,4 +581,22 @@ void FrameWaiter::onFrameAvailable() {
     mCondition.signal();
 }
 
+int HWModuleHelpers::closeModule(hw_module_t* module) {
+    int status;
+
+    if (!module) {
+        return -EINVAL;
+    }
+
+    status = dlclose(module->dso);
+    if (status != 0) {
+        char const *err_str = dlerror();
+        ALOGE("%s dlclose failed, error: %s", __func__, err_str ?: "unknown");
+    }
+
+    return status;
+}
+
+} // namespace tests
+} // namespace camera2
 } // namespace android
