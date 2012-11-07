@@ -9,6 +9,8 @@ LOCAL_SRC_FILES:= \
 	CameraModuleTests.cpp \
 	CameraStreamTests.cpp \
 	CameraFrameTests.cpp \
+	ForkedTests.cpp \
+	TestForkerEventListener.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libutils \
@@ -33,6 +35,8 @@ LOCAL_C_INCLUDES += \
 	system/media/camera/include \
 	frameworks/av/services/camera/libcameraservice \
 	frameworks/native/include \
+
+LOCAL_CFLAGS += -Wall -Wextra
 
 LOCAL_MODULE:= camera2_test
 LOCAL_MODULE_TAGS := tests

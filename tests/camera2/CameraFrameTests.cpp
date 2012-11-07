@@ -32,6 +32,7 @@
 #include <unistd.h>
 
 #include "CameraStreamFixture.h"
+#include "TestExtensions.h"
 
 #define CAMERA_FRAME_TIMEOUT    1000000000 //nsecs (1 secs)
 #define CAMERA_HEAP_COUNT       2 //HALBUG: 1 means registerBuffers fails
@@ -56,12 +57,16 @@ class CameraFrameTest
 
 public:
     CameraFrameTest() : CameraStreamFixture(STREAM_PARAMETERS) {
+        TEST_EXTENSION_FORKING_CONSTRUCTOR;
+
         if (!HasFatalFailure()) {
             CreateStream();
         }
     }
 
     ~CameraFrameTest() {
+        TEST_EXTENSION_FORKING_DESTRUCTOR;
+
         if (mDevice.get()) {
             mDevice->waitUntilDrained();
         }
@@ -69,8 +74,10 @@ public:
     }
 
     virtual void SetUp() {
+        TEST_EXTENSION_FORKING_SET_UP;
     }
     virtual void TearDown() {
+        TEST_EXTENSION_FORKING_TEAR_DOWN;
     }
 
 protected:
@@ -79,9 +86,7 @@ protected:
 
 TEST_P(CameraFrameTest, GetFrame) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     /* Submit a PREVIEW type request, then wait until we get the frame back */
     CameraMetadata previewRequest;

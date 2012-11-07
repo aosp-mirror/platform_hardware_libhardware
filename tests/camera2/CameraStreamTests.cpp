@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#define LOG_TAG "DISABLED_CameraStreamTest"
+#define LOG_TAG "CameraStreamTest"
 #define LOG_NDEBUG 0
 #include <utils/Log.h>
 
@@ -30,7 +30,7 @@
 #include <gui/SurfaceTextureClient.h>
 
 #include "CameraStreamFixture.h"
-
+#include "TestExtensions.h"
 
 using namespace android;
 using namespace android::camera2;
@@ -39,39 +39,36 @@ namespace android {
 namespace camera2 {
 namespace tests {
 
-class DISABLED_CameraStreamTest
+class CameraStreamTest
     : public ::testing::TestWithParam<CameraStreamParams>,
       public CameraStreamFixture {
 
 public:
-    DISABLED_CameraStreamTest() : CameraStreamFixture(GetParam()) {
+    CameraStreamTest() : CameraStreamFixture(GetParam()) {
+        TEST_EXTENSION_FORKING_CONSTRUCTOR;
     }
 
-    ~DISABLED_CameraStreamTest() {
+    ~CameraStreamTest() {
+        TEST_EXTENSION_FORKING_DESTRUCTOR;
     }
 
     virtual void SetUp() {
+        TEST_EXTENSION_FORKING_SET_UP;
     }
     virtual void TearDown() {
+        TEST_EXTENSION_FORKING_TEAR_DOWN;
     }
 
 protected:
 
 };
 
-TEST_P(DISABLED_CameraStreamTest, CreateStream) {
+TEST_P(CameraStreamTest, CreateStream) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
-    CreateStream();
-
-    if (HasFatalFailure()) {
-        return;
-    }
-
-    DeleteStream();
+    ASSERT_NO_FATAL_FAILURE(CreateStream());
+    ASSERT_NO_FATAL_FAILURE(DeleteStream());
 }
 
 //TODO: use a combinatoric generator
@@ -138,7 +135,7 @@ static CameraStreamParams TestParameters[] = {
     },
 };
 
-INSTANTIATE_TEST_CASE_P(StreamParameterCombinations, DISABLED_CameraStreamTest,
+INSTANTIATE_TEST_CASE_P(StreamParameterCombinations, CameraStreamTest,
     testing::ValuesIn(TestParameters));
 
 

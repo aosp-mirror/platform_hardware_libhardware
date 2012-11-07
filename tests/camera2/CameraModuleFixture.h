@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef __ANDROID_HAL_CAMERA2_TESTS_MODULE_FIXTURE__
+#define __ANDROID_HAL_CAMERA2_TESTS_MODULE_FIXTURE__
+
 #include <gtest/gtest.h>
 
 #include "hardware/hardware.h"
@@ -21,6 +24,7 @@
 
 #include "Camera2Device.h"
 #include "camera2_utils.h"
+#include "TestExtensions.h"
 
 namespace android {
 namespace camera2 {
@@ -30,18 +34,24 @@ template <bool InfoQuirk = false>
 struct CameraModuleFixture {
 
     CameraModuleFixture(int CameraID = -1) {
+        TEST_EXTENSION_FORKING_CONSTRUCTOR;
+
         mCameraID = CameraID;
 
         SetUp();
     }
 
     ~CameraModuleFixture() {
+        TEST_EXTENSION_FORKING_DESTRUCTOR;
+
         TearDown();
     }
 
 private:
 
     void SetUp() {
+        TEST_EXTENSION_FORKING_SET_UP;
+
         ASSERT_LE(0, hw_get_module(CAMERA_HARDWARE_MODULE_ID,
             (const hw_module_t **)&mModule)) << "Could not load camera module";
         ASSERT_NE((void*)0, mModule);
@@ -58,14 +68,18 @@ private:
     }
 
     void TearDown() {
+        TEST_EXTENSION_FORKING_TEAR_DOWN;
+
         TearDownMixin();
 
         /* important: device must be destructed before closing module,
            since it calls back into HAL */
         mDevice.clear();
 
-        ASSERT_EQ(0, HWModuleHelpers::closeModule(&mModule->common))
-            << "Failed to close camera HAL module";
+        if (!TEST_EXTENSION_FORKING_ENABLED) {
+            ASSERT_EQ(0, HWModuleHelpers::closeModule(&mModule->common))
+                << "Failed to close camera HAL module";
+        }
     }
 
     void SetUpMixin() {
@@ -105,3 +119,4 @@ private:
 }
 }
 
+#endif
