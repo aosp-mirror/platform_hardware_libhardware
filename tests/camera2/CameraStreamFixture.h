@@ -14,12 +14,17 @@
  * limitations under the License.
  */
 
+#ifndef __ANDROID_HAL_CAMERA2_TESTS_STREAM_FIXTURE__
+#define __ANDROID_HAL_CAMERA2_TESTS_STREAM_FIXTURE__
+
 #include <gtest/gtest.h>
+#include <iostream>
 
 #include <gui/CpuConsumer.h>
 #include <gui/SurfaceTextureClient.h>
 
 #include "CameraModuleFixture.h"
+#include "TestExtensions.h"
 
 namespace android {
 namespace camera2 {
@@ -31,24 +36,38 @@ struct CameraStreamParams {
     int mHeapCount;
 };
 
+inline void PrintTo(const CameraStreamParams& p, ::std::ostream* os) {
+    *os <<  "{ ";
+    *os <<  "CameraID: "  << p.mCameraId << ", ";
+    *os <<  "Format: "    << p.mCameraId << ", ";
+    *os <<  "HeapCount: " << p.mCameraId;
+    *os << " }";
+}
+
 class CameraStreamFixture
     : public CameraModuleFixture</*InfoQuirk*/true> {
 
 public:
     CameraStreamFixture(CameraStreamParams p)
     : CameraModuleFixture(p.mCameraId) {
+        TEST_EXTENSION_FORKING_CONSTRUCTOR;
+
         mParam = p;
 
         SetUp();
     }
 
     ~CameraStreamFixture() {
+        TEST_EXTENSION_FORKING_DESTRUCTOR;
+
         TearDown();
     }
 
 private:
 
     void SetUp() {
+        TEST_EXTENSION_FORKING_SET_UP;
+
         CameraStreamParams p = mParam;
         sp<Camera2Device> device = mDevice;
 
@@ -69,6 +88,7 @@ private:
         }
     }
     void TearDown() {
+        TEST_EXTENSION_FORKING_TEAR_DOWN;
     }
 
 protected:
@@ -95,13 +115,6 @@ protected:
         ASSERT_EQ(OK, mDevice->deleteStream(mStreamId));
     }
 
-    /* consider factoring out this common code into
-      a CameraStreamFixture<T>, e.g.
-      class CameraStreamTest : TestWithParam<CameraStreamParameters>,
-                               CameraStreamFixture<CameraStreamParameters>
-       to make it easier for other classes to not duplicate the params
-      */
-
     int mWidth;
     int mHeight;
 
@@ -117,3 +130,4 @@ private:
 }
 }
 
+#endif

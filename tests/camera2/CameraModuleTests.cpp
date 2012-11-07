@@ -16,7 +16,7 @@
 
 #include <gtest/gtest.h>
 
-#define LOG_TAG "DISABLED_CameraModuleTest"
+#define LOG_TAG "CameraModuleTest"
 #define LOG_NDEBUG 0
 #include <utils/Log.h>
 
@@ -31,23 +31,13 @@ namespace android {
 namespace camera2 {
 namespace tests {
 
-class DISABLED_CameraModuleTest : public ::testing::Test,
+class CameraModuleTest : public ::testing::Test,
                                   public CameraModuleFixture<> {
-
-    virtual void SetUp() {
-        //CameraModuleFixture::SetUp();
-    }
-
-    virtual void TearDown() {
-        //CameraModuleFixture::TearDown();
-    }
 };
 
-TEST_F(DISABLED_CameraModuleTest, LoadModule) {
+TEST_F(CameraModuleTest, LoadModule) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     for (int i = 0; i < mNumberOfCameras; ++i) {
         mDevice = new Camera2Device(i);
@@ -58,11 +48,9 @@ TEST_F(DISABLED_CameraModuleTest, LoadModule) {
 
 }
 
-TEST_F(DISABLED_CameraModuleTest, LoadModuleBadIndices) {
+TEST_F(CameraModuleTest, LoadModuleBadIndices) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
 
@@ -77,11 +65,9 @@ TEST_F(DISABLED_CameraModuleTest, LoadModuleBadIndices) {
     }
 }
 
-TEST_F(DISABLED_CameraModuleTest, GetCameraInfo) {
+TEST_F(CameraModuleTest, GetCameraInfo) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     for (int i = 0; i < mNumberOfCameras; ++i) {
         struct camera_info info;
@@ -90,11 +76,9 @@ TEST_F(DISABLED_CameraModuleTest, GetCameraInfo) {
 
 }
 
-TEST_F(DISABLED_CameraModuleTest, GetCameraInfoBadIndices) {
+TEST_F(CameraModuleTest, GetCameraInfoBadIndices) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
@@ -109,6 +93,8 @@ TEST_F(DISABLED_CameraModuleTest, GetCameraInfoBadIndices) {
 /**
  * TODO: Additional test to add: open two cameras at once.
  *       (is allowed to fail, at least for now, but should not blow up)
+ *     - open same device multiple times
+ *     - close same device multiple times
  */
 
 
