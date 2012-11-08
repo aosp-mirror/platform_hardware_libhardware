@@ -26,6 +26,12 @@
 
 __BEGIN_DECLS
 
+/*****************************************************************************/
+
+#define SENSORS_HEADER_VERSION          1
+#define SENSORS_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
+#define SENSORS_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, SENSORS_HEADER_VERSION)
+
 /**
  * The id of this module
  */
@@ -48,49 +54,7 @@ __BEGIN_DECLS
 
 
 /**
- * Sensor types
- */
-#define SENSOR_TYPE_ACCELEROMETER       1
-#define SENSOR_TYPE_MAGNETIC_FIELD      2
-#define SENSOR_TYPE_ORIENTATION         3
-#define SENSOR_TYPE_GYROSCOPE           4
-#define SENSOR_TYPE_LIGHT               5
-#define SENSOR_TYPE_PRESSURE            6
-#define SENSOR_TYPE_TEMPERATURE         7   // deprecated
-#define SENSOR_TYPE_PROXIMITY           8
-#define SENSOR_TYPE_GRAVITY             9
-#define SENSOR_TYPE_LINEAR_ACCELERATION 10
-#define SENSOR_TYPE_ROTATION_VECTOR     11
-#define SENSOR_TYPE_RELATIVE_HUMIDITY   12
-#define SENSOR_TYPE_AMBIENT_TEMPERATURE 13
-
-/**
- * Values returned by the accelerometer in various locations in the universe.
- * all values are in SI units (m/s^2)
- */
-
-#define GRAVITY_SUN             (275.0f)
-#define GRAVITY_EARTH           (9.80665f)
-
-/** Maximum magnetic field on Earth's surface */
-#define MAGNETIC_FIELD_EARTH_MAX    (60.0f)
-
-/** Minimum magnetic field on Earth's surface */
-#define MAGNETIC_FIELD_EARTH_MIN    (30.0f)
-
-
-/**
- * status of each sensor
- */
-
-#define SENSOR_STATUS_UNRELIABLE        0
-#define SENSOR_STATUS_ACCURACY_LOW      1
-#define SENSOR_STATUS_ACCURACY_MEDIUM   2
-#define SENSOR_STATUS_ACCURACY_HIGH     3
-
-/**
- * Definition of the axis
- * ----------------------
+ * Definition of the axis used by the sensor HAL API
  *
  * This API is relative to the screen of the device in its default orientation,
  * that is, if the device can be used in portrait or landscape, this API
@@ -117,9 +81,60 @@ __BEGIN_DECLS
  *
  *    O: Origin (x=0,y=0,z=0)
  *
+ */
+
+
+/*
+ * SENSOR_TYPE_ACCELEROMETER
  *
+ *  All values are in SI units (m/s^2) and measure the acceleration of the
+ *  device minus the force of gravity.
+ *
+ *  Acceleration sensors return sensor events for all 3 axes at a constant
+ *  rate defined by setDelay().
+ *
+ *  x: Acceleration on the x-axis
+ *  y: Acceleration on the y-axis
+ *  z: Acceleration on the z-axis
+ *
+ * Note that the readings from the accelerometer include the acceleration
+ * due to gravity (which is opposite to the direction of the gravity vector).
+ *
+ *  Examples:
+ *    The norm of <x, y, z>  should be close to 0 when in free fall.
+ *
+ *    When the device lies flat on a table and is pushed on its left side
+ *    toward the right, the x acceleration value is positive.
+ *
+ *    When the device lies flat on a table, the acceleration value is +9.81,
+ *    which correspond to the acceleration of the device (0 m/s^2) minus the
+ *    force of gravity (-9.81 m/s^2).
+ *
+ *    When the device lies flat on a table and is pushed toward the sky, the
+ *    acceleration value is greater than +9.81, which correspond to the
+ *    acceleration of the device (+A m/s^2) minus the force of
+ *    gravity (-9.81 m/s^2).
+ */
+#define SENSOR_TYPE_ACCELEROMETER                    (1)
+
+/*
+ * SENSOR_TYPE_GEOMAGNETIC_FIELD
+ *
+ *  All values are in micro-Tesla (uT) and measure the geomagnetic
+ *  field in the X, Y and Z axis.
+ *
+ *  Returned values include calibration mechanisms such that the vector is
+ *  aligned with the magnetic declination and heading of the earth's
+ *  geomagnetic field.
+ *
+ *  Magnetic Field sensors return sensor events for all 3 axes at a constant
+ *  rate defined by setDelay().
+ */
+#define SENSOR_TYPE_GEOMAGNETIC_FIELD                (2)
+#define SENSOR_TYPE_MAGNETIC_FIELD  SENSOR_TYPE_GEOMAGNETIC_FIELD
+
+/*
  * SENSOR_TYPE_ORIENTATION
- * -----------------------
  * 
  * All values are angles in degrees.
  * 
@@ -153,46 +168,11 @@ __BEGIN_DECLS
  *
  * Note: This definition is different from yaw, pitch and roll used in aviation
  *  where the X axis is along the long side of the plane (tail to nose).
- *  
- *  
- * SENSOR_TYPE_ACCELEROMETER
- * -------------------------
- *
- *  All values are in SI units (m/s^2) and measure the acceleration of the
- *  device minus the force of gravity.
- *  
- *  Acceleration sensors return sensor events for all 3 axes at a constant
- *  rate defined by setDelay().
- *
- *  x: Acceleration minus Gx on the x-axis 
- *  y: Acceleration minus Gy on the y-axis 
- *  z: Acceleration minus Gz on the z-axis
- *  
- *  Examples:
- *    When the device lies flat on a table and is pushed on its left side
- *    toward the right, the x acceleration value is positive.
- *    
- *    When the device lies flat on a table, the acceleration value is +9.81,
- *    which correspond to the acceleration of the device (0 m/s^2) minus the
- *    force of gravity (-9.81 m/s^2).
- *    
- *    When the device lies flat on a table and is pushed toward the sky, the
- *    acceleration value is greater than +9.81, which correspond to the
- *    acceleration of the device (+A m/s^2) minus the force of 
- *    gravity (-9.81 m/s^2).
- *    
- *    
- * SENSOR_TYPE_MAGNETIC_FIELD
- * --------------------------
- * 
- *  All values are in micro-Tesla (uT) and measure the ambient magnetic
- *  field in the X, Y and Z axis.
- *
- *  Magnetic Field sensors return sensor events for all 3 axes at a constant
- *  rate defined by setDelay().
- *
+ */
+#define SENSOR_TYPE_ORIENTATION                      (3)
+
+/*
  * SENSOR_TYPE_GYROSCOPE
- * ---------------------
  *
  *  All values are in radians/second and measure the rate of rotation
  *  around the X, Y and Z axis.  The coordinate system is the same as is
@@ -205,8 +185,34 @@ __BEGIN_DECLS
  *  with the definition of roll given earlier.
  *  The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
  *
+ *  automatic gyro-drift compensation is allowed but not required.
+ */
+#define SENSOR_TYPE_GYROSCOPE                        (4)
+
+/*
+ * SENSOR_TYPE_LIGHT
+ *
+ * The light sensor value is returned in SI lux units.
+ *
+ * Light sensors report a value only when it changes and each time the
+ * sensor is enabled.
+ */
+#define SENSOR_TYPE_LIGHT                            (5)
+
+/*
+ * SENSOR_TYPE_PRESSURE
+ *
+ * The pressure sensor return the athmospheric pressure in hectopascal (hPa)
+ *
+ * Pressure sensors report events at a constant rate defined by setDelay().
+ */
+#define SENSOR_TYPE_PRESSURE                         (6)
+
+/* SENSOR_TYPE_TEMPERATURE is deprecated in the HAL */
+#define SENSOR_TYPE_TEMPERATURE                      (7)
+
+/*
  * SENSOR_TYPE_PROXIMITY
- * ----------------------
  *
  * The distance value is measured in centimeters.  Note that some proximity
  * sensors only support a binary "close" or "far" measurement.  In this case,
@@ -215,42 +221,38 @@ __BEGIN_DECLS
  *
  * Proximity sensors report a value only when it changes and each time the
  * sensor is enabled.
- *
- * SENSOR_TYPE_LIGHT
- * -----------------
- *
- * The light sensor value is returned in SI lux units.
- *
- * Light sensors report a value only when it changes and each time the
- * sensor is enabled.
- *
- * SENSOR_TYPE_PRESSURE
- * --------------------
- *
- * The pressure sensor return the athmospheric pressure in hectopascal (hPa)
- *
- * Pressure sensors report events at a constant rate defined by setDelay().
- *
+ */
+#define SENSOR_TYPE_PROXIMITY                        (8)
+
+/*
  * SENSOR_TYPE_GRAVITY
- * -------------------
  *
  * A gravity output indicates the direction of and magnitude of gravity in
  * the devices's coordinates.  On Earth, the magnitude is 9.8 m/s^2.
  * Units are m/s^2.  The coordinate system is the same as is used for the
  * acceleration sensor. When the device is at rest, the output of the
  * gravity sensor should be identical to that of the accelerometer.
- *
+ */
+#define SENSOR_TYPE_GRAVITY                          (9)
+
+/*
  * SENSOR_TYPE_LINEAR_ACCELERATION
- * --------------------------------
  *
  * Indicates the linear acceleration of the device in device coordinates,
  * not including gravity.
- * This output is essentially Acceleration - Gravity.  Units are m/s^2.
+ *
+ * The output is conceptually:
+ *    output of TYPE_ACCELERATION - output of TYPE_GRAVITY
+ *
+ * Readings on all axes should be close to 0 when device lies on a table.
+ * Units are m/s^2.
  * The coordinate system is the same as is used for the acceleration sensor.
- *
- *
+ */
+#define SENSOR_TYPE_LINEAR_ACCELERATION             (10)
+
+
+/*
  * SENSOR_TYPE_ROTATION_VECTOR
- * ---------------------------
  *
  * A rotation vector represents the orientation of the device as a combination
  * of an angle and an axis, in which the device has rotated through an angle
@@ -281,28 +283,110 @@ __BEGIN_DECLS
  *   sensors_event_t.data[1] = y*sin(theta/2)
  *   sensors_event_t.data[2] = z*sin(theta/2)
  *   sensors_event_t.data[3] =   cos(theta/2)
- *
- *
+ */
+#define SENSOR_TYPE_ROTATION_VECTOR                 (11)
+
+/*
  * SENSOR_TYPE_RELATIVE_HUMIDITY
- * ------------------------------
  *
  * A relative humidity sensor measures relative ambient air humidity and
  * returns a value in percent.
  *
  * Relative humidity sensors report a value only when it changes and each
  * time the sensor is enabled.
- *
- *
+ */
+#define SENSOR_TYPE_RELATIVE_HUMIDITY               (12)
+
+/*
  * SENSOR_TYPE_AMBIENT_TEMPERATURE
- * -------------------------------
  *
  * The ambient (room) temperature in degree Celsius.
  *
  * Temperature sensors report a value only when it changes and each time the
  * sensor is enabled.
+ */
+#define SENSOR_TYPE_AMBIENT_TEMPERATURE             (13)
+
+/*
+ * SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED
  *
+ *  All values are in micro-Tesla (uT) and measure the ambient magnetic
+ *  field in the X, Y and Z axis.
+ *
+ *  No periodic calibration is performed (ie: there are no discontinuities
+ *  in the data stream while using this sensor). Assumptions that the the
+ *  magnetic field is due to the Earth's poles should be avoided.
+ *
+ *  Factory calibration and temperature compensation should still be applied.
+ *
+ *  Magnetic Field sensors return sensor events for all 3 axes at a constant
+ *  rate defined by setDelay().
+ */
+#define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
+
+/*
+ * SENSOR_TYPE_GAME_ROTATION_VECTOR
+ *
+ * SENSOR_TYPE_GAME_ROTATION_VECTOR is identical to SENSOR_TYPE_ROTATION_VECTOR,
+ * except that it doesn't use the geomagnetic field. Therefore the Y axis doesn't
+ * point north, but instead to some other reference, that reference is allowed
+ * to drift by the same order of magnitude than the gyroscope drift around
+ * the Z axis.
+ *
+ * In the ideal case, a phone rotated and returning to the same real-world
+ * orientation should report the same game rotation vector
+ * (without using the earth's geomagnetic field).
+ *
+ * see SENSOR_TYPE_ROTATION_VECTOR for more details
+ */
+#define SENSOR_TYPE_GAME_ROTATION_VECTOR            (15)
+
+/*
+ * SENSOR_TYPE_GYROSCOPE_UNCALIBRATED
+ *
+ *  All values are in radians/second and measure the rate of rotation
+ *  around the X, Y and Z axis.  The coordinate system is the same as is
+ *  used for the acceleration sensor. Rotation is positive in the
+ *  counter-clockwise direction (right-hand rule). That is, an observer
+ *  looking from some positive location on the x, y or z axis at a device
+ *  positioned on the origin would report positive rotation if the device
+ *  appeared to be rotating counter clockwise. Note that this is the
+ *  standard mathematical definition of positive rotation and does not agree
+ *  with the definition of roll given earlier.
+ *  The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
+ *
+ *  No gyro-drift compensation shall be performed.
+ *  Factory calibration and temperature compensation should still be applied.
+ */
+#define SENSOR_TYPE_GYROSCOPE_UNCALIBRATED          (16)
+
+/**
+ * Values returned by the accelerometer in various locations in the universe.
+ * all values are in SI units (m/s^2)
+ */
+#define GRAVITY_SUN             (275.0f)
+#define GRAVITY_EARTH           (9.80665f)
+
+/** Maximum magnetic field on Earth's surface */
+#define MAGNETIC_FIELD_EARTH_MAX    (60.0f)
+
+/** Minimum magnetic field on Earth's surface */
+#define MAGNETIC_FIELD_EARTH_MIN    (30.0f)
+
+
+/**
+ * status of orientation sensor
  */
 
+#define SENSOR_STATUS_UNRELIABLE        0
+#define SENSOR_STATUS_ACCURACY_LOW      1
+#define SENSOR_STATUS_ACCURACY_MEDIUM   2
+#define SENSOR_STATUS_ACCURACY_HIGH     3
+
+
+/**
+ * sensor event data
+ */
 typedef struct {
     union {
         float v[3];
