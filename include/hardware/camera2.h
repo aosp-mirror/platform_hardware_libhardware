@@ -25,8 +25,7 @@
  *
  * EXPERIMENTAL.
  *
- * Supports both the android.hardware.ProCamera and
- * android.hardware.Camera APIs.
+ * Supports the android.hardware.Camera APIs.
  *
  * Camera devices that support this version of the HAL must return
  * CAMERA_DEVICE_API_VERSION_2_0 in camera_device_t.common.version and in
@@ -38,6 +37,13 @@
  *
  * See camera_common.h for more versioning details.
  *
+ * Version history:
+ *
+ * 2.0: Initial release (Android 4.2):
+ *      - Sufficient for implementing existing android.hardware.Camera API.
+ *      - Allows for ZSL queue in camera service layer
+ *      - Not tested for any new features such manual capture control,
+ *        Bayer RAW capture, reprocessing of RAW data.
  */
 
 __BEGIN_DECLS
