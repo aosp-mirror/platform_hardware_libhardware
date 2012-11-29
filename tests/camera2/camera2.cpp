@@ -15,7 +15,7 @@
  */
 
 #define LOG_TAG "Camera2_test"
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 
 #include <utils/Log.h>
 #include <gtest/gtest.h>
@@ -28,6 +28,7 @@
 #include <system/camera_metadata.h>
 
 #include "camera2_utils.h"
+#include "TestExtensions.h"
 
 namespace android {
 namespace camera2 {
@@ -35,7 +36,7 @@ namespace tests {
 
 class Camera2Test: public testing::Test {
   public:
-    static void SetUpTestCase() {
+    void SetUpModule() {
         int res;
 
         hw_module_t *module = NULL;
@@ -105,7 +106,7 @@ class Camera2Test: public testing::Test {
         }
     }
 
-    static void TearDownTestCase() {
+    void TearDownModule() {
         hw_module_t *module = reinterpret_cast<hw_module_t*>(sCameraModule);
         ASSERT_EQ(0, HWModuleHelpers::closeModule(module));
     }
@@ -283,20 +284,30 @@ class Camera2Test: public testing::Test {
     }
 
     virtual void SetUp() {
+        TEST_EXTENSION_FORKING_SET_UP;
+
+        SetUpModule();
+
         const ::testing::TestInfo* const testInfo =
                 ::testing::UnitTest::GetInstance()->current_test_info();
+        (void)testInfo;
 
-        ALOGV("*** Starting test %s in test case %s", testInfo->name(), testInfo->test_case_name());
+        ALOGV("*** Starting test %s in test case %s", testInfo->name(),
+              testInfo->test_case_name());
         mDevice = NULL;
     }
 
     virtual void TearDown() {
+        TEST_EXTENSION_FORKING_TEAR_DOWN;
+
         for (unsigned int i = 0; i < mStreams.size(); i++) {
             delete mStreams[i];
         }
         if (mDevice != NULL) {
             closeCameraDevice(mDevice);
         }
+
+        TearDownModule();
     }
 
     camera2_device    *mDevice;
@@ -324,6 +335,9 @@ static const nsecs_t SEC = 1000*MSEC;
 
 
 TEST_F(Camera2Test, OpenClose) {
+
+    TEST_EXTENSION_FORKING_INIT;
+
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {
@@ -338,6 +352,9 @@ TEST_F(Camera2Test, OpenClose) {
 }
 
 TEST_F(Camera2Test, Capture1Raw) {
+
+    TEST_EXTENSION_FORKING_INIT;
+
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {
@@ -452,6 +469,9 @@ TEST_F(Camera2Test, Capture1Raw) {
 }
 
 TEST_F(Camera2Test, CaptureBurstRaw) {
+
+    TEST_EXTENSION_FORKING_INIT;
+
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {
@@ -584,6 +604,9 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 }
 
 TEST_F(Camera2Test, ConstructDefaultRequests) {
+
+    TEST_EXTENSION_FORKING_INIT;
+
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {
@@ -613,7 +636,7 @@ TEST_F(Camera2Test, ConstructDefaultRequests) {
     }
 }
 
-TEST_F(Camera2Test, DISABLED_Capture1Jpeg) {
+TEST_F(Camera2Test, Capture1Jpeg) {
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {

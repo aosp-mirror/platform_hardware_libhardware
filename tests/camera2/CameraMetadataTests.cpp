@@ -32,7 +32,9 @@
 #include <gui/SurfaceTextureClient.h>
 
 #include <string>
+
 #include "CameraStreamFixture.h"
+#include "TestExtensions.h"
 
 namespace android {
 namespace camera2 {
@@ -45,16 +47,18 @@ static CameraStreamParams METADATA_STREAM_PARAMETERS = {
     /*mHeapCount*/  2
 };
 
-class DISABLED_CameraMetadataTest
+class CameraMetadataTest
     : public ::testing::Test,
       public CameraStreamFixture {
 
 public:
-    DISABLED_CameraMetadataTest()
+    CameraMetadataTest()
     : CameraStreamFixture(METADATA_STREAM_PARAMETERS) {
+        TEST_EXTENSION_FORKING_CONSTRUCTOR;
     }
 
-    ~DISABLED_CameraMetadataTest() {
+    ~CameraMetadataTest() {
+        TEST_EXTENSION_FORKING_DESTRUCTOR;
     }
 
     int GetTypeFromTag(uint32_t tag) const {
@@ -67,22 +71,13 @@ public:
         return entry.type;
     }
 
-    static void SetUpTestCase() {
-    }
-
-    static void TearDownTestCase()
-    {
-    }
-
 protected:
 
 };
 
-TEST_F(DISABLED_CameraMetadataTest, types) {
+TEST_F(CameraMetadataTest, types) {
 
-    if (HasFatalFailure()) {
-        return;
-    }
+    TEST_EXTENSION_FORKING_INIT;
 
     //FIXME: set this up in an external file of some sort (xml?)
     {
