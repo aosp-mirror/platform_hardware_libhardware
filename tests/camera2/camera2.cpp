@@ -387,7 +387,7 @@ TEST_F(Camera2Test, Capture1Raw) {
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
 
-        uint8_t metadataMode = ANDROID_REQUEST_METADATA_FULL;
+        uint8_t metadataMode = ANDROID_REQUEST_METADATA_MODE_FULL;
         add_camera_metadata_entry(request,
                 ANDROID_REQUEST_METADATA_MODE,
                 (void**)&metadataMode, 1);
@@ -504,7 +504,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
 
-        uint8_t metadataMode = ANDROID_REQUEST_METADATA_FULL;
+        uint8_t metadataMode = ANDROID_REQUEST_METADATA_MODE_FULL;
         add_camera_metadata_entry(request,
                 ANDROID_REQUEST_METADATA_MODE,
                 (void**)&metadataMode, 1);
@@ -669,7 +669,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
 
-        uint8_t metadataMode = ANDROID_REQUEST_METADATA_FULL;
+        uint8_t metadataMode = ANDROID_REQUEST_METADATA_MODE_FULL;
         add_camera_metadata_entry(request,
                 ANDROID_REQUEST_METADATA_MODE,
                 (void**)&metadataMode, 1);
