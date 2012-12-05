@@ -296,14 +296,14 @@ TEST_P(KeymasterGenerateTest, GenerateKeyPair_RSA_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->generate_keypair(sDevice, key_type, &params, &key_blob, &key_blob_length))
             << "Should generate an RSA key with 512 bit modulus size";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
 
     uint8_t* x509_data = NULL;
     size_t x509_data_length;
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->get_keypair_public(sDevice, key_blob, key_blob_length,
                     &x509_data, &x509_data_length))
             << "Should be able to retrieve RSA public key successfully";
@@ -322,10 +322,10 @@ TEST_P(KeymasterGenerateTest, GenerateKeyPair_RSA_Success) {
     ASSERT_FALSE(rsa.get() == NULL)
             << "Should be able to extract RSA key from EVP_PKEY";
 
-    EXPECT_EQ(static_cast<unsigned long>(RSA_F4), BN_get_word(rsa.get()->e))
+    ASSERT_EQ(static_cast<unsigned long>(RSA_F4), BN_get_word(rsa.get()->e))
             << "Exponent should be RSA_F4";
 
-    EXPECT_EQ(GetParam() / 8, static_cast<uint32_t>(RSA_size(rsa.get())))
+    ASSERT_EQ(GetParam() / 8, static_cast<uint32_t>(RSA_size(rsa.get())))
             << "Modulus size should be the specified parameter";
 }
 
@@ -339,7 +339,7 @@ TEST_F(KeymasterTest, GenerateKeyPair_RSA_NullParams_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->generate_keypair(sDevice, key_type, NULL, &key_blob, &key_blob_length))
             << "Should not be able to generate an RSA key with null params";
 }
@@ -350,7 +350,7 @@ TEST_F(KeymasterTest, GenerateKeyPair_UnknownType_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->generate_keypair(sDevice, key_type, NULL, &key_blob, &key_blob_length))
             << "Should not generate an unknown key type";
 }
@@ -359,7 +359,7 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
@@ -367,7 +367,7 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
 
     uint8_t* x509_data;
     size_t x509_data_length;
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->get_keypair_public(sDevice, key_blob, key_blob_length,
                     &x509_data, &x509_data_length))
             << "Should be able to retrieve RSA public key successfully";
@@ -377,7 +377,7 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
     Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
-    EXPECT_EQ(EVP_PKEY_type(actual.get()->type), EVP_PKEY_RSA)
+    ASSERT_EQ(EVP_PKEY_type(actual.get()->type), EVP_PKEY_RSA)
             << "Generated key type should be of type RSA";
 
     const unsigned char *expectedTmp = static_cast<const unsigned char*>(TEST_KEY_1);
@@ -387,7 +387,7 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
 
     Unique_EVP_PKEY expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
 
-    EXPECT_EQ(1, EVP_PKEY_cmp(expected.get(), actual.get()))
+    ASSERT_EQ(1, EVP_PKEY_cmp(expected.get(), actual.get()))
             << "Expected and actual keys should match";
 }
 
@@ -395,7 +395,7 @@ TEST_F(KeymasterTest, ImportKeyPair_BogusKey_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->import_keypair(sDevice, BOGUS_KEY_1, sizeof(BOGUS_KEY_1),
                     &key_blob, &key_blob_length))
             << "Should not import an unknown key type";
@@ -405,7 +405,7 @@ TEST_F(KeymasterTest, ImportKeyPair_NullKey_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->import_keypair(sDevice, NULL, 0,
                     &key_blob, &key_blob_length))
             << "Should not import a null key";
@@ -423,7 +423,7 @@ TEST_F(KeymasterTest, GetKeypairPublic_RSA_Success) {
 
     uint8_t* x509_data;
     size_t x509_data_length;
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->get_keypair_public(sDevice, key_blob, key_blob_length,
                     &x509_data, &x509_data_length))
             << "Should be able to retrieve RSA public key successfully";
@@ -436,7 +436,7 @@ TEST_F(KeymasterTest, GetKeypairPublic_RSA_NullKey_Failure) {
 
     uint8_t* x509_data = NULL;
     size_t x509_data_length;
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->get_keypair_public(sDevice, NULL, 0,
                     &x509_data, &x509_data_length))
             << "Should not be able to retrieve RSA public key from null key";
@@ -453,7 +453,7 @@ TEST_F(KeymasterTest, GetKeypairPublic_RSA_NullDestination_Failure) {
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->get_keypair_public(sDevice, key.get(), key.length(),
                     NULL, NULL))
             << "Should not be able to succeed with NULL destination blob";
@@ -463,7 +463,7 @@ TEST_F(KeymasterTest, DeleteKeyPair_RSA_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
@@ -485,10 +485,10 @@ TEST_F(KeymasterTest, DeleteKeyPair_RSA_DoubleDelete_Failure) {
                 << "Should successfully import an RSA key";
         UniqueBlob blob(key_blob, key_blob_length);
 
-        EXPECT_EQ(0, sDevice->delete_keypair(sDevice, key_blob, key_blob_length))
+        ASSERT_EQ(0, sDevice->delete_keypair(sDevice, key_blob, key_blob_length))
                 << "Should delete key after import";
 
-        EXPECT_EQ(-1, sDevice->delete_keypair(sDevice, key_blob, key_blob_length))
+        ASSERT_EQ(-1, sDevice->delete_keypair(sDevice, key_blob, key_blob_length))
                 << "Should not be able to delete key twice";
     }
 }
@@ -499,7 +499,7 @@ TEST_F(KeymasterTest, DeleteKeyPair_RSA_NullKey_Failure) {
      * by implementing delete_keypair.
      */
     if (sDevice->delete_keypair != NULL) {
-        EXPECT_EQ(-1, sDevice->delete_keypair(sDevice, NULL, 0))
+        ASSERT_EQ(-1, sDevice->delete_keypair(sDevice, NULL, 0))
                 << "Should not be able to delete null key";
     }
 }
@@ -601,7 +601,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_Success) {
     uint8_t* sig;
     size_t sig_length;
 
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
                     TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
                     &sig, &sig_length))
@@ -610,7 +610,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_Success) {
 
     UniqueBlob expected_sig(TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1));
 
-    EXPECT_EQ(expected_sig, sig_blob)
+    ASSERT_EQ(expected_sig, sig_blob)
             << "Generated signature should match expected signature";
 
     // The expected signature is actually stack data, so don't let it try to free.
@@ -635,7 +635,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_InvalidSizeInput_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
                     TEST_KEY_1, sizeof(TEST_KEY_1),
                     &sig, &sig_length))
@@ -651,7 +651,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullKey_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, NULL, 0,
                     TEST_KEY_1, sizeof(TEST_KEY_1),
                     &sig, &sig_length))
@@ -676,7 +676,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullInput_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
                     NULL, 0,
                     &sig, &sig_length))
@@ -701,7 +701,7 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullOutput_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
                     TEST_KEY_1, sizeof(TEST_KEY_1),
                     NULL, NULL))
@@ -723,7 +723,7 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_Success) {
             padding_type: PADDING_NONE,
     };
 
-    EXPECT_EQ(0,
+    ASSERT_EQ(0,
             sDevice->verify_data(sDevice, &params, key_blob, key_blob_length,
                     TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
                     TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1)))
@@ -745,7 +745,7 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_BadSignature_Failure) {
             padding_type: PADDING_NONE,
     };
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, key_blob, key_blob_length,
                     TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
                     TEST_SIGN_SIGNATURE_BOGUS_1, sizeof(TEST_SIGN_SIGNATURE_BOGUS_1)))
@@ -758,7 +758,7 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_NullKey_Failure) {
             padding_type: PADDING_NONE,
     };
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, NULL, 0,
                     TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
                     TEST_SIGN_SIGNATURE_BOGUS_1, sizeof(TEST_SIGN_SIGNATURE_BOGUS_1)))
@@ -780,7 +780,7 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullInput_Failure) {
             padding_type: PADDING_NONE,
     };
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, key_blob, key_blob_length,
                     NULL, 0,
                     TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1)))
@@ -802,7 +802,7 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullSignature_Failure) {
             padding_type: PADDING_NONE,
     };
 
-    EXPECT_EQ(-1,
+    ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, key.get(), key.length(),
                     TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
                     NULL, 0))
@@ -830,7 +830,7 @@ TEST_F(KeymasterTest, EraseAll_Success) {
             << "Should successfully import an RSA key";
     UniqueKey key2(&sDevice, key2_blob, key2_blob_length);
 
-    EXPECT_EQ(0, sDevice->delete_all(sDevice))
+    ASSERT_EQ(0, sDevice->delete_all(sDevice))
             << "Should erase all keys";
 
     key1.reset();
