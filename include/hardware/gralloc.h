@@ -57,9 +57,9 @@ enum {
     
     /* buffer is never written in software */
     GRALLOC_USAGE_SW_WRITE_NEVER        = 0x00000000,
-    /* buffer is never written in software */
+    /* buffer is rarely written in software */
     GRALLOC_USAGE_SW_WRITE_RARELY       = 0x00000020,
-    /* buffer is never written in software */
+    /* buffer is often written in software */
     GRALLOC_USAGE_SW_WRITE_OFTEN        = 0x00000030,
     /* mask for the software write values */
     GRALLOC_USAGE_SW_WRITE_MASK         = 0x000000F0,
