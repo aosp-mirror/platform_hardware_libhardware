@@ -22,6 +22,8 @@
 
 #include <gui/CpuConsumer.h>
 #include <gui/SurfaceTextureClient.h>
+#include <utils/Condition.h>
+#include <utils/Mutex.h>
 
 #include "CameraModuleFixture.h"
 #include "TestExtensions.h"
@@ -38,9 +40,9 @@ struct CameraStreamParams {
 
 inline void PrintTo(const CameraStreamParams& p, ::std::ostream* os) {
     *os <<  "{ ";
-    *os <<  "CameraID: "  << p.mCameraId << ", ";
-    *os <<  "Format: "    << p.mCameraId << ", ";
-    *os <<  "HeapCount: " << p.mCameraId;
+    *os <<  "CameraID: "  << p.mCameraId  << ", ";
+    *os <<  "Format: "    << p.mFormat    << ", ";
+    *os <<  "HeapCount: " << p.mHeapCount;
     *os << " }";
 }
 
@@ -92,6 +94,39 @@ private:
     }
 
 protected:
+    struct FrameListener : public ConsumerBase::FrameAvailableListener {
+
+        FrameListener() {
+            mPendingFrames = 0;
+        }
+
+        // CpuConsumer::FrameAvailableListener implementation
+        virtual void onFrameAvailable() {
+            ALOGV("Frame now available (start)");
+
+            Mutex::Autolock lock(mMutex);
+            mPendingFrames++;
+            mCondition.signal();
+
+            ALOGV("Frame now available (end)");
+        }
+
+        status_t waitForFrame(nsecs_t timeout) {
+            status_t res;
+            Mutex::Autolock lock(mMutex);
+            while (mPendingFrames == 0) {
+                res = mCondition.waitRelative(mMutex, timeout);
+                if (res != OK) return res;
+            }
+            mPendingFrames--;
+            return OK;
+        }
+
+    private:
+        Mutex mMutex;
+        Condition mCondition;
+        int mPendingFrames;
+    };
 
     void CreateStream() {
         sp<Camera2Device> device = mDevice;
@@ -109,6 +144,10 @@ protected:
                 &mStreamId));
 
         ASSERT_NE(-1, mStreamId);
+
+        // do not make 'this' a FrameListener or the lifetime policy will clash
+        mFrameListener = new FrameListener();
+        mCpuConsumer->setFrameAvailableListener(mFrameListener);
     }
 
     void DeleteStream() {
@@ -119,8 +158,11 @@ protected:
     int mHeight;
 
     int mStreamId;
+
+    android::sp<FrameListener>       mFrameListener;
     android::sp<CpuConsumer>         mCpuConsumer;
     android::sp<ANativeWindow>       mNativeWindow;
+
 
 private:
     CameraStreamParams mParam;
