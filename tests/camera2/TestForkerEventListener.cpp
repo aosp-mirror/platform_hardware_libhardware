@@ -33,17 +33,12 @@ namespace android {
 namespace camera2 {
 namespace tests {
 
-bool TestForkerEventListener::mUsingForking     = true;
 bool TestForkerEventListener::mIsForked         = false;
 
 TestForkerEventListener::TestForkerEventListener() {
     mIsForked = false;
     mHasSucceeded = true;
     mTermSignal = 0;
-}
-
-void TestForkerEventListener::SetForking(bool enabled) {
-    mUsingForking = enabled;
 }
 
 // Called before a test starts.

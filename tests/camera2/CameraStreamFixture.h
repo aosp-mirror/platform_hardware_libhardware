@@ -33,14 +33,12 @@ namespace camera2 {
 namespace tests {
 
 struct CameraStreamParams {
-    int mCameraId;
     int mFormat;
     int mHeapCount;
 };
 
 inline void PrintTo(const CameraStreamParams& p, ::std::ostream* os) {
     *os <<  "{ ";
-    *os <<  "CameraID: "  << p.mCameraId  << ", ";
     *os <<  "Format: "    << p.mFormat    << ", ";
     *os <<  "HeapCount: " << p.mHeapCount;
     *os << " }";
@@ -51,7 +49,7 @@ class CameraStreamFixture
 
 public:
     CameraStreamFixture(CameraStreamParams p)
-    : CameraModuleFixture(p.mCameraId) {
+    : CameraModuleFixture(TestSettings::DeviceId()) {
         TEST_EXTENSION_FORKING_CONSTRUCTOR;
 
         mParam = p;
