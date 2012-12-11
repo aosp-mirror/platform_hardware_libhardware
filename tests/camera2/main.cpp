@@ -14,25 +14,22 @@
  * limitations under the License.
  */
 
-#include <stdlib.h>
-
 #include <gtest/gtest.h>
 #include "TestForkerEventListener.h"
+#include "TestSettings.h"
 
 using android::camera2::tests::TestForkerEventListener;
+using android::camera2::tests::TestSettings;
 
 int main(int argc, char **argv) {
 
+    bool printUsage = !TestSettings::ParseArgs(argc, argv);
+
     ::testing::InitGoogleTest(&argc, argv);
 
-    {
-        //TODO: have a command line flag as well
-        char *env = getenv("CAMERA2_TEST_FORKING_DISABLED");
-        if (env) {
-            int forking = atoi(env);
-
-            TestForkerEventListener::SetForking(!forking);
-        }
+    if (printUsage) {
+        TestSettings::PrintUsage();
+        return 0;
     }
 
     // Gets hold of the event listener list.

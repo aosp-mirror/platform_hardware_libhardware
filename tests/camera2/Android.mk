@@ -12,6 +12,7 @@ LOCAL_SRC_FILES:= \
 	CameraBurstTests.cpp \
 	ForkedTests.cpp \
 	TestForkerEventListener.cpp \
+	TestSettings.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libutils \

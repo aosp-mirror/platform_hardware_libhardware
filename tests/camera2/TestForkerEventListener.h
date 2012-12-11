@@ -30,9 +30,6 @@ public:
 
     TestForkerEventListener();
 
-    // Should we fork before running each test?
-    static void SetForking(bool enabled);
-
 private:
 
     // Called before a test starts.
@@ -50,7 +47,6 @@ private:
 
 public:
     // do not read directly. use TEST_EXTENSION macros instead
-    static bool mUsingForking;
     static bool mIsForked;
 };
 
