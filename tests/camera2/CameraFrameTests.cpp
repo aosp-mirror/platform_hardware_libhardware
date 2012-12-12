@@ -70,7 +70,6 @@ public:
         if (mDevice.get()) {
             mDevice->waitUntilDrained();
         }
-        DeleteStream();
     }
 
     virtual void SetUp() {
@@ -109,12 +108,13 @@ TEST_P(CameraFrameTest, GetFrame) {
     }
 
     for (int i = 0; i < GetParam(); ++i) {
-        ALOGV("Submitting capture request");
+        ALOGV("Submitting capture request %d", i);
         CameraMetadata tmpRequest = previewRequest;
         ASSERT_EQ(OK, mDevice->capture(tmpRequest));
     }
 
     for (int i = 0; i < GetParam(); ++i) {
+        ALOGV("Reading capture request %d", i);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
         CameraMetadata frameMetadata;
         ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
