@@ -785,7 +785,7 @@ typedef struct sensors_poll_device_1 {
         /* sensors_poll_device_1 is compatible with sensors_poll_device_t,
          * and can be down-cast to it
          */
-        sensors_poll_device_t v0;
+        struct sensors_poll_device_t v0;
 
         struct {
             struct hw_device_t common;
@@ -964,12 +964,12 @@ static inline int sensors_close(struct sensors_poll_device_t* device) {
 }
 
 static inline int sensors_open_1(const struct hw_module_t* module,
-        sensors_poll_device_1** device) {
+        sensors_poll_device_1_t** device) {
     return module->methods->open(module,
             SENSORS_HARDWARE_POLL, (struct hw_device_t**)device);
 }
 
-static inline int sensors_close_1(sensors_poll_device_1* device) {
+static inline int sensors_close_1(sensors_poll_device_1_t* device) {
     return device->common.close(&device->common);
 }
 
