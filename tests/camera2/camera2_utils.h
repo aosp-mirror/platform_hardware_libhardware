@@ -161,12 +161,12 @@ class NotifierListener {
 };
 
 /**
- * Adapter from an ISurfaceTexture interface to camera2 device stream ops.
+ * Adapter from an IGraphicBufferProducer interface to camera2 device stream ops.
  * Also takes care of allocating/deallocating stream in device interface
  */
 class StreamAdapter: public camera2_stream_ops {
   public:
-    StreamAdapter(sp<ISurfaceTexture> consumer);
+    StreamAdapter(sp<IGraphicBufferProducer> consumer);
 
     ~StreamAdapter();
 
