@@ -68,6 +68,8 @@ private:
     void SetUp() {
         TEST_EXTENSION_FORKING_SET_UP;
 
+        CameraModuleFixture::SetUp();
+
         CameraStreamParams p = mParam;
         sp<Camera2Device> device = mDevice;
 
@@ -89,6 +91,13 @@ private:
     }
     void TearDown() {
         TEST_EXTENSION_FORKING_TEAR_DOWN;
+
+        // important: shut down HAL before releasing streams
+        CameraModuleFixture::TearDown();
+
+        mNativeWindow.clear();
+        mCpuConsumer.clear();
+        mFrameListener.clear();
     }
 
 protected:
