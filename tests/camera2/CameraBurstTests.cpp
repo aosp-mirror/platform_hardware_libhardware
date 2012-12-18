@@ -122,16 +122,6 @@ public:
 
         return acc;
     }
-
-protected:
-
-    camera_metadata_ro_entry GetStaticEntry(uint32_t tag) const {
-        const CameraMetadata& staticInfo = mDevice->info();
-        camera_metadata_ro_entry entry = staticInfo.find(tag);
-        return entry;
-    }
-
-
 };
 
 TEST_F(CameraBurstTest, ManualExposureControl) {

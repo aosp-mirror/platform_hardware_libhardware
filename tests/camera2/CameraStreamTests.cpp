@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <iostream>
+#include <iomanip>
 #include <gtest/gtest.h>
 
 #define LOG_TAG "CameraStreamTest"
@@ -66,6 +68,36 @@ protected:
 TEST_P(CameraStreamTest, CreateStream) {
 
     TEST_EXTENSION_FORKING_INIT;
+
+    /** Make sure the format requested is supported. PASS this test if it's not
+      * not supported.
+      *
+      * TODO: would be nice of not running this test in the first place
+      *       somehow.
+      */
+    {
+        camera_metadata_ro_entry availableFormats =
+            GetStaticEntry(ANDROID_SCALER_AVAILABLE_FORMATS);
+
+        bool hasFormat = false;
+        for (size_t i = 0; i < availableFormats.count; ++i) {
+            if (availableFormats.data.i32[i] == GetParam().mFormat) {
+                hasFormat = true;
+                break;
+            }
+        }
+
+        if (!hasFormat) {
+            const ::testing::TestInfo* const test_info =
+                ::testing::UnitTest::GetInstance()->current_test_info();
+            std::cerr << "Skipping test "
+                      << test_info->test_case_name() << "."
+                      << test_info->name()
+                      << " because the format was not available: 0x"
+                      << std::hex << GetParam().mFormat << std::endl;
+            return;
+        }
+    }
 
     ASSERT_NO_FATAL_FAILURE(CreateStream());
     ASSERT_NO_FATAL_FAILURE(DeleteStream());

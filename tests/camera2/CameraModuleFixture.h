@@ -47,6 +47,12 @@ struct CameraModuleFixture {
         TearDown();
     }
 
+    camera_metadata_ro_entry GetStaticEntry(uint32_t tag) const {
+        const CameraMetadata& staticInfo = mDevice->info();
+        camera_metadata_ro_entry entry = staticInfo.find(tag);
+        return entry;
+    }
+
 private:
 
     void SetUp() {
