@@ -51,7 +51,6 @@ namespace camera2 {
 namespace tests {
 
 static CameraStreamParams STREAM_PARAMETERS = {
-    /*mCameraId*/   0,
     /*mFormat*/     CAMERA_EXPOSURE_FORMAT,
     /*mHeapCount*/  CAMERA_HEAP_COUNT
 };

@@ -74,62 +74,50 @@ TEST_P(CameraStreamTest, CreateStream) {
 //TODO: use a combinatoric generator
 static CameraStreamParams TestParameters[] = {
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
         /*mHeapCount*/ 1
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
         /*mHeapCount*/ 2
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
         /*mHeapCount*/ 3
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YCrCb_420_SP, // NV21
         /*mHeapCount*/ 1
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YCrCb_420_SP,
         /*mHeapCount*/ 2
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YCrCb_420_SP,
         /*mHeapCount*/ 3
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YV12,
         /*mHeapCount*/ 1
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YV12,
         /*mHeapCount*/ 2
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_YV12,
         /*mHeapCount*/ 3
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
         /*mHeapCount*/ 1
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
         /*mHeapCount*/ 2
     },
     {
-        /*cameraId*/   0,
         /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
         /*mHeapCount*/ 3
     },
