@@ -33,6 +33,15 @@ namespace tests {
 
 class CameraModuleTest : public ::testing::Test,
                                   public CameraModuleFixture<> {
+
+public:
+    CameraModuleTest() {
+        CameraModuleFixture::SetUp();
+    }
+
+    ~CameraModuleTest() {
+        CameraModuleFixture::TearDown();
+    }
 };
 
 TEST_F(CameraModuleTest, LoadModule) {
