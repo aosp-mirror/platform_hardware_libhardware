@@ -214,7 +214,7 @@ class Camera2Test: public testing::Test {
 
     }
 
-    void setUpStream(sp<ISurfaceTexture> consumer,
+    void setUpStream(sp<IGraphicBufferProducer> consumer,
             int width, int height, int format, int *id) {
         status_t res;
 

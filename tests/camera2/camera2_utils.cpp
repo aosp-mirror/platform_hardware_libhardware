@@ -317,7 +317,7 @@ void NotifierListener::notify_callback_dispatch(int32_t msg_type,
     (type *)((char*)(ptr) - offsetof(type, member))
 #endif
 
-StreamAdapter::StreamAdapter(sp<ISurfaceTexture> consumer):
+StreamAdapter::StreamAdapter(sp<IGraphicBufferProducer> consumer):
         mState(UNINITIALIZED), mDevice(NULL),
         mId(-1),
         mWidth(0), mHeight(0), mFormat(0)
