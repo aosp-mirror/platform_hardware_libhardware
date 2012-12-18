@@ -186,18 +186,16 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
         pthread_mutex_lock(&out->dev->lock);
 
-        MonoPipe* sink = out->dev->rsxSink.get();
-        if (sink != NULL) {
-            sink->incStrong(out);
-        } else {
-            pthread_mutex_unlock(&out->dev->lock);
-            return 0;
-        }
+        { // using the sink
+            sp<MonoPipe> sink = out->dev->rsxSink.get();
+            if (sink == 0) {
+                pthread_mutex_unlock(&out->dev->lock);
+                return 0;
+            }
 
-        ALOGI("shutdown");
-        sink->shutdown(true);
-
-        sink->decStrong(out);
+            ALOGI("shutdown");
+            sink->shutdown(true);
+        } // done using the sink
 
         pthread_mutex_unlock(&out->dev->lock);
     }
@@ -240,16 +238,16 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     out->dev->output_standby = false;
 
-    MonoPipe* sink = out->dev->rsxSink.get();
-    if (sink != NULL) {
+    sp<MonoPipe> sink = out->dev->rsxSink.get();
+    if (sink != 0) {
         if (sink->isShutdown()) {
+            sink.clear();
             pthread_mutex_unlock(&out->dev->lock);
             // the pipe has already been shutdown, this buffer will be lost but we must
             //   simulate timing so we don't drain the output faster than realtime
             usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
             return bytes;
         }
-        sink->incStrong(buffer);
     } else {
         pthread_mutex_unlock(&out->dev->lock);
         ALOGE("out_write without a pipe!");
@@ -260,12 +258,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     pthread_mutex_unlock(&out->dev->lock);
 
     written_frames = sink->write(buffer, frames);
+
     if (written_frames < 0) {
         if (written_frames == (ssize_t)NEGOTIATE) {
             ALOGE("out_write() write to pipe returned NEGOTIATE");
 
             pthread_mutex_lock(&out->dev->lock);
-            sink->decStrong(buffer);
+            sink.clear();
             pthread_mutex_unlock(&out->dev->lock);
 
             written_frames = 0;
@@ -278,9 +277,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     }
 
     pthread_mutex_lock(&out->dev->lock);
-
-    sink->decStrong(buffer);
-
+    sink.clear();
     pthread_mutex_unlock(&out->dev->lock);
 
     if (written_frames < 0) {
@@ -414,44 +411,42 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
     in->read_counter_frames += frames_to_read;
-
-    MonoPipeReader* source = in->dev->rsxSource.get();
-    if (source != NULL) {
-        source->incStrong(buffer);
-    } else {
-        ALOGE("no audio pipe yet we're trying to read!");
-        pthread_mutex_unlock(&in->dev->lock);
-        usleep((bytes / frame_size) * 1000000 / in_get_sample_rate(&stream->common));
-        memset(buffer, 0, bytes);
-        return bytes;
-    }
-
-    pthread_mutex_unlock(&in->dev->lock);
-
-    // read the data from the pipe (it's non blocking)
     size_t remaining_frames = frames_to_read;
-    int attempts = 0;
-    char* buff = (char*)buffer;
-    while ((remaining_frames > 0) && (attempts < MAX_READ_ATTEMPTS)) {
-        attempts++;
-        frames_read = source->read(buff, remaining_frames, AudioBufferProvider::kInvalidPTS);
-        if (frames_read > 0) {
-            remaining_frames -= frames_read;
-            buff += frames_read * frame_size;
-            //ALOGV("  in_read (att=%d) got %ld frames, remaining=%u",
-            //      attempts, frames_read, remaining_frames);
-        } else {
-            //ALOGE("  in_read read returned %ld", frames_read);
-            usleep(READ_ATTEMPT_SLEEP_MS * 1000);
+
+    {
+        // about to read from audio source
+        sp<MonoPipeReader> source = in->dev->rsxSource.get();
+        if (source == 0) {
+            ALOGE("no audio pipe yet we're trying to read!");
+            pthread_mutex_unlock(&in->dev->lock);
+            usleep((bytes / frame_size) * 1000000 / in_get_sample_rate(&stream->common));
+            memset(buffer, 0, bytes);
+            return bytes;
         }
+
+        pthread_mutex_unlock(&in->dev->lock);
+
+        // read the data from the pipe (it's non blocking)
+        int attempts = 0;
+        char* buff = (char*)buffer;
+        while ((remaining_frames > 0) && (attempts < MAX_READ_ATTEMPTS)) {
+            attempts++;
+            frames_read = source->read(buff, remaining_frames, AudioBufferProvider::kInvalidPTS);
+            if (frames_read > 0) {
+                remaining_frames -= frames_read;
+                buff += frames_read * frame_size;
+                //ALOGV("  in_read (att=%d) got %ld frames, remaining=%u",
+                //      attempts, frames_read, remaining_frames);
+            } else {
+                //ALOGE("  in_read read returned %ld", frames_read);
+                usleep(READ_ATTEMPT_SLEEP_MS * 1000);
+            }
+        }
+        // done using the source
+        pthread_mutex_lock(&in->dev->lock);
+        source.clear();
+        pthread_mutex_unlock(&in->dev->lock);
     }
-
-    // done using the source
-    pthread_mutex_lock(&in->dev->lock);
-
-    source->decStrong(buffer);
-
-    pthread_mutex_unlock(&in->dev->lock);
 
     if (remaining_frames > 0) {
         ALOGV("  remaining_frames = %d", remaining_frames);
