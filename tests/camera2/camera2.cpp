@@ -283,6 +283,26 @@ class Camera2Test: public testing::Test {
         *count = availableSizes.count;
     }
 
+    status_t waitUntilDrained() {
+        static const uint32_t kSleepTime = 50000; // 50 ms
+        static const uint32_t kMaxSleepTime = 10000000; // 10 s
+        ALOGV("%s: Camera %d: Starting wait", __FUNCTION__, mId);
+
+        // TODO: Set up notifications from HAL, instead of sleeping here
+        uint32_t totalTime = 0;
+        while (mDevice->ops->get_in_progress_count(mDevice) > 0) {
+            usleep(kSleepTime);
+            totalTime += kSleepTime;
+            if (totalTime > kMaxSleepTime) {
+                ALOGE("%s: Waited %d us, %d requests still in flight", __FUNCTION__,
+                        mDevice->ops->get_in_progress_count(mDevice), totalTime);
+                return TIMED_OUT;
+            }
+        }
+        ALOGV("%s: Camera %d: HAL is idle", __FUNCTION__, mId);
+        return OK;
+    }
+
     virtual void SetUp() {
         TEST_EXTENSION_FORKING_SET_UP;
 
@@ -408,6 +428,10 @@ TEST_F(Camera2Test, Capture1Raw) {
         add_camera_metadata_entry(request,
                 ANDROID_SENSOR_SENSITIVITY,
                 (void**)&sensitivity, 1);
+        uint8_t requestType = ANDROID_REQUEST_TYPE_CAPTURE;
+        add_camera_metadata_entry(request,
+                ANDROID_REQUEST_TYPE,
+                (void**)&requestType, 1);
 
         uint32_t hourOfDay = 12;
         add_camera_metadata_entry(request,
@@ -460,6 +484,7 @@ TEST_F(Camera2Test, Capture1Raw) {
         res = rawConsumer->unlockBuffer(buffer);
         ASSERT_EQ(NO_ERROR, res);
 
+        ASSERT_EQ(OK, waitUntilDrained());
         ASSERT_NO_FATAL_FAILURE(disconnectStream(streamId));
 
         res = closeCameraDevice(mDevice);
@@ -521,6 +546,10 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         add_camera_metadata_entry(request,
                 ANDROID_SENSOR_SENSITIVITY,
                 (void**)&sensitivity, 1);
+        uint8_t requestType = ANDROID_REQUEST_TYPE_CAPTURE;
+        add_camera_metadata_entry(request,
+                ANDROID_REQUEST_TYPE,
+                (void**)&requestType, 1);
 
         uint32_t hourOfDay = 12;
         add_camera_metadata_entry(request,
@@ -690,6 +719,10 @@ TEST_F(Camera2Test, Capture1Jpeg) {
         add_camera_metadata_entry(request,
                 ANDROID_SENSOR_SENSITIVITY,
                 (void**)&sensitivity, 1);
+        uint8_t requestType = ANDROID_REQUEST_TYPE_CAPTURE;
+        add_camera_metadata_entry(request,
+                ANDROID_REQUEST_TYPE,
+                (void**)&requestType, 1);
 
         uint32_t hourOfDay = 12;
         add_camera_metadata_entry(request,
@@ -742,6 +775,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
         res = jpegConsumer->unlockBuffer(buffer);
         ASSERT_EQ(NO_ERROR, res);
 
+        ASSERT_EQ(OK, waitUntilDrained());
         ASSERT_NO_FATAL_FAILURE(disconnectStream(streamId));
 
         res = closeCameraDevice(mDevice);
