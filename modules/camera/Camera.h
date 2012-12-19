@@ -18,6 +18,7 @@
 #define CAMERA_H_
 
 #include <pthread.h>
+#include <hardware/camera_common.h>
 #include <hardware/camera2.h>
 
 namespace default_camera_hal {
@@ -37,15 +38,13 @@ class Camera {
         // module is a handle to the HAL module, used when the device is opened.
         Camera(int id, const hw_module_t* module);
         ~Camera();
-        // Open this camera, preparing it for use. Returns nonzero on failure.
-        int open();
-        // Close this camera. Returns nonzero on failure.
-        int close();
-        // Query for camera metadata, filling info struct. Returns nonzero if
-        // allocation or initialization failed.
-        int getCameraInfo(struct camera_info* info);
-        // Handle to this device passed to framework in response to open().
+
+        // Common Camera Device Operations (see <hardware/camera_common.h>)
         camera2_device_t mDevice;
+        int open();
+        int close();
+        int getCameraInfo(struct camera_info* info);
+
     private:
         // One-time initialization of camera metadata.
         void init();
