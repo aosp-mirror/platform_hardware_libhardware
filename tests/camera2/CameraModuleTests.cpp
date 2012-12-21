@@ -46,23 +46,24 @@ public:
     status_t initializeDevice(int cameraId) {
 
         // ignore HAL1s. count as test pass
-        if (!isDeviceVersionHal2(cameraId)) {
-            return OK;
+        status_t stat;
+        if (isDeviceVersionHal2(cameraId, &stat) && stat == OK) {
+            stat = mDevice->initialize(mModule);
         }
 
-        return mDevice->initialize(mModule);
+        return stat;
     }
 
-    int getDeviceVersion(int cameraId) {
+    int getDeviceVersion(int cameraId, status_t* status) {
         camera_info info;
-        status_t res = mModule->get_camera_info(cameraId, &info);
-        EXPECT_EQ(OK, res);
+        *status = mModule->get_camera_info(cameraId, &info);
 
         return info.device_version;
     }
 
-    bool isDeviceVersionHal2(int cameraId) {
-        return getDeviceVersion(cameraId) >= CAMERA_DEVICE_API_VERSION_2_0;
+    bool isDeviceVersionHal2(int cameraId, status_t* status) {
+        return getDeviceVersion(cameraId, status)
+               >= CAMERA_DEVICE_API_VERSION_2_0;
     }
 };
 
