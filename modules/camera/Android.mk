@@ -20,6 +20,7 @@ LOCAL_MODULE := camera.default
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
 LOCAL_C_INCLUDES += \
+	system/core/include \
 	system/media/camera/include \
 
 LOCAL_SRC_FILES := \
@@ -28,6 +29,7 @@ LOCAL_SRC_FILES := \
 
 LOCAL_SHARED_LIBRARIES := \
 	libcamera_metadata \
+	libcutils \
 	liblog \
 
 LOCAL_CFLAGS += -Wall -Wextra

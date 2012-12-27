@@ -17,9 +17,12 @@
 #include <cstdlib>
 #include <pthread.h>
 
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
 #include <cutils/log.h>
+
+#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
+#include <cutils/trace.h>
 
 #include "Camera.h"
 
@@ -57,9 +60,11 @@ Camera::~Camera()
 int Camera::open()
 {
     ALOGV("%s: camera id %d", __func__, mId);
+    ATRACE_BEGIN("open");
     pthread_mutex_lock(&mMutex);
     if (mBusy) {
         pthread_mutex_unlock(&mMutex);
+        ATRACE_END();
         ALOGE("%s:id%d: Error, device already in use.", __func__, mId);
         return -EBUSY;
     }
@@ -68,15 +73,18 @@ int Camera::open()
     mBusy = true;
 
     pthread_mutex_unlock(&mMutex);
+    ATRACE_END();
     return 0;
 }
 
 int Camera::close()
 {
     ALOGV("%s: camera id %d", __func__, mId);
+    ATRACE_BEGIN("close");
     pthread_mutex_lock(&mMutex);
     if (!mBusy) {
         pthread_mutex_unlock(&mMutex);
+        ATRACE_END();
         ALOGE("%s:id%d: Error, close() on not open device.", __func__, mId);
         return -EINVAL;
     }
@@ -85,6 +93,7 @@ int Camera::close()
     mBusy = false;
 
     pthread_mutex_unlock(&mMutex);
+    ATRACE_END();
     return 0;
 }
 
@@ -105,9 +114,11 @@ int Camera::getCameraInfo(struct camera_info* info)
 
 void Camera::init()
 {
+    ATRACE_BEGIN("init");
     pthread_mutex_lock(&mMutex);
     if (mMetadata != NULL) {
         pthread_mutex_unlock(&mMutex);
+        ATRACE_END();
         return;
     }
 
@@ -115,6 +126,7 @@ void Camera::init()
     mMetadata = allocate_camera_metadata(1,1);
 
     pthread_mutex_unlock(&mMutex);
+    ATRACE_END();
 }
 
 } // namespace default_camera_hal
