@@ -42,6 +42,28 @@ public:
     ~CameraModuleTest() {
         CameraModuleFixture::TearDown();
     }
+
+    status_t initializeDevice(int cameraId) {
+
+        // ignore HAL1s. count as test pass
+        if (!isDeviceVersionHal2(cameraId)) {
+            return OK;
+        }
+
+        return mDevice->initialize(mModule);
+    }
+
+    int getDeviceVersion(int cameraId) {
+        camera_info info;
+        status_t res = mModule->get_camera_info(cameraId, &info);
+        EXPECT_EQ(OK, res);
+
+        return info.device_version;
+    }
+
+    bool isDeviceVersionHal2(int cameraId) {
+        return getDeviceVersion(cameraId) >= CAMERA_DEVICE_API_VERSION_2_0;
+    }
 };
 
 TEST_F(CameraModuleTest, LoadModule) {
@@ -50,7 +72,8 @@ TEST_F(CameraModuleTest, LoadModule) {
 
     for (int i = 0; i < mNumberOfCameras; ++i) {
         mDevice = new Camera2Device(i);
-        ASSERT_EQ(OK, mDevice->initialize(mModule))
+
+        ASSERT_EQ(OK, initializeDevice(i))
             << "Failed to initialize device " << i;
         mDevice.clear();
     }
@@ -65,7 +88,7 @@ TEST_F(CameraModuleTest, LoadModuleBadIndices) {
 
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
         mDevice = new Camera2Device(idx[i]);
-        status_t deviceInitializeCode = mDevice->initialize(mModule);
+        status_t deviceInitializeCode = initializeDevice(idx[i]);
         EXPECT_NE(OK, deviceInitializeCode);
         EXPECT_EQ(-ENODEV, deviceInitializeCode)
             << "Incorrect error code when trying to initialize invalid index "
