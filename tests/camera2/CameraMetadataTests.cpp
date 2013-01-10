@@ -42,7 +42,6 @@ namespace tests {
 
 //FIXME: dont hardcode
 static CameraStreamParams METADATA_STREAM_PARAMETERS = {
-    /*mCameraId*/   0,
     /*mFormat*/     HAL_PIXEL_FORMAT_YCrCb_420_SP,
     /*mHeapCount*/  2
 };

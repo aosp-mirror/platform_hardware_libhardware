@@ -18,6 +18,7 @@
 #define __ANDROID_HAL_CAMERA2_TESTS_EXTENSIONS__
 
 #include "TestForkerEventListener.h"
+#include "TestSettings.h"
 
 // Use at the beginning of each Test::SetUp() impl
 #define TEST_EXTENSION_FORKING_SET_UP                                       \
@@ -46,7 +47,8 @@
     } while(false)                                                          \
 
 // Are we running each test by forking it?
-#define TEST_EXTENSION_FORKING_ENABLED  (TestForkerEventListener::mUsingForking)
+#define TEST_EXTENSION_FORKING_ENABLED                                      \
+    (android::camera2::tests::TestSettings::ForkingEnabled())
 
 
 
