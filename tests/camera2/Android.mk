@@ -3,20 +3,27 @@ include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
 	camera2.cpp \
-	camera2_utils.cpp
+	camera2_utils.cpp \
+	main.cpp \
+	CameraMetadataTests.cpp \
+	CameraModuleTests.cpp \
+	CameraStreamTests.cpp \
+	CameraFrameTests.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libutils \
+	libcutils \
 	libstlport \
 	libhardware \
 	libcamera_metadata \
+	libcameraservice \
 	libgui \
 	libsync \
-	libui
+	libui \
+	libdl
 
 LOCAL_STATIC_LIBRARIES := \
-	libgtest \
-	libgtest_main
+	libgtest
 
 LOCAL_C_INCLUDES += \
 	bionic \
@@ -24,6 +31,8 @@ LOCAL_C_INCLUDES += \
 	external/gtest/include \
 	external/stlport/stlport \
 	system/media/camera/include \
+	frameworks/av/services/camera/libcameraservice \
+	frameworks/native/include \
 
 LOCAL_MODULE:= camera2_test
 LOCAL_MODULE_TAGS := tests

@@ -30,6 +30,8 @@
 #include "camera2_utils.h"
 
 namespace android {
+namespace camera2 {
+namespace tests {
 
 class Camera2Test: public testing::Test {
   public:
@@ -101,6 +103,11 @@ class Camera2Test: public testing::Test {
                 sCameraSupportsHal2[i] = false;
             }
         }
+    }
+
+    static void TearDownTestCase() {
+        hw_module_t *module = reinterpret_cast<hw_module_t*>(sCameraModule);
+        ASSERT_EQ(0, HWModuleHelpers::closeModule(module));
     }
 
     static const camera_module_t *getCameraModule() {
@@ -606,7 +613,7 @@ TEST_F(Camera2Test, ConstructDefaultRequests) {
     }
 }
 
-TEST_F(Camera2Test, Capture1Jpeg) {
+TEST_F(Camera2Test, DISABLED_Capture1Jpeg) {
     status_t res;
 
     for (int id = 0; id < getNumCameras(); id++) {
@@ -720,5 +727,6 @@ TEST_F(Camera2Test, Capture1Jpeg) {
     }
 }
 
-
+} // namespace tests
+} // namespace camera2
 } // namespace android
