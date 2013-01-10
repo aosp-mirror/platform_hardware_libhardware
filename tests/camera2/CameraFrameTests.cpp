@@ -115,8 +115,18 @@ TEST_P(CameraFrameTest, GetFrame) {
     for (int i = 0; i < GetParam(); ++i) {
         ALOGV("Reading capture request %d", i);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
+
         CameraMetadata frameMetadata;
         ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+
+        // wait for buffer to be available
+        ASSERT_EQ(OK, mFrameListener->waitForFrame(CAMERA_FRAME_TIMEOUT));
+        ALOGV("We got the frame now");
+
+        // mark buffer consumed so producer can re-dequeue it
+        CpuConsumer::LockedBuffer imgBuffer;
+        ASSERT_EQ(OK, mCpuConsumer->lockNextBuffer(&imgBuffer));
+        ASSERT_EQ(OK, mCpuConsumer->unlockBuffer(imgBuffer));
     }
 
 }
