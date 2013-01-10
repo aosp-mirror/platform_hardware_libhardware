@@ -37,14 +37,10 @@ struct CameraModuleFixture {
         TEST_EXTENSION_FORKING_CONSTRUCTOR;
 
         mCameraID = CameraID;
-
-        SetUp();
     }
 
     ~CameraModuleFixture() {
         TEST_EXTENSION_FORKING_DESTRUCTOR;
-
-        TearDown();
     }
 
     camera_metadata_ro_entry GetStaticEntry(uint32_t tag) const {
@@ -52,8 +48,6 @@ struct CameraModuleFixture {
         camera_metadata_ro_entry entry = staticInfo.find(tag);
         return entry;
     }
-
-private:
 
     void SetUp() {
         TEST_EXTENSION_FORKING_SET_UP;
@@ -87,6 +81,8 @@ private:
                 << "Failed to close camera HAL module";
         }
     }
+
+private:
 
     void SetUpMixin() {
         /* For using this fixture in other tests only */
