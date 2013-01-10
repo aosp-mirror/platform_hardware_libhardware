@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef __ANDROID_HAL_CAMERA2_TESTS_UTILS__
+#define __ANDROID_HAL_CAMERA2_TESTS_UTILS__
+
 // Utility classes for camera2 HAL testing
 
 #include <system/camera_metadata.h>
@@ -243,3 +246,5 @@ struct HWModuleHelpers {
 }
 }
 }
+
+#endif
