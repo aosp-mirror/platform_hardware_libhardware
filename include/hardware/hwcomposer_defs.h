@@ -32,9 +32,6 @@ __BEGIN_DECLS
 
 #define HWC_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 
-#define HWC_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, HWC_HEADER_VERSION)
-#define HWC_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION_2(0, 2, HWC_HEADER_VERSION)
-#define HWC_DEVICE_API_VERSION_0_3  HARDWARE_DEVICE_API_VERSION_2(0, 3, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, HWC_HEADER_VERSION)
@@ -132,13 +129,11 @@ enum {
 /* attributes queriable with query() */
 enum {
     /*
-     * Availability: HWC_DEVICE_API_VERSION_0_2
      * Must return 1 if the background layer is supported, 0 otherwise.
      */
     HWC_BACKGROUND_LAYER_SUPPORTED      = 0,
 
     /*
-     * Availability: HWC_DEVICE_API_VERSION_0_3
      * Returns the vsync period in nanoseconds.
      *
      * This query is not used for HWC_DEVICE_API_VERSION_1_1 and later.
