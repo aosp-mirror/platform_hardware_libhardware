@@ -35,18 +35,6 @@ __BEGIN_DECLS
 #define HWC_DEVICE_API_VERSION      HWC_DEVICE_API_VERSION_0_1
 #define HWC_API_VERSION             HWC_DEVICE_API_VERSION
 
-/* Users of this header can define HWC_REMOVE_DEPRECATED_VERSIONS to test that
- * they still work with just the current version declared, before the
- * deprecated versions are actually removed.
- *
- * To find code that still depends on the old versions, set the #define to 1
- * here. Code that explicitly sets it to zero (rather than simply not defining
- * it) will still see the old versions.
- */
-#if !defined(HWC_REMOVE_DEPRECATED_VERSIONS)
-#define HWC_REMOVE_DEPRECATED_VERSIONS 0
-#endif
-
 /*****************************************************************************/
 
 /**
@@ -577,10 +565,6 @@ static inline int hwc_close_1(hwc_composer_device_1_t* device) {
 }
 
 /*****************************************************************************/
-
-#if !HWC_REMOVE_DEPRECATED_VERSIONS
-#include <hardware/hwcomposer_v0.h>
-#endif
 
 __END_DECLS
 
