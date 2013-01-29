@@ -129,7 +129,8 @@ enum {
  * learn how suspend interacts with batch mode).
  *
  * In batch mode and only when the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL is
- * set and supported, the specified sensor must be able to wake-up the SoC.
+ * set and supported, the specified sensor must be able to wake-up the SoC and
+ * be able to buffer at least 10 seconds worth of the requested sensor events.
  *
  * There are notable exceptions to this behavior, which are sensor-dependent
  * (see sensor types definitions below)
@@ -434,6 +435,10 @@ enum {
  *  magnetic field is due to the Earth's poles should be avoided.
  *
  *  Factory calibration and temperature compensation should still be applied.
+ *
+ *  If this sensor is present, then the corresponding
+ *  SENSOR_TYPE_MAGNETIC_FIELD must be present and both must return the
+ *  same sensor_t::name and sensor_t::vendor.
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
 
@@ -462,7 +467,14 @@ enum {
  * wake-up sensor: no
  *
  *  All values are in radians/second and measure the rate of rotation
- *  around the X, Y and Z axis.  The coordinate system is the same as is
+ *  around the X, Y and Z axis. An estimation of the drift on each axis is
+ *  reported as well.
+ *
+ *  No gyro-drift compensation shall be performed.
+ *  Factory calibration and temperature compensation should still be applied
+ *  to the rate of rotation (angular speeds).
+ *
+ *  The coordinate system is the same as is
  *  used for the acceleration sensor. Rotation is positive in the
  *  counter-clockwise direction (right-hand rule). That is, an observer
  *  looking from some positive location on the x, y or z axis at a device
@@ -472,8 +484,23 @@ enum {
  *  with the definition of roll given earlier.
  *  The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
  *
- *  No gyro-drift compensation shall be performed.
- *  Factory calibration and temperature compensation should still be applied.
+ *  sensors_event_t::
+ *   data[0] : angular speed (w/o drift compensation) around the X axis in rad/s
+ *   data[1] : angular speed (w/o drift compensation) around the Y axis in rad/s
+ *   data[2] : angular speed (w/o drift compensation) around the Z axis in rad/s
+ *   data[3] : estimated drift around X axis in rad/s
+ *   data[4] : estimated drift around Y axis in rad/s
+ *   data[5] : estimated drift around Z axis in rad/s
+ *
+ *  IMPLEMENTATION NOTES:
+ *
+ *  If the implementation is not able to estimate the drift, then this
+ *  sensor MUST NOT be reported by this HAL. Instead, the regular
+ *  SENSOR_TYPE_GYROSCOPE is used without drift compensation.
+ *
+ *  If this sensor is present, then the corresponding
+ *  SENSOR_TYPE_GYROSCOPE must be present and both must return the
+ *  same sensor_t::name and sensor_t::vendor.
  */
 #define SENSOR_TYPE_GYROSCOPE_UNCALIBRATED          (16)
 
@@ -549,8 +576,8 @@ enum {
  * wake-up sensor: no
  *
  * A sensor of this type returns the number of steps taken by the user since
- * the last reboot. The value is returned as a uint64_t and is reset to
- * zero only on a system reboot.
+ * the last reboot while activated. The value is returned as a uint64_t and is
+ * reset to zero only on a system reboot.
  *
  * The timestamp of the event is set to the time when the first step
  * for that event was taken.
@@ -718,7 +745,10 @@ struct sensors_module_t {
 };
 
 struct sensor_t {
-    /* name of this sensor */
+
+    /* Name of this sensor.
+     * All sensors of the same "type" must have a different "name".
+     */
     const char*     name;
 
     /* vendor of the hardware part */
@@ -816,9 +846,9 @@ typedef struct sensors_poll_device_1 {
                     int handle, int enabled);
 
             /**
-             * Set the delay between sensor events in nanoseconds for a given sensor.
+             * Set the events's period in nanoseconds for a given sensor.
              *
-             * What the delay parameter means depends on the specified
+             * What the period_ns parameter means depends on the specified
              * sensor's trigger mode:
              *
              * continuous: setDelay() sets the sampling rate.
@@ -834,7 +864,7 @@ typedef struct sensors_poll_device_1 {
              * @return 0 if successful, < 0 on error
              */
             int (*setDelay)(struct sensors_poll_device_t *dev,
-                    int handle, int64_t ns);
+                    int handle, int64_t period_ns);
 
             /**
              * Returns an array of sensor data.
@@ -862,9 +892,14 @@ typedef struct sensors_poll_device_1 {
 
 
     /*
-     * Enables batch mode for the given sensor.
+     * Enables batch mode for the given sensor and sets the delay between events
      *
      * A timeout value of zero disables batch mode for the given sensor.
+     *
+     * The period_ns parameter is equivalent to calling setDelay() -- this
+     * function both enables or disables the batch mode AND sets the events's
+     * period in nanosecond. See setDelay() above for a detailed explanation of
+     * the period_ns parameter.
      *
      * While in batch mode sensor events are reported in batches at least
      * every "timeout" nanosecond; that is all events since the previous batch
@@ -878,7 +913,11 @@ typedef struct sensors_poll_device_1 {
      * physically happened.
      *
      * If internal h/w FIFOs fill-up before the timeout, then events are
-     * reported at that point. No event shall be dropped or lost,
+     * reported at that point. No event shall be dropped or lost.
+     *
+     *
+     * INTERACTION WITH SUSPEND MODE:
+     * ------------------------------
      *
      * By default batch mode doesn't significantly change the interaction with
      * suspend mode, that is, sensors must continue to allow the SoC to
@@ -904,38 +943,47 @@ typedef struct sensors_poll_device_1 {
      *
      *   If the hardware cannot support this mode, or, if the physical
      *   FIFO is so small that the device would never be allowed to go into
-     *   suspend for long enough (typically 4 to 10 seconds), then this
-     *   function MUST fail when the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL
-     *   is set.
+     *   suspend for at least 10 seconds, then this function MUST fail when
+     *   the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL is set, regardless of
+     *   the value of the timeout parameter.
      *
+     * DRY RUN:
+     * --------
      *
      * If the flag SENSORS_BATCH_DRY_RUN is set, this function returns
-     * without modifying the batch mode and has no side effects, but returns
-     * errors as usual (as it would if this flag was not set). This flag
-     * is used to check if batch mode is available for a given configuration.
+     * without modifying the batch mode or the event period and has no side
+     * effects, but returns errors as usual (as it would if this flag was
+     * not set). This flag is used to check if batch mode is available for a
+     * given configuration -- in particular for a given sensor at a given rate.
+     *
      *
      * Return values:
+     * --------------
+     *
+     * Because sensors must be independent, the return value must not depend
+     * on the state of the system (whether another sensor is on or not),
+     * nor on whether the flag SENSORS_BATCH_DRY_RUN is set (in other words,
+     * if a batch call with SENSORS_BATCH_DRY_RUN is successful,
+     * the same call without SENSORS_BATCH_DRY_RUN must succeed as well).
      *
      * If successful, 0 is returned.
      * If the specified sensor doesn't support batch mode, -EINVAL is returned.
      * If the specified sensor's trigger-mode is one-shot, -EINVAL is returned.
      * If any of the constraint above cannot be satisfied, -EINVAL is returned.
      *
+     * Note: the timeout parameter, when > 0, has no impact on whether this
+     *       function succeeds or fails.
+     *
      * If timeout is set to 0, this function must succeed.
      *
      *
      * IMPLEMENTATION NOTES:
+     * ---------------------
      *
      * batch mode, if supported, should happen at the hardware level,
      * typically using hardware FIFOs. In particular, it SHALL NOT be
      * implemented in the HAL, as this would be counter productive.
      * The goal here is to save significant amounts of power.
-     *
-     * In SENSORS_BATCH_WAKE_UPON_FIFO_FULL, if the hardware has a
-     * limited FIFO size that wouldn't permit significant savings
-     * (typical on some gyroscopes), because it wouldn't allow the SoC to go
-     * into suspend mode for enough time, then it is imperative to NOT SUPPORT
-     * batch mode for that sensor.
      *
      * batch mode can be enabled or disabled at any time, in particular
      * while the specified sensor is already enabled and this shall not
@@ -943,7 +991,7 @@ typedef struct sensors_poll_device_1 {
      *
      */
     int (*batch)(struct sensors_poll_device_1* dev,
-            int handle, int flags, int64_t timeout);
+            int handle, int flags, int64_t period_ns, int64_t timeout);
 
     void (*reserved_procs[8])(void);
 
