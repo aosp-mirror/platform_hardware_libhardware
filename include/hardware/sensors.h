@@ -154,7 +154,7 @@ enum {
  *
  * Many sensor types are or can be implemented as virtual sensors from
  * physical sensors on the device. For instance the rotation vector sensor,
- * orientation sensor, pedometer, step-counter, etc...
+ * orientation sensor, step-detector, step-counter, etc...
  *
  * From the point of view of this API these virtual sensors MUST appear as
  * real, individual sensors. It is the responsibility of the driver and HAL
@@ -518,7 +518,7 @@ enum {
 
 
 /*
- * SENSOR_TYPE_PEDOMETER
+ * SENSOR_TYPE_STEP_DETECTOR
  * trigger-mode: special
  * wake-up sensor: no
  *
@@ -534,13 +534,13 @@ enum {
  *
  * This sensor must be low power. That is, if the step detection cannot be
  * done in hardware, this sensor should not be defined. Also, when the
- * pedometer is activated and the accelerometer is not, only steps should
+ * step detector is activated and the accelerometer is not, only steps should
  * trigger interrupts (not accelerometer data).
  *
  * setDelay() has no impact on this sensor type
  */
 
-#define SENSOR_TYPE_PEDOMETER                       (18)
+#define SENSOR_TYPE_STEP_DETECTOR                   (18)
 
 
 /*
@@ -554,7 +554,7 @@ enum {
  *
  * The timestamp of the event is set to the time when the first step
  * for that event was taken.
- * See SENSOR_TYPE_PEDOMETER for the signification of the time of a step.
+ * See SENSOR_TYPE_STEP_DETECTOR for the signification of the time of a step.
  *
  *  The minimum size of the hardware's internal counter shall be 16 bits
  *  (this restriction is here to avoid too frequent wake-ups when the
