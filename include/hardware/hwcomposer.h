@@ -202,13 +202,53 @@ typedef struct hwc_layer_1 {
              * responsible for closing it when no longer needed.
              */
             int releaseFenceFd;
+
+            /*
+             * Availability: HWC_DEVICE_API_VERSION_1_2
+             *
+             * Alpha value applied to the whole layer. The effective
+             * value of each pixel is computed as:
+             *
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      pixel.rgb = pixel.rgb * planeAlpha / 255
+             *   pixel.a = pixel.a * planeAlpha / 255
+             *
+             * Then blending proceeds as usual according to the "blending"
+             * field above.
+             *
+             * NOTE: planeAlpha applies to YUV layers as well:
+             *
+             *   pixel.rgb = yuv_to_rgb(pixel.yuv)
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      pixel.rgb = pixel.rgb * planeAlpha / 255
+             *   pixel.a = planeAlpha
+             *
+             *
+             * IMPLEMENTATION NOTE:
+             *
+             * If the source image doesn't have an alpha channel, then
+             * the h/w can use the HWC_BLENDING_COVERAGE equations instead of
+             * HWC_BLENDING_PREMULT and simply set the alpha channel to
+             * planeAlpha.
+             *
+             * e.g.:
+             *
+             *   if (blending == HWC_BLENDING_PREMULT)
+             *      blending = HWC_BLENDING_COVERAGE;
+             *   pixel.a = planeAlpha;
+             *
+             */
+            uint8_t planeAlpha;
+
+            /* reserved for future use */
+            uint8_t _pad[3];
         };
     };
 
     /* Allow for expansion w/o breaking binary compatibility.
      * Pad layer to 96 bytes, assuming 32-bit pointers.
      */
-    int32_t reserved[24 - 18];
+    int32_t reserved[24 - 19];
 
 } hwc_layer_1_t;
 
