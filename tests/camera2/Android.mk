@@ -38,7 +38,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/av/services/camera/libcameraservice \
 	frameworks/native/include \
 
-LOCAL_CFLAGS += -Wall -Wextra -include FutureMetadata.h
+LOCAL_CFLAGS += -Wall -Wextra
 
 LOCAL_MODULE:= camera2_test
 LOCAL_MODULE_TAGS := tests
