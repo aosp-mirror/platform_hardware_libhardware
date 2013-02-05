@@ -229,11 +229,15 @@ struct audio_policy {
     int (*set_effect_enabled)(struct audio_policy *pol, int id, bool enabled);
 
     bool (*is_stream_active)(const struct audio_policy *pol,
-                             audio_stream_type_t stream,
-                             uint32_t in_past_ms);
+            audio_stream_type_t stream,
+            uint32_t in_past_ms);
+
+    bool (*is_stream_active_remotely)(const struct audio_policy *pol,
+            audio_stream_type_t stream,
+            uint32_t in_past_ms);
 
     bool (*is_source_active)(const struct audio_policy *pol,
-                             audio_source_t source);
+            audio_source_t source);
 
     /* dump state */
     int (*dump)(const struct audio_policy *pol, int fd);
