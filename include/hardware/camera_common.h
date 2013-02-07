@@ -89,7 +89,7 @@ __BEGIN_DECLS
  */
 typedef struct camera_metadata camera_metadata_t;
 
-struct camera_info {
+typedef struct camera_info {
     /**
      * The direction that the camera faces to. It should be CAMERA_FACING_BACK
      * or CAMERA_FACING_FRONT.
@@ -153,7 +153,7 @@ struct camera_info {
      *
      */
     const camera_metadata_t *static_camera_characteristics;
-};
+} camera_info_t;
 
 typedef struct camera_module {
     hw_module_t common;
