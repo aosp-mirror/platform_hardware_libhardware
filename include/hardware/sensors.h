@@ -664,22 +664,6 @@ typedef struct {
             float roll;
         };
     };
-} sensors_data_t;
-
-typedef struct {
-    union {
-        float v[3];
-        struct {
-            float x;
-            float y;
-            float z;
-        };
-        struct {
-            float azimuth;
-            float pitch;
-            float roll;
-        };
-    };
     int8_t status;
     uint8_t reserved[3];
 } sensors_vec_t;
@@ -708,7 +692,7 @@ typedef struct sensors_event_t {
         float           data[16];
 
         /* acceleration values are in meter per second per second (m/s^2) */
-        sensors_data_t  acceleration;
+        sensors_vec_t   acceleration;
 
         /* magnetic vector values are in micro-Tesla (uT) */
         sensors_vec_t   magnetic;
@@ -717,7 +701,7 @@ typedef struct sensors_event_t {
         sensors_vec_t   orientation;
 
         /* gyroscope values are in rad/s */
-        sensors_data_t  gyro;
+        sensors_vec_t   gyro;
 
         /* temperature is in degrees centigrade (Celsius) */
         float           temperature;
