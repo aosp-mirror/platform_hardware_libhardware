@@ -39,8 +39,8 @@ struct CameraStreamParams {
 
 inline void PrintTo(const CameraStreamParams& p, ::std::ostream* os) {
     *os <<  "{ ";
-    *os <<  "Format: "    << p.mFormat    << ", ";
-    *os <<  "HeapCount: " << p.mHeapCount;
+    *os <<  "Format: 0x"  << std::hex << p.mFormat    << ", ";
+    *os <<  "HeapCount: " <<             p.mHeapCount;
     *os << " }";
 }
 
