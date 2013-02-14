@@ -21,6 +21,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libhardware \
 	libcamera_metadata \
 	libcameraservice \
+	libcamera_client \
 	libgui \
 	libsync \
 	libui \
@@ -35,6 +36,7 @@ LOCAL_C_INCLUDES += \
 	external/gtest/include \
 	external/stlport/stlport \
 	system/media/camera/include \
+	frameworks/av/include/ \
 	frameworks/av/services/camera/libcameraservice \
 	frameworks/native/include \
 
