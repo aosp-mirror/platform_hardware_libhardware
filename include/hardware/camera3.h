@@ -17,7 +17,7 @@
 #ifndef ANDROID_INCLUDE_CAMERA3_H
 #define ANDROID_INCLUDE_CAMERA3_H
 
-#include "system/camera_metadata.h"
+#include <system/camera_metadata.h>
 #include "camera_common.h"
 
 /**
@@ -1163,6 +1163,13 @@ typedef struct camera3_device_ops {
      *            size for that format.
      *
      *          - Including too many output streams of a certain format.
+     *
+     *          Note that the framework submitting an invalid stream
+     *          configuration is not normal operation, since stream
+     *          configurations are checked before configure. An invalid
+     *          configuration means that a bug exists in the framework code, or
+     *          there is a mismatch between the HAL's static metadata and the
+     *          requirements on streams.
      *
      * -ENODEV: If there has been a fatal error and the device is no longer
      *          operational. Only close() can be called successfully by the
