@@ -21,7 +21,7 @@
 #include <iostream>
 
 #include <gui/CpuConsumer.h>
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <utils/Condition.h>
 #include <utils/Mutex.h>
 
@@ -142,7 +142,7 @@ protected:
         mCpuConsumer = new CpuConsumer(p.mHeapCount);
         mCpuConsumer->setName(String8("CameraStreamTest::mCpuConsumer"));
 
-        mNativeWindow = new SurfaceTextureClient(
+        mNativeWindow = new Surface(
             mCpuConsumer->getProducerInterface());
 
         ASSERT_EQ(OK,

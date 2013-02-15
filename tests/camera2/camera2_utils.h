@@ -22,7 +22,7 @@
 #include <system/camera_metadata.h>
 #include <hardware/camera2.h>
 
-#include <gui/SurfaceTextureClient.h>
+#include <gui/Surface.h>
 #include <gui/CpuConsumer.h>
 
 #include <utils/List.h>

@@ -322,7 +322,7 @@ StreamAdapter::StreamAdapter(sp<IGraphicBufferProducer> consumer):
         mId(-1),
         mWidth(0), mHeight(0), mFormat(0)
 {
-    mConsumerInterface = new SurfaceTextureClient(consumer);
+    mConsumerInterface = new Surface(consumer);
     camera2_stream_ops::dequeue_buffer = dequeue_buffer;
     camera2_stream_ops::enqueue_buffer = enqueue_buffer;
     camera2_stream_ops::cancel_buffer = cancel_buffer;
