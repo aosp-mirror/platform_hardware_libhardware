@@ -64,9 +64,8 @@ static int get_camera_info(int id, struct camera_info* info)
     return gCameras[id].getCameraInfo(info);
 }
 
-static int open_device(const hw_module_t* module,
-                       const char* name,
-                       hw_device_t** device)
+static int open_device(const hw_module_t* module, const char* name,
+        hw_device_t** device)
 {
     ALOGV("%s: module=%p, name=%s, device=%p", __func__, module, name, device);
     char *nameEnd;
@@ -88,7 +87,7 @@ static hw_module_methods_t gCameraModuleMethods = {
     open : open_device
 };
 
-camera_module_t HAL_MODULE_INFO_SYM = {
+camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
     common : {
         tag                : HARDWARE_MODULE_TAG,
         module_api_version : CAMERA_MODULE_API_VERSION_2_0,
