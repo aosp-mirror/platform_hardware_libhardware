@@ -32,7 +32,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	liblog \
 
-LOCAL_CFLAGS += -Wall -Wextra
+LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
 LOCAL_MODULE_TAGS := optional
 
