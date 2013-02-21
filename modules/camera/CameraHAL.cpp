@@ -15,13 +15,17 @@
  */
 
 #include <cstdlib>
-#include <hardware/camera2.h>
+#include <hardware/camera_common.h>
+#include <hardware/hardware.h>
 
 //#define LOG_NDEBUG 0
-#define LOG_TAG "CameraHAL"
+#define LOG_TAG "DefaultCameraHAL"
 #include <cutils/log.h>
 
-#include "Camera.h"
+#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
+#include <cutils/trace.h>
+
+#include "CameraHAL.h"
 
 /*
  * This file serves as the entry point to the HAL.  It contains the module
@@ -31,60 +35,85 @@
 
 namespace default_camera_hal {
 
-enum camera_id_t {
-    CAMERA_A,
-    CAMERA_B,
-    NUM_CAMERAS
-};
+// Default Camera HAL has 2 cameras, front and rear.
+static CameraHAL gCameraHAL(2);
 
-// Symbol used by the framework when loading the HAL, defined below.
-extern "C" camera_module_t HAL_MODULE_INFO_SYM;
+CameraHAL::CameraHAL(int num_cameras)
+  : mNumberOfCameras(num_cameras),
+    mCallbacks(NULL)
+{
+}
 
-// Camera devices created when the module is loaded. See Camera.h
-static Camera gCameras[NUM_CAMERAS] = {
-    Camera(CAMERA_A, &HAL_MODULE_INFO_SYM.common),
-    Camera(CAMERA_B, &HAL_MODULE_INFO_SYM.common)
-};
+CameraHAL::~CameraHAL()
+{
+}
+
+int CameraHAL::getNumberOfCameras()
+{
+    ALOGV("%s: %d", __func__, mNumberOfCameras);
+    return mNumberOfCameras;
+}
+
+int CameraHAL::getCameraInfo(int id, struct camera_info* info)
+{
+    ALOGV("%s: camera id %d: info=%p", __func__, id, info);
+    if (id < 0 || id >= mNumberOfCameras) {
+        ALOGE("%s: Invalid camera id %d", __func__, id);
+        return -ENODEV;
+    }
+    // TODO: return device-specific static metadata
+    return 0;
+}
+
+int CameraHAL::setCallbacks(const camera_module_callbacks_t *callbacks)
+{
+    ALOGV("%s : callbacks=%p", __func__, callbacks);
+    mCallbacks = callbacks;
+    return 0;
+}
+
+int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
+{
+    int id;
+    char *nameEnd;
+
+    ALOGV("%s: module=%p, name=%s, device=%p", __func__, mod, name, dev);
+    id = strtol(name, &nameEnd, 10);
+    if (nameEnd != NULL) {
+        ALOGE("%s: Invalid camera id name %s", __func__, name);
+        return -EINVAL;
+    } else if (id < 0 || id >= mNumberOfCameras) {
+        ALOGE("%s: Invalid camera id %d", __func__, id);
+        return -ENODEV;
+    }
+    // TODO: check for existing use; allocate and return new camera device
+    return 0;
+}
 
 extern "C" {
 
 static int get_number_of_cameras()
 {
-    ALOGV("%s", __func__);
-    return NUM_CAMERAS;
+    return gCameraHAL.getNumberOfCameras();
 }
 
 static int get_camera_info(int id, struct camera_info* info)
 {
-    ALOGV("%s: camera id %d: info=%p", __func__, id, info);
-    if (id < 0 || id >= NUM_CAMERAS) {
-        ALOGE("%s: Invalid camera id %d", __func__, id);
-        return -ENODEV;
-    }
-    return gCameras[id].getCameraInfo(info);
+    return gCameraHAL.getCameraInfo(id, info);
 }
 
-static int open_device(const hw_module_t* module, const char* name,
-        hw_device_t** device)
+static int set_callbacks(const camera_module_callbacks_t *callbacks)
 {
-    ALOGV("%s: module=%p, name=%s, device=%p", __func__, module, name, device);
-    char *nameEnd;
-    int id;
+    return gCameraHAL.setCallbacks(callbacks);
+}
 
-    id = strtol(name, &nameEnd, 10);
-    if (nameEnd != NULL) {
-        ALOGE("%s: Invalid camera id name %s", __func__, name);
-        return -EINVAL;
-    } else if (id < 0 || id >= NUM_CAMERAS) {
-        ALOGE("%s: Invalid camera id %d", __func__, id);
-        return -ENODEV;
-    }
-    *device = &gCameras[id].mDevice.common;
-    return gCameras[id].open();
+static int open_dev(const hw_module_t* mod, const char* name, hw_device_t** dev)
+{
+    return gCameraHAL.open(mod, name, dev);
 }
 
 static hw_module_methods_t gCameraModuleMethods = {
-    open : open_device
+    open : open_dev
 };
 
 camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
@@ -93,15 +122,16 @@ camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
         module_api_version : CAMERA_MODULE_API_VERSION_2_0,
         hal_api_version    : HARDWARE_HAL_API_VERSION,
         id                 : CAMERA_HARDWARE_MODULE_ID,
-        name               : "Reference Camera v2 HAL",
+        name               : "Default Camera HAL",
         author             : "The Android Open Source Project",
         methods            : &gCameraModuleMethods,
         dso                : NULL,
         reserved           : {0},
     },
     get_number_of_cameras : get_number_of_cameras,
-    get_camera_info       : get_camera_info
+    get_camera_info       : get_camera_info,
+    set_callbacks         : set_callbacks
 };
-
 } // extern "C"
+
 } // namespace default_camera_hal
