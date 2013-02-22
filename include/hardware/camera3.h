@@ -297,9 +297,9 @@
  * Camera HAL device ops functions that have a return value will all return
  * -ENODEV / NULL in case of a serious error. This means the device cannot
  * continue operation, and must be closed by the framework. Once this error is
- * returned by some method, or if notify() is called with ERROR_DEVICE or
- * ERROR_HARDWARE, only the close() method can be called successfully. All other
- * methods will return -ENODEV / NULL.
+ * returned by some method, or if notify() is called with ERROR_DEVICE, only
+ * the close() method can be called successfully. All other methods will return
+ * -ENODEV / NULL.
  *
  * Transient errors in image capture must be reported through notify() as follows:
  *
@@ -662,20 +662,12 @@ typedef enum camera3_msg_type {
  */
 typedef enum camera3_error_msg_code {
     /**
-     * A serious failure occured. The camera device may not work again
-     * without reboot, and no further frames or buffer streams will be
-     * produced by the device. Device should be treated as closed. The
-     * frame_number field is unused.
-     */
-    CAMERA3_MSG_ERROR_HARDWARE = 1,
-
-    /**
      * A serious failure occured. No further frames or buffer streams will
      * be produced by the device. Device should be treated as closed. The
      * client must reopen the device to use it again. The frame_number field
      * is unused.
      */
-    CAMERA3_MSG_ERROR_DEVICE = 2,
+    CAMERA3_MSG_ERROR_DEVICE = 1,
 
     /**
      * An error has occurred in processing a request. No output (metadata or
@@ -683,7 +675,7 @@ typedef enum camera3_error_msg_code {
      * specifies which request has been dropped. Subsequent requests are
      * unaffected, and the device remains operational.
      */
-    CAMERA3_MSG_ERROR_REQUEST = 3,
+    CAMERA3_MSG_ERROR_REQUEST = 2,
 
     /**
      * An error has occurred in producing an output result metadata buffer
@@ -692,7 +684,7 @@ typedef enum camera3_error_msg_code {
      * operational.  The frame_number field specifies the request for which
      * result metadata won't be available.
      */
-    CAMERA3_MSG_ERROR_RESULT = 4,
+    CAMERA3_MSG_ERROR_RESULT = 3,
 
     /**
      * An error has occurred in placing an output buffer into a stream for a
@@ -702,7 +694,7 @@ typedef enum camera3_error_msg_code {
      * buffer was dropped, and error_stream contains a pointer to the stream
      * that dropped the frame.u
      */
-    CAMERA3_MSG_ERROR_BUFFER = 5,
+    CAMERA3_MSG_ERROR_BUFFER = 4,
 
     /**
      * Number of error types
