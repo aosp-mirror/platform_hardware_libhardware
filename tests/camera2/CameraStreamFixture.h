@@ -77,7 +77,7 @@ private:
         {
             const int tag = ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES;
 
-            const android::camera2::CameraMetadata& staticInfo = device->info();
+            const CameraMetadata& staticInfo = device->info();
             camera_metadata_ro_entry entry = staticInfo.find(tag);
             ASSERT_NE(0u, entry.count)
                 << "Missing tag android.scaler.availableProcessedSizes";
