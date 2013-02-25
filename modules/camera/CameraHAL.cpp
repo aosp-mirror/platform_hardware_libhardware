@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <hardware/camera_common.h>
 #include <hardware/hardware.h>
+#include "Camera.h"
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "DefaultCameraHAL"
@@ -42,10 +43,23 @@ CameraHAL::CameraHAL(int num_cameras)
   : mNumberOfCameras(num_cameras),
     mCallbacks(NULL)
 {
+    int i;
+
+    // Allocate camera array and instantiate camera devices
+    mCameras = new Camera*[mNumberOfCameras];
+    for (i = 0; i < mNumberOfCameras; i++) {
+        mCameras[i] = new Camera(i);
+    }
 }
 
 CameraHAL::~CameraHAL()
 {
+    int i;
+
+    for (i = 0; i < mNumberOfCameras; i++) {
+        delete mCameras[i];
+    }
+    delete [] mCameras;
 }
 
 int CameraHAL::getNumberOfCameras()
@@ -76,6 +90,7 @@ int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
 {
     int id;
     char *nameEnd;
+    Camera *cam;
 
     ALOGV("%s: module=%p, name=%s, device=%p", __func__, mod, name, dev);
     id = strtol(name, &nameEnd, 10);
@@ -86,8 +101,7 @@ int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
         ALOGE("%s: Invalid camera id %d", __func__, id);
         return -ENODEV;
     }
-    // TODO: check for existing use; allocate and return new camera device
-    return 0;
+    return mCameras[id]->open(mod, dev);
 }
 
 extern "C" {
