@@ -761,6 +761,13 @@ typedef struct {
 #define GPS_GEOFENCE_UNAVAILABLE (1<<0L)
 #define GPS_GEOFENCE_AVAILABLE   (1<<1L)
 
+#define GPS_GEOFENCE_OPERATION_SUCCESS           0
+#define GPS_GEOFENCE_ERROR_TOO_MANY_GEOFENCES -100
+#define GPS_GEOFENCE_ERROR_ID_EXISTS          -101
+#define GPS_GEOFENCE_ERROR_ID_UNKNOWN         -102
+#define GPS_GEOFENCE_ERROR_INVALID_TRANSITION -103
+#define GPS_GEOFENCE_ERROR_GENERIC            -149
+
 /**
  * The callback associated with the geofence.
  * Parameters:
@@ -814,7 +821,8 @@ typedef struct {
     * Add a geofence area. This api currently supports circular geofences.
     * Parameters:
     *    geofence_id - The id for the geofence. If a geofence with this id
-            already exists, an error value (-1) should be returned.
+    *       already exists, an error value (GPS_GEOFENCE_ERROR_ID_EXISTS)
+    *       should be returned.
     *    latitude, longtitude, radius_meters - The lat, long and radius
     *       (in meters) for the geofence
     *    last_transition - The current state of the geofence. For example, if
@@ -837,7 +845,8 @@ typedef struct {
     *    unknown_timer_ms - The time limit after which the UNCERTAIN transition
     *       should be triggered. This paramter is defined in milliseconds.
     *       See above for a detailed explanation.
-    *    Return value: 0 on success, -1 on error.
+    *    Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
+    *                  or any of the GPS_GEOFENCE_ERRORS on failure.
     */
    int (*add_geofence_area) (int32_t geofence_id, double latitude,
                                 double longitude, double radius_meters,
@@ -850,7 +859,9 @@ typedef struct {
     * Parameters:
     *   geofence_id - The id for the geofence.
     *
-    * Return value: 0 on success, -1 on error.
+    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
+    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+    *               GPS_GEOFENCE_ERROR_GENERIC for others.
     */
    int (*pause_geofence) (int32_t geofence_id);
 
@@ -864,7 +875,11 @@ typedef struct {
     *       This supersedes the value associated provided in the
     *       add_geofence_area call.
     *
-    * Return value: 0 on success, -1 on error.
+    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
+    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+    *               GPS_GEOFENCE_ERROR_INVALID_TRANSITION - when
+    *                   monitor_transitions is invalid
+    *               GPS_GEOFENCE_ERROR_GENERIC for others.
     *
     */
    int (*resume_geofence) (int32_t geofence_id, int monitor_transitions);
@@ -874,7 +889,9 @@ typedef struct {
     * should be sent.
     * Parameter:
     *   geofence_id - The id for the geofence.
-    * Return value: 0 on success, -1 on error.
+    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
+    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+    *               GPS_GEOFENCE_ERROR_GENERIC for others.
     */
    int (*remove_geofence_area) (int32_t geofence_id);
 } GpsGeofencingInterface;
