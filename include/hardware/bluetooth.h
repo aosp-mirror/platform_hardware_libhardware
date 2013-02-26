@@ -44,6 +44,7 @@ __BEGIN_DECLS
 #define BT_PROFILE_PAN_ID "pan"
 
 #define BT_PROFILE_GATT_ID "gatt"
+#define BT_PROFILE_AV_RC_ID "avrcp"
 
 /** Bluetooth Address */
 typedef struct {
