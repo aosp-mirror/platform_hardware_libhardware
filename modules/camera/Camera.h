@@ -18,42 +18,46 @@
 #define CAMERA_H_
 
 #include <pthread.h>
-#include <hardware/camera_common.h>
-#include <hardware/camera2.h>
+#include <hardware/hardware.h>
+#include <hardware/camera3.h>
 
 namespace default_camera_hal {
 // Camera represents a physical camera on a device.
 // This is constructed when the HAL module is loaded, one per physical camera.
 // It is opened by the framework, and must be closed before it can be opened
 // again.
-// Also, the framework can query for camera metadata with getCameraInfo.
-// For the first query, the metadata must first be allocated and initialized,
-// but once done it is used for all future calls.
-// It is protected by @mMutex, and functions that modify the Camera object hold
-// this lock when performing modifications.  Currently these functions are:
-// @open, @close, and @init.
 class Camera {
     public:
         // id is used to distinguish cameras. 0 <= id < NUM_CAMERAS.
         // module is a handle to the HAL module, used when the device is opened.
-        Camera(int id, const hw_module_t* module);
+        Camera(int id);
         ~Camera();
 
         // Common Camera Device Operations (see <hardware/camera_common.h>)
-        camera2_device_t mDevice;
-        int open();
+        int open(const hw_module_t *module, hw_device_t **device);
         int close();
-        int getCameraInfo(struct camera_info* info);
+
+        // Camera v3 Device Operations (see <hardware/camera3.h>)
+        int initialize(const camera3_callback_ops_t *callback_ops);
+        int configureStreams(camera3_stream_configuration_t *stream_list);
+        int registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set);
+        const camera_metadata_t *constructDefaultRequestSettings(int type);
+        int processCaptureRequest(camera3_capture_request_t *request);
+        void getMetadataVendorTagOps(vendor_tag_query_ops_t *ops);
+        void dump(int fd);
+
+        // Camera device handle returned to framework for use
+        camera3_device_t mDevice;
 
     private:
-        // One-time initialization of camera metadata.
-        void init();
         // Identifier used by framework to distinguish cameras
         int mId;
-        // True indicates camera is already open.
+        // Busy flag indicates camera is in use
         bool mBusy;
-        // Camera characteristics. NULL means it has not been allocated yet.
-        camera_metadata_t* mMetadata;
+        // Camera device operations handle shared by all devices
+        const static camera3_device_ops_t sOps;
+        // Methods used to call back into the framework
+        const camera3_callback_ops_t *mCallbackOps;
         // Lock protecting the Camera object for modifications
         pthread_mutex_t mMutex;
 };
