@@ -181,9 +181,10 @@ enum {
  *             The HAL must return an event immediately when an on-change
  *             sensor is activated.
  *             eg: proximity, light sensors
- * one-shot:   a single event is reported and the sensor returns to the
- *             disabled state, no further events are reported. setDelay() is
- *             ignored.
+ * one-shot:   upon detection of an event, the sensor deactivates itself and
+ *             then sends a single event. Order matters to avoid race
+ *             conditions. No other event is sent until the sensor get
+ *             reactivated. setDelay() is ignored.
  *             eg: significant motion sensor
  * special:    see details in the sensor type specification below
  *
@@ -378,9 +379,10 @@ enum {
  * of the rotation vector is equal to sin(theta/2), and the direction of the
  * rotation vector is equal to the direction of the axis of rotation. The three
  * elements of the rotation vector are equal to the last three components of a
- * unit quaternion <cos(theta/2), x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>.
- * Elements of the rotation vector are unitless.  The x, y, and z axis are defined
- * in the same was as for the acceleration sensor.
+ * unit quaternion
+ *   <cos(theta/2), x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>.
+ * Elements of the rotation vector are unitless.  The x, y, and z axis are
+ * defined in the same way as for the acceleration sensor.
  *
  * The reference coordinate system is defined as a direct orthonormal basis,
  * where:
@@ -399,7 +401,16 @@ enum {
  *   sensors_event_t.data[0] = x*sin(theta/2)
  *   sensors_event_t.data[1] = y*sin(theta/2)
  *   sensors_event_t.data[2] = z*sin(theta/2)
- *   sensors_event_t.data[3] =   cos(theta/2)
+ *
+ * In addition, this sensor reports an estimated heading accuracy.
+ *   sensors_event_t.data[3] = estimated_accuracy (in radians)
+ * The heading error must be less than estimated_accuracy 95% of the time
+ *
+ * This sensor must use a gyroscope and an accelerometer as main orientation
+ * change input.
+ *
+ * This sensor can also include magnetometer input to make up for gyro drift,
+ * but it cannot be implemented using only a magnetometer.
  */
 #define SENSOR_TYPE_ROTATION_VECTOR                 (11)
 
@@ -427,18 +438,34 @@ enum {
  * trigger-mode: continuous
  * wake-up sensor: no
  *
+ *  Similar to SENSOR_TYPE_MAGNETIC_FIELD, but the hard iron calibration is
+ *  reported separately instead of being included in the measurement.
+ *  Factory calibration and temperature compensation should still be applied to
+ *  the "uncalibrated" measurement.
+ *  Separating away the hard iron calibration estimation allows the system to
+ *  better recover from bad hard iron estimation.
+ *
  *  All values are in micro-Tesla (uT) and measure the ambient magnetic
- *  field in the X, Y and Z axis.
+ *  field in the X, Y and Z axis. Assumptions that the the magnetic field
+ *  is due to the Earth's poles should be avoided.
  *
- *  No periodic calibration is performed (ie: there are no discontinuities
- *  in the data stream while using this sensor). Assumptions that the the
- *  magnetic field is due to the Earth's poles should be avoided.
- *
- *  Factory calibration and temperature compensation should still be applied.
+ *  The uncalibrated_magnetic event contains
+ *  - 3 fields for uncalibrated measurement: x_uncalib, y_uncalib, z_uncalib.
+ *    Each is a component of the measured magnetic field, with soft iron
+ *    and temperature compensation applied, but not hard iron calibration.
+ *    These values should be continuous (no re-calibration should cause a jump).
+ *  - 3 fields for hard iron bias estimates: x_bias, y_bias, z_bias.
+ *    Each field is a component of the estimated hard iron calibration.
+ *    They represent the offsets to apply to the uncalibrated readings to obtain
+ *    calibrated readings (x_calibrated = x_uncalib + x_bias)
+ *    These values are expected to jump as soon as the estimate of the hard iron
+ *    changes.
  *
  *  If this sensor is present, then the corresponding
  *  SENSOR_TYPE_MAGNETIC_FIELD must be present and both must return the
  *  same sensor_t::name and sensor_t::vendor.
+ *
+ * See SENSOR_TYPE_MAGNETIC_FIELD for more information
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
 
@@ -447,15 +474,20 @@ enum {
  * trigger-mode: continuous
  * wake-up sensor: no
  *
- * SENSOR_TYPE_GAME_ROTATION_VECTOR is identical to SENSOR_TYPE_ROTATION_VECTOR,
- * except that it doesn't use the geomagnetic field. Therefore the Y axis doesn't
- * point north, but instead to some other reference, that reference is allowed
- * to drift by the same order of magnitude than the gyroscope drift around
- * the Z axis.
+ *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but not using the geomagnetic
+ *  field. Therefore the Y axis doesn't point north, but instead to some other
+ *  reference. That reference is allowed to drift by the same order of
+ *  magnitude than the gyroscope drift around the Z axis.
  *
- * In the ideal case, a phone rotated and returning to the same real-world
- * orientation should report the same game rotation vector
- * (without using the earth's geomagnetic field).
+ *  This sensor does not report an estimated heading accuracy:
+ *    sensors_event_t.data[3] is reserved and should be set to 0
+ *
+ *  In the ideal case, a phone rotated and returning to the same real-world
+ *  orientation should report the same game rotation vector
+ *  (without using the earth's geomagnetic field).
+ *
+ *  This sensor must be based on a gyroscope. It cannot be implemented using
+ *  a magnetometer.
  *
  * see SENSOR_TYPE_ROTATION_VECTOR for more details
  */
@@ -484,13 +516,13 @@ enum {
  *  with the definition of roll given earlier.
  *  The range should at least be 17.45 rad/s (ie: ~1000 deg/s).
  *
- *  sensors_event_t::
- *   data[0] : angular speed (w/o drift compensation) around the X axis in rad/s
- *   data[1] : angular speed (w/o drift compensation) around the Y axis in rad/s
- *   data[2] : angular speed (w/o drift compensation) around the Z axis in rad/s
- *   data[3] : estimated drift around X axis in rad/s
- *   data[4] : estimated drift around Y axis in rad/s
- *   data[5] : estimated drift around Z axis in rad/s
+ *  Content of an uncalibrated_gyro event: (units are rad/sec)
+ *   x_uncalib : angular speed (w/o drift compensation) around the X axis
+ *   y_uncalib : angular speed (w/o drift compensation) around the Y axis
+ *   z_uncalib : angular speed (w/o drift compensation) around the Z axis
+ *   x_bias : estimated drift around X axis in rad/s
+ *   y_bias : estimated drift around Y axis in rad/s
+ *   z_bias : estimated drift around Z axis in rad/s
  *
  *  IMPLEMENTATION NOTES:
  *
@@ -622,6 +654,25 @@ enum {
 
 #define SENSOR_TYPE_STEP_COUNTER                    (19)
 
+/*
+ * SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR
+ * trigger-mode: continuous
+ * wake-up sensor: no
+ *
+ *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but using a magnetometer instead
+ *  of using a gyroscope.
+ *
+ *  This sensor must be based on a magnetometer. It cannot be implemented using
+ *  a gyroscope, and gyroscope input cannot be used by this sensor.
+ *
+ *  Just like SENSOR_TYPE_ROTATION_VECTOR, this sensor reports an estimated
+ *  heading accuracy:
+ *    sensors_event_t.data[3] = estimated_accuracy (in radians)
+ *  The heading error must be less than estimated_accuracy 95% of the time
+ *
+ * see SENSOR_TYPE_ROTATION_VECTOR for more details
+ */
+#define SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR            (20)
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -667,6 +718,18 @@ typedef struct {
     int8_t status;
     uint8_t reserved[3];
 } sensors_vec_t;
+
+/**
+ * uncalibrated gyroscope and magnetometer event data
+ */
+typedef struct {
+  float x_uncalib;
+  float y_uncalib;
+  float z_uncalib;
+  float x_bias;
+  float y_bias;
+  float z_bias;
+} uncalibrated_event_t;
 
 /**
  * Union of the various types of sensor data
@@ -720,6 +783,12 @@ typedef struct sensors_event_t {
 
         /* step-counter */
         uint64_t        step_counter;
+
+        /* uncalibrated gyroscope values are in rad/s */
+        uncalibrated_event_t uncalibrated_gyro;
+
+        /* uncalibrated magnetometer values are in micro-Teslas */
+        uncalibrated_event_t uncalibrated_magnetic;
     };
     uint32_t        reserved1[4];
 } sensors_event_t;
@@ -989,6 +1058,44 @@ typedef struct sensors_poll_device_1 {
      * while the specified sensor is already enabled and this shall not
      * result in the loss of events.
      *
+     * COMPARATIVE IMPORTANCE OF BATCHING FOR DIFFERENT SENSORS:
+     * ---------------------------------------------------------
+     *
+     * On platforms on which hardware fifo size is limited, the system designers
+     * might have to choose how much fifo to reserve for each sensor. To help
+     * with this choice, Here is a list of applications made possible when
+     * batching is implemented on the different sensors.
+     *
+     * High value: Low power pedestrian dead reckoning
+     *   Target batching time: 20 seconds to 1 minute
+     *   Sensors to batch:
+     *    - Step detector
+     *    - Rotation vector or game rotation vector at 5Hz
+     *   Gives us step and heading while letting the AP go to Suspend.
+     *
+     * High value: Medium power activity/gesture recognition
+     *   Target batching time: 3 seconds
+     *   Sensors to batch: accelerometer between 20Hz and 50Hz
+     *   Allows recognizing arbitrary activities and gestures without having
+     *   to keep the AP fully awake while the data is collected.
+     *
+     * Medium-high value: Interrupt load reduction
+     *   Target batching time: < 1 second
+     *   Sensors to batch: any high frequency sensor.
+     *   If the gyroscope is set at 800Hz, even batching just 10 gyro events can
+     *   reduce the number of interrupts from 800/second to 80/second.
+     *
+     * Medium value: Continuous low frequency data collection
+     *   Target batching time: > 1 minute
+     *   Sensors to batch: barometer, humidity sensor, other low frequency
+     *     sensors.
+     *   Allows creating monitoring applications at low power.
+     *
+     * Medium value: Continuous full-sensors collection
+     *   Target batching time: > 1 minute
+     *   Sensors to batch: all, at high frequencies
+     *   Allows full collection of sensor data while leaving the AP in
+     *   suspend mode. Only to consider if fifo space is not an issue.
      */
     int (*batch)(struct sensors_poll_device_1* dev,
             int handle, int flags, int64_t period_ns, int64_t timeout);
