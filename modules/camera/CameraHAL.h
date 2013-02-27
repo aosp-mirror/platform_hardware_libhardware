@@ -17,8 +17,10 @@
 #ifndef CAMERA_HAL_H_
 #define CAMERA_HAL_H_
 
+#include <cutils/bitops.h>
 #include <hardware/hardware.h>
 #include <hardware/camera_common.h>
+#include "Camera.h"
 
 namespace default_camera_hal {
 // CameraHAL contains all module state that isn't specific to an individual
@@ -41,6 +43,8 @@ class CameraHAL {
         const int mNumberOfCameras;
         // Callback handle
         const camera_module_callbacks_t *mCallbacks;
+        // Array of camera devices, contains mNumberOfCameras device pointers
+        Camera **mCameras;
 };
 } // namespace default_camera_hal
 
