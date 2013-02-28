@@ -51,7 +51,7 @@ class Camera {
 
     private:
         // Identifier used by framework to distinguish cameras
-        int mId;
+        const int mId;
         // Busy flag indicates camera is in use
         bool mBusy;
         // Camera device operations handle shared by all devices
