@@ -262,8 +262,16 @@ void Camera::setupStreams(Stream **streams, int count)
 int Camera::registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set)
 {
     ALOGV("%s:%d: buffer_set=%p", __func__, mId, buf_set);
-    // TODO: register buffers with hardware
-    return 0;
+    if (buf_set == NULL) {
+        ALOGE("%s:%d: NULL buffer set", __func__, mId);
+        return -EINVAL;
+    }
+    if (buf_set->stream == NULL) {
+        ALOGE("%s:%d: NULL stream handle", __func__, mId);
+        return -EINVAL;
+    }
+    Stream *stream = reinterpret_cast<Stream*>(buf_set->stream->priv);
+    return stream->registerBuffers(buf_set);
 }
 
 const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)

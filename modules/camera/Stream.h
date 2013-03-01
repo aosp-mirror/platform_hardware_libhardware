@@ -31,18 +31,24 @@ class Stream {
         // validate that astream's parameters match this stream's parameters
         bool isValidReuseStream(int id, camera3_stream_t *s);
 
+        // Register buffers with hardware
+        int registerBuffers(const camera3_stream_buffer_set_t *buf_set);
+
         void setUsage(uint32_t usage);
         void setMaxBuffers(uint32_t max_buffers);
 
         int getType();
         bool isInputType();
         bool isOutputType();
-        bool getRegistered();
+        bool isRegistered();
 
         // This stream is being reused. Used in stream configuration passes
         bool mReuse;
 
     private:
+        // Clean up buffer state. must be called with mMutex held.
+        void unregisterBuffers_L();
+
         // The camera device id this stream belongs to
         const int mId;
         // Handle to framework's stream, used as a cookie for buffers
@@ -61,6 +67,10 @@ class Stream {
         uint32_t mMaxBuffers;
         // Buffers have been registered for this stream and are ready
         bool mRegistered;
+        // Array of handles to buffers currently in use by the stream
+        buffer_handle_t **mBuffers;
+        // Number of buffers in mBuffers
+        unsigned int mNumBuffers;
         // Lock protecting the Stream object for modifications
         pthread_mutex_t mMutex;
 };

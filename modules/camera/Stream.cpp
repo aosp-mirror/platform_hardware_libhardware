@@ -41,7 +41,9 @@ Stream::Stream(int id, camera3_stream_t *s)
     mFormat(s->format),
     mUsage(0),
     mMaxBuffers(0),
-    mRegistered(false)
+    mRegistered(false),
+    mBuffers(0),
+    mNumBuffers(0)
 {
     // NULL (default) pthread mutex attributes
     pthread_mutex_init(&mMutex, NULL);
@@ -49,7 +51,9 @@ Stream::Stream(int id, camera3_stream_t *s)
 
 Stream::~Stream()
 {
-    // TODO: unregister buffers from hw
+    pthread_mutex_lock(&mMutex);
+    unregisterBuffers_L();
+    pthread_mutex_unlock(&mMutex);
 }
 
 void Stream::setUsage(uint32_t usage)
@@ -57,8 +61,7 @@ void Stream::setUsage(uint32_t usage)
     pthread_mutex_lock(&mMutex);
     if (usage != mUsage) {
         mUsage = usage;
-        mRegistered = false;
-        // TODO: unregister buffers from hw
+        unregisterBuffers_L();
     }
     pthread_mutex_unlock(&mMutex);
 }
@@ -68,8 +71,7 @@ void Stream::setMaxBuffers(uint32_t max_buffers)
     pthread_mutex_lock(&mMutex);
     if (max_buffers != mMaxBuffers) {
         mMaxBuffers = max_buffers;
-        mRegistered = false;
-        // TODO: unregister buffers from hw
+        unregisterBuffers_L();
     }
     pthread_mutex_unlock(&mMutex);
 }
@@ -87,6 +89,11 @@ bool Stream::isInputType()
 bool Stream::isOutputType()
 {
     return mType & (CAMERA3_STREAM_OUTPUT | CAMERA3_STREAM_BIDIRECTIONAL);
+}
+
+bool Stream::isRegistered()
+{
+    return mRegistered;
 }
 
 bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
@@ -124,6 +131,43 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
         return false;
     }
     return true;
+}
+
+int Stream::registerBuffers(const camera3_stream_buffer_set_t *buf_set)
+{
+    CAMTRACE_CALL();
+
+    if (buf_set->stream != mStream) {
+        ALOGE("%s:%d: Buffer set for invalid stream. Got %p expect %p",
+                __func__, mId, buf_set->stream, mStream);
+        return -EINVAL;
+    }
+
+    pthread_mutex_lock(&mMutex);
+
+    mNumBuffers = buf_set->num_buffers;
+    mBuffers = new buffer_handle_t*[mNumBuffers];
+
+    for (unsigned int i = 0; i < mNumBuffers; i++) {
+        ALOGV("%s:%d: Registering buffer %p", __func__, mId,
+                buf_set->buffers[i]);
+        mBuffers[i] = buf_set->buffers[i];
+        // TODO: register buffers with hw, handle error cases
+    }
+    mRegistered = true;
+
+    pthread_mutex_unlock(&mMutex);
+
+    return 0;
+}
+
+// This must only be called with mMutex held
+void Stream::unregisterBuffers_L()
+{
+    mRegistered = false;
+    mNumBuffers = 0;
+    delete [] mBuffers;
+    // TODO: unregister buffers from hw
 }
 
 } // namespace default_camera_hal
