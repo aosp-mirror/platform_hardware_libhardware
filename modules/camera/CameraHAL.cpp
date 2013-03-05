@@ -90,7 +90,6 @@ int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
 {
     int id;
     char *nameEnd;
-    Camera *cam;
 
     ALOGV("%s: module=%p, name=%s, device=%p", __func__, mod, name, dev);
     id = strtol(name, &nameEnd, 10);
