@@ -508,8 +508,8 @@ typedef struct camera3_stream_configuration {
     uint32_t num_streams;
 
     /**
-     * An array of camera streams, defining the input/output configuration for
-     * the camera HAL device.
+     * An array of camera stream pointers, defining the input/output
+     * configuration for the camera HAL device.
      *
      * At most one input-capable stream may be defined (INPUT or BIDIRECTIONAL)
      * in a single configuration.
@@ -517,7 +517,7 @@ typedef struct camera3_stream_configuration {
      * At least one output-capable stream must be defined (OUTPUT or
      * BIDIRECTIONAL).
      */
-    camera3_stream_t *streams;
+    camera3_stream_t **streams;
 
 } camera3_stream_configuration_t;
 
@@ -589,7 +589,7 @@ typedef struct camera3_stream_buffer_set {
      * should inspect the passed-in buffers to determine any platform-private
      * pixel format information.
      */
-    buffer_handle_t *buffers;
+    buffer_handle_t **buffers;
 
 } camera3_stream_buffer_set_t;
 
