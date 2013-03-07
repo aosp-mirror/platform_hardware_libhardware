@@ -560,7 +560,7 @@ enum {
  *  - Triggering an event when the user is not moving (false positive) is costly
  *    in terms of power, so it should be avoided.
  *  - Not triggering an event when the user is moving (false negative) is
- *  - acceptable as long as it is not done repeatedly. If the user has been
+ *    acceptable as long as it is not done repeatedly. If the user has been
  *    walking for 10 seconds, not triggering an event within those 10 seconds
  *    is not acceptable.
  *
