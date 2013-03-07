@@ -546,10 +546,23 @@ enum {
  * is detected and automatically disables itself.
  * The only allowed value to return is 1.0.
  *
+ * A significant motion is a motion that might lead to a change in the user
+ * location.
+ * Examples of such motions are:
+ *   walking, biking, sitting in a moving car, coach or train.
+ * Examples of situations that should not trigger significant motion:
+ * - phone in pocket and person is not moving
+ * - phone is on a table, even if the table shakes a bit due to nearby traffic
+ *   or washing machine
  *
- * TODO: give more details about what constitute significant motion
- *       and/or what algorithm is to be used
- *
+ * A note on false positive / false negative / power consumption tradeoff
+ *  - The goal of this sensor is to save power.
+ *  - Triggering an event when the user is not moving (false positive) is costly
+ *    in terms of power, so it should be avoided.
+ *  - Not triggering an event when the user is moving (false negative) is
+ *  - acceptable as long as it is not done repeatedly. If the user has been
+ *    walking for 10 seconds, not triggering an event within those 10 seconds
+ *    is not acceptable.
  *
  *  IMPORTANT NOTE: this sensor type is very different from other types
  *  in that it must work when the screen is off without the need of
