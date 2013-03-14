@@ -133,12 +133,13 @@
  *    registered output stream remains (otherwise, step 5 is required first).
  *
  * 12. Alternatively, the framework may call camera3_device_t->common->close()
- *    to end the camera session. This may be called at any time, although the
- *    call may block until all in-flight captures have completed (all results
- *    returned, all buffers filled). After the close call returns, no more calls
- *    to the camera3_callback_ops_t functions are allowed from the HAL. The
- *    framework may not call any methods on the HAL device interface again after
- *    close() returns.
+ *    to end the camera session. This may be called at any time when no other
+ *    calls from the framework are active, although the call may block until all
+ *    in-flight captures have completed (all results returned, all buffers
+ *    filled). After the close call returns, no more calls to the
+ *    camera3_callback_ops_t functions are allowed from the HAL. Once the
+ *    close() call is underway, the framework may not call any other HAL device
+ *    functions.
  *
  * 13. In case of an error or other asynchronous event, the HAL must call
  *    camera3_callback_ops_t->notify() with the appropriate error/event
@@ -522,6 +523,26 @@ typedef struct camera3_stream_configuration {
 } camera3_stream_configuration_t;
 
 /**
+ * camera3_buffer_status_t:
+ *
+ * The current status of a single stream buffer.
+ */
+typedef enum camera3_buffer_status {
+    /**
+     * The buffer is in a normal state, and can be used after waiting on its
+     * sync fence.
+     */
+    CAMERA3_BUFFER_STATUS_OK = 0,
+
+    /**
+     * The buffer does not contain valid data, and the data in it should not be
+     * used. The sync fence must still be waited on before reusing the buffer.
+     */
+    CAMERA3_BUFFER_STATUS_ERROR = 1
+
+} camera3_buffer_status_t;
+
+/**
  * camera3_stream_buffer_t:
  *
  * A single buffer from a camera3 stream. It includes a handle to its parent
@@ -543,11 +564,30 @@ typedef struct camera3_stream_buffer {
     buffer_handle_t *buffer;
 
     /**
+     * Current state of the buffer, one of the camera3_buffer_status_t
+     * values. The framework will not pass buffers to the HAL that are in an
+     * error state. In case a buffer could not be filled by the HAL, it must
+     * have its status set to CAMERA3_BUFFER_STATUS_ERROR when returned to the
+     * framework with process_capture_result().
+     */
+    int status;
+
+    /**
      * The acquire sync fence for this buffer. The HAL must wait on this fence
      * fd before attempting to read from or write to this buffer.
      *
      * The framework may be set to -1 to indicate that no waiting is necessary
-     * for this buffer. This field should not be changed by the HAL.
+     * for this buffer.
+     *
+     * When the HAL returns an output buffer to the framework with
+     * process_capture_result(), the acquire_fence must be set to -1. If the HAL
+     * never waits on the acquire_fence due to an error in filling a buffer,
+     * when calling process_capture_result() the HAL must set the release_fence
+     * of the buffer to be the acquire_fence passed to it by the framework. This
+     * will allow the framework to wait on the fence before reusing the buffer.
+     *
+     * For input buffers, the HAL must not change the acquire_fence field during
+     * the process_capture_request() call.
      */
      int acquire_fence;
 
@@ -559,6 +599,7 @@ typedef struct camera3_stream_buffer {
      * For the input buffer, the release fence must be set by the
      * process_capture_request() call. For the output buffers, the fences must
      * be set in the output_buffers array passed to process_capture_result().
+     *
      */
     int release_fence;
 
@@ -953,6 +994,16 @@ typedef struct camera3_capture_result {
      *
      * The HAL must set the stream buffer's release sync fence to a valid sync
      * fd, or to -1 if the buffer has already been filled.
+     *
+     * If the HAL encounters an error while processing the buffer, and the
+     * buffer is not filled, the buffer's status field must be set to
+     * CAMERA3_BUFFER_STATUS_ERROR. If the HAL did not wait on the acquire fence
+     * before encountering the error, the acquire fence should be copied into
+     * the release fence, to allow the framework to wait on the fence before
+     * reusing the buffer.
+     *
+     * The acquire fence must be set to -1 for all output buffers.
+     *
      */
      const camera3_stream_buffer_t *output_buffers;
 
@@ -1000,15 +1051,14 @@ typedef struct camera3_callback_ops {
      * sync fences. In addition, notify() must be called with an ERROR_RESULT
      * message.
      *
-     * If an output buffer cannot be filled, a sync error should be produced by
-     * the HAL for that buffer; this method should still be called with a valid
-     * (possibly in an error state) sync fence, if the HAL is using them. In
-     * addition, notify() must be called with a ERROR_BUFFER message.
+     * If an output buffer cannot be filled, its status field must be set to
+     * STATUS_ERROR. In addition, notify() must be called with a ERROR_BUFFER
+     * message.
      *
      * If the entire capture has failed, then this method still needs to be
-     * called to return the output buffers to the framework. All the sync
-     * fences, if used, should be in the error state, and the result metadata
-     * should be NULL. In addition, notify() must be called with a ERROR_REQUEST
+     * called to return the output buffers to the framework. All the buffer
+     * statuses should be STATUS_ERROR, and the result metadata should be
+     * NULL. In addition, notify() must be called with a ERROR_REQUEST
      * message. In this case, individual ERROR_RESULT/ERROR_BUFFER messages
      * should not be sent.
      *
