@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <pthread.h>
 #include <hardware/camera3.h>
+#include <system/camera_metadata.h>
 #include "CameraHAL.h"
 #include "Stream.h"
 
@@ -47,7 +48,8 @@ Camera::Camera(int id)
     mBusy(false),
     mCallbackOps(NULL),
     mStreams(NULL),
-    mNumStreams(0)
+    mNumStreams(0),
+    mSettings(NULL)
 {
     pthread_mutex_init(&mMutex,
                        NULL); // No pthread mutex attributes.
@@ -163,6 +165,9 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     destroyStreams(mStreams, mNumStreams);
     mStreams = newStreams;
     mNumStreams = stream_config->num_streams;
+
+    // Clear out last seen settings metadata
+    setSettings(NULL);
 
     pthread_mutex_unlock(&mMutex);
     return 0;
@@ -291,8 +296,33 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
         return -EINVAL;
     }
 
+    ALOGV("%s:%d: Request Frame:%d Settings:%p", __func__, mId,
+            request->frame_number, request->settings);
+
+    // NULL indicates use last settings
+    if (request->settings == NULL) {
+        if (mSettings == NULL) {
+            ALOGE("%s:%d: NULL settings without previous set Frame:%d Req:%p",
+                    __func__, mId, request->frame_number, request);
+            return -EINVAL;
+        }
+    } else {
+        setSettings(request->settings);
+    }
+
     // TODO: verify request; submit request to hardware
     return 0;
+}
+
+void Camera::setSettings(const camera_metadata_t *new_settings)
+{
+    if (mSettings != NULL) {
+        free_camera_metadata(mSettings);
+        mSettings = NULL;
+    }
+
+    if (new_settings != NULL)
+        mSettings = clone_camera_metadata(new_settings);
 }
 
 void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)

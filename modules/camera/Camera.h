@@ -59,6 +59,8 @@ class Camera {
         bool isValidStreamSet(Stream **array, int count);
         // Calculate usage and max_bufs of each stream
         void setupStreams(Stream **array, int count);
+        // Copy new settings for re-use and clean up old settings.
+        void setSettings(const camera_metadata_t *new_settings);
 
         // Identifier used by framework to distinguish cameras
         const int mId;
@@ -74,6 +76,8 @@ class Camera {
         Stream **mStreams;
         // Number of streams in mStreams
         int mNumStreams;
+        // Most recent request settings seen, memoized to be reused
+        camera_metadata_t *mSettings;
 };
 } // namespace default_camera_hal
 
