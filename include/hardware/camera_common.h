@@ -172,6 +172,18 @@ typedef struct camera_info {
  *
  * The current status of the camera device, as provided by the HAL through the
  * camera_module_callbacks.camera_device_status_change() call.
+ *
+ * At module load time, the framework will assume all camera devices are in the
+ * CAMERA_DEVICE_STATUS_PRESENT state. The HAL should invoke
+ * camera_module_callbacks::camera_device_status_change to inform the framework
+ * of any initially NOT_PRESENT devices.
+ *
+ * Allowed transitions:
+ *      PRESENT            -> NOT_PRESENT
+ *      NOT_PRESENT        -> ENUMERATING
+ *      NOT_PRESENT        -> PRESENT
+ *      ENUMERATING        -> PRESENT
+ *      ENUMERATING        -> NOT_PRESENT
  */
 typedef enum camera_device_status {
     /**
@@ -187,7 +199,14 @@ typedef enum camera_device_status {
      * change. By default, the framework will assume all devices are in this
      * state.
      */
-    CAMERA_DEVICE_STATUS_PRESENT = 1
+    CAMERA_DEVICE_STATUS_PRESENT = 1,
+
+    /**
+     * The camera device is connected, but it is undergoing an enumeration and
+     * so opening the device will return -EBUSY. Calls to get_camera_info
+     * must still succeed, as if the camera was in the PRESENT status.
+     */
+    CAMERA_DEVICE_STATUS_ENUMERATING = 2,
 
 } camera_device_status_t;
 
