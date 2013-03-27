@@ -59,7 +59,7 @@ struct CameraModuleFixture {
         mNumberOfCameras = mModule->get_number_of_cameras();
         ASSERT_LE(0, mNumberOfCameras);
 
-        ASSERT_EQ(
+        ASSERT_LE(
             CAMERA_MODULE_API_VERSION_2_0, mModule->common.module_api_version)
             << "Wrong module API version";
 
