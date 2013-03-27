@@ -60,10 +60,10 @@ class Camera2Test: public testing::Test {
         }
 
         int16_t version2_0 = CAMERA_MODULE_API_VERSION_2_0;
-        ASSERT_EQ(version2_0, module->module_api_version)
+        ASSERT_LE(version2_0, module->module_api_version)
                 << "Camera module version is 0x"
                 << std::hex << module->module_api_version
-                << ", not 2.0. (0x"
+                << ", should be at least 2.0. (0x"
                 << std::hex << CAMERA_MODULE_API_VERSION_2_0 << ")";
 
         sCameraModule = reinterpret_cast<camera_module_t*>(module);
