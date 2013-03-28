@@ -82,7 +82,7 @@ static int gralloc_unmap(gralloc_module_t const* module,
 
 /*****************************************************************************/
 
-static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER; 
+static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER;
 
 /*****************************************************************************/
 
@@ -92,14 +92,8 @@ int gralloc_register_buffer(gralloc_module_t const* module,
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    // if this handle was created in this process, then we keep it as is.
-    int err = 0;
-    private_handle_t* hnd = (private_handle_t*)handle;
-    if (hnd->pid != getpid()) {
-        void *vaddr;
-        err = gralloc_map(module, handle, &vaddr);
-    }
-    return err;
+    void *vaddr;
+    return gralloc_map(module, handle, &vaddr);
 }
 
 int gralloc_unregister_buffer(gralloc_module_t const* module,
@@ -108,13 +102,10 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    // never unmap buffers that were created in this process
     private_handle_t* hnd = (private_handle_t*)handle;
-    if (hnd->pid != getpid()) {
-        if (hnd->base) {
-            gralloc_unmap(module, handle);
-        }
-    }
+    if (hnd->base)
+        gralloc_unmap(module, handle);
+
     return 0;
 }
 
@@ -157,7 +148,7 @@ int gralloc_lock(gralloc_module_t const* module,
     return 0;
 }
 
-int gralloc_unlock(gralloc_module_t const* module, 
+int gralloc_unlock(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
     // we're done with a software buffer. nothing to do in this
