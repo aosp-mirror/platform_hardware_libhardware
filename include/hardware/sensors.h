@@ -54,23 +54,6 @@ __BEGIN_DECLS
 #define SENSORS_HANDLE_COUNT            (1<<SENSORS_HANDLE_BITS)
 
 
-/* attributes queriable with query() */
-enum {
-    /*
-     * Availability: SENSORS_DEVICE_API_VERSION_1_0
-     * return the maximum number of events that can be returned
-     * in a single call to (*poll)(). This value is used by the
-     * framework to adequately dimension the buffer passed to
-     * (*poll)(), note that (*poll)() still needs to pay attention to
-     * the count parameter passed to it, it cannot blindly expect that
-     * this value will be used for all calls to (*poll)().
-     *
-     * Generally this value should be set to match the sum of the internal
-     * FIFOs of all available sensors.
-     */
-    SENSORS_QUERY_MAX_EVENTS_BATCH_COUNT     = 0
-};
-
 /*
  * flags for (*batch)()
  * Availability: SENSORS_DEVICE_API_VERSION_1_0
@@ -118,7 +101,8 @@ enum {
  * SoC to go into suspend mode. It is the responsibility of applications
  * to keep a partial wake-lock should they wish to receive sensor
  * events while the screen is off. While in suspend mode, and unless
- * otherwise noted, enabled sensors' events are lost.
+ * otherwise noted (batch mode, sensor particularities, ...), enabled sensors'
+ * events are lost.
  *
  * Note that conceptually, the sensor itself is not de-activated while in
  * suspend mode -- it's just that the data it returns are lost. As soon as
@@ -128,7 +112,7 @@ enum {
  * continue fill their internal FIFO (see the documentation of batch() to
  * learn how suspend interacts with batch mode).
  *
- * In batch mode and only when the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL is
+ * In batch mode, and only when the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL is
  * set and supported, the specified sensor must be able to wake-up the SoC and
  * be able to buffer at least 10 seconds worth of the requested sensor events.
  *
@@ -372,38 +356,40 @@ enum {
  * trigger-mode: continuous
  * wake-up sensor: no
  *
- * A rotation vector represents the orientation of the device as a combination
- * of an angle and an axis, in which the device has rotated through an angle
- * theta around an axis <x, y, z>. The three elements of the rotation vector
- * are <x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>, such that the magnitude
- * of the rotation vector is equal to sin(theta/2), and the direction of the
- * rotation vector is equal to the direction of the axis of rotation. The three
- * elements of the rotation vector are equal to the last three components of a
- * unit quaternion
- *   <cos(theta/2), x*sin(theta/2), y*sin(theta/2), z*sin(theta/2)>.
- * Elements of the rotation vector are unitless.  The x, y, and z axis are
- * defined in the same way as for the acceleration sensor.
+ * The rotation vector symbolizes the orientation of the device relative to the
+ * East-North-Up coordinates frame. It is usually obtained by integration of
+ * accelerometer, gyroscope and magnetometer readings.
  *
- * The reference coordinate system is defined as a direct orthonormal basis,
+ * The East-North-Up coordinate system is defined as a direct orthonormal basis
  * where:
- *
- * - X is defined as the vector product Y.Z (It is tangential to
- * the ground at the device's current location and roughly points East).
- *
- * - Y is tangential to the ground at the device's current location and
- * points towards the magnetic North Pole.
- *
+ * - X points east and is tangential to the ground.
+ * - Y points north and is tangential to the ground.
  * - Z points towards the sky and is perpendicular to the ground.
  *
+ * The orientation of the phone is represented by the rotation necessary to
+ * align the East-North-Up coordinates with the phone's coordinates. That is,
+ * applying the rotation to the world frame (X,Y,Z) would align them with the
+ * phone coordinates (x,y,z).
  *
- * The rotation-vector is stored as:
+ * The rotation can be seen as rotating the phone by an angle theta around
+ * an axis rot_axis to go from the reference (East-North-Up aligned) device
+ * orientation to the current device orientation.
  *
- *   sensors_event_t.data[0] = x*sin(theta/2)
- *   sensors_event_t.data[1] = y*sin(theta/2)
- *   sensors_event_t.data[2] = z*sin(theta/2)
+ * The rotation is encoded as the 4 (reordered) components of a unit quaternion:
+ *   sensors_event_t.data[0] = rot_axis.x*sin(theta/2)
+ *   sensors_event_t.data[1] = rot_axis.y*sin(theta/2)
+ *   sensors_event_t.data[2] = rot_axis.z*sin(theta/2)
+ *   sensors_event_t.data[3] = cos(theta/2)
+ * where
+ *   - rot_axis.x,y,z are the North-East-Up coordinates of a unit length vector
+ *     representing the rotation axis
+ *   - theta is the rotation angle
+ *
+ * The quaternion must be of norm 1 (it is a unit quaternion). Failure to ensure
+ * this will cause erratic client behaviour.
  *
  * In addition, this sensor reports an estimated heading accuracy.
- *   sensors_event_t.data[3] = estimated_accuracy (in radians)
+ *   sensors_event_t.data[4] = estimated_accuracy (in radians)
  * The heading error must be less than estimated_accuracy 95% of the time
  *
  * This sensor must use a gyroscope and an accelerometer as main orientation
@@ -480,7 +466,7 @@ enum {
  *  magnitude than the gyroscope drift around the Z axis.
  *
  *  This sensor does not report an estimated heading accuracy:
- *    sensors_event_t.data[3] is reserved and should be set to 0
+ *    sensors_event_t.data[4] is reserved and should be set to 0
  *
  *  In the ideal case, a phone rotated and returning to the same real-world
  *  orientation should report the same game rotation vector
@@ -680,7 +666,7 @@ enum {
  *
  *  Just like SENSOR_TYPE_ROTATION_VECTOR, this sensor reports an estimated
  *  heading accuracy:
- *    sensors_event_t.data[3] = estimated_accuracy (in radians)
+ *    sensors_event_t.data[4] = estimated_accuracy (in radians)
  *  The heading error must be less than estimated_accuracy 95% of the time
  *
  * see SENSOR_TYPE_ROTATION_VECTOR for more details
@@ -736,12 +722,22 @@ typedef struct {
  * uncalibrated gyroscope and magnetometer event data
  */
 typedef struct {
-  float x_uncalib;
-  float y_uncalib;
-  float z_uncalib;
-  float x_bias;
-  float y_bias;
-  float z_bias;
+  union {
+    float uncalib[3];
+    struct {
+      float x_uncalib;
+      float y_uncalib;
+      float z_uncalib;
+    };
+  };
+  union {
+    float bias[3];
+    struct {
+      float x_bias;
+      float y_bias;
+      float z_bias;
+    };
+  };
 } uncalibrated_event_t;
 
 /**
@@ -956,7 +952,7 @@ typedef struct sensors_poll_device_1 {
              * of an error.
              *
              * The number of events returned in data must be less or equal
-             * to SENSORS_QUERY_MAX_EVENTS_BATCH_COUNT.
+             * to the "count" argument.
              *
              * This function shall never return 0 (no event).
              */
@@ -964,13 +960,6 @@ typedef struct sensors_poll_device_1 {
                     sensors_event_t* data, int count);
         };
     };
-
-    /*
-     * Used to retrieve information about the sensor HAL
-     *
-     * Returns 0 on success or -errno on error.
-     */
-    int (*query)(struct sensors_poll_device_1* dev, int what, int* value);
 
 
     /*
@@ -983,10 +972,18 @@ typedef struct sensors_poll_device_1 {
      * period in nanosecond. See setDelay() above for a detailed explanation of
      * the period_ns parameter.
      *
-     * While in batch mode sensor events are reported in batches at least
-     * every "timeout" nanosecond; that is all events since the previous batch
-     * are recorded and returned all at once. Batches can be interleaved and
-     * split, and as usual events of the same sensor type are time-ordered.
+     * BATCH MODE:
+     * -----------
+     * In non-batch mode, all sensor events must be reported as soon as they
+     * are detected. For example, an accelerometer activated at 50Hz will
+     * trigger interrupts 50 times per second.
+     * While in batch mode, sensor events do not need to be reported as soon
+     * as they are detected. They can be temporarily stored in batches and
+     * reported in batches, as long as no event is delayed by more than
+     * "timeout" nanoseconds. That is, all events since the previous batch
+     * are recorded and returned all at once. This allows to reduce the amount
+     * of interrupts sent to the SoC, and allow the SoC to switch to a lower
+     * power state (Idle) while the sensor is capturing and batching data.
      *
      * setDelay() is not affected and it behaves as usual.
      *
@@ -994,17 +991,26 @@ typedef struct sensors_poll_device_1 {
      * must be accurate and correspond to the time at which the event
      * physically happened.
      *
+     * Batching does not modify the behavior of poll(): batches from different
+     * sensors can be interleaved and split. As usual, all events from the same
+     * sensor are time-ordered.
+     *
+     * BEHAVIOUR OUTSIDE OF SUSPEND MODE:
+     * ----------------------------------
+     *
+     * When the SoC is awake (not in suspend mode), events must be reported in
+     * batches at least every "timeout". No event shall be dropped or lost.
      * If internal h/w FIFOs fill-up before the timeout, then events are
-     * reported at that point. No event shall be dropped or lost.
+     * reported at that point to ensure no event is lost.
      *
      *
-     * INTERACTION WITH SUSPEND MODE:
-     * ------------------------------
+     * NORMAL BEHAVIOR IN SUSPEND MODE:
+     * ---------------------------------
      *
-     * By default batch mode doesn't significantly change the interaction with
-     * suspend mode, that is, sensors must continue to allow the SoC to
+     * By default, batch mode doesn't significantly change the interaction with
+     * suspend mode. That is, sensors must continue to allow the SoC to
      * go into suspend mode and sensors must stay active to fill their
-     * internal FIFO, in this mode, when the FIFO fills-up, it shall wrap
+     * internal FIFO. In this mode, when the FIFO fills up, it shall wrap
      * around (basically behave like a circular buffer, overwriting events).
      * As soon as the SoC comes out of suspend mode, a batch is produced with
      * as much as the recent history as possible, and batch operation
@@ -1014,20 +1020,34 @@ typedef struct sensors_poll_device_1 {
      * history of a set of sensor while keeping the SoC into suspend. It
      * also allows the hardware to not have to rely on a wake-up interrupt line.
      *
-     * There are cases however where an application cannot afford to lose
-     * any events, even when the device goes into suspend mode. The behavior
-     * specified above can be altered by setting the
-     * SENSORS_BATCH_WAKE_UPON_FIFO_FULL flag. If this flag is set, the SoC
-     * must be woken up from suspend and a batch must be returned before
-     * the FIFO fills-up. Enough head room must be allocated in the FIFO to allow
-     * the device to entirely come out of suspend (which might take a while and
-     * is device dependent) such that no event are lost.
+     * WAKE_UPON_FIFO_FULL BEHAVIOR IN SUSPEND MODE:
+     * ----------------------------------------------
      *
-     *   If the hardware cannot support this mode, or, if the physical
+     * There are cases, however, where an application cannot afford to lose
+     * any events, even when the device goes into suspend mode.
+     * For a given rate, if a sensor has the capability to store at least 10
+     * seconds worth of events in its FIFO and is able to wake up the Soc, it
+     * can implement an optional secondary mode: the WAKE_UPON_FIFO_FULL mode.
+     *
+     * The caller will set the SENSORS_BATCH_WAKE_UPON_FIFO_FULL flag to
+     * activate this mode. If the sensor does not support this mode, batch()
+     * will fail when the flag is set.
+     *
+     * When running with the WAKE_UPON_FIFO_FULL flag set, no events can be
+     * lost. When the FIFO is getting full, the sensor must wake up the SoC from
+     * suspend and return a batch before the FIFO fills-up.
+     * Depending on the device, it might take a few miliseconds for the SoC to
+     * entirely come out of suspend and start flushing the FIFO. Enough head
+     * room must be allocated in the FIFO to allow the device to entirely come
+     * out of suspend without the FIFO overflowing (no events shall be lost).
+     *
+     *   Implementing the WAKE_UPON_FIFO_FULL mode is optional.
+     *   If the hardware cannot support this mode, or if the physical
      *   FIFO is so small that the device would never be allowed to go into
      *   suspend for at least 10 seconds, then this function MUST fail when
      *   the flag SENSORS_BATCH_WAKE_UPON_FIFO_FULL is set, regardless of
      *   the value of the timeout parameter.
+     *
      *
      * DRY RUN:
      * --------
@@ -1051,7 +1071,11 @@ typedef struct sensors_poll_device_1 {
      * If successful, 0 is returned.
      * If the specified sensor doesn't support batch mode, -EINVAL is returned.
      * If the specified sensor's trigger-mode is one-shot, -EINVAL is returned.
-     * If any of the constraint above cannot be satisfied, -EINVAL is returned.
+     * If WAKE_UPON_FIFO_FULL is specified and the specified sensor's internal
+     * FIFO is too small to store at least 10 seconds worth of data at the
+     * given rate, -EINVAL is returned. Note that as stated above, this has to
+     * be determined at compile time, and not based on the state of the system.
+     * If some other constraints above cannot be satisfied, -EINVAL is returned.
      *
      * Note: the timeout parameter, when > 0, has no impact on whether this
      *       function succeeds or fails.
@@ -1062,13 +1086,22 @@ typedef struct sensors_poll_device_1 {
      * IMPLEMENTATION NOTES:
      * ---------------------
      *
-     * batch mode, if supported, should happen at the hardware level,
+     * Batch mode, if supported, should happen at the hardware level,
      * typically using hardware FIFOs. In particular, it SHALL NOT be
      * implemented in the HAL, as this would be counter productive.
      * The goal here is to save significant amounts of power.
      *
-     * batch mode can be enabled or disabled at any time, in particular
-     * while the specified sensor is already enabled and this shall not
+     * In some implementations, events from several sensors can share the
+     * same physical FIFO. In that case, all events in the FIFO can be sent and
+     * processed by the HAL as soon as one batch must be reported.
+     * For example, if the following sensors are activated:
+     *  - accelerometer batched with timeout = 20s
+     *  - gyroscope batched with timeout = 5s
+     * then the accelerometer batches can be reported at the same time the
+     * gyroscope batches are reported (every 5 seconds)
+     *
+     * Batch mode can be enabled or disabled at any time, in particular
+     * while the specified sensor is already enabled, and this shall not
      * result in the loss of events.
      *
      * COMPARATIVE IMPORTANCE OF BATCHING FOR DIFFERENT SENSORS:
@@ -1076,7 +1109,7 @@ typedef struct sensors_poll_device_1 {
      *
      * On platforms on which hardware fifo size is limited, the system designers
      * might have to choose how much fifo to reserve for each sensor. To help
-     * with this choice, Here is a list of applications made possible when
+     * with this choice, here is a list of applications made possible when
      * batching is implemented on the different sensors.
      *
      * High value: Low power pedestrian dead reckoning
@@ -1084,13 +1117,13 @@ typedef struct sensors_poll_device_1 {
      *   Sensors to batch:
      *    - Step detector
      *    - Rotation vector or game rotation vector at 5Hz
-     *   Gives us step and heading while letting the AP go to Suspend.
+     *   Gives us step and heading while letting the SoC go to Suspend.
      *
      * High value: Medium power activity/gesture recognition
      *   Target batching time: 3 seconds
      *   Sensors to batch: accelerometer between 20Hz and 50Hz
      *   Allows recognizing arbitrary activities and gestures without having
-     *   to keep the AP fully awake while the data is collected.
+     *   to keep the SoC fully awake while the data is collected.
      *
      * Medium-high value: Interrupt load reduction
      *   Target batching time: < 1 second
@@ -1107,8 +1140,12 @@ typedef struct sensors_poll_device_1 {
      * Medium value: Continuous full-sensors collection
      *   Target batching time: > 1 minute
      *   Sensors to batch: all, at high frequencies
-     *   Allows full collection of sensor data while leaving the AP in
+     *   Allows full collection of sensor data while leaving the SoC in
      *   suspend mode. Only to consider if fifo space is not an issue.
+     *
+     * In each of the cases above, if WAKE_UPON_FIFO_FULL is implemented, the
+     * applications might decide to let the SoC go to suspend, allowing for even
+     * more power savings.
      */
     int (*batch)(struct sensors_poll_device_1* dev,
             int handle, int flags, int64_t period_ns, int64_t timeout);
