@@ -800,9 +800,63 @@ typedef void (*gps_geofence_transition_callback) (int32_t geofence_id,  GpsLocat
  */
 typedef void (*gps_geofence_status_callback) (int32_t status, GpsLocation* last_location);
 
+/**
+ * The callback associated with the add_geofence call.
+ *
+ * Parameter:
+ * geofence_id - Id of the geofence.
+ * status - GPS_GEOFENCE_OPERATION_SUCCESS
+ *          GPS_GEOFENCE_ERROR_TOO_MANY_GEOFENCES  - geofence limit has been reached.
+ *          GPS_GEOFENCE_ERROR_ID_EXISTS  - geofence with id already exists
+ *          GPS_GEOFENCE_ERROR_INVALID_TRANSITION - the monitorTransition contains an
+ *              invalid transition
+ *          GPS_GEOFENCE_ERROR_GENERIC - for other errors.
+ */
+typedef void (*gps_geofence_add_callback) (int32_t geofence_id, int32_t status);
+
+/**
+ * The callback associated with the remove_geofence call.
+ *
+ * Parameter:
+ * geofence_id - Id of the geofence.
+ * status - GPS_GEOFENCE_OPERATION_SUCCESS
+ *          GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+ *          GPS_GEOFENCE_ERROR_GENERIC for others.
+ */
+typedef void (*gps_geofence_remove_callback) (int32_t geofence_id, int32_t status);
+
+
+/**
+ * The callback associated with the pause_geofence call.
+ *
+ * Parameter:
+ * geofence_id - Id of the geofence.
+ * status - GPS_GEOFENCE_OPERATION_SUCCESS
+ *          GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+ *          GPS_GEOFENCE_ERROR_INVALID_TRANSITION -
+ *                    when monitor_transitions is invalid
+ *          GPS_GEOFENCE_ERROR_GENERIC for others.
+ */
+typedef void (*gps_geofence_pause_callback) (int32_t geofence_id, int32_t status);
+
+/**
+ * The callback associated with the resume_geofence call.
+ *
+ * Parameter:
+ * geofence_id - Id of the geofence.
+ * status - GPS_GEOFENCE_OPERATION_SUCCESS
+ *          GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
+ *          GPS_GEOFENCE_ERROR_GENERIC for others.
+ */
+typedef void (*gps_geofence_resume_callback) (int32_t geofence_id, int32_t status);
+
 typedef struct {
     gps_geofence_transition_callback geofence_transition_callback;
     gps_geofence_status_callback geofence_status_callback;
+    gps_geofence_add_callback geofence_add_callback;
+    gps_geofence_remove_callback geofence_remove_callback;
+    gps_geofence_pause_callback geofence_pause_callback;
+    gps_geofence_resume_callback geofence_resume_callback;
     gps_create_thread create_thread_cb;
 } GpsGeofenceCallbacks;
 
@@ -845,10 +899,8 @@ typedef struct {
     *    unknown_timer_ms - The time limit after which the UNCERTAIN transition
     *       should be triggered. This paramter is defined in milliseconds.
     *       See above for a detailed explanation.
-    *    Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
-    *                  or any of the GPS_GEOFENCE_ERRORS on failure.
     */
-   int (*add_geofence_area) (int32_t geofence_id, double latitude,
+   void (*add_geofence_area) (int32_t geofence_id, double latitude,
                                 double longitude, double radius_meters,
                                 int last_transition, int monitor_transitions,
                                 int notification_responsiveness_ms,
@@ -858,12 +910,8 @@ typedef struct {
     * Pause monitoring a particular geofence.
     * Parameters:
     *   geofence_id - The id for the geofence.
-    *
-    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
-    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
-    *               GPS_GEOFENCE_ERROR_GENERIC for others.
     */
-   int (*pause_geofence) (int32_t geofence_id);
+   void (*pause_geofence) (int32_t geofence_id);
 
    /**
     * Resume monitoring a particular geofence.
@@ -874,26 +922,16 @@ typedef struct {
     *       GPS_GEOFENCE_UNCERTAIN.
     *       This supersedes the value associated provided in the
     *       add_geofence_area call.
-    *
-    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
-    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
-    *               GPS_GEOFENCE_ERROR_INVALID_TRANSITION - when
-    *                   monitor_transitions is invalid
-    *               GPS_GEOFENCE_ERROR_GENERIC for others.
-    *
     */
-   int (*resume_geofence) (int32_t geofence_id, int monitor_transitions);
+   void (*resume_geofence) (int32_t geofence_id, int monitor_transitions);
 
    /**
     * Remove a geofence area. After the function returns, no notifications
     * should be sent.
     * Parameter:
     *   geofence_id - The id for the geofence.
-    * Return value: GPS_GEOFENCE_OPERATION_SUCCESS on success,
-    *               GPS_GEOFENCE_ERROR_ID_UNKNOWN - for invalid id
-    *               GPS_GEOFENCE_ERROR_GENERIC for others.
     */
-   int (*remove_geofence_area) (int32_t geofence_id);
+   void (*remove_geofence_area) (int32_t geofence_id);
 } GpsGeofencingInterface;
 __END_DECLS
 
