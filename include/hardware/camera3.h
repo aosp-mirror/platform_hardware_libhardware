@@ -37,7 +37,16 @@
  *
  * See camera_common.h for more versioning details.
  *
- * Version history:
+ * Documentation index:
+ *   S1. Version history
+ *   S2. Startup and operation sequencing
+ *   S3. Operational modes
+ *   S4. 3A modes and state machines
+ *   S5. Error management
+ */
+
+/**
+ * S1. Version history:
  *
  * 1.0: Initial Android camera HAL (Android 4.0) [camera.h]:
  *
@@ -75,7 +84,7 @@
  */
 
 /**
- * Startup and general expected operation sequence:
+ * S2. Startup and general expected operation sequence:
  *
  * 1. Framework calls camera_module_t->common.open(), which returns a
  *    hardware_device_t structure.
@@ -153,7 +162,7 @@
  */
 
 /**
- * Operational modes:
+ * S3. Operational modes:
  *
  * The camera 3 HAL device can implement one of two possible operational modes;
  * limited and full. Full support is expected from new higher-end
@@ -168,7 +177,7 @@
  *
  * Roughly speaking, limited-mode devices do not allow for application control
  * of capture settings (3A control only), high-rate capture of high-resolution
- * images, raw sensor readout, and support for YUV output streams maximum
+ * images, raw sensor readout, or support for YUV output streams above maximum
  * recording resolution (JPEG only for large images).
  *
  * ** Details of limited mode behavior:
@@ -293,7 +302,447 @@
  */
 
 /**
- * Error management:
+ * S4. 3A modes and state machines:
+ *
+ * While the actual 3A algorithms are up to the HAL implementation, a high-level
+ * state machine description is defined by the HAL interface, to allow the HAL
+ * device and the framework to communicate about the current state of 3A, and to
+ * trigger 3A events.
+ *
+ * When the device is opened, all the individual 3A states must be
+ * STATE_INACTIVE. Stream configuration does not reset 3A. For example, locked
+ * focus must be maintained across the configure() call.
+ *
+ * Triggering a 3A action involves simply setting the relevant trigger entry in
+ * the settings for the next request to indicate start of trigger. For example,
+ * the trigger for starting an autofocus scan is setting the entry
+ * ANDROID_CONTROL_AF_TRIGGER to ANDROID_CONTROL_AF_TRIGGER_START for one
+ * request, and cancelling an autofocus scan is triggered by setting
+ * ANDROID_CONTROL_AF_TRIGGER to ANDROID_CONTRL_AF_TRIGGER_CANCEL. Otherwise,
+ * the entry will not exist, or be set to ANDROID_CONTROL_AF_TRIGGER_IDLE. Each
+ * request with a trigger entry set to a non-IDLE value will be treated as an
+ * independent triggering event.
+ *
+ * At the top level, 3A is controlled by the ANDROID_CONTROL_MODE setting, which
+ * selects between no 3A (ANDROID_CONTROL_MODE_OFF), normal AUTO mode
+ * (ANDROID_CONTROL_MODE_AUTO), and using the scene mode setting
+ * (ANDROID_CONTROL_USE_SCENE_MODE).
+ *
+ * - In OFF mode, each of the individual AE/AF/AWB modes are effectively OFF,
+ *   and none of the capture controls may be overridden by the 3A routines.
+ *
+ * - In AUTO mode, Auto-focus, auto-exposure, and auto-whitebalance all run
+ *   their own independent algorithms, and have their own mode, state, and
+ *   trigger metadata entries, as listed in the next section.
+ *
+ * - In USE_SCENE_MODE, the value of the ANDROID_CONTROL_SCENE_MODE entry must
+ *   be used to determine the behavior of 3A routines. In SCENE_MODEs other than
+ *   FACE_PRIORITY, the HAL must override the values of
+ *   ANDROId_CONTROL_AE/AWB/AF_MODE to be the mode it prefers for the selected
+ *   SCENE_MODE. For example, the HAL may prefer SCENE_MODE_NIGHT to use
+ *   CONTINUOUS_FOCUS AF mode. Any user selection of AE/AWB/AF_MODE when scene
+ *   must be ignored for these scene modes.
+ *
+ * - For SCENE_MODE_FACE_PRIORITY, the AE/AWB/AF_MODE controls work as in
+ *   ANDROID_CONTROL_MODE_AUTO, but the 3A routines must bias toward metering
+ *   and focusing on any detected faces in the scene.
+ *
+ * S4.1. Auto-focus settings and result entries:
+ *
+ *  Main metadata entries:
+ *
+ *   ANDROID_CONTROL_AF_MODE: Control for selecting the current autofocus
+ *      mode. Set by the framework in the request settings.
+ *
+ *     AF_MODE_OFF: AF is disabled; the framework/app directly controls lens
+ *         position.
+ *
+ *     AF_MODE_AUTO: Single-sweep autofocus. No lens movement unless AF is
+ *         triggered.
+ *
+ *     AF_MODE_MACRO: Single-sweep up-close autofocus. No lens movement unless
+ *         AF is triggered.
+ *
+ *     AF_MODE_CONTINUOUS_VIDEO: Smooth continuous focusing, for recording
+ *         video. Triggering immediately locks focus in current
+ *         position. Canceling resumes cotinuous focusing.
+ *
+ *     AF_MODE_CONTINUOUS_PICTURE: Fast continuous focusing, for
+ *        zero-shutter-lag still capture. Triggering locks focus once currently
+ *        active sweep concludes. Canceling resumes continuous focusing.
+ *
+ *     AF_MODE_EDOF: Advanced extended depth of field focusing. There is no
+ *        autofocus scan, so triggering one or canceling one has no effect.
+ *        Images are focused automatically by the HAL.
+ *
+ *   ANDROID_CONTROL_AF_STATE: Dynamic metadata describing the current AF
+ *       algorithm state, reported by the HAL in the result metadata.
+ *
+ *     AF_STATE_INACTIVE: No focusing has been done, or algorithm was
+ *        reset. Lens is not moving. Always the state for MODE_OFF or MODE_EDOF.
+ *        When the device is opened, it must start in this state.
+ *
+ *     AF_STATE_PASSIVE_SCAN: A continuous focus algorithm is currently scanning
+ *        for good focus. The lens is moving.
+ *
+ *     AF_STATE_PASSIVE_FOCUSED: A continuous focus algorithm believes it is
+ *        well focused. The lens is not moving. The HAL may spontaneously leave
+ *        this state.
+ *
+ *     AF_STATE_ACTIVE_SCAN: A scan triggered by the user is underway.
+ *
+ *     AF_STATE_FOCUSED_LOCKED: The AF algorithm believes it is focused. The
+ *        lens is not moving.
+ *
+ *     AF_STATE_NOT_FOCUSED_LOCKED: The AF algorithm has been unable to
+ *        focus. The lens is not moving.
+ *
+ *   ANDROID_CONTROL_AF_TRIGGER: Control for starting an autofocus scan, the
+ *       meaning of which is mode- and state- dependent. Set by the framework in
+ *       the request settings.
+ *
+ *     AF_TRIGGER_IDLE: No current trigger.
+ *
+ *     AF_TRIGGER_START: Trigger start of AF scan. Effect is mode and state
+ *         dependent.
+ *
+ *     AF_TRIGGER_CANCEL: Cancel current AF scan if any, and reset algorithm to
+ *         default.
+ *
+ *  Additional metadata entries:
+ *
+ *   ANDROID_CONTROL_AF_REGIONS: Control for selecting the regions of the FOV
+ *       that should be used to determine good focus. This applies to all AF
+ *       modes that scan for focus. Set by the framework in the request
+ *       settings.
+ *
+ * S4.2. Auto-exposure settings and result entries:
+ *
+ *  Main metadata entries:
+ *
+ *   ANDROID_CONTROL_AE_MODE: Control for selecting the current auto-exposure
+ *       mode. Set by the framework in the request settings.
+ *
+ *     AE_MODE_OFF: Autoexposure is disabled; the user controls exposure, gain,
+ *         frame duration, and flash.
+ *
+ *     AE_MODE_ON: Standard autoexposure, with flash control disabled. User may
+ *         set flash to fire or to torch mode.
+ *
+ *     AE_MODE_ON_AUTO_FLASH: Standard autoexposure, with flash on at HAL's
+ *         discretion for precapture and still capture. User control of flash
+ *         disabled.
+ *
+ *     AE_MODE_ON_ALWAYS_FLASH: Standard autoexposure, with flash always fired
+ *         for capture, and at HAL's discretion for precapture.. User control of
+ *         flash disabled.
+ *
+ *     AE_MODE_ON_AUTO_FLASH_REDEYE: Standard autoexposure, with flash on at
+ *         HAL's discretion for precapture and still capture. Use a flash burst
+ *         at end of precapture sequence to reduce redeye in the final
+ *         picture. User control of flash disabled.
+ *
+ *   ANDROID_CONTROL_AE_STATE: Dynamic metadata describing the current AE
+ *       algorithm state, reported by the HAL in the result metadata.
+ *
+ *     AE_STATE_INACTIVE: Initial AE state after mode switch. When the device is
+ *         opened, it must start in this state.
+ *
+ *     AE_STATE_SEARCHING: AE is not converged to a good value, and is adjusting
+ *         exposure parameters.
+ *
+ *     AE_STATE_CONVERGED: AE has found good exposure values for the current
+ *         scene, and the exposure parameters are not changing. HAL may
+ *         spontaneously leave this state to search for better solution.
+ *
+ *     AE_STATE_LOCKED: AE has been locked with the AE_LOCK control. Exposure
+ *         values are not changing.
+ *
+ *     AE_STATE_FLASH_REQUIRED: The HAL has converged exposure, but believes
+ *         flash is required for a sufficiently bright picture. Used for
+ *         determining if a zero-shutter-lag frame can be used.
+ *
+ *     AE_STATE_PRECAPTURE: The HAL is in the middle of a precapture
+ *         sequence. Depending on AE mode, this mode may involve firing the
+ *         flash for metering, or a burst of flash pulses for redeye reduction.
+ *
+ *   ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER: Control for starting a metering
+ *       sequence before capturing a high-quality image. Set by the framework in
+ *       the request settings.
+ *
+ *      PRECAPTURE_TRIGGER_IDLE: No current trigger.
+ *
+ *      PRECAPTURE_TRIGGER_START: Start a precapture sequence. The HAL should
+ *         use the subsequent requests to measure good exposure/white balance
+ *         for an upcoming high-resolution capture.
+ *
+ *  Additional metadata entries:
+ *
+ *   ANDROID_CONTROL_AE_LOCK: Control for locking AE controls to their current
+ *       values
+ *
+ *   ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION: Control for adjusting AE
+ *       algorithm target brightness point.
+ *
+ *   ANDROID_CONTROL_AE_TARGET_FPS_RANGE: Control for selecting the target frame
+ *       rate range for the AE algorithm. The AE routine cannot change the frame
+ *       rate to be outside these bounds.
+ *
+ *   ANDROID_CONTROL_AE_REGIONS: Control for selecting the regions of the FOV
+ *       that should be used to determine good exposure levels. This applies to
+ *       all AE modes besides OFF.
+ *
+ * S4.3. Auto-whitebalance settings and result entries:
+ *
+ *  Main metadata entries:
+ *
+ *   ANDROID_CONTROL_AWB_MODE: Control for selecting the current white-balance
+ *       mode.
+ *
+ *     AWB_MODE_OFF: Auto-whitebalance is disabled. User controls color matrix.
+ *
+ *     AWB_MODE_AUTO: Automatic white balance is enabled; 3A controls color
+ *        transform, possibly using more complex transforms than a simple
+ *        matrix.
+ *
+ *     AWB_MODE_INCANDESCENT: Fixed white balance settings good for indoor
+ *        incandescent (tungsten) lighting, roughly 2700K.
+ *
+ *     AWB_MODE_FLUORESCENT: Fixed white balance settings good for fluorescent
+ *        lighting, roughly 5000K.
+ *
+ *     AWB_MODE_WARM_FLUORESCENT: Fixed white balance settings good for
+ *        fluorescent lighting, roughly 3000K.
+ *
+ *     AWB_MODE_DAYLIGHT: Fixed white balance settings good for daylight,
+ *        roughly 5500K.
+ *
+ *     AWB_MODE_CLOUDY_DAYLIGHT: Fixed white balance settings good for clouded
+ *        daylight, roughly 6500K.
+ *
+ *     AWB_MODE_TWILIGHT: Fixed white balance settings good for
+ *        near-sunset/sunrise, roughly 15000K.
+ *
+ *     AWB_MODE_SHADE: Fixed white balance settings good for areas indirectly
+ *        lit by the sun, roughly 7500K.
+ *
+ *   ANDROID_CONTROL_AWB_STATE: Dynamic metadata describing the current AWB
+ *       algorithm state, reported by the HAL in the result metadata.
+ *
+ *     AWB_STATE_INACTIVE: Initial AWB state after mode switch. When the device
+ *         is opened, it must start in this state.
+ *
+ *     AWB_STATE_SEARCHING: AWB is not converged to a good value, and is
+ *         changing color adjustment parameters.
+ *
+ *     AWB_STATE_CONVERGED: AWB has found good color adjustment values for the
+ *         current scene, and the parameters are not changing. HAL may
+ *         spontaneously leave this state to search for better solution.
+ *
+ *     AWB_STATE_LOCKED: AWB has been locked with the AWB_LOCK control. Color
+ *         adjustment values are not changing.
+ *
+ *  Additional metadata entries:
+ *
+ *   ANDROID_CONTROL_AWB_LOCK: Control for locking AWB color adjustments to
+ *       their current values.
+ *
+ *   ANDROID_CONTROL_AWB_REGIONS: Control for selecting the regions of the FOV
+ *       that should be used to determine good color balance. This applies only
+ *       to auto-WB mode.
+ *
+ * S4.4. General state machine transition notes
+ *
+ *   Switching between AF, AE, or AWB modes always resets the algorithm's state
+ *   to INACTIVE.  Similarly, switching between CONTROL_MODE or
+ *   CONTROL_SCENE_MODE if CONTROL_MODE == USE_SCENE_MODE resets all the
+ *   algorithm states to INACTIVE.
+ *
+ *   The tables below are per-mode.
+ *
+ * S4.5. AF state machines
+ *
+ *                            mode = AF_MODE_OFF or AF_MODE_EDOF
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           |               |                    | AF is disabled   |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ *                            mode = AF_MODE_AUTO or AF_MODE_MACRO
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | AF_TRIGGER    | ACTIVE_SCAN        | Start AF sweep   |
+ *|                    |               |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| ACTIVE_SCAN        | AF sweep done | FOCUSED_LOCKED     | If AF successful |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| ACTIVE_SCAN        | AF sweep done | NOT_FOCUSED_LOCKED | If AF successful |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| ACTIVE_SCAN        | AF_CANCEL     | INACTIVE           | Cancel/reset AF  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_CANCEL     | INACTIVE           | Cancel/reset AF  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_TRIGGER    | ACTIVE_SCAN        | Start new sweep  |
+ *|                    |               |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_CANCEL     | INACTIVE           | Cancel/reset AF  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_TRIGGER    | ACTIVE_SCAN        | Start new sweep  |
+ *|                    |               |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| All states         | mode change   | INACTIVE           |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ *                            mode = AF_MODE_CONTINUOUS_VIDEO
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | AF_TRIGGER    | NOT_FOCUSED_LOCKED | AF state query   |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
+ *|                    |               |                    | if focus is good |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
+ *|                    |               |                    | if focus is bad  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_CANCEL     | INACTIVE           | Reset lens       |
+ *|                    |               |                    | position         |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
+ *|                    |               |                    | if focus is good |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
+ *|                    |               |                    | if focus is bad  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_CANCEL     | INACTIVE           | Restart AF scan  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_TRIGGER    | NOT_FOCUSED_LOCKED | No effect        |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_CANCEL     | INACTIVE           | Restart AF scan  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ *                            mode = AF_MODE_CONTINUOUS_PICTURE
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | AF_TRIGGER    | NOT_FOCUSED_LOCKED | AF state query   |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Eventual trans.  |
+ *|                    |               |                    | once focus good  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Eventual trans.  |
+ *|                    |               |                    | if cannot focus  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | AF_CANCEL     | INACTIVE           | Reset lens       |
+ *|                    |               |                    | position         |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
+ *|                    |               |                    | if focus is good |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
+ *|                    |               |                    | if focus is bad  |
+ *|                    |               |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FOCUSED_LOCKED     | AF_CANCEL     | INACTIVE           | Restart AF scan  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_TRIGGER    | NOT_FOCUSED_LOCKED | No effect        |
+ *+--------------------+---------------+--------------------+------------------+
+ *| NOT_FOCUSED_LOCKED | AF_CANCEL     | INACTIVE           | Restart AF scan  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ * S4.6. AE and AWB state machines
+ *
+ *   The AE and AWB state machines are mostly identical. AE has additional
+ *   FLASH_REQUIRED and PRECAPTURE states. So rows below that refer to those two
+ *   states should be ignored for the AWB state machine.
+ *
+ *                            mode = AE_MODE_OFF / AWB mode not AUTO
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           |               |                    | AE/AWB disabled  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ *                            mode = AE_MODE_ON_* / AWB_MODE_AUTO
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | HAL initiates | SEARCHING          |                  |
+ *|                    | AE/AWB scan   |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| INACTIVE           | AE/AWB_LOCK   | LOCKED             | values locked    |
+ *|                    | on            |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| SEARCHING          | HAL finishes  | CONVERGED          | good values, not |
+ *|                    | AE/AWB scan   |                    | changing         |
+ *+--------------------+---------------+--------------------+------------------+
+ *| SEARCHING          | HAL finishes  | FLASH_REQUIRED     | converged but too|
+ *|                    | AE scan       |                    | dark w/o flash   |
+ *+--------------------+---------------+--------------------+------------------+
+ *| SEARCHING          | AE/AWB_LOCK   | LOCKED             | values locked    |
+ *|                    | on            |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| CONVERGED          | HAL initiates | SEARCHING          | values locked    |
+ *|                    | AE/AWB scan   |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| CONVERGED          | AE/AWB_LOCK   | LOCKED             | values locked    |
+ *|                    | on            |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| LOCKED             | AE/AWB_LOCK   | SEARCHING          | values not good  |
+ *|                    | off           |                    | after unlock     |
+ *+--------------------+---------------+--------------------+------------------+
+ *| LOCKED             | AE/AWB_LOCK   | CONVERGED          | values good      |
+ *|                    | off           |                    | after unlock     |
+ *+--------------------+---------------+--------------------+------------------+
+ *| LOCKED             | AE_LOCK       | FLASH_REQUIRED     | exposure good,   |
+ *|                    | off           |                    | but too dark     |
+ *+--------------------+---------------+--------------------+------------------+
+ *| All AE states      | PRECAPTURE_   | PRECAPTURE         | Start precapture |
+ *|                    | START         |                    | sequence         |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PRECAPTURE         | Sequence done.| CONVERGED          | Ready for high-  |
+ *|                    | AE_LOCK off   |                    | quality capture  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| PRECAPTURE         | Sequence done.| LOCKED             | Ready for high-  |
+ *|                    | AE_LOCK on    |                    | quality capture  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
+ */
+
+/**
+ * S5. Error management:
  *
  * Camera HAL device ops functions that have a return value will all return
  * -ENODEV / NULL in case of a serious error. This means the device cannot
@@ -301,6 +750,10 @@
  * returned by some method, or if notify() is called with ERROR_DEVICE, only
  * the close() method can be called successfully. All other methods will return
  * -ENODEV / NULL.
+ *
+ * If a device op is called in the wrong sequence, for example if the framework
+ * calls configure_streams() is called before initialize(), the device must
+ * return -ENOSYS from the call, and do nothing.
  *
  * Transient errors in image capture must be reported through notify() as follows:
  *
@@ -320,8 +773,8 @@
  * metadata could not be produced, it should be NULL. If some buffers could not
  * be filled, their sync fences must be set to the error state.
  *
- * Invalid input aguments result in -EINVAL from the appropriate methods. In
- * that case, the framework should act as if that call had never been made.
+ * Invalid input arguments result in -EINVAL from the appropriate methods. In
+ * that case, the framework must act as if that call had never been made.
  *
  */
 
@@ -1288,7 +1741,7 @@ typedef struct camera3_device_ops {
      *                   buffer.
      *
      *   NULL:           In case of a fatal error. After this is returned, only
-     *                   the close() method can be called succesfully by the
+     *                   the close() method can be called successfully by the
      *                   framework.
      */
     const camera_metadata_t* (*construct_default_request_settings)(
@@ -1348,7 +1801,7 @@ typedef struct camera3_device_ops {
     /**
      * get_metadata_vendor_tag_ops:
      *
-     * Get methods to query for vendor extension metadata tag infomation. The
+     * Get methods to query for vendor extension metadata tag information. The
      * HAL should fill in all the vendor tag operation methods, or leave ops
      * unchanged if no vendor tags are defined.
      *
