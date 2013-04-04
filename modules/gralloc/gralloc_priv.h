@@ -61,7 +61,7 @@ struct private_handle_t : public native_handle {
 struct private_handle_t {
     struct native_handle nativeHandle;
 #endif
-    
+
     enum {
         PRIV_FLAGS_FRAMEBUFFER = 0x00000001
     };
@@ -74,16 +74,18 @@ struct private_handle_t {
     int     size;
     int     offset;
 
-    // FIXME: this should be out-of-line
+    // FIXME: the attributes below should be out-of-line
     int     base;
+    int     pid;
 
 #ifdef __cplusplus
-    static const int sNumInts = 5;
+    static const int sNumInts = 6;
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
     private_handle_t(int fd, int size, int flags) :
-        fd(fd), magic(sMagic), flags(flags), size(size), offset(0), base(0)
+        fd(fd), magic(sMagic), flags(flags), size(size), offset(0),
+        base(0), pid(getpid())
     {
         version = sizeof(native_handle);
         numInts = sNumInts;
@@ -97,7 +99,7 @@ struct private_handle_t {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
                 h->numInts != sNumInts || h->numFds != sNumFds ||
-                hnd->magic != sMagic) 
+                hnd->magic != sMagic)
         {
             ALOGE("invalid gralloc handle (at %p)", h);
             return -EINVAL;
