@@ -6,7 +6,7 @@ SUBDIR_MAKEFILES := $(call all-named-subdir-makefiles,modules tests)
 LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
-LOCAL_SHARED_LIBRARIES := libcutils
+LOCAL_SHARED_LIBRARIES := libcutils liblog
 
 LOCAL_INCLUDES += $(LOCAL_PATH)
 

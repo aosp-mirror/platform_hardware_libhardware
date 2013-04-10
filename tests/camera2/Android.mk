@@ -15,6 +15,7 @@ LOCAL_SRC_FILES:= \
 	TestSettings.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
+	liblog \
 	libutils \
 	libcutils \
 	libstlport \
