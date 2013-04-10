@@ -1408,7 +1408,11 @@ typedef struct camera3_capture_request {
  * The result of a single capture/reprocess by the camera HAL device. This is
  * sent to the framework asynchronously with process_capture_result(), in
  * response to a single capture request sent to the HAL with
- * process_capture_request().
+ * process_capture_request(). Multiple process_capture_result() calls may be
+ * performed by the HAL for each request. Each call, all with the same frame
+ * number, may contain some subset of the output buffers, and/or the result
+ * metadata. The metadata may only be provided once for a given frame number;
+ * all other calls must set the result metadata to NULL.
  *
  * The result structure contains the output metadata from this capture, and the
  * set of output buffers that have been/will be filled for this capture. Each
@@ -1430,12 +1434,23 @@ typedef struct camera3_capture_result {
      * final capture parameters, the state of the capture and post-processing
      * hardware, the state of the 3A algorithms, if enabled, and the output of
      * any enabled statistics units.
+     *
+     * Only one call to process_capture_result() with a given frame_number may
+     * include the result metadata. All other calls for the same frame_number
+     * must set this to NULL.
+     *
+     * If there was an error producing the result metadata, result must be an
+     * empty metadata buffer, and notify() must be called with ERROR_RESULT.
      */
     const camera_metadata_t *result;
 
     /**
-     * The number of output buffers used for this capture. Must equal the
-     * matching capture request's count.
+     * The number of output buffers returned in this result structure. Must be
+     * less than or equal to the matching capture request's count. If this is
+     * less than the buffer count in the capture request, at least one more call
+     * to process_capture_result with the same frame_number must be made, to
+     * return the remaining output buffers to the framework. This may only be
+     * zero if the structure includes valid result metadata.
      */
     uint32_t num_output_buffers;
 
@@ -1455,8 +1470,10 @@ typedef struct camera3_capture_result {
      * the release fence, to allow the framework to wait on the fence before
      * reusing the buffer.
      *
-     * The acquire fence must be set to -1 for all output buffers.
-     *
+     * The acquire fence must be set to -1 for all output buffers.  If
+     * num_output_buffers is zero, this may be NULL. In that case, at least one
+     * more process_capture_result call must be made by the HAL to provide the
+     * output buffers.
      */
      const camera3_stream_buffer_t *output_buffers;
 
@@ -1479,13 +1496,33 @@ typedef struct camera3_callback_ops {
     /**
      * process_capture_result:
      *
-     * Send a completed capture result metadata buffer to the framework, along
-     * with the possibly completed output stream buffers.
+     * Send results from a completed capture to the framework.
+     * process_capture_result() may be invoked multiple times by the HAL in
+     * response to a single capture request. This allows, for example, the
+     * metadata and low-resolution buffers to be returned in one call, and
+     * post-processed JPEG buffers in a later call, once it is available. Each
+     * call must include the frame number of the request it is returning
+     * metadata or buffers for.
      *
-     * Captures must be processed in-order, so that the Nth request submitted
-     * will match with the Nth result returned. Only one call to
-     * process_capture_request() should be made at a time to ensure correct
-     * ordering.
+     * A component (buffer or metadata) of the complete result may only be
+     * included in one process_capture_result call. A buffer for each stream,
+     * and the result metadata, must be returned by the HAL for each request in
+     * one of the process_capture_result calls, even in case of errors producing
+     * some of the output. A call to process_capture_result() with neither
+     * output buffers or result metadata is not allowed.
+     *
+     * The order of returning metadata and buffers for a single result does not
+     * matter, but buffers for a given stream must be returned in FIFO order. So
+     * the buffer for request 5 for stream A must always be returned before the
+     * buffer for request 6 for stream A. This also applies to the result
+     * metadata; the metadata for request 5 must be returned before the metadata
+     * for request 6.
+     *
+     * However, different streams are independent of each other, so it is
+     * acceptable and expected that the buffer for request 5 for stream A may be
+     * returned after the buffer for request 6 for stream B is. And it is
+     * acceptable that the result metadata for request 6 for stream B is
+     * returned before the buffer for request 5 for stream A is.
      *
      * The HAL retains ownership of result structure, which only needs to be
      * valid to access during this call. The framework will copy whatever it
@@ -1493,16 +1530,16 @@ typedef struct camera3_callback_ops {
      *
      * The output buffers do not need to be filled yet; the framework will wait
      * on the stream buffer release sync fence before reading the buffer
-     * data. Therefore, this method must be called by the HAL as soon as the
-     * result metadata is available, even if some or all of the output buffers
-     * are still in processing. The HAL must include valid release sync fences
-     * into each output_buffers stream buffer entry, or -1 if it does not
-     * support streams or if that stream buffer is already filled.
+     * data. Therefore, this method should be called by the HAL as soon as
+     * possible, even if some or all of the output buffers are still in
+     * being filled. The HAL must include valid release sync fences into each
+     * output_buffers stream buffer entry, or -1 if that stream buffer is
+     * already filled.
      *
      * If the result buffer cannot be constructed for a request, the HAL should
-     * return a NULL buffer here, but still provide the output buffers and their
-     * sync fences. In addition, notify() must be called with an ERROR_RESULT
-     * message.
+     * return an empty metadata buffer, but still provide the output buffers and
+     * their sync fences. In addition, notify() must be called with an
+     * ERROR_RESULT message.
      *
      * If an output buffer cannot be filled, its status field must be set to
      * STATUS_ERROR. In addition, notify() must be called with a ERROR_BUFFER
@@ -1510,8 +1547,8 @@ typedef struct camera3_callback_ops {
      *
      * If the entire capture has failed, then this method still needs to be
      * called to return the output buffers to the framework. All the buffer
-     * statuses should be STATUS_ERROR, and the result metadata should be
-     * NULL. In addition, notify() must be called with a ERROR_REQUEST
+     * statuses should be STATUS_ERROR, and the result metadata should be an
+     * empty buffer. In addition, notify() must be called with a ERROR_REQUEST
      * message. In this case, individual ERROR_RESULT/ERROR_BUFFER messages
      * should not be sent.
      *
