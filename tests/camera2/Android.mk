@@ -45,4 +45,4 @@ LOCAL_CFLAGS += -Wall -Wextra
 LOCAL_MODULE:= camera2_test
 LOCAL_MODULE_TAGS := tests
 
-include $(BUILD_EXECUTABLE)
+include $(BUILD_NATIVE_TEST)
