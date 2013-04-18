@@ -393,6 +393,18 @@ TEST_F(Camera2Test, Capture1Raw) {
 
         getResolutionList(format,
                 &rawResolutions, &rawResolutionsCount);
+
+        if (rawResolutionsCount <= 0) {
+            const ::testing::TestInfo* const test_info =
+                ::testing::UnitTest::GetInstance()->current_test_info();
+            std::cerr << "Skipping test "
+                      << test_info->test_case_name() << "."
+                      << test_info->name()
+                      << " because the optional format was not available: "
+                      << "RAW_SENSOR" << std::endl;
+            return;
+        }
+
         ASSERT_LT((size_t)0, rawResolutionsCount);
 
         // Pick first available raw resolution
@@ -515,6 +527,18 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 
         getResolutionList(format,
                 &rawResolutions, &rawResolutionsCount);
+
+        if (rawResolutionsCount <= 0) {
+            const ::testing::TestInfo* const test_info =
+                ::testing::UnitTest::GetInstance()->current_test_info();
+            std::cerr << "Skipping test "
+                      << test_info->test_case_name() << "."
+                      << test_info->name()
+                      << " because the optional format was not available: "
+                      << "RAW_SENSOR" << std::endl;
+            return;
+        }
+
         ASSERT_LT((uint32_t)0, rawResolutionsCount);
 
         // Pick first available raw resolution
@@ -650,7 +674,7 @@ TEST_F(Camera2Test, ConstructDefaultRequests) {
                     i,
                     &request);
             EXPECT_EQ(NO_ERROR, res) <<
-                    "Unable to construct request from template type %d", i;
+                    "Unable to construct request from template type " << i;
             EXPECT_TRUE(request != NULL);
             EXPECT_LT((size_t)0, get_camera_metadata_entry_count(request));
             EXPECT_LT((size_t)0, get_camera_metadata_data_count(request));
