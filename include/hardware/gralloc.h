@@ -19,6 +19,7 @@
 #define ANDROID_GRALLOC_INTERFACE_H
 
 #include <system/window.h>
+#include <system/graphics.h>
 #include <hardware/hardware.h>
 
 #include <stdint.h>
@@ -32,7 +33,23 @@
 
 __BEGIN_DECLS
 
-#define GRALLOC_API_VERSION 1
+/**
+ * Module versioning information for the Gralloc hardware module, based on
+ * gralloc_module_t.common.module_api_version.
+ *
+ * Version History:
+ *
+ * GRALLOC_MODULE_API_VERSION_0_1:
+ * Initial Gralloc hardware module API.
+ *
+ * GRALLOC_MODULE_API_VERSION_0_2:
+ * Add support for flexible YCbCr format with (*lock_ycbcr)() method.
+ */
+
+#define GRALLOC_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
+#define GRALLOC_MODULE_API_VERSION_0_2  HARDWARE_MODULE_API_VERSION(0, 2)
+
+#define GRALLOC_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION(0, 1)
 
 /**
  * The id of this module
@@ -165,6 +182,10 @@ typedef struct gralloc_module_t {
      * If usage specifies GRALLOC_USAGE_SW_*, vaddr is filled with the address
      * of the buffer in virtual memory.
      *
+     * Note calling (*lock)() on HAL_PIXEL_FORMAT_YCbCr_*_888 buffers will fail
+     * and return -EINVAL.  These buffers must be locked with (*lock_ycbcr)()
+     * instead.
+     *
      * THREADING CONSIDERATIONS:
      *
      * It is legal for several different threads to lock a buffer from 
@@ -201,8 +222,24 @@ typedef struct gralloc_module_t {
     int (*perform)(struct gralloc_module_t const* module,
             int operation, ... );
 
+    /*
+     * The (*lock_ycbcr)() method is like the (*lock)() method, with the
+     * difference that it fills a struct ycbcr with a description of the buffer
+     * layout, and zeroes out the reserved fields.
+     *
+     * This will only work on buffers with HAL_PIXEL_FORMAT_YCbCr_*_888, and
+     * will return -EINVAL on any other buffer formats.
+     *
+     * Added in GRALLOC_MODULE_API_VERSION_0_2.
+     */
+
+    int (*lock_ycbcr)(struct gralloc_module_t const* module,
+            buffer_handle_t handle, int usage,
+            int l, int t, int w, int h,
+            struct android_ycbcr *ycbcr);
+
     /* reserved for future use */
-    void* reserved_proc[7];
+    void* reserved_proc[6];
 } gralloc_module_t;
 
 /*****************************************************************************/
