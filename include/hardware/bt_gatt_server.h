@@ -48,7 +48,7 @@ typedef void (*register_server_callback)(int status, int server_if,
                 bt_uuid_t *app_uuid);
 
 /** Callback indicating that a remote device has connected or been disconnected */
-typedef void (*connection_callback)(int conn_id, int connected,
+typedef void (*connection_callback)(int conn_id, int server_if, int connected,
                                     bt_bdaddr_t *bda);
 
 /** Callback invoked in response to create_service */
