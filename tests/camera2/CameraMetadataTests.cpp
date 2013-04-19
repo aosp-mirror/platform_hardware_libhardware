@@ -70,6 +70,22 @@ public:
         return entry.type;
     }
 
+    int GetEntryCountFromStaticTag(uint32_t tag) const {
+        const CameraMetadata& staticInfo = mDevice->info();
+        camera_metadata_ro_entry entry = staticInfo.find(tag);
+        return entry.count;
+    }
+
+    bool HasElementInArrayFromStaticTag(uint32_t tag, int32_t element) const {
+        const CameraMetadata& staticInfo = mDevice->info();
+        camera_metadata_ro_entry entry = staticInfo.find(tag);
+        for (size_t i = 0; i < entry.count; ++i) {
+            if (entry.data.i32[i] == element)
+                return true;
+        }
+        return false;
+    }
+
 protected:
 
 };
@@ -113,6 +129,50 @@ TEST_F(CameraMetadataTest, types) {
         EXPECT_EQ(TYPE_DOUBLE,   entry.type);
         EXPECT_EQ(TYPE_RATIONAL, entry.type);
     }
+}
+
+TEST_F(CameraMetadataTest, RequiredFormats) {
+    TEST_EXTENSION_FORKING_INIT;
+
+    EXPECT_TRUE(
+        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                                      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED));
+
+    EXPECT_TRUE(
+        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                                       HAL_PIXEL_FORMAT_BLOB)); // JPEG
+
+    EXPECT_TRUE(
+        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                                       HAL_PIXEL_FORMAT_YCrCb_420_SP)); // NV21
+
+    EXPECT_TRUE(
+        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                                       HAL_PIXEL_FORMAT_YV12));
+}
+
+TEST_F(CameraMetadataTest, SaneResolutions) {
+    TEST_EXTENSION_FORKING_INIT;
+
+    // Iff there are listed raw resolutions, the format should be available
+    int rawResolutionsCount =
+            GetEntryCountFromStaticTag(HAL_PIXEL_FORMAT_RAW_SENSOR);
+    EXPECT_EQ(rawResolutionsCount > 0,
+        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                                        HAL_PIXEL_FORMAT_RAW_SENSOR));
+
+    // Required processed sizes.
+    int processedSizeCount =
+           GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
+    EXPECT_NE(0, processedSizeCount);
+    EXPECT_EQ(0, processedSizeCount % 2); // multiple of 2 (w,h)
+
+    // Required JPEG sizes
+    int jpegSizeCount =
+            GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_JPEG_SIZES);
+    EXPECT_NE(0, jpegSizeCount);
+    EXPECT_EQ(0, jpegSizeCount % 2); // multiple of 2 (w,h)
+
 }
 
 }
