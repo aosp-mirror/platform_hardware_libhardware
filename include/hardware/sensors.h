@@ -442,10 +442,10 @@ enum {
  *    These values should be continuous (no re-calibration should cause a jump).
  *  - 3 fields for hard iron bias estimates: x_bias, y_bias, z_bias.
  *    Each field is a component of the estimated hard iron calibration.
- *    They represent the offsets to apply to the uncalibrated readings to obtain
- *    calibrated readings (x_calibrated = x_uncalib + x_bias)
+ *    They represent the offsets to apply to the calibrated readings to obtain
+ *    uncalibrated readings (x_uncalib ~= x_calibrated + x_bias)
  *    These values are expected to jump as soon as the estimate of the hard iron
- *    changes.
+ *    changes, and they should be stable the rest of the time.
  *
  *  If this sensor is present, then the corresponding
  *  SENSOR_TYPE_MAGNETIC_FIELD must be present and both must return the
