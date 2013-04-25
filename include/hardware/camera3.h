@@ -125,6 +125,8 @@
  * 9. When the capture of a request begins (sensor starts exposing for the
  *    capture), the HAL calls camera3_callback_ops_t->notify() with the SHUTTER
  *    event, including the frame number and the timestamp for start of exposure.
+ *    This notify call must be made before the first call to
+ *    process_capture_result() for that frame number.
  *
  * 10. After some pipeline delay, the HAL begins to return completed captures to
  *    the framework with camera3_callback_ops_t->process_capture_result(). These
@@ -1565,6 +1567,10 @@ typedef struct camera3_callback_ops {
      * with the HAL, and the msg only needs to be valid for the duration of this
      * call.
      *
+     * The notification for the start of exposure for a given request must be
+     * sent by the HAL before the first call to process_capture_result() for
+     * that request is made.
+     *
      * Multiple threads may call notify() simultaneously.
      */
     void (*notify)(const struct camera3_callback_ops *,
@@ -1805,7 +1811,9 @@ typedef struct camera3_device_ops {
      *
      * The framework retains ownership of the request structure. It is only
      * guaranteed to be valid during this call. The HAL device must make copies
-     * of the information it needs to retain for the capture processing.
+     * of the information it needs to retain for the capture processing. The HAL
+     * is responsible for waiting on and closing the buffers' fences and
+     * returning the buffer handles to the framework.
      *
      * The HAL must write the file descriptor for the input buffer's release
      * sync fence into input_buffer->release_fence, if input_buffer is not
@@ -1821,7 +1829,11 @@ typedef struct camera3_device_ops {
      * -EINVAL: If the input is malformed (the settings are NULL when not
      *          allowed, there are 0 output buffers, etc) and capture processing
      *          cannot start. Failures during request processing should be
-     *          handled by calling camera3_callback_ops_t.notify().
+     *          handled by calling camera3_callback_ops_t.notify(). In case of
+     *          this error, the framework will retain responsibility for the
+     *          stream buffers' fences and the buffer handles; the HAL should
+     *          not close the fences or return these buffers with
+     *          process_capture_result.
      *
      * -ENODEV: If the camera device has encountered a serious error. After this
      *          error is returned, only the close() method can be successfully
