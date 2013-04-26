@@ -61,6 +61,10 @@ class Camera {
         void setupStreams(Stream **array, int count);
         // Copy new settings for re-use and clean up old settings.
         void setSettings(const camera_metadata_t *new_settings);
+        // Verify settings are valid for a capture
+        bool isValidCaptureSettings(const camera_metadata_t *settings);
+        // Verify settings are valid for reprocessing an input buffer
+        bool isValidReprocessSettings(const camera_metadata_t *settings);
 
         // Identifier used by framework to distinguish cameras
         const int mId;

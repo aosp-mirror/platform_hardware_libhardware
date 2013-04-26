@@ -310,6 +310,25 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
         setSettings(request->settings);
     }
 
+    if (request->input_buffer != NULL) {
+        ALOGV("%s:%d: Reprocessing input buffer %p", __func__, mId,
+                request->input_buffer);
+
+        if (!isValidReprocessSettings(request->settings)) {
+            ALOGE("%s:%d: Invalid settings for reprocess request: %p",
+                    __func__, mId, request->settings);
+            return -EINVAL;
+        }
+    } else {
+        ALOGV("%s:%d: Capturing new frame.", __func__, mId);
+
+        if (!isValidCaptureSettings(request->settings)) {
+            ALOGE("%s:%d: Invalid settings for capture request: %p",
+                    __func__, mId, request->settings);
+            return -EINVAL;
+        }
+    }
+
     // TODO: verify request; submit request to hardware
     return 0;
 }
@@ -323,6 +342,20 @@ void Camera::setSettings(const camera_metadata_t *new_settings)
 
     if (new_settings != NULL)
         mSettings = clone_camera_metadata(new_settings);
+}
+
+bool Camera::isValidCaptureSettings(const camera_metadata_t *settings)
+{
+    // TODO: reject settings that cannot be captured
+    return true;
+}
+
+bool Camera::isValidReprocessSettings(const camera_metadata_t *settings)
+{
+    // TODO: reject settings that cannot be reprocessed
+    // input buffers unimplemented, use this to reject reprocessing requests
+    ALOGE("%s:%d: Input buffer reprocessing not implemented", __func__, mId);
+    return false;
 }
 
 void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)
