@@ -65,6 +65,9 @@ class Camera {
         bool isValidCaptureSettings(const camera_metadata_t *settings);
         // Verify settings are valid for reprocessing an input buffer
         bool isValidReprocessSettings(const camera_metadata_t *settings);
+        // Process an output buffer
+        int processCaptureBuffer(const camera3_stream_buffer_t *in,
+                camera3_stream_buffer_t *out);
 
         // Identifier used by framework to distinguish cameras
         const int mId;

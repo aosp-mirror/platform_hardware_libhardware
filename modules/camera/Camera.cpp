@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <pthread.h>
 #include <hardware/camera3.h>
+#include <sync/sync.h>
 #include <system/camera_metadata.h>
 #include "CameraHAL.h"
 #include "Stream.h"
@@ -30,6 +31,8 @@
 #include "ScopedTrace.h"
 
 #include "Camera.h"
+
+#define CAMERA_SYNC_TIMEOUT 5000 // in msecs
 
 namespace default_camera_hal {
 
@@ -288,6 +291,8 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
 
 int Camera::processCaptureRequest(camera3_capture_request_t *request)
 {
+    camera3_capture_result result;
+
     ALOGV("%s:%d: request=%p", __func__, mId, request);
     CAMTRACE_CALL();
 
@@ -329,8 +334,32 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
         }
     }
 
-    // TODO: verify request; submit request to hardware
+    if (request->num_output_buffers <= 0) {
+        ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
+                request->num_output_buffers);
+        return -EINVAL;
+    }
+    result.num_output_buffers = request->num_output_buffers;
+    result.output_buffers = new camera3_stream_buffer_t[result.num_output_buffers];
+    for (unsigned int i = 0; i < request->num_output_buffers; i++) {
+        int res = processCaptureBuffer(&request->output_buffers[i],
+                const_cast<camera3_stream_buffer_t*>(&result.output_buffers[i]));
+        if (res)
+            goto err_out;
+    }
+
+    result.frame_number = request->frame_number;
+    // TODO: return actual captured/reprocessed settings
+    result.result = request->settings;
+    // TODO: asynchronously return results
+    mCallbackOps->process_capture_result(mCallbackOps, &result);
+
     return 0;
+
+err_out:
+    delete [] result.output_buffers;
+    // TODO: this should probably be a total device failure; transient for now
+    return -EINVAL;
 }
 
 void Camera::setSettings(const camera_metadata_t *new_settings)
@@ -356,6 +385,30 @@ bool Camera::isValidReprocessSettings(const camera_metadata_t *settings)
     // input buffers unimplemented, use this to reject reprocessing requests
     ALOGE("%s:%d: Input buffer reprocessing not implemented", __func__, mId);
     return false;
+}
+
+int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
+        camera3_stream_buffer_t *out)
+{
+    int res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
+    if (res == -ETIME) {
+        ALOGE("%s:%d: Timeout waiting on buffer acquire fence", __func__, mId);
+        return res;
+    } else if (res) {
+        ALOGE("%s:%d: Error waiting on buffer acquire fence: %s(%d)",
+                __func__, mId, strerror(-res), res);
+        return res;
+    }
+
+    out->stream = in->stream;
+    out->buffer = in->buffer;
+    out->status = CAMERA3_BUFFER_STATUS_OK;
+    // TODO: use driver-backed release fences
+    out->acquire_fence = -1;
+    out->release_fence = -1;
+
+    // TODO: lock and software-paint buffer
+    return 0;
 }
 
 void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)

@@ -32,6 +32,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcamera_metadata \
 	libcutils \
 	liblog \
+	libsync \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
