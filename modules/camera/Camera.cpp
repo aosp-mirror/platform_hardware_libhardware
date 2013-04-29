@@ -153,7 +153,7 @@ void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)
 
 void Camera::dump(int fd)
 {
-    ALOGV("%s:%d: Dumping to fd %d", fd);
+    ALOGV("%s:%d: Dumping to fd %d", __func__, mId, fd);
     // TODO: dprintf all relevant state to fd
 }
 
