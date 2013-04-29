@@ -25,6 +25,7 @@
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <cutils/trace.h>
+#include "ScopedTrace.h"
 
 #include "Camera.h"
 
@@ -62,11 +63,10 @@ Camera::~Camera()
 int Camera::open(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
-    ATRACE_BEGIN(__func__);
+    CAMTRACE_CALL();
     pthread_mutex_lock(&mMutex);
     if (mBusy) {
         pthread_mutex_unlock(&mMutex);
-        ATRACE_END();
         ALOGE("%s:%d: Error! Camera device already opened", __func__, mId);
         return -EBUSY;
     }
@@ -77,18 +77,16 @@ int Camera::open(const hw_module_t *module, hw_device_t **device)
     *device = &mDevice.common;
 
     pthread_mutex_unlock(&mMutex);
-    ATRACE_END();
     return 0;
 }
 
 int Camera::close()
 {
     ALOGI("%s:%d: Closing camera device", __func__, mId);
-    ATRACE_BEGIN(__func__);
+    CAMTRACE_CALL();
     pthread_mutex_lock(&mMutex);
     if (!mBusy) {
         pthread_mutex_unlock(&mMutex);
-        ATRACE_END();
         ALOGE("%s:%d: Error! Camera device not open", __func__, mId);
         return -EINVAL;
     }
@@ -97,7 +95,6 @@ int Camera::close()
     mBusy = false;
 
     pthread_mutex_unlock(&mMutex);
-    ATRACE_END();
     return 0;
 }
 
@@ -132,16 +129,14 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
 int Camera::processCaptureRequest(camera3_capture_request_t *request)
 {
     ALOGV("%s:%d: request=%p", __func__, mId, request);
-    ATRACE_BEGIN(__func__);
+    CAMTRACE_CALL();
 
     if (request == NULL) {
         ALOGE("%s:%d: NULL request recieved", __func__, mId);
-        ATRACE_END();
         return -EINVAL;
     }
 
     // TODO: verify request; submit request to hardware
-    ATRACE_END();
     return 0;
 }
 
