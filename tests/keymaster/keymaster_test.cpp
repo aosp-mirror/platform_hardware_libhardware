@@ -14,11 +14,15 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "keymaster_test"
-#include <utils/Log.h>
-#include <utils/UniquePtr.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-#include <hardware/keymaster.h>
+#include <fstream>
+#include <iostream>
 
 #include <gtest/gtest.h>
 
@@ -26,13 +30,20 @@
 #include <openssl/evp.h>
 #include <openssl/x509.h>
 
-#include <fstream>
-#include <iostream>
+#define LOG_TAG "keymaster_test"
+#include <utils/Log.h>
+#include <utils/UniquePtr.h>
+
+#include <hardware/keymaster.h>
 
 namespace android {
 
 class UniqueBlob : public UniquePtr<uint8_t[]> {
 public:
+    UniqueBlob(size_t length) :
+            mLength(length) {
+    }
+
     UniqueBlob(uint8_t* bytes, size_t length) :
             UniquePtr<uint8_t[]>(bytes), mLength(length) {
     }
@@ -95,6 +106,56 @@ public:
 
 private:
     keymaster_device_t** mDevice;
+};
+
+class UniqueReadOnlyBlob {
+public:
+    UniqueReadOnlyBlob(uint8_t* data, size_t dataSize) :
+            mDataSize(dataSize) {
+        int pageSize = sysconf(_SC_PAGE_SIZE);
+        if (pageSize == -1) {
+            return;
+        }
+
+        int fd = open("/dev/zero", O_RDONLY);
+        if (fd == -1) {
+            return;
+        }
+
+        mBufferSize = (dataSize + pageSize - 1) & ~(pageSize - 1);
+        uint8_t* buffer = (uint8_t*) mmap(NULL, mBufferSize, PROT_READ | PROT_WRITE,
+                                          MAP_PRIVATE, fd, 0);
+        close(fd);
+
+        if (buffer == NULL) {
+            return;
+        }
+
+        memcpy(buffer, data, dataSize);
+        if (mprotect(buffer, mBufferSize, PROT_READ) == -1) {
+            munmap(buffer, mBufferSize);
+            return;
+        }
+
+        mBuffer = buffer;
+    }
+
+    ~UniqueReadOnlyBlob() {
+        munmap(mBuffer, mBufferSize);
+    }
+
+    uint8_t* get() const {
+        return mBuffer;
+    }
+
+    size_t length() const {
+        return mDataSize;
+    }
+
+private:
+    uint8_t* mBuffer;
+    size_t mBufferSize;
+    size_t mDataSize;
 };
 
 struct BIGNUM_Delete {
@@ -331,7 +392,7 @@ TEST_P(KeymasterGenerateTest, GenerateKeyPair_RSA_Success) {
 
 INSTANTIATE_TEST_CASE_P(RSA,
                         KeymasterGenerateTest,
-                        ::testing::Values(512, 1024, 2048));
+                        ::testing::Values(512U, 1024U, 2048U));
 
 TEST_F(KeymasterTest, GenerateKeyPair_RSA_NullParams_Failure) {
     keymaster_keypair_t key_type = TYPE_RSA;
@@ -415,8 +476,11 @@ TEST_F(KeymasterTest, GetKeypairPublic_RSA_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -447,8 +511,11 @@ TEST_F(KeymasterTest, GetKeypairPublic_RSA_NullDestination_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -463,8 +530,11 @@ TEST_F(KeymasterTest, DeleteKeyPair_RSA_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -474,13 +544,16 @@ TEST_F(KeymasterTest, DeleteKeyPair_RSA_DoubleDelete_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     /*
      * This is only run if the module indicates it implements key deletion
      * by implementing delete_keypair.
      */
     if (sDevice->delete_keypair != NULL) {
         ASSERT_EQ(0,
-                sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+                sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                         &key_blob, &key_blob_length))
                 << "Should successfully import an RSA key";
         UniqueBlob blob(key_blob, key_blob_length);
@@ -587,8 +660,11 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -601,9 +677,12 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_Success) {
     uint8_t* sig;
     size_t sig_length;
 
+    UniqueReadOnlyBlob testData(TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
     ASSERT_EQ(0,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
-                    TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
+                    testData.get(), testData.length(),
                     &sig, &sig_length))
             << "Should sign data successfully";
     UniqueBlob sig_blob(sig, sig_length);
@@ -621,8 +700,11 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_InvalidSizeInput_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -635,9 +717,12 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_InvalidSizeInput_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
+    UniqueReadOnlyBlob testData(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
-                    TEST_KEY_1, sizeof(TEST_KEY_1),
+                    testData.get(), testData.length(),
                     &sig, &sig_length))
             << "Should not be able to do raw signature on incorrect size data";
 }
@@ -651,9 +736,12 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullKey_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
+    UniqueReadOnlyBlob testData(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, NULL, 0,
-                    TEST_KEY_1, sizeof(TEST_KEY_1),
+                    testData.get(), testData.length(),
                     &sig, &sig_length))
             << "Should not be able to do raw signature on incorrect size data";
 }
@@ -662,8 +750,11 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullInput_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -687,8 +778,11 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullOutput_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -701,9 +795,12 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullOutput_Failure) {
     uint8_t* sig;
     size_t sig_length;
 
+    UniqueReadOnlyBlob testData(TEST_KEY_1, sizeof(TEST_KEY_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->sign_data(sDevice, &params, key_blob, key_blob_length,
-                    TEST_KEY_1, sizeof(TEST_KEY_1),
+                    testData.get(), testData.length(),
                     NULL, NULL))
             << "Should error when output is null";
 }
@@ -712,8 +809,11 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_Success) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -723,10 +823,16 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_Success) {
             padding_type: PADDING_NONE,
     };
 
+    UniqueReadOnlyBlob testData(TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
+    UniqueReadOnlyBlob testSig(TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1));
+    ASSERT_TRUE(testSig.get() != NULL);
+
     ASSERT_EQ(0,
             sDevice->verify_data(sDevice, &params, key_blob, key_blob_length,
-                    TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
-                    TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1)))
+                    testData.get(), testData.length(),
+                    testSig.get(), testSig.length()))
             << "Should verify data successfully";
 }
 
@@ -734,8 +840,11 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_BadSignature_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -758,10 +867,16 @@ TEST_F(KeymasterTest, VerifyData_RSA_Raw_NullKey_Failure) {
             padding_type: PADDING_NONE,
     };
 
+    UniqueReadOnlyBlob testData(TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
+    UniqueReadOnlyBlob testSig(TEST_SIGN_SIGNATURE_BOGUS_1, sizeof(TEST_SIGN_SIGNATURE_BOGUS_1));
+    ASSERT_TRUE(testSig.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, NULL, 0,
-                    TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
-                    TEST_SIGN_SIGNATURE_BOGUS_1, sizeof(TEST_SIGN_SIGNATURE_BOGUS_1)))
+                    testData.get(), testData.length(),
+                    testSig.get(), testSig.length()))
             << "Should fail when key is null";
 }
 
@@ -780,10 +895,13 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullInput_Failure) {
             padding_type: PADDING_NONE,
     };
 
+    UniqueReadOnlyBlob testSig(TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1));
+    ASSERT_TRUE(testSig.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, key_blob, key_blob_length,
                     NULL, 0,
-                    TEST_SIGN_SIGNATURE_1, sizeof(TEST_SIGN_SIGNATURE_1)))
+                    testSig.get(), testSig.length()))
             << "Should fail on null input";
 }
 
@@ -791,8 +909,11 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullSignature_Failure) {
     uint8_t* key_blob;
     size_t key_blob_length;
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key_blob, &key_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key(&sDevice, key_blob, key_blob_length);
@@ -802,9 +923,12 @@ TEST_F(KeymasterTest, VerifyData_RSA_NullSignature_Failure) {
             padding_type: PADDING_NONE,
     };
 
+    UniqueReadOnlyBlob testData(TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1));
+    ASSERT_TRUE(testData.get() != NULL);
+
     ASSERT_EQ(-1,
             sDevice->verify_data(sDevice, &params, key.get(), key.length(),
-                    TEST_SIGN_DATA_1, sizeof(TEST_SIGN_DATA_1),
+                    testData.get(), testData.length(),
                     NULL, 0))
             << "Should fail on null signature";
 }
@@ -818,14 +942,20 @@ TEST_F(KeymasterTest, EraseAll_Success) {
         return;
     }
 
+    UniqueReadOnlyBlob testKey(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1),
+            sDevice->import_keypair(sDevice, testKey.get(), testKey.length(),
                     &key1_blob, &key1_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key1(&sDevice, key1_blob, key1_blob_length);
 
+    UniqueReadOnlyBlob testKey2(TEST_SIGN_KEY_1, sizeof(TEST_SIGN_KEY_1));
+    ASSERT_TRUE(testKey2.get() != NULL);
+
     ASSERT_EQ(0,
-            sDevice->import_keypair(sDevice, TEST_KEY_1, sizeof(TEST_KEY_1),
+            sDevice->import_keypair(sDevice, testKey2.get(), testKey2.length(),
                     &key2_blob, &key2_blob_length))
             << "Should successfully import an RSA key";
     UniqueKey key2(&sDevice, key2_blob, key2_blob_length);
