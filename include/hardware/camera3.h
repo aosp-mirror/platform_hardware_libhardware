@@ -42,7 +42,8 @@
  *   S2. Startup and operation sequencing
  *   S3. Operational modes
  *   S4. 3A modes and state machines
- *   S5. Error management
+ *   S5. Cropping
+ *   S6. Error management
  */
 
 /**
@@ -744,7 +745,162 @@
  */
 
 /**
- * S5. Error management:
+ * S5. Cropping:
+ *
+ * Cropping of the full pixel array (for digital zoom and other use cases where
+ * a smaller FOV is desirable) is communicated through the
+ * ANDROID_SCALER_CROP_REGION setting. This is a per-request setting, and can
+ * change on a per-request basis, which is critical for implementing smooth
+ * digital zoom.
+ *
+ * The region is defined as a rectangle (x, y, width, height), with (x, y)
+ * describing the top-left corner of the rectangle. The rectangle is defined on
+ * the coordinate system of the sensor active pixel array, with (0,0) being the
+ * top-left pixel of the active pixel array. Therefore, the width and height
+ * cannot be larger than the dimensions reported in the
+ * ANDROID_SENSOR_ACTIVE_PIXEL_ARRAY static info field. The minimum allowed
+ * width and height are reported by the HAL through the
+ * ANDROID_SCALER_MAX_DIGITAL_ZOOM static info field, which describes the
+ * maximum supported zoom factor. Therefore, the minimum crop region width and
+ * height are:
+ *
+ * {width, height} =
+ *    { floor(ANDROID_SENSOR_ACTIVE_PIXEL_ARRAY[0] /
+ *        ANDROID_SCALER_MAX_DIGITAL_ZOOM),
+ *      floor(ANDROID_SENSOR_ACTIVE_PIXEL_ARRAY[1] /
+ *        ANDROID_SCALER_MAX_DIGITAL_ZOOM) }
+ *
+ * If the crop region needs to fulfill specific requirements (for example, it
+ * needs to start on even coordinates, and its width/height needs to be even),
+ * the HAL must do the necessary rounding and write out the final crop region
+ * used in the output result metadata. Similarly, if the HAL implements video
+ * stabilization, it must adjust the result crop region to describe the region
+ * actually included in the output after video stabilization is applied. In
+ * general, a camera-using application must be able to determine the field of
+ * view it is receiving based on the crop region, the dimensions of the image
+ * sensor, and the lens focal length.
+ *
+ * Since the crop region applies to all streams, which may have different aspect
+ * ratios than the crop region, the exact sensor region used for each stream may
+ * be smaller than the crop region. Specifically, each stream should maintain
+ * square pixels and its aspect ratio by minimally further cropping the defined
+ * crop region. If the stream's aspect ratio is wider than the crop region, the
+ * stream should be further cropped vertically, and if the stream's aspect ratio
+ * is narrower than the crop region, the stream should be further cropped
+ * horizontally.
+ *
+ * In all cases, the stream crop must be centered within the full crop region,
+ * and each stream is only either cropped horizontally or vertical relative to
+ * the full crop region, never both.
+ *
+ * For example, if two streams are defined, a 640x480 stream (4:3 aspect), and a
+ * 1280x720 stream (16:9 aspect), below demonstrates the expected output regions
+ * for each stream for a few sample crop regions, on a hypothetical 3 MP (2000 x
+ * 1500 pixel array) sensor.
+ *
+ * Crop region: (500, 375, 1000, 750) (4:3 aspect ratio)
+ *
+ *   640x480 stream crop: (500, 375, 1000, 750) (equal to crop region)
+ *   1280x720 stream crop: (500, 469, 1000, 562) (marked with =)
+ *
+ * 0                   1000               2000
+ * +---------+---------+---------+----------+
+ * | Active pixel array                     |
+ * |                                        |
+ * |                                        |
+ * +         +-------------------+          + 375
+ * |         |                   |          |
+ * |         O===================O          |
+ * |         I 1280x720 stream   I          |
+ * +         I                   I          + 750
+ * |         I                   I          |
+ * |         O===================O          |
+ * |         |                   |          |
+ * +         +-------------------+          + 1125
+ * |          Crop region, 640x480 stream   |
+ * |                                        |
+ * |                                        |
+ * +---------+---------+---------+----------+ 1500
+ *
+ * Crop region: (500, 375, 1333, 750) (16:9 aspect ratio)
+ *
+ *   640x480 stream crop: (666, 375, 1000, 750) (marked with =)
+ *   1280x720 stream crop: (500, 375, 1333, 750) (equal to crop region)
+ *
+ * 0                   1000               2000
+ * +---------+---------+---------+----------+
+ * | Active pixel array                     |
+ * |                                        |
+ * |                                        |
+ * +         +---O==================O---+   + 375
+ * |         |   I 640x480 stream   I   |   |
+ * |         |   I                  I   |   |
+ * |         |   I                  I   |   |
+ * +         |   I                  I   |   + 750
+ * |         |   I                  I   |   |
+ * |         |   I                  I   |   |
+ * |         |   I                  I   |   |
+ * +         +---O==================O---+   + 1125
+ * |          Crop region, 1280x720 stream  |
+ * |                                        |
+ * |                                        |
+ * +---------+---------+---------+----------+ 1500
+ *
+ * Crop region: (500, 375, 750, 750) (1:1 aspect ratio)
+ *
+ *   640x480 stream crop: (500, 469, 750, 562) (marked with =)
+ *   1280x720 stream crop: (500, 543, 750, 414) (marged with #)
+ *
+ * 0                   1000               2000
+ * +---------+---------+---------+----------+
+ * | Active pixel array                     |
+ * |                                        |
+ * |                                        |
+ * +         +--------------+               + 375
+ * |         O==============O               |
+ * |         ################               |
+ * |         #              #               |
+ * +         #              #               + 750
+ * |         #              #               |
+ * |         ################ 1280x720      |
+ * |         O==============O 640x480       |
+ * +         +--------------+               + 1125
+ * |          Crop region                   |
+ * |                                        |
+ * |                                        |
+ * +---------+---------+---------+----------+ 1500
+ *
+ * And a final example, a 1024x1024 square aspect ratio stream instead of the
+ * 480p stream:
+ *
+ * Crop region: (500, 375, 1000, 750) (4:3 aspect ratio)
+ *
+ *   1024x1024 stream crop: (625, 375, 750, 750) (marked with #)
+ *   1280x720 stream crop: (500, 469, 1000, 562) (marked with =)
+ *
+ * 0                   1000               2000
+ * +---------+---------+---------+----------+
+ * | Active pixel array                     |
+ * |                                        |
+ * |              1024x1024 stream          |
+ * +         +--###############--+          + 375
+ * |         |  #             #  |          |
+ * |         O===================O          |
+ * |         I 1280x720 stream   I          |
+ * +         I                   I          + 750
+ * |         I                   I          |
+ * |         O===================O          |
+ * |         |  #             #  |          |
+ * +         +--###############--+          + 1125
+ * |          Crop region                   |
+ * |                                        |
+ * |                                        |
+ * +---------+---------+---------+----------+ 1500
+ *
+ */
+
+/**
+ * S6. Error management:
  *
  * Camera HAL device ops functions that have a return value will all return
  * -ENODEV / NULL in case of a serious error. This means the device cannot
