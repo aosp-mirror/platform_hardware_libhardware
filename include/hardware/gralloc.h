@@ -258,6 +258,10 @@ typedef struct alloc_device_t {
      * allow the implementation to satisfy hardware constraints on the width
      * of a pixmap (eg: it may have to be multiple of 8 pixels). 
      * The CALLER TAKES OWNERSHIP of the buffer_handle_t.
+     *
+     * If format is HAL_PIXEL_FORMAT_YCbCr_420_888, the returned stride must be
+     * 0, since the actual strides are available from the android_ycbcr
+     * structure.
      * 
      * Returns 0 on success or -errno on error.
      */
