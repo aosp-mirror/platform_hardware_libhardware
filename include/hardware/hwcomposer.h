@@ -299,13 +299,21 @@ typedef struct hwc_display_contents_1 {
             hwc_surface_t sur;
         };
 
-        /* Fields only relevant for HWC_DEVICE_VERSION_1_2 and later. */
+        /* WARNING: These fields are for experimental virtual display support,
+         * and are not currently used. */
         struct {
             /* outbuf is the buffer that receives the composed image for
              * virtual displays. Writes to the outbuf must wait until
              * outbufAcquireFenceFd signals. A fence that will signal when
              * writes to outbuf are complete should be returned in
              * retireFenceFd.
+             *
+             * This field will not be updated until after prepare(). If
+             * prepare() sets all non-FB layers to OVERLAY or sets all non-FB
+             * layers to FRAMEBUFFER, then the FRAMEBUFFER_TARGET buffer and
+             * the output buffer may be the same. In mixed OVERLAY/FRAMEBUFFER
+             * configurations they will have different buffers so the
+             * h/w composer does not have to read and write the same buffer.
              *
              * For physical displays, outbuf will be NULL.
              */
@@ -428,10 +436,9 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
      * for unsupported or disabled/disconnected display types will be NULL.
      *
-     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
-     * The extra entries correspond to enabled virtual displays, and will be
-     * non-NULL. In HWC 1.2, support for one virtual display is required, and
-     * no more than one will be used. Future HWC versions might require more.
+     * In a future version, numDisplays may be larger than
+     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
+     * displays, and will be non-NULL.
      *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
@@ -462,10 +469,9 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
      * for unsupported or disabled/disconnected display types will be NULL.
      *
-     * For HWC 1.2 and later, numDisplays will be HWC_NUM_DISPLAY_TYPES or more.
-     * The extra entries correspond to enabled virtual displays, and will be
-     * non-NULL. In HWC 1.2, support for one virtual display is required, and
-     * no more than one will be used. Future HWC versions might require more.
+     * In a future version, numDisplays may be larger than
+     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
+     * displays, and will be non-NULL.
      *
      * IMPORTANT NOTE: There is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
