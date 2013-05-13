@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <hardware/camera3.h>
 #include "CameraHAL.h"
+#include "Stream.h"
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
@@ -44,7 +45,9 @@ static int close_device(hw_device_t* dev)
 Camera::Camera(int id)
   : mId(id),
     mBusy(false),
-    mCallbackOps(NULL)
+    mCallbackOps(NULL),
+    mStreams(NULL),
+    mNumStreams(0)
 {
     pthread_mutex_init(&mMutex,
                        NULL); // No pthread mutex attributes.
@@ -105,11 +108,155 @@ int Camera::initialize(const camera3_callback_ops_t *callback_ops)
     return 0;
 }
 
-int Camera::configureStreams(camera3_stream_configuration_t *stream_list)
+int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 {
-    ALOGV("%s:%d: stream_list=%p", __func__, mId, stream_list);
-    // TODO: validate input, create internal stream representations
+    camera3_stream_t *astream;
+    Stream **newStreams = NULL;
+
+    CAMTRACE_CALL();
+    ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
+
+    if (stream_config == NULL) {
+        ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
+        return -EINVAL;
+    }
+    if (stream_config->num_streams == 0) {
+        ALOGE("%s:%d: Empty stream configuration array", __func__, mId);
+        return -EINVAL;
+    }
+
+    // Create new stream array
+    newStreams = new Stream*[stream_config->num_streams];
+    ALOGV("%s:%d: Number of Streams: %d", __func__, mId,
+            stream_config->num_streams);
+
+    pthread_mutex_lock(&mMutex);
+
+    // Mark all current streams unused for now
+    for (int i = 0; i < mNumStreams; i++)
+        mStreams[i]->mReuse = false;
+    // Fill new stream array with reused streams and new streams
+    for (int i = 0; i < stream_config->num_streams; i++) {
+        astream = stream_config->streams[i];
+        if (astream->max_buffers > 0)
+            newStreams[i] = reuseStream(astream);
+        else
+            newStreams[i] = new Stream(mId, astream);
+
+        if (newStreams[i] == NULL) {
+            ALOGE("%s:%d: Error processing stream %d", __func__, mId, i);
+            goto err_out;
+        }
+        astream->priv = newStreams[i];
+    }
+
+    // Verify the set of streams in aggregate
+    if (!isValidStreamSet(newStreams, stream_config->num_streams)) {
+        ALOGE("%s:%d: Invalid stream set", __func__, mId);
+        goto err_out;
+    }
+
+    // Set up all streams (calculate usage/max_buffers for each)
+    setupStreams(newStreams, stream_config->num_streams);
+
+    // Destroy all old streams and replace stream array with new one
+    destroyStreams(mStreams, mNumStreams);
+    mStreams = newStreams;
+    mNumStreams = stream_config->num_streams;
+
+    pthread_mutex_unlock(&mMutex);
     return 0;
+
+err_out:
+    // Clean up temporary streams, preserve existing mStreams/mNumStreams
+    destroyStreams(newStreams, stream_config->num_streams);
+    pthread_mutex_unlock(&mMutex);
+    return -EINVAL;
+}
+
+void Camera::destroyStreams(Stream **streams, int count)
+{
+    if (streams == NULL)
+        return;
+    for (int i = 0; i < count; i++) {
+        // Only destroy streams that weren't reused
+        if (streams[i] != NULL && !streams[i]->mReuse)
+            delete streams[i];
+    }
+    delete [] streams;
+}
+
+Stream *Camera::reuseStream(camera3_stream_t *astream)
+{
+    Stream *priv = reinterpret_cast<Stream*>(astream->priv);
+    // Verify the re-used stream's parameters match
+    if (!priv->isValidReuseStream(mId, astream)) {
+        ALOGE("%s:%d: Mismatched parameter in reused stream", __func__, mId);
+        return NULL;
+    }
+    // Mark stream to be reused
+    priv->mReuse = true;
+    return priv;
+}
+
+bool Camera::isValidStreamSet(Stream **streams, int count)
+{
+    int inputs = 0;
+    int outputs = 0;
+
+    if (streams == NULL) {
+        ALOGE("%s:%d: NULL stream configuration streams", __func__, mId);
+        return false;
+    }
+    if (count == 0) {
+        ALOGE("%s:%d: Zero count stream configuration streams", __func__, mId);
+        return false;
+    }
+    // Validate there is at most one input stream and at least one output stream
+    for (int i = 0; i < count; i++) {
+        // A stream may be both input and output (bidirectional)
+        if (streams[i]->isInputType())
+            inputs++;
+        if (streams[i]->isOutputType())
+            outputs++;
+    }
+    if (outputs < 1) {
+        ALOGE("%s:%d: Stream config must have >= 1 output", __func__, mId);
+        return false;
+    }
+    if (inputs > 1) {
+        ALOGE("%s:%d: Stream config must have <= 1 input", __func__, mId);
+        return false;
+    }
+    // TODO: check for correct number of Bayer/YUV/JPEG/Encoder streams
+    return true;
+}
+
+void Camera::setupStreams(Stream **streams, int count)
+{
+    /*
+     * This is where the HAL has to decide internally how to handle all of the
+     * streams, and then produce usage and max_buffer values for each stream.
+     * Note, the stream array has been checked before this point for ALL invalid
+     * conditions, so it must find a successful configuration for this stream
+     * array.  The HAL may not return an error from this point.
+     *
+     * In this demo HAL, we just set all streams to be the same dummy values;
+     * real implementations will want to avoid USAGE_SW_{READ|WRITE}_OFTEN.
+     */
+    for (int i = 0; i < count; i++) {
+        uint32_t usage = 0;
+
+        if (streams[i]->isOutputType())
+            usage |= GRALLOC_USAGE_SW_WRITE_OFTEN |
+                     GRALLOC_USAGE_HW_CAMERA_WRITE;
+        if (streams[i]->isInputType())
+            usage |= GRALLOC_USAGE_SW_READ_OFTEN |
+                     GRALLOC_USAGE_HW_CAMERA_READ;
+
+        streams[i]->setUsage(usage);
+        streams[i]->setMaxBuffers(1);
+    }
 }
 
 int Camera::registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set)

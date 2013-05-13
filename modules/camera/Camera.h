@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
+#include "Stream.h"
 
 namespace default_camera_hal {
 // Camera represents a physical camera on a device.
@@ -50,6 +51,15 @@ class Camera {
         camera3_device_t mDevice;
 
     private:
+        // Reuse a stream already created by this device
+        Stream *reuseStream(camera3_stream_t *astream);
+        // Destroy all streams in a stream array, and the array itself
+        void destroyStreams(Stream **array, int count);
+        // Verify a set of streams is valid in aggregate
+        bool isValidStreamSet(Stream **array, int count);
+        // Calculate usage and max_bufs of each stream
+        void setupStreams(Stream **array, int count);
+
         // Identifier used by framework to distinguish cameras
         const int mId;
         // Busy flag indicates camera is in use
@@ -60,6 +70,10 @@ class Camera {
         const camera3_callback_ops_t *mCallbackOps;
         // Lock protecting the Camera object for modifications
         pthread_mutex_t mMutex;
+        // Array of handles to streams currently in use by the device
+        Stream **mStreams;
+        // Number of streams in mStreams
+        int mNumStreams;
 };
 } // namespace default_camera_hal
 
