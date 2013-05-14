@@ -392,7 +392,7 @@ TEST_P(KeymasterGenerateTest, GenerateKeyPair_RSA_Success) {
 
 INSTANTIATE_TEST_CASE_P(RSA,
                         KeymasterGenerateTest,
-                        ::testing::Values(512U, 1024U, 2048U));
+                        ::testing::Values(512U, 1024U, 2048U, 3072U, 4096U));
 
 TEST_F(KeymasterTest, GenerateKeyPair_RSA_NullParams_Failure) {
     keymaster_keypair_t key_type = TYPE_RSA;
