@@ -723,6 +723,12 @@
  *| CONVERGED          | AE/AWB_LOCK   | LOCKED             | values locked    |
  *|                    | on            |                    |                  |
  *+--------------------+---------------+--------------------+------------------+
+ *| FLASH_REQUIRED     | HAL initiates | SEARCHING          | values locked    |
+ *|                    | AE/AWB scan   |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *| FLASH_REQUIRED     | AE/AWB_LOCK   | LOCKED             | values locked    |
+ *|                    | on            |                    |                  |
+ *+--------------------+---------------+--------------------+------------------+
  *| LOCKED             | AE/AWB_LOCK   | SEARCHING          | values not good  |
  *|                    | off           |                    | after unlock     |
  *+--------------------+---------------+--------------------+------------------+
