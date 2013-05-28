@@ -301,7 +301,7 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     for (int i = 0; i < mNumStreams; i++)
         mStreams[i]->mReuse = false;
     // Fill new stream array with reused streams and new streams
-    for (int i = 0; i < stream_config->num_streams; i++) {
+    for (unsigned int i = 0; i < stream_config->num_streams; i++) {
         astream = stream_config->streams[i];
         if (astream->max_buffers > 0)
             newStreams[i] = reuseStream(astream);
@@ -533,13 +533,13 @@ void Camera::setSettings(const camera_metadata_t *new_settings)
         mSettings = clone_camera_metadata(new_settings);
 }
 
-bool Camera::isValidCaptureSettings(const camera_metadata_t *settings)
+bool Camera::isValidCaptureSettings(const camera_metadata_t* /*settings*/)
 {
     // TODO: reject settings that cannot be captured
     return true;
 }
 
-bool Camera::isValidReprocessSettings(const camera_metadata_t *settings)
+bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
 {
     // TODO: reject settings that cannot be reprocessed
     // input buffers unimplemented, use this to reject reprocessing requests

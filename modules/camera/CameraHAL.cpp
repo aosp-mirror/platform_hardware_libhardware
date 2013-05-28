@@ -92,6 +92,10 @@ int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
     char *nameEnd;
 
     ALOGV("%s: module=%p, name=%s, device=%p", __func__, mod, name, dev);
+    if (*name == '\0') {
+        ALOGE("%s: Invalid camera id name is NULL", __func__);
+        return -EINVAL;
+    }
     id = strtol(name, &nameEnd, 10);
     if (*nameEnd != '\0') {
         ALOGE("%s: Invalid camera id name %s", __func__, name);
