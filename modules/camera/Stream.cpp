@@ -61,6 +61,7 @@ void Stream::setUsage(uint32_t usage)
     pthread_mutex_lock(&mMutex);
     if (usage != mUsage) {
         mUsage = usage;
+        mStream->usage = usage;
         unregisterBuffers_L();
     }
     pthread_mutex_unlock(&mMutex);
@@ -71,6 +72,7 @@ void Stream::setMaxBuffers(uint32_t max_buffers)
     pthread_mutex_lock(&mMutex);
     if (max_buffers != mMaxBuffers) {
         mMaxBuffers = max_buffers;
+        mStream->max_buffers = max_buffers;
         unregisterBuffers_L();
     }
     pthread_mutex_unlock(&mMutex);

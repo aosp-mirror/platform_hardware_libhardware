@@ -326,10 +326,13 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     // Fill new stream array with reused streams and new streams
     for (unsigned int i = 0; i < stream_config->num_streams; i++) {
         astream = stream_config->streams[i];
-        if (astream->max_buffers > 0)
+        if (astream->max_buffers > 0) {
+            ALOGV("%s:%d: Reusing stream %d", __func__, mId, i);
             newStreams[i] = reuseStream(astream);
-        else
+        } else {
+            ALOGV("%s:%d: Creating new stream %d", __func__, mId, i);
             newStreams[i] = new Stream(mId, astream);
+        }
 
         if (newStreams[i] == NULL) {
             ALOGE("%s:%d: Error processing stream %d", __func__, mId, i);

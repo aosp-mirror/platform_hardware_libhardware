@@ -52,7 +52,7 @@ class Stream {
         // The camera device id this stream belongs to
         const int mId;
         // Handle to framework's stream, used as a cookie for buffers
-        const camera3_stream_t *mStream;
+        camera3_stream_t *mStream;
         // Stream type: CAMERA3_STREAM_* (see <hardware/camera3.h>)
         const int mType;
         // Width in pixels of the buffers in this stream
