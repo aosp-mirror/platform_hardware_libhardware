@@ -43,6 +43,33 @@ Metadata::~Metadata()
 {
 }
 
+Metadata::Metadata(uint8_t mode, uint8_t intent)
+  : mHead(NULL),
+    mTail(NULL),
+    mEntryCount(0),
+    mDataCount(0)
+{
+    pthread_mutex_init(&mMutex, NULL);
+
+    if (validate(ANDROID_CONTROL_MODE, TYPE_BYTE, 1)) {
+        int res = add(ANDROID_CONTROL_MODE, 1, &mode);
+        if (res != 0) {
+            ALOGE("%s: Unable to add mode to template!", __func__);
+        }
+    } else {
+        ALOGE("%s: Invalid mode constructing template!", __func__);
+    }
+
+    if (validate(ANDROID_CONTROL_CAPTURE_INTENT, TYPE_BYTE, 1)) {
+        int res = add(ANDROID_CONTROL_CAPTURE_INTENT, 1, &intent);
+        if (res != 0) {
+            ALOGE("%s: Unable to add capture intent to template!", __func__);
+        }
+    } else {
+        ALOGE("%s: Invalid capture intent constructing template!", __func__);
+    }
+}
+
 int Metadata::addUInt8(uint32_t tag, int count, uint8_t *data)
 {
     if (!validate(tag, TYPE_BYTE, count)) return -EINVAL;
@@ -113,9 +140,11 @@ int Metadata::add(uint32_t tag, int count, void *tag_data)
         return -ENOMEM;
     memcpy(data, tag_data, count * type_sz);
 
+    pthread_mutex_lock(&mMutex);
     mEntryCount++;
     mDataCount += calculate_camera_metadata_entry_data_size(tag_type, count);
     push(new Entry(tag, data, count));
+    pthread_mutex_unlock(&mMutex);
     return 0;
 }
 

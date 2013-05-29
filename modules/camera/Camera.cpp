@@ -135,6 +135,29 @@ int Camera::initialize(const camera3_callback_ops_t *callback_ops)
 {
     ALOGV("%s:%d: callback_ops=%p", __func__, mId, callback_ops);
     mCallbackOps = callback_ops;
+    // Create standard settings templates
+    // 0 is invalid as template
+    mTemplates[0] = NULL;
+    // CAMERA3_TEMPLATE_PREVIEW = 1
+    mTemplates[1] = new Metadata(ANDROID_CONTROL_MODE_OFF,
+            ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW);
+    // CAMERA3_TEMPLATE_STILL_CAPTURE = 2
+    mTemplates[2] = new Metadata(ANDROID_CONTROL_MODE_OFF,
+            ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE);
+    // CAMERA3_TEMPLATE_VIDEO_RECORD = 3
+    mTemplates[3] = new Metadata(ANDROID_CONTROL_MODE_OFF,
+            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD);
+    // CAMERA3_TEMPLATE_VIDEO_SNAPSHOT = 4
+    mTemplates[4] = new Metadata(ANDROID_CONTROL_MODE_OFF,
+            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT);
+    // CAMERA3_TEMPLATE_STILL_ZERO_SHUTTER_LAG = 5
+    mTemplates[5] = new Metadata(ANDROID_CONTROL_MODE_OFF,
+            ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG);
+    // Pre-generate metadata structures
+    for (int i = 1; i < CAMERA3_TEMPLATE_COUNT; i++) {
+        mTemplates[i]->generate();
+    }
+    // TODO: create vendor templates
     return 0;
 }
 
@@ -445,8 +468,12 @@ int Camera::registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set)
 const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
 {
     ALOGV("%s:%d: type=%d", __func__, mId, type);
-    // TODO: return statically built default request
-    return NULL;
+
+    if (type < 1 || type >= CAMERA3_TEMPLATE_COUNT) {
+        ALOGE("%s:%d: Invalid template request type: %d", __func__, mId, type);
+        return NULL;
+    }
+    return mTemplates[type]->generate();
 }
 
 int Camera::processCaptureRequest(camera3_capture_request_t *request)

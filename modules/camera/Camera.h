@@ -91,6 +91,8 @@ class Camera {
         Stream **mStreams;
         // Number of streams in mStreams
         int mNumStreams;
+        // Static array of standard camera settings templates
+        Metadata *mTemplates[CAMERA3_TEMPLATE_COUNT];
         // Most recent request settings seen, memoized to be reused
         camera_metadata_t *mSettings;
 };

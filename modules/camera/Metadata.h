@@ -28,6 +28,8 @@ class Metadata {
     public:
         Metadata();
         ~Metadata();
+        // Constructor used for request metadata templates
+        Metadata(uint8_t mode, uint8_t intent);
 
         // Parse and add an entry
         int addUInt8(uint32_t tag, int count, uint8_t *data);
