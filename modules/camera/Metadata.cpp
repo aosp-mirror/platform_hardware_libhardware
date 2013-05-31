@@ -43,8 +43,18 @@ Metadata::Metadata()
 
 Metadata::~Metadata()
 {
+    Entry *current = mHead;
+
+    while (current != NULL) {
+        Entry *tmp = current;
+        current = current->mNext;
+        delete tmp;
+    }
+
     if (mGenerated != NULL)
         free_camera_metadata(mGenerated);
+
+    pthread_mutex_destroy(&mMutex);
 }
 
 Metadata::Metadata(uint8_t mode, uint8_t intent)
