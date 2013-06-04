@@ -544,6 +544,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
     // TODO: return actual captured/reprocessed settings
     result.result = request->settings;
     // TODO: asynchronously return results
+    notifyShutter(request->frame_number, 0);
     mCallbackOps->process_capture_result(mCallbackOps, &result);
 
     return 0;
@@ -604,6 +605,31 @@ int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
 
     // TODO: lock and software-paint buffer
     return 0;
+}
+
+void Camera::notifyShutter(uint32_t frame_number, uint64_t timestamp)
+{
+    int res;
+    struct timespec ts;
+
+    // If timestamp is 0, get timestamp from right now instead
+    if (timestamp == 0) {
+        ALOGW("%s:%d: No timestamp provided, using CLOCK_BOOTTIME",
+                __func__, mId);
+        res = clock_gettime(CLOCK_BOOTTIME, &ts);
+        if (res == 0) {
+            timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+        } else {
+            ALOGE("%s:%d: No timestamp and failed to get CLOCK_BOOTTIME %s(%d)",
+                    __func__, mId, strerror(errno), errno);
+        }
+    }
+    camera3_notify_msg_t m;
+    memset(&m, 0, sizeof(m));
+    m.type = CAMERA3_MSG_SHUTTER;
+    m.message.shutter.frame_number = frame_number;
+    m.message.shutter.timestamp = timestamp;
+    mCallbackOps->notify(mCallbackOps, &m);
 }
 
 void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)

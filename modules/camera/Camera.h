@@ -72,6 +72,8 @@ class Camera {
         // Process an output buffer
         int processCaptureBuffer(const camera3_stream_buffer_t *in,
                 camera3_stream_buffer_t *out);
+        // Send a shutter notify message with start of exposure time
+        void notifyShutter(uint32_t frame_number, uint64_t timestamp);
 
         // Identifier used by framework to distinguish cameras
         const int mId;
