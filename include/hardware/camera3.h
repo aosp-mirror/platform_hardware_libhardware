@@ -86,6 +86,8 @@
  * 3.1: Minor revision of expanded-capability HAL:
  *
  *   - configure_streams passes consumer usage flags to the HAL.
+ *
+ *   - flush call to drop all in-flight requests/buffers as fast as possible.
  */
 
 /**
@@ -2061,6 +2063,49 @@ typedef struct camera3_device_ops {
      */
     void (*dump)(const struct camera3_device *, int fd);
 
+    /**
+     * flush:
+     *
+     * Flush all currently in-process captures and all buffers in the pipeline
+     * on the given device. The framework will use this to dump all state as
+     * quickly as possible in order to prepare for a configure_streams() call.
+     *
+     * No buffers are required to be successfully returned, so every buffer
+     * held at the time of flush() (whether sucessfully filled or not) may be
+     * returned with CAMERA3_BUFFER_STATUS_ERROR. Note the HAL is still allowed
+     * to return valid (STATUS_OK) buffers during this call, provided they are
+     * succesfully filled.
+     *
+     * All requests currently in the HAL are expected to be returned as soon as
+     * possible.  Not-in-process requests should return errors immediately. Any
+     * interruptible hardware blocks should be stopped, and any uninterruptible
+     * blocks should be waited on.
+     *
+     * flush() should only return when there are no more outstanding buffers or
+     * requests left in the HAL.  The framework may call configure_streams (as
+     * the HAL state is now quiesced) or may issue new requests.
+     *
+     * A flush() call should only take 100ms or less. The maximum time it can
+     * take is 1 second.
+     *
+     * Version information:
+     *
+     *   only available if device version >= CAMERA_DEVICE_API_VERSION_3_1.
+     *
+     * Return values:
+     *
+     *  0:      On a successful flush of the camera HAL.
+     *
+     * -EINVAL: If the input is malformed (the device is not valid).
+     *
+     * -ENODEV: If the camera device has encountered a serious error. After this
+     *          error is returned, only the close() method can be successfully
+     *          called by the framework.
+     */
+    int (*flush)(const struct camera3_device *);
+
+    /* reserved for future use */
+    void *reserved[8];
 } camera3_device_ops_t;
 
 /**********************************************************************
