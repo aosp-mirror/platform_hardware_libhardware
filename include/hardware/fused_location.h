@@ -49,12 +49,17 @@ __BEGIN_DECLS
 /**
  * Name for the FLP location interface
  */
-#define FLP_DEBUG_INTERFACE     "flp_debug"
+#define FLP_DIAGNOSTIC_INTERFACE     "flp_diagnostic"
 
 /**
  * Name for the FLP_Geofencing interface.
  */
 #define FLP_GEOFENCING_INTERFACE   "flp_geofencing"
+
+/**
+ * Name for the FLP_device context interface.
+ */
+#define FLP_DEVICE_CONTEXT_INTERFACE   "flp_device_context"
 
 /**
  * Constants to indicate the various subsystems
@@ -84,6 +89,8 @@ __BEGIN_DECLS
  * fix has been obtained. This flag controls that option.
  * Its the responsibility of the upper layers (caller) to switch
  * it off, if it knows that the AP might go to sleep.
+ * When this bit is on amidst a batching session, batching should
+ * continue while location fixes are reported in real time.
  */
 #define FLP_BATCH_CALLBACK_ON_LOCATION_FIX   0x0000002
 
@@ -189,6 +196,8 @@ typedef struct {
     /**
      * Maximum power in mW that the underlying implementation
      * can use for this batching call.
+     * If max_power_allocation_mW is 0, only fixes that are generated
+     * at no additional cost of power shall be reported.
      */
     double max_power_allocation_mW;
 
@@ -203,7 +212,9 @@ typedef struct {
      * FLP_BATCH_CALLBACK_ON_LOCATION_FIX - If set the location
      * callback will be called every time there is a location fix.
      * Its the responsibility of the upper layers (caller) to switch
-     * it off, if it knows that the AP might go to sleep.
+     * it off, if it knows that the AP might go to sleep. When this
+     * bit is on amidst a batching session, batching should continue
+     * while location fixes are reported in real time.
      *
      * Other flags to be bitwised ORed in the future.
      */
@@ -240,7 +251,10 @@ typedef struct {
     int (*init)(FlpCallbacks* callbacks );
 
     /**
-     * Return the batch size (in bytes) available in the hardware.
+     * Return the batch size (in number of FlpLocation objects)
+     * available in the hardware.  Note, different HW implementations
+     * may have different sample sizes.  This shall return number
+     * of samples defined in the format of FlpLocation.
      * This will be used by the upper layer, to decide on the batching
      * interval and whether the AP should be woken up or not.
      */
@@ -341,32 +355,74 @@ struct flp_device_t {
 };
 
 /**
- * FLP debug callback structure.
+ * Callback for reports diagnostic data into the Java framework code.
+*/
+typedef void (*report_data)(char* data, int length);
+
+/**
+ * FLP diagnostic callback structure.
  * Currently, not used - but this for future extension.
  */
 typedef struct {
-    /** set to sizeof(FlpDebugCallbacks) */
+    /** set to sizeof(FlpDiagnosticCallbacks) */
     size_t      size;
-    flp_create_thread create_thread_cb;
-} FlpDebugCallbacks;
 
-/** Extended interface for debug support. */
+    flp_create_thread create_thread_cb;
+
+    /** reports diagnostic data into the Java framework code */
+    report_data data_cb;
+} FlpDiagnosticCallbacks;
+
+/** Extended interface for diagnostic support. */
 typedef struct {
-    /** set to sizeof(FlpDebugInterface) */
+    /** set to sizeof(FlpDiagnosticInterface) */
     size_t          size;
 
     /**
-     * Opens the debug interface and provides the callback routines
+     * Opens the diagnostic interface and provides the callback routines
      * to the implemenation of this interface.
      */
-    void  (*init)(FlpDebugCallbacks* callbacks);
+    void  (*init)(FlpDiagnosticCallbacks* callbacks);
+
+    /**
+     * Injects diagnostic data into the FLP subsystem.
+     * Return 0 on success, -1 on error.
+     **/
+    int  (*inject_data)(char* data, int length );
+} FlpDiagnosticInterface;
+
+/**
+ * Context setting information.
+ * All these settings shall be injected to FLP HAL at FLP init time.
+ * Following that, only the changed setting need to be re-injected
+ * upon changes.
+ */
+
+#define FLP_DEVICE_CONTEXT_GPS_ENABLED                     (1U<<0)
+#define FLP_DEVICE_CONTEXT_AGPS_ENABLED                    (1U<<1)
+#define FLP_DEVICE_CONTEXT_NETWORK_POSITIONING_ENABLED     (1U<<2)
+#define FLP_DEVICE_CONTEXT_WIFI_CONNECTIVITY_ENABLED       (1U<<3)
+#define FLP_DEVICE_CONTEXT_WIFI_POSITIONING_ENABLED        (1U<<4)
+#define FIP_DEVICE_CONTEXT_HW_NETWORK_POSITIONING ENABLED  (1U<<5)
+#define FLP_DEVICE_CONTEXT_AIRPLANE_MODE_ON                (1U<<6)
+#define FLP_DEVICE_CONTEXT_DATA_ENABLED                    (1U<<7)
+#define FLP_DEVICE_CONTEXT_ROAMING_ENABLED                 (1U<<8)
+#define FLP_DEVICE_CONTEXT_CURRENTLY_ROAMING               (1U<<9)
+#define FLP_DEVICE_CONTEXT_SENSOR_ENABLED                  (1U<<10)
+#define FLP_DEVICE_CONTEXT_BLUETOOTH_ENABLED               (1U<<11)
+#define FLP_DEVICE_CONTEXT_CHARGER_ON                      (1U<<12)
+
+/** Extended interface for device context support. */
+typedef struct {
+    /** set to sizeof(FlpDeviceContextInterface) */
+    size_t          size;
 
     /**
      * Injects debug data into the FLP subsystem.
      * Return 0 on success, -1 on error.
      **/
-    int  (*inject_debug_data)(char* data, int length );
-} FlpDebugInterface;
+    int  (*inject_device_context)(uint32_t enabledMask);
+} FlpDeviceContextInterface;
 
 
 /**
@@ -449,7 +505,7 @@ typedef struct {
  *      location    - The current location as determined by the FLP subsystem.
  *      transition  - Can be one of FLP_GEOFENCE_TRANSITION_ENTERED, FLP_GEOFENCE_TRANSITION_EXITED,
  *                    FLP_GEOFENCE_TRANSITION_UNCERTAIN.
- *      timestamp   - Timestamp when the transition was detected.
+ *      timestamp   - Timestamp when the transition was detected; -1 if not available.
  *      sources_used - Bitwise OR of FLP_TECH_MASK flags indicating which
  *                     subsystems were used.
  *
@@ -647,6 +703,15 @@ typedef struct {
     *       add_geofence_area call.
     */
    void (*resume_geofence) (int32_t geofence_id, int monitor_transitions);
+
+   /**
+    * Modify a particular geofence option.
+    * Parameters:
+    *    geofence_id - The id for the geofence.
+    *    options - Various options associated with the geofence. See
+    *        GeofenceOptions structure for details.
+    */
+   void (*modify_geofence_option) (int32_t geofence_id, GeofenceOptions* options);
 
    /**
     * Remove a list of geofences. After the function returns, no notifications
