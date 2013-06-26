@@ -25,7 +25,7 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "Camera2Device.h"
+#include "CameraDeviceBase.h"
 #include "utils/StrongPointer.h"
 
 #include <gui/CpuConsumer.h>
@@ -142,13 +142,25 @@ TEST_F(CameraMetadataTest, RequiredFormats) {
         HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
                                        HAL_PIXEL_FORMAT_BLOB)); // JPEG
 
-    EXPECT_TRUE(
-        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
-                                       HAL_PIXEL_FORMAT_YCrCb_420_SP)); // NV21
+    if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_0) {
+        // HAL2 can support either flexible YUV or YV12 + NV21
+        if (!HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                        HAL_PIXEL_FORMAT_YCbCr_420_888)) {
 
-    EXPECT_TRUE(
-        HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
-                                       HAL_PIXEL_FORMAT_YV12));
+            EXPECT_TRUE(
+                HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                        HAL_PIXEL_FORMAT_YCrCb_420_SP)); // NV21
+
+            EXPECT_TRUE(
+                HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                        HAL_PIXEL_FORMAT_YV12));
+        }
+    } else {
+        // HAL3 must support flexible YUV
+        EXPECT_TRUE(HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                        HAL_PIXEL_FORMAT_YCbCr_420_888));
+    }
+
 }
 
 TEST_F(CameraMetadataTest, SaneResolutions) {
@@ -156,7 +168,7 @@ TEST_F(CameraMetadataTest, SaneResolutions) {
 
     // Iff there are listed raw resolutions, the format should be available
     int rawResolutionsCount =
-            GetEntryCountFromStaticTag(HAL_PIXEL_FORMAT_RAW_SENSOR);
+            GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_RAW_SIZES);
     EXPECT_EQ(rawResolutionsCount > 0,
         HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
                                         HAL_PIXEL_FORMAT_RAW_SENSOR));
