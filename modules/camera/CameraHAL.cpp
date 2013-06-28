@@ -76,7 +76,7 @@ int CameraHAL::getCameraInfo(int id, struct camera_info* info)
         return -ENODEV;
     }
     // TODO: return device-specific static metadata
-    return 0;
+    return mCameras[id]->getInfo(info);
 }
 
 int CameraHAL::setCallbacks(const camera_module_callbacks_t *callbacks)
@@ -93,7 +93,7 @@ int CameraHAL::open(const hw_module_t* mod, const char* name, hw_device_t** dev)
 
     ALOGV("%s: module=%p, name=%s, device=%p", __func__, mod, name, dev);
     id = strtol(name, &nameEnd, 10);
-    if (nameEnd != NULL) {
+    if (*nameEnd != '\0') {
         ALOGE("%s: Invalid camera id name %s", __func__, name);
         return -EINVAL;
     } else if (id < 0 || id >= mNumberOfCameras) {

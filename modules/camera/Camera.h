@@ -20,6 +20,7 @@
 #include <pthread.h>
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
+#include "Metadata.h"
 #include "Stream.h"
 
 namespace default_camera_hal {
@@ -36,6 +37,7 @@ class Camera {
 
         // Common Camera Device Operations (see <hardware/camera_common.h>)
         int open(const hw_module_t *module, hw_device_t **device);
+        int getInfo(struct camera_info *info);
         int close();
 
         // Camera v3 Device Operations (see <hardware/camera3.h>)
@@ -51,6 +53,8 @@ class Camera {
         camera3_device_t mDevice;
 
     private:
+        // Separate initialization method for static metadata
+        int initStaticInfo();
         // Reuse a stream already created by this device
         Stream *reuseStream(camera3_stream_t *astream);
         // Destroy all streams in a stream array, and the array itself
@@ -71,6 +75,10 @@ class Camera {
 
         // Identifier used by framework to distinguish cameras
         const int mId;
+        // Metadata containing persistent camera characteristics
+        Metadata mMetadata;
+        // camera_metadata structure containing static characteristics
+        camera_metadata_t *mStaticInfo;
         // Busy flag indicates camera is in use
         bool mBusy;
         // Camera device operations handle shared by all devices
