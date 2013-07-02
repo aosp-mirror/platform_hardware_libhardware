@@ -23,6 +23,7 @@
 #include "hardware/camera2.h"
 
 #include "Camera2Device.h"
+#include "Camera3Device.h"
 #include "camera2_utils.h"
 #include "TestExtensions.h"
 
@@ -82,6 +83,42 @@ struct CameraModuleFixture {
         }
     }
 
+    void CreateCamera(int cameraID, /*out*/ sp<CameraDeviceBase> *device) {
+        struct camera_info info;
+        ASSERT_EQ(OK, mModule->get_camera_info(cameraID, &info));
+
+        ASSERT_GE((int)info.device_version, CAMERA_DEVICE_API_VERSION_2_0) <<
+                "Device version too old for camera " << cameraID << ". Version: " <<
+                info.device_version;
+        switch(info.device_version) {
+            case CAMERA_DEVICE_API_VERSION_2_0:
+            case CAMERA_DEVICE_API_VERSION_2_1:
+                *device = new Camera2Device(cameraID);
+                break;
+            case CAMERA_DEVICE_API_VERSION_3_0:
+                *device = new Camera3Device(cameraID);
+                break;
+            default:
+                device->clear();
+                FAIL() << "Device version unknown for camera " << cameraID << ". Version: " <<
+                       info.device_version;
+        }
+
+    }
+
+    int getDeviceVersion() {
+        return getDeviceVersion(mCameraID);
+    }
+
+    int getDeviceVersion(int cameraId, status_t* status = NULL) {
+        camera_info info;
+        status_t res;
+        res = mModule->get_camera_info(cameraId, &info);
+        if (status != NULL) *status = res;
+
+        return info.device_version;
+    }
+
 private:
 
     void SetUpMixin() {
@@ -90,14 +127,12 @@ private:
             EXPECT_LE(0, mCameraID);
             EXPECT_LT(mCameraID, mNumberOfCameras);
 
-            /* HALBUG (Exynos5); crashes if trying to initialize
-               before calling get_camera_info */
-            if (InfoQuirk) {
-                struct camera_info info;
-                ASSERT_EQ(OK, mModule->get_camera_info(mCameraID, &info));
-            }
+            /* HALBUG (Exynos5); crashes if we skip calling get_camera_info
+               before initializing. Need info anyway now. */
 
-            mDevice = new Camera2Device(mCameraID);
+            CreateCamera(mCameraID, &mDevice);
+
+            ASSERT_TRUE(mDevice != NULL) << "Failed to open device " << mCameraID;
             ASSERT_EQ(OK, mDevice->initialize(mModule))
                 << "Failed to initialize device " << mCameraID;
         }
@@ -110,7 +145,7 @@ private:
 protected:
     int mNumberOfCameras;
     camera_module_t *mModule;
-    sp<Camera2Device> mDevice;
+    sp<CameraDeviceBase> mDevice;
 
 private:
     int mCameraID;

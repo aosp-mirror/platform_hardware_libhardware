@@ -23,7 +23,7 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "Camera2Device.h"
+#include "CameraDeviceBase.h"
 #include "utils/StrongPointer.h"
 
 #include <gui/CpuConsumer.h>
@@ -46,7 +46,7 @@ namespace camera2 {
 namespace tests {
 
 static CameraStreamParams STREAM_PARAMETERS = {
-    /*mFormat*/     HAL_PIXEL_FORMAT_YCrCb_420_SP,
+    /*mFormat*/     CAMERA_STREAM_AUTO_CPU_FORMAT,
     /*mHeapCount*/  CAMERA_HEAP_COUNT
 };
 
@@ -139,4 +139,3 @@ INSTANTIATE_TEST_CASE_P(FrameParameterCombinations, CameraFrameTest,
 }
 }
 }
-

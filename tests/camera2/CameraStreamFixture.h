@@ -24,6 +24,7 @@
 #include <gui/Surface.h>
 #include <utils/Condition.h>
 #include <utils/Mutex.h>
+#include <system/camera_metadata.h>
 
 #include "CameraModuleFixture.h"
 #include "TestExtensions.h"
@@ -32,14 +33,33 @@ namespace android {
 namespace camera2 {
 namespace tests {
 
+// Format specifier for picking the best format for CPU reading the given device
+// version
+#define CAMERA_STREAM_AUTO_CPU_FORMAT (-1)
+
+struct CameraStreamParams;
+
+void PrintTo(const CameraStreamParams& p, ::std::ostream* os);
+
 struct CameraStreamParams {
     int mFormat;
     int mHeapCount;
+
 };
 
+inline ::std::ostream& operator<<(::std::ostream& os, const CameraStreamParams &p) {
+    PrintTo(p, &os);
+    return os;
+}
+
 inline void PrintTo(const CameraStreamParams& p, ::std::ostream* os) {
+    char fmt[100];
+    camera_metadata_enum_snprint(
+        ANDROID_SCALER_AVAILABLE_FORMATS, p.mFormat, fmt, sizeof(fmt));
+
     *os <<  "{ ";
     *os <<  "Format: 0x"  << std::hex << p.mFormat    << ", ";
+    *os <<  "Format name: " << fmt << ", ";
     *os <<  "HeapCount: " <<             p.mHeapCount;
     *os << " }";
 }
@@ -71,7 +91,7 @@ private:
         CameraModuleFixture::SetUp();
 
         CameraStreamParams p = mParam;
-        sp<Camera2Device> device = mDevice;
+        sp<CameraDeviceBase> device = mDevice;
 
         /* use an arbitrary w,h */
         {
@@ -136,7 +156,7 @@ protected:
     };
 
     void CreateStream() {
-        sp<Camera2Device> device = mDevice;
+        sp<CameraDeviceBase> device = mDevice;
         CameraStreamParams p = mParam;
 
         mCpuConsumer = new CpuConsumer(p.mHeapCount);
@@ -145,9 +165,11 @@ protected:
         mNativeWindow = new Surface(
             mCpuConsumer->getProducerInterface());
 
+        int format = MapAutoFormat(p.mFormat);
+
         ASSERT_EQ(OK,
             device->createStream(mNativeWindow,
-                mWidth, mHeight, p.mFormat, /*size (for jpegs)*/0,
+                mWidth, mHeight, format, /*size (for jpegs)*/0,
                 &mStreamId));
 
         ASSERT_NE(-1, mStreamId);
@@ -159,6 +181,17 @@ protected:
 
     void DeleteStream() {
         ASSERT_EQ(OK, mDevice->deleteStream(mStreamId));
+    }
+
+    int MapAutoFormat(int format) {
+        if (format == CAMERA_STREAM_AUTO_CPU_FORMAT) {
+            if (getDeviceVersion() >= CAMERA_DEVICE_API_VERSION_3_0) {
+                format = HAL_PIXEL_FORMAT_YCbCr_420_888;
+            } else {
+                format = HAL_PIXEL_FORMAT_YCrCb_420_SP;
+            }
+        }
+        return format;
     }
 
     int mWidth;

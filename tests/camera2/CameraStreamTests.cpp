@@ -93,8 +93,8 @@ TEST_P(CameraStreamTest, CreateStream) {
             std::cerr << "Skipping test "
                       << test_info->test_case_name() << "."
                       << test_info->name()
-                      << " because the format was not available: 0x"
-                      << std::hex << GetParam().mFormat << std::endl;
+                      << " because the format was not available: "
+                      << GetParam() << std::endl;
             return;
         }
     }
@@ -186,4 +186,3 @@ INSTANTIATE_TEST_CASE_P(StreamParameterCombinations, CameraStreamTest,
 }
 }
 }
-

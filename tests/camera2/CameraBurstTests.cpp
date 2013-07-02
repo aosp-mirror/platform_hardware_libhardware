@@ -34,7 +34,7 @@
 #define CAMERA_EXPOSURE_DOUBLE  2
 #define CAMERA_EXPOSURE_DOUBLING_THRESHOLD 1.0f
 #define CAMERA_EXPOSURE_DOUBLING_COUNT 4
-#define CAMERA_EXPOSURE_FORMAT HAL_PIXEL_FORMAT_YCrCb_420_SP
+#define CAMERA_EXPOSURE_FORMAT CAMERA_STREAM_AUTO_CPU_FORMAT
 #define CAMERA_EXPOSURE_STARTING 100000 // 1/10ms, up to 51.2ms with 10 steps
 
 #if CAMERA_BURST_DEBUGGING
@@ -86,7 +86,7 @@ public:
         TEST_EXTENSION_FORKING_TEAR_DOWN;
     }
 
-    /* this assumes the format is YUV420sp */
+    /* this assumes the format is YUV420sp or flexible YUV */
     long long TotalBrightness(const CpuConsumer::LockedBuffer& imgBuffer,
                               int *underexposed,
                               int *overexposed) const {
@@ -170,6 +170,11 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
         uint8_t cmOff = static_cast<uint8_t>(ANDROID_CONTROL_MODE_OFF);
         ASSERT_EQ(OK, previewRequest.update(ANDROID_CONTROL_MODE,
                                             &cmOff, 1));
+
+        int requestId = 1;
+        ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_ID,
+                                            &requestId, 1));
+
         if (CAMERA_BURST_DEBUGGING) {
             int frameCount = 0;
             ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_FRAME_COUNT,
@@ -255,4 +260,3 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
 }
 }
 }
-
