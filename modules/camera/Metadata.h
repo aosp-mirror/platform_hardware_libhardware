@@ -69,6 +69,8 @@ class Metadata {
         int mDataCount;
         // Save generated metadata, invalidated on update
         camera_metadata_t *mGenerated;
+        // Flag to force metadata regeneration
+        bool mDirty;
         // Lock protecting the Metadata object for modifications
         pthread_mutex_t mMutex;
 };

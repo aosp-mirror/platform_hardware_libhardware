@@ -33,7 +33,9 @@ Metadata::Metadata()
   : mHead(NULL),
     mTail(NULL),
     mEntryCount(0),
-    mDataCount(0)
+    mDataCount(0),
+    mGenerated(NULL),
+    mDirty(true)
 {
     // NULL (default) pthread mutex attributes
     pthread_mutex_init(&mMutex, NULL);
@@ -41,13 +43,17 @@ Metadata::Metadata()
 
 Metadata::~Metadata()
 {
+    if (mGenerated != NULL)
+        free_camera_metadata(mGenerated);
 }
 
 Metadata::Metadata(uint8_t mode, uint8_t intent)
   : mHead(NULL),
     mTail(NULL),
     mEntryCount(0),
-    mDataCount(0)
+    mDataCount(0),
+    mGenerated(NULL),
+    mDirty(true)
 {
     pthread_mutex_init(&mMutex, NULL);
 
@@ -144,31 +150,50 @@ int Metadata::add(uint32_t tag, int count, void *tag_data)
     mEntryCount++;
     mDataCount += calculate_camera_metadata_entry_data_size(tag_type, count);
     push(new Entry(tag, data, count));
+    mDirty = true;
     pthread_mutex_unlock(&mMutex);
     return 0;
 }
 
 camera_metadata_t* Metadata::generate()
 {
-    Entry *current = mHead;
+    Entry *current;
 
     pthread_mutex_lock(&mMutex);
+    // Reuse if old generated metadata still valid
+    if (!mDirty && mGenerated != NULL) {
+        ALOGV("%s: Reusing generated metadata at %p", __func__, mGenerated);
+        goto out;
+    }
+    // Destroy old metadata
+    if (mGenerated != NULL) {
+        ALOGV("%s: Freeing generated metadata at %p", __func__, mGenerated);
+        free_camera_metadata(mGenerated);
+        mGenerated = NULL;
+    }
+    // Generate new metadata structure
+    ALOGV("%s: Generating new camera metadata structure, Entries:%d Data:%d",
+            __func__, mEntryCount, mDataCount);
+    mGenerated = allocate_camera_metadata(mEntryCount, mDataCount);
     if (mGenerated == NULL) {
-        ALOGV("Generating new camera metadata structure");
-        mGenerated = allocate_camera_metadata(mEntryCount, mDataCount);
-        if (mGenerated == NULL) {
-            ALOGE("%s: Failed to allocate metadata (%d entries %d data)",
-                    __func__, mEntryCount, mDataCount);
-        }
+        ALOGE("%s: Failed to allocate metadata (%d entries %d data)",
+                __func__, mEntryCount, mDataCount);
+        goto out;
     }
     // Walk list of entries adding each one to newly allocated metadata
-    while (current != NULL) {
-        add_camera_metadata_entry(mGenerated, current->mTag, current->mData,
-                current->mCount);
-        current = current->mNext;
+    for (current = mHead; current != NULL; current = current->mNext) {
+        int res = add_camera_metadata_entry(mGenerated, current->mTag,
+                current->mData, current->mCount);
+        if (res != 0) {
+            ALOGE("%s: Failed to add camera metadata: %d", __func__, res);
+            free_camera_metadata(mGenerated);
+            mGenerated = NULL;
+            goto out;
+        }
     }
-    pthread_mutex_unlock(&mMutex);
 
+out:
+    pthread_mutex_unlock(&mMutex);
     return mGenerated;
 }
 
