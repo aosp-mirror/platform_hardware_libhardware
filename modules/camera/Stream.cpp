@@ -83,12 +83,14 @@ int Stream::getType()
 
 bool Stream::isInputType()
 {
-    return mType & (CAMERA3_STREAM_INPUT | CAMERA3_STREAM_BIDIRECTIONAL);
+    return mType == CAMERA3_STREAM_INPUT ||
+        mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
 bool Stream::isOutputType()
 {
-    return mType & (CAMERA3_STREAM_OUTPUT | CAMERA3_STREAM_BIDIRECTIONAL);
+    return mType == CAMERA3_STREAM_OUTPUT ||
+        mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
 bool Stream::isRegistered()

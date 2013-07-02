@@ -411,6 +411,8 @@ bool Camera::isValidStreamSet(Stream **streams, int count)
         if (streams[i]->isOutputType())
             outputs++;
     }
+    ALOGV("%s:%d: Configuring %d output streams and %d input streams",
+            __func__, mId, outputs, inputs);
     if (outputs < 1) {
         ALOGE("%s:%d: Stream config must have >= 1 output", __func__, mId);
         return false;
