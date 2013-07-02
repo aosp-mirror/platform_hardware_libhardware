@@ -23,7 +23,7 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "Camera2Device.h"
+#include "CameraDeviceBase.h"
 #include "utils/StrongPointer.h"
 #include "CameraModuleFixture.h"
 
@@ -54,13 +54,6 @@ public:
         return stat;
     }
 
-    int getDeviceVersion(int cameraId, status_t* status) {
-        camera_info info;
-        *status = mModule->get_camera_info(cameraId, &info);
-
-        return info.device_version;
-    }
-
     bool isDeviceVersionHal2(int cameraId, status_t* status) {
         return getDeviceVersion(cameraId, status)
                >= CAMERA_DEVICE_API_VERSION_2_0;
@@ -72,8 +65,7 @@ TEST_F(CameraModuleTest, LoadModule) {
     TEST_EXTENSION_FORKING_INIT;
 
     for (int i = 0; i < mNumberOfCameras; ++i) {
-        mDevice = new Camera2Device(i);
-
+        CreateCamera(i, &mDevice);
         ASSERT_EQ(OK, initializeDevice(i))
             << "Failed to initialize device " << i;
         mDevice.clear();
@@ -88,6 +80,8 @@ TEST_F(CameraModuleTest, LoadModuleBadIndices) {
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
 
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
+        // Since the initialization should fail at device open(), it doesn't
+        // matter which version of CameraNDevice is used here
         mDevice = new Camera2Device(idx[i]);
         status_t deviceInitializeCode = initializeDevice(idx[i]);
         EXPECT_NE(OK, deviceInitializeCode);
@@ -136,4 +130,3 @@ TEST_F(CameraModuleTest, GetCameraInfoBadIndices) {
 }
 }
 }
-

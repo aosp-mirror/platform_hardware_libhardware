@@ -92,7 +92,8 @@ class Camera2Test: public testing::Test {
                 std::cout << "    Version: 0x" << std::hex <<
                         info.device_version  << std::endl;
             }
-            if (info.device_version >= CAMERA_DEVICE_API_VERSION_2_0) {
+            if (info.device_version >= CAMERA_DEVICE_API_VERSION_2_0 &&
+                    info.device_version < CAMERA_DEVICE_API_VERSION_3_0) {
                 sCameraSupportsHal2[i] = true;
                 ASSERT_TRUE(NULL != info.static_camera_characteristics);
                 IF_ALOGV() {
@@ -181,12 +182,15 @@ class Camera2Test: public testing::Test {
         return OK;
     }
 
-    static status_t closeCameraDevice(camera2_device_t *cam_dev) {
+    static status_t closeCameraDevice(camera2_device_t **cam_dev) {
         int res;
+        if (*cam_dev == NULL ) return OK;
+
         ALOGV("Closing camera %p", cam_dev);
 
-        hw_device_t *dev = reinterpret_cast<hw_device_t *>(cam_dev);
+        hw_device_t *dev = reinterpret_cast<hw_device_t *>(*cam_dev);
         res = dev->close(dev);
+        *cam_dev = NULL;
         return res;
     }
 
@@ -195,7 +199,7 @@ class Camera2Test: public testing::Test {
         status_t res;
 
         if (mDevice != NULL) {
-            closeCameraDevice(mDevice);
+            closeCameraDevice(&mDevice);
         }
         mDevice = openCameraDevice(id);
         ASSERT_TRUE(NULL != mDevice) << "Failed to open camera device";
@@ -324,7 +328,7 @@ class Camera2Test: public testing::Test {
             delete mStreams[i];
         }
         if (mDevice != NULL) {
-            closeCameraDevice(mDevice);
+            closeCameraDevice(&mDevice);
         }
 
         TearDownModule();
@@ -366,7 +370,7 @@ TEST_F(Camera2Test, OpenClose) {
         camera2_device_t *d = openCameraDevice(id);
         ASSERT_TRUE(NULL != d) << "Failed to open camera device";
 
-        res = closeCameraDevice(d);
+        res = closeCameraDevice(&d);
         ASSERT_EQ(NO_ERROR, res) << "Failed to close camera device";
     }
 }
@@ -499,7 +503,7 @@ TEST_F(Camera2Test, Capture1Raw) {
         ASSERT_EQ(OK, waitUntilDrained());
         ASSERT_NO_FATAL_FAILURE(disconnectStream(streamId));
 
-        res = closeCameraDevice(mDevice);
+        res = closeCameraDevice(&mDevice);
         ASSERT_EQ(NO_ERROR, res) << "Failed to close camera device";
 
     }
@@ -802,7 +806,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
         ASSERT_EQ(OK, waitUntilDrained());
         ASSERT_NO_FATAL_FAILURE(disconnectStream(streamId));
 
-        res = closeCameraDevice(mDevice);
+        res = closeCameraDevice(&mDevice);
         ASSERT_EQ(NO_ERROR, res) << "Failed to close camera device";
 
     }
