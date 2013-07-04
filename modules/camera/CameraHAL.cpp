@@ -17,7 +17,7 @@
 #include <cstdlib>
 #include <hardware/camera_common.h>
 #include <hardware/hardware.h>
-#include "Camera.h"
+#include "ExampleCamera.h"
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "DefaultCameraHAL"
@@ -43,20 +43,17 @@ CameraHAL::CameraHAL(int num_cameras)
   : mNumberOfCameras(num_cameras),
     mCallbacks(NULL)
 {
-    int i;
-
     // Allocate camera array and instantiate camera devices
     mCameras = new Camera*[mNumberOfCameras];
-    for (i = 0; i < mNumberOfCameras; i++) {
-        mCameras[i] = new Camera(i);
-    }
+    // Rear camera
+    mCameras[0] = new ExampleCamera(0);
+    // Front camera
+    mCameras[1] = new ExampleCamera(1);
 }
 
 CameraHAL::~CameraHAL()
 {
-    int i;
-
-    for (i = 0; i < mNumberOfCameras; i++) {
+    for (int i = 0; i < mNumberOfCameras; i++) {
         delete mCameras[i];
     }
     delete [] mCameras;

@@ -26,6 +26,7 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
 	CameraHAL.cpp \
 	Camera.cpp \
+	ExampleCamera.cpp \
 	Metadata.cpp \
 	Stream.cpp \
 
