@@ -761,45 +761,51 @@ typedef struct sensors_event_t {
     int64_t timestamp;
 
     union {
-        float           data[16];
+        union {
+            float           data[16];
 
-        /* acceleration values are in meter per second per second (m/s^2) */
-        sensors_vec_t   acceleration;
+            /* acceleration values are in meter per second per second (m/s^2) */
+            sensors_vec_t   acceleration;
 
-        /* magnetic vector values are in micro-Tesla (uT) */
-        sensors_vec_t   magnetic;
+            /* magnetic vector values are in micro-Tesla (uT) */
+            sensors_vec_t   magnetic;
 
-        /* orientation values are in degrees */
-        sensors_vec_t   orientation;
+            /* orientation values are in degrees */
+            sensors_vec_t   orientation;
 
-        /* gyroscope values are in rad/s */
-        sensors_vec_t   gyro;
+            /* gyroscope values are in rad/s */
+            sensors_vec_t   gyro;
 
-        /* temperature is in degrees centigrade (Celsius) */
-        float           temperature;
+            /* temperature is in degrees centigrade (Celsius) */
+            float           temperature;
 
-        /* distance in centimeters */
-        float           distance;
+            /* distance in centimeters */
+            float           distance;
 
-        /* light in SI lux units */
-        float           light;
+            /* light in SI lux units */
+            float           light;
 
-        /* pressure in hectopascal (hPa) */
-        float           pressure;
+            /* pressure in hectopascal (hPa) */
+            float           pressure;
 
-        /* relative humidity in percent */
-        float           relative_humidity;
+            /* relative humidity in percent */
+            float           relative_humidity;
 
-        /* step-counter */
-        uint64_t        step_counter;
+            /* uncalibrated gyroscope values are in rad/s */
+            uncalibrated_event_t uncalibrated_gyro;
 
-        /* uncalibrated gyroscope values are in rad/s */
-        uncalibrated_event_t uncalibrated_gyro;
+            /* uncalibrated magnetometer values are in micro-Teslas */
+            uncalibrated_event_t uncalibrated_magnetic;
+        };
 
-        /* uncalibrated magnetometer values are in micro-Teslas */
-        uncalibrated_event_t uncalibrated_magnetic;
+        union {
+            uint64_t        data[8];
+
+            /* step-counter */
+            uint64_t        step_counter;
+        } u64;
     };
-    uint32_t        reserved1[4];
+    uint32_t reserved1[4];
 } sensors_event_t;
 
 
