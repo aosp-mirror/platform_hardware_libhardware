@@ -582,14 +582,17 @@ bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
 int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
         camera3_stream_buffer_t *out)
 {
-    int res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
-    if (res == -ETIME) {
-        ALOGE("%s:%d: Timeout waiting on buffer acquire fence", __func__, mId);
-        return res;
-    } else if (res) {
-        ALOGE("%s:%d: Error waiting on buffer acquire fence: %s(%d)",
-                __func__, mId, strerror(-res), res);
-        return res;
+    if (in->acquire_fence != -1) {
+        int res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
+        if (res == -ETIME) {
+            ALOGE("%s:%d: Timeout waiting on buffer acquire fence",
+                    __func__, mId);
+            return res;
+        } else if (res) {
+            ALOGE("%s:%d: Error waiting on buffer acquire fence: %s(%d)",
+                    __func__, mId, strerror(-res), res);
+            return res;
+        }
     }
 
     out->stream = in->stream;
