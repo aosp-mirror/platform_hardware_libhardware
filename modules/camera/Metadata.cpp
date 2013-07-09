@@ -167,8 +167,6 @@ int Metadata::add(uint32_t tag, int count, void *tag_data)
 
 camera_metadata_t* Metadata::generate()
 {
-    Entry *current;
-
     pthread_mutex_lock(&mMutex);
     // Reuse if old generated metadata still valid
     if (!mDirty && mGenerated != NULL) {
@@ -191,7 +189,7 @@ camera_metadata_t* Metadata::generate()
         goto out;
     }
     // Walk list of entries adding each one to newly allocated metadata
-    for (current = mHead; current != NULL; current = current->mNext) {
+    for (Entry *current = mHead; current != NULL; current = current->mNext) {
         int res = add_camera_metadata_entry(mGenerated, current->mTag,
                 current->mData, current->mCount);
         if (res != 0) {
