@@ -451,6 +451,9 @@ enum {
  *  SENSOR_TYPE_MAGNETIC_FIELD must be present and both must return the
  *  same sensor_t::name and sensor_t::vendor.
  *
+ *  Minimum filtering should be applied to this sensor. In particular, low pass
+ *  filters should be avoided.
+ *
  * See SENSOR_TYPE_MAGNETIC_FIELD for more information
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
@@ -608,7 +611,7 @@ enum {
  *
  * A sensor of this type returns the number of steps taken by the user since
  * the last reboot while activated. The value is returned as a uint64_t and is
- * reset to zero only on a system reboot.
+ * reset to zero only on a system / android reboot.
  *
  * The timestamp of the event is set to the time when the first step
  * for that event was taken.
@@ -662,7 +665,9 @@ enum {
  *  of using a gyroscope.
  *
  *  This sensor must be based on a magnetometer. It cannot be implemented using
- *  a gyroscope, and gyroscope input cannot be used by this sensor.
+ *  a gyroscope, and gyroscope input cannot be used by this sensor, as the
+ *  goal of this sensor is to be low power.
+ *  The accelerometer can be (and usually is) used.
  *
  *  Just like SENSOR_TYPE_ROTATION_VECTOR, this sensor reports an estimated
  *  heading accuracy:
@@ -909,6 +914,10 @@ typedef struct sensors_poll_device_1 {
              * handle is the handle of the sensor to change.
              * enabled set to 1 to enable, or 0 to disable the sensor.
              *
+             * if enabled is set to 1, the sensor is activated even if
+             * setDelay() wasn't called before. In this case, a default rate
+             * should be used.
+             *
              * unless otherwise noted in the sensor types definitions, an
              * activated sensor never prevents the SoC to go into suspend
              * mode; that is, the HAL shall not hold a partial wake-lock on
@@ -918,10 +927,10 @@ typedef struct sensors_poll_device_1 {
              * receiving an event and they must still accept to be deactivated
              * through a call to activate(..., ..., 0).
              *
-             * if "enabled" is true and the sensor is already activated, this
+             * if "enabled" is 1 and the sensor is already activated, this
              * function is a no-op and succeeds.
              *
-             * if "enabled" is false and the sensor is already de-activated,
+             * if "enabled" is 0 and the sensor is already de-activated,
              * this function is a no-op and succeeds.
              *
              * return 0 on success, negative errno code otherwise
@@ -944,6 +953,9 @@ typedef struct sensors_poll_device_1 {
              * less than sensor_t::minDelay, then it's silently clamped to
              * sensor_t::minDelay unless sensor_t::minDelay is 0, in which
              * case it is clamped to >= 1ms.
+             *
+             * setDelay will not be called when the sensor is in batching mode.
+             * In this case, batch() will be called with the new period.
              *
              * @return 0 if successful, < 0 on error
              */
@@ -1074,19 +1086,30 @@ typedef struct sensors_poll_device_1 {
      * if a batch call with SENSORS_BATCH_DRY_RUN is successful,
      * the same call without SENSORS_BATCH_DRY_RUN must succeed as well).
      *
-     * If successful, 0 is returned.
-     * If the specified sensor doesn't support batch mode, -EINVAL is returned.
-     * If the specified sensor's trigger-mode is one-shot, -EINVAL is returned.
-     * If WAKE_UPON_FIFO_FULL is specified and the specified sensor's internal
-     * FIFO is too small to store at least 10 seconds worth of data at the
-     * given rate, -EINVAL is returned. Note that as stated above, this has to
-     * be determined at compile time, and not based on the state of the system.
-     * If some other constraints above cannot be satisfied, -EINVAL is returned.
+     * When timeout is not 0:
+     *   If successful, 0 is returned.
+     *   If the specified sensor doesn't support batch mode, return -EINVAL.
+     *   If the specified sensor's trigger-mode is one-shot, return -EINVAL.
+     *   If WAKE_UPON_FIFO_FULL is specified and the specified sensor's internal
+     *   FIFO is too small to store at least 10 seconds worth of data at the
+     *   given rate, -EINVAL is returned. Note that as stated above, this has to
+     *   be determined at compile time, and not based on the state of the
+     *   system.
+     *   If some other constraints above cannot be satisfied, return -EINVAL.
      *
      * Note: the timeout parameter, when > 0, has no impact on whether this
      *       function succeeds or fails.
      *
-     * If timeout is set to 0, this function must succeed.
+     * When timeout is 0:
+     *   The caller will never set the wake_upon_fifo_full flag.
+     *   The function must succeed, and batch mode must be deactivated.
+     *
+     * Independently of whether DRY_RUN is specified, When the call to batch()
+     * fails, no state should be changed. In particular, a failed call to
+     * batch() should not change the rate of the sensor. Example:
+     *   setDelay(..., 10ms)
+     *   batch(..., 20ms, ...) fails
+     *   rate should stay 10ms.
      *
      *
      * IMPLEMENTATION NOTES:
