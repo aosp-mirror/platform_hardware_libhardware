@@ -54,6 +54,13 @@ typedef struct hwc_rect {
     int bottom;
 } hwc_rect_t;
 
+typedef struct hwc_frect {
+    float left;
+    float top;
+    float right;
+    float bottom;
+} hwc_frect_t;
+
 typedef struct hwc_region {
     size_t numRects;
     hwc_rect_t const* rects;
@@ -149,8 +156,17 @@ typedef struct hwc_layer_1 {
             int32_t blending;
 
             /* area of the source to consider, the origin is the top-left corner of
-             * the buffer */
-            hwc_rect_t sourceCrop;
+             * the buffer. As of HWC_DEVICE_API_VERSION_1_3, sourceRect uses floats.
+             * If the h/w can't support a non-integer source crop rectangle, it should
+             * punt to OpenGL ES composition.
+             */
+            union {
+                // crop rectangle in integer (pre HWC_DEVICE_API_VERSION_1_3)
+                hwc_rect_t sourceCropi;
+                hwc_rect_t sourceCrop; // just for source compatibility
+                // crop rectangle in floats (as of HWC_DEVICE_API_VERSION_1_3)
+                hwc_frect_t sourceCropf;
+            };
 
             /* where to composite the sourceCrop onto the display. The sourceCrop
              * is scaled using linear filtering to the displayFrame. The origin is the
