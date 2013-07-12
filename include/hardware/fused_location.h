@@ -156,7 +156,7 @@ typedef enum {
 
 /**
  *  Callback with location information.
- *  Can only be called from a thread created by create_thread_cb.
+ *  Can only be called from a thread associated to JVM using set_thread_event_cb.
  *  Parameters:
  *     num_locations is the number of batched locations available.
  *     location is the pointer to an array of pointers to location objects.
@@ -175,10 +175,13 @@ typedef void (*flp_acquire_wakelock)();
 typedef void (*flp_release_wakelock)();
 
 /**
- * Callback for creating a thread that can call into the Java framework code.
- * This must be used to create any threads that report events up to the framework.
+ * Callback for associating a thread that can call into the Java framework code.
+ * This must be used to initialize any threads that report events up to the framework.
+ * Return value:
+ *      FLP_RESULT_SUCCESS on success.
+ *      FLP_RESULT_ERROR if the association failed in the current thread.
  */
-typedef pthread_t (*flp_create_thread)(ThreadEvent event);
+typedef int (*flp_set_thread_event)(ThreadEvent event);
 
 /** FLP callback structure. */
 typedef struct {
@@ -187,7 +190,7 @@ typedef struct {
     flp_location_callback location_cb;
     flp_acquire_wakelock acquire_wakelock_cb;
     flp_release_wakelock release_wakelock_cb;
-    flp_create_thread create_thread_cb;
+    flp_set_thread_event set_thread_event_cb;
 } FlpCallbacks;
 
 
@@ -367,7 +370,7 @@ typedef struct {
     /** set to sizeof(FlpDiagnosticCallbacks) */
     size_t      size;
 
-    flp_create_thread create_thread_cb;
+    flp_set_thread_event set_thread_event_cb;
 
     /** reports diagnostic data into the Java framework code */
     report_data data_cb;
@@ -586,13 +589,15 @@ typedef void (*flp_geofence_pause_callback) (int32_t geofence_id, int32_t result
 typedef void (*flp_geofence_resume_callback) (int32_t geofence_id, int32_t result);
 
 typedef struct {
+    /** set to sizeof(FlpGeofenceCallbacks) */
+    size_t size;
     flp_geofence_transition_callback geofence_transition_callback;
     flp_geofence_monitor_status_callback geofence_status_callback;
     flp_geofence_add_callback geofence_add_callback;
     flp_geofence_remove_callback geofence_remove_callback;
     flp_geofence_pause_callback geofence_pause_callback;
     flp_geofence_resume_callback geofence_resume_callback;
-    flp_create_thread create_thread_cb;
+    flp_set_thread_event set_thread_event_cb;
 } FlpGeofenceCallbacks;
 
 
