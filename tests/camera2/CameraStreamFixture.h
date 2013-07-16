@@ -162,7 +162,8 @@ protected:
         sp<CameraDeviceBase> device = mDevice;
         CameraStreamParams p = mParam;
 
-        mCpuConsumer = new CpuConsumer(p.mHeapCount);
+        sp<BufferQueue> bq = new BufferQueue();
+        mCpuConsumer = new CpuConsumer(bq, p.mHeapCount);
         mCpuConsumer->setName(String8("CameraStreamTest::mCpuConsumer"));
 
         mNativeWindow = new Surface(
