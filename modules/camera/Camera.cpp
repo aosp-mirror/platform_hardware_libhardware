@@ -59,8 +59,8 @@ Camera::Camera(int id)
     mNumStreams(0),
     mSettings(NULL)
 {
-    pthread_mutex_init(&mMutex,
-                       NULL); // No pthread mutex attributes.
+    pthread_mutex_init(&mMutex, NULL);
+    pthread_mutex_init(&mStaticInfoMutex, NULL);
 
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag    = HARDWARE_DEVICE_TAG;
@@ -72,6 +72,8 @@ Camera::Camera(int id)
 
 Camera::~Camera()
 {
+    pthread_mutex_destroy(&mMutex);
+    pthread_mutex_destroy(&mStaticInfoMutex);
 }
 
 int Camera::open(const hw_module_t *module, hw_device_t **device)
@@ -96,21 +98,19 @@ int Camera::open(const hw_module_t *module, hw_device_t **device)
 
 int Camera::getInfo(struct camera_info *info)
 {
-    int ret = 0;
-
     info->facing = CAMERA_FACING_FRONT;
     info->orientation = 0;
     info->device_version = mDevice.common.version;
 
-    pthread_mutex_lock(&mMutex);
+    pthread_mutex_lock(&mStaticInfoMutex);
     if (mStaticInfo == NULL) {
-        ret = initStaticInfo();
+        mStaticInfo = initStaticInfo();
     }
-    pthread_mutex_unlock(&mMutex);
+    pthread_mutex_unlock(&mStaticInfoMutex);
 
     info->static_camera_characteristics = mStaticInfo;
 
-    return ret;
+    return 0;
 }
 
 int Camera::close()
@@ -161,49 +161,50 @@ int Camera::initialize(const camera3_callback_ops_t *callback_ops)
     return 0;
 }
 
-int Camera::initStaticInfo()
+camera_metadata_t *Camera::initStaticInfo()
 {
     /*
      * Setup static camera info.  This will have to customized per camera
      * device.
      */
+    Metadata m;
 
     /* android.control */
     int32_t android_control_ae_available_target_fps_ranges[] = {30, 30};
-    mMetadata.addInt32(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
+    m.addInt32(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
             ARRAY_SIZE(android_control_ae_available_target_fps_ranges),
             android_control_ae_available_target_fps_ranges);
 
     int32_t android_control_ae_compensation_range[] = {-4, 4};
-    mMetadata.addInt32(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
+    m.addInt32(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
             ARRAY_SIZE(android_control_ae_compensation_range),
             android_control_ae_compensation_range);
 
     camera_metadata_rational_t android_control_ae_compensation_step[] = {{2,1}};
-    mMetadata.addRational(ANDROID_CONTROL_AE_COMPENSATION_STEP,
+    m.addRational(ANDROID_CONTROL_AE_COMPENSATION_STEP,
             ARRAY_SIZE(android_control_ae_compensation_step),
             android_control_ae_compensation_step);
 
     int32_t android_control_max_regions[] = {1};
-    mMetadata.addInt32(ANDROID_CONTROL_MAX_REGIONS,
+    m.addInt32(ANDROID_CONTROL_MAX_REGIONS,
             ARRAY_SIZE(android_control_max_regions),
             android_control_max_regions);
 
     /* android.jpeg */
     int32_t android_jpeg_available_thumbnail_sizes[] = {0, 0, 128, 96};
-    mMetadata.addInt32(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
+    m.addInt32(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
             ARRAY_SIZE(android_jpeg_available_thumbnail_sizes),
             android_jpeg_available_thumbnail_sizes);
 
     /* android.lens */
     float android_lens_info_available_focal_lengths[] = {1.0};
-    mMetadata.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+    m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
             ARRAY_SIZE(android_lens_info_available_focal_lengths),
             android_lens_info_available_focal_lengths);
 
     /* android.request */
     int32_t android_request_max_num_output_streams[] = {0, 3, 1};
-    mMetadata.addInt32(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
+    m.addInt32(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
             ARRAY_SIZE(android_request_max_num_output_streams),
             android_request_max_num_output_streams);
 
@@ -217,83 +218,81 @@ int Camera::initStaticInfo()
             //        HAL_PIXEL_FORMAT_YV12,
             //        HAL_PIXEL_FORMAT_YCrCb_420_SP,
             HAL_PIXEL_FORMAT_YCbCr_420_888};
-    mMetadata.addInt32(ANDROID_SCALER_AVAILABLE_FORMATS,
+    m.addInt32(ANDROID_SCALER_AVAILABLE_FORMATS,
             ARRAY_SIZE(android_scaler_available_formats),
             android_scaler_available_formats);
 
     int64_t android_scaler_available_jpeg_min_durations[] = {1};
-    mMetadata.addInt64(ANDROID_SCALER_AVAILABLE_JPEG_MIN_DURATIONS,
+    m.addInt64(ANDROID_SCALER_AVAILABLE_JPEG_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_jpeg_min_durations),
             android_scaler_available_jpeg_min_durations);
 
     int32_t android_scaler_available_jpeg_sizes[] = {640, 480};
-    mMetadata.addInt32(ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
+    m.addInt32(ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
             ARRAY_SIZE(android_scaler_available_jpeg_sizes),
             android_scaler_available_jpeg_sizes);
 
     float android_scaler_available_max_digital_zoom[] = {1};
-    mMetadata.addFloat(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
+    m.addFloat(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
             ARRAY_SIZE(android_scaler_available_max_digital_zoom),
             android_scaler_available_max_digital_zoom);
 
     int64_t android_scaler_available_processed_min_durations[] = {1};
-    mMetadata.addInt64(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
+    m.addInt64(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_processed_min_durations),
             android_scaler_available_processed_min_durations);
 
     int32_t android_scaler_available_processed_sizes[] = {640, 480};
-    mMetadata.addInt32(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
+    m.addInt32(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
             ARRAY_SIZE(android_scaler_available_processed_sizes),
             android_scaler_available_processed_sizes);
 
     int64_t android_scaler_available_raw_min_durations[] = {1};
-    mMetadata.addInt64(ANDROID_SCALER_AVAILABLE_RAW_MIN_DURATIONS,
+    m.addInt64(ANDROID_SCALER_AVAILABLE_RAW_MIN_DURATIONS,
             ARRAY_SIZE(android_scaler_available_raw_min_durations),
             android_scaler_available_raw_min_durations);
 
     int32_t android_scaler_available_raw_sizes[] = {640, 480};
-    mMetadata.addInt32(ANDROID_SCALER_AVAILABLE_RAW_SIZES,
+    m.addInt32(ANDROID_SCALER_AVAILABLE_RAW_SIZES,
             ARRAY_SIZE(android_scaler_available_raw_sizes),
             android_scaler_available_raw_sizes);
 
     /* android.sensor */
 
     int32_t android_sensor_info_active_array_size[] = {0, 0, 640, 480};
-    mMetadata.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
+    m.addInt32(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
 
     int32_t android_sensor_info_sensitivity_range[] =
             {100, 1600};
-    mMetadata.addInt32(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
+    m.addInt32(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
             ARRAY_SIZE(android_sensor_info_sensitivity_range),
             android_sensor_info_sensitivity_range);
 
     int64_t android_sensor_info_max_frame_duration[] = {30000000000};
-    mMetadata.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
+    m.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
             ARRAY_SIZE(android_sensor_info_max_frame_duration),
             android_sensor_info_max_frame_duration);
 
     float android_sensor_info_physical_size[] = {3.2, 2.4};
-    mMetadata.addFloat(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
+    m.addFloat(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
             ARRAY_SIZE(android_sensor_info_physical_size),
             android_sensor_info_physical_size);
 
     int32_t android_sensor_info_pixel_array_size[] = {640, 480};
-    mMetadata.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
+    m.addInt32(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
             ARRAY_SIZE(android_sensor_info_pixel_array_size),
             android_sensor_info_pixel_array_size);
 
     int32_t android_sensor_orientation[] = {0};
-    mMetadata.addInt32(ANDROID_SENSOR_ORIENTATION,
+    m.addInt32(ANDROID_SENSOR_ORIENTATION,
             ARRAY_SIZE(android_sensor_orientation),
             android_sensor_orientation);
 
     /* End of static camera characteristics */
 
-    mStaticInfo = mMetadata.generate();
-
-    return 0;
+    return clone_camera_metadata(m.generate());
 }
 
 int Camera::configureStreams(camera3_stream_configuration_t *stream_config)

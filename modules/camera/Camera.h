@@ -54,7 +54,7 @@ class Camera {
 
     private:
         // Separate initialization method for static metadata
-        int initStaticInfo();
+        camera_metadata_t *initStaticInfo();
         // Reuse a stream already created by this device
         Stream *reuseStream(camera3_stream_t *astream);
         // Destroy all streams in a stream array, and the array itself
@@ -89,6 +89,9 @@ class Camera {
         const camera3_callback_ops_t *mCallbackOps;
         // Lock protecting the Camera object for modifications
         pthread_mutex_t mMutex;
+        // Lock protecting only static camera characteristics, which may
+        // be accessed without the camera device open
+        pthread_mutex_t mStaticInfoMutex;
         // Array of handles to streams currently in use by the device
         Stream **mStreams;
         // Number of streams in mStreams
