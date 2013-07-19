@@ -356,19 +356,22 @@ TEST_F(CameraBurstTest, VariableBurst) {
             minExp << " - " << maxExp << " ns " << std::endl;
 
     {
-        camera_metadata_ro_entry availableSensitivities =
-            GetStaticEntry(ANDROID_SENSOR_INFO_AVAILABLE_SENSITIVITIES);
-
-        EXPECT_LT(0u, availableSensitivities.count) << "No sensitivities listed."
+        camera_metadata_ro_entry sensivityRange =
+            GetStaticEntry(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE);
+        EXPECT_EQ(2u, sensivityRange.count) << "No sensitivity range listed."
                 "Falling back to default set.";
-        sensitivities.appendArray(availableSensitivities.data.i32,
-                availableSensitivities.count);
-        if (availableSensitivities.count == 0) {
-            sensitivities.push_back(100);
-            sensitivities.push_back(200);
-            sensitivities.push_back(400);
-            sensitivities.push_back(800);
+        int32_t minSensitivity = 100;
+        int32_t maxSensitivity = 800;
+        if (sensivityRange.count >= 2) {
+            minSensitivity = sensivityRange.data.i32[0];
+            maxSensitivity = sensivityRange.data.i32[1];
         }
+        int32_t count = (maxSensitivity - minSensitivity + 99) / 100;
+        sensitivities.push_back(minSensitivity);
+        for (int i = 1; i < count; i++) {
+            sensitivities.push_back(minSensitivity + i * 100);
+        }
+        sensitivities.push_back(maxSensitivity);
     }
 
     dout << "Available sensitivities: ";
