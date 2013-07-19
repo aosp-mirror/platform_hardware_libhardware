@@ -263,11 +263,11 @@ int Camera::initStaticInfo()
             ARRAY_SIZE(android_sensor_info_active_array_size),
             android_sensor_info_active_array_size);
 
-    int32_t android_sensor_info_available_sensitivities[] =
-            {100, 200, 400, 800, 1600};
-    mMetadata.addInt32(ANDROID_SENSOR_INFO_AVAILABLE_SENSITIVITIES,
-            ARRAY_SIZE(android_sensor_info_available_sensitivities),
-            android_sensor_info_available_sensitivities);
+    int32_t android_sensor_info_sensitivity_range[] =
+            {100, 1600};
+    mMetadata.addInt32(ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
+            ARRAY_SIZE(android_sensor_info_sensitivity_range),
+            android_sensor_info_sensitivity_range);
 
     int64_t android_sensor_info_max_frame_duration[] = {30000000000};
     mMetadata.addInt64(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
