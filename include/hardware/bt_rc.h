@@ -151,6 +151,9 @@ typedef void (* btrc_get_element_attr_callback) (uint8_t num_attr, btrc_media_at
 */
 typedef void (* btrc_register_notification_callback) (btrc_event_id_t event_id, uint32_t param);
 
+/** Callback for passthrough commands */
+typedef void (* btrc_passthrough_cmd_callback) (int id, int key_state);
+
 /** BT-RC callback structure. */
 typedef struct {
     /** set to sizeof(BtRcCallbacks) */
@@ -164,6 +167,7 @@ typedef struct {
     btrc_set_player_app_value_callback          set_player_app_value_cb;
     btrc_get_element_attr_callback              get_element_attr_cb;
     btrc_register_notification_callback         register_notification_cb;
+    btrc_passthrough_cmd_callback               passthrough_cmd_cb;
 } btrc_callbacks_t;
 
 /** Represents the standard BT-RC interface. */
