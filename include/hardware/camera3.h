@@ -82,6 +82,10 @@
  *     management. Bidirectional streams replace STREAM_FROM_STREAM construct.
  *
  *   - Limited mode semantics for older/limited hardware devices.
+ *
+ * 3.1: Minor revision of expanded-capability HAL:
+ *
+ *   - configure_streams passes consumer usage flags to the HAL.
  */
 
 /**
@@ -1041,6 +1045,9 @@ typedef enum camera3_stream_type {
  * remain valid as if configure_streams() had not been called.
  *
  * The endpoint of the stream is not visible to the camera HAL device.
+ * In DEVICE_API_VERSION_3_1, this was changed to share consumer usage flags
+ * on streams where the camera is a producer (OUTPUT and BIDIRECTIONAL stream
+ * types) see the usage field below.
  */
 typedef struct camera3_stream {
 
@@ -1092,6 +1099,25 @@ typedef struct camera3_stream {
      * the producer and the consumer will be combined together and then passed
      * to the platform gralloc HAL module for allocating the gralloc buffers for
      * each stream.
+     *
+     * Version information:
+     *
+     * == CAMERA_DEVICE_API_VERSION_3_0:
+     *
+     *   No initial value guaranteed when passed via configure_streams().
+     *   HAL may not use this field as input, and must write over this field
+     *   with its usage flags.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_1:
+     *
+     *   For stream_type OUTPUT and BIDIRECTIONAL, when passed via
+     *   configure_streams(), the initial value of this is the consumer's
+     *   usage flags.  The HAL may use these consumer flags to decide stream
+     *   configuration.
+     *   For stream_type INPUT, when passed via configure_streams(), the initial
+     *   value of this is 0.
+     *   For all streams passed via configure_streams(), the HAL must write
+     *   over this field with its usage flags.
      */
     uint32_t usage;
 
