@@ -25,11 +25,11 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "Camera2Device.h"
-#include "utils/StrongPointer.h"
-
+#include <utils/StrongPointer.h>
 #include <gui/CpuConsumer.h>
 #include <gui/Surface.h>
+
+#include <device2/Camera2Device.h>
 
 #include "CameraStreamFixture.h"
 #include "TestExtensions.h"

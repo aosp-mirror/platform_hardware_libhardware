@@ -25,7 +25,7 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "CameraDeviceBase.h"
+#include "common/CameraDeviceBase.h"
 #include "utils/StrongPointer.h"
 
 #include <gui/CpuConsumer.h>

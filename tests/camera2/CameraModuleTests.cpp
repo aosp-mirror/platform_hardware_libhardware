@@ -19,12 +19,12 @@
 #define LOG_TAG "CameraModuleTest"
 #define LOG_NDEBUG 0
 #include <utils/Log.h>
+#include <utils/StrongPointer.h>
+#include <common/CameraDeviceBase.h>
 
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "CameraDeviceBase.h"
-#include "utils/StrongPointer.h"
 #include "CameraModuleFixture.h"
 
 namespace android {
