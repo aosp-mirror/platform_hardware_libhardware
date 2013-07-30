@@ -21,17 +21,17 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.0 [ CAMERA_DEVICE_API_VERSION_3_0 ]
+ * Camera device HAL 3.1 [ CAMERA_DEVICE_API_VERSION_3_1 ]
  *
  * EXPERIMENTAL.
  *
  * Supports the android.hardware.Camera API.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_0 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_1 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
  *
- * Camera modules that may contain version 3.0 devices must implement at least
+ * Camera modules that may contain version 3.1 devices must implement at least
  * version 2.0 of the camera module interface (as defined by
  * camera_module_t.common.module_api_version).
  *
