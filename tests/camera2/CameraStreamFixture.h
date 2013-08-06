@@ -166,8 +166,7 @@ protected:
         mCpuConsumer = new CpuConsumer(bq, p.mHeapCount);
         mCpuConsumer->setName(String8("CameraStreamTest::mCpuConsumer"));
 
-        mNativeWindow = new Surface(
-            mCpuConsumer->getProducerInterface());
+        mNativeWindow = new Surface(bq);
 
         int format = MapAutoFormat(p.mFormat);
 
