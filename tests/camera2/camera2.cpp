@@ -418,8 +418,7 @@ TEST_F(Camera2Test, Capture1Raw) {
 
         int streamId;
         ASSERT_NO_FATAL_FAILURE(
-            setUpStream(rawConsumer->getProducerInterface(),
-                    width, height, format, &streamId) );
+            setUpStream(bq, width, height, format, &streamId) );
 
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
@@ -553,8 +552,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
 
         int streamId;
         ASSERT_NO_FATAL_FAILURE(
-            setUpStream(rawConsumer->getProducerInterface(),
-                    width, height, format, &streamId) );
+            setUpStream(bq, width, height, format, &streamId) );
 
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
@@ -723,8 +721,7 @@ TEST_F(Camera2Test, Capture1Jpeg) {
 
         int streamId;
         ASSERT_NO_FATAL_FAILURE(
-            setUpStream(jpegConsumer->getProducerInterface(),
-                    width, height, format, &streamId) );
+            setUpStream(bq, width, height, format, &streamId) );
 
         camera_metadata_t *request;
         request = allocate_camera_metadata(20, 2000);
