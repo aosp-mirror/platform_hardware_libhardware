@@ -32,6 +32,7 @@ __BEGIN_DECLS
 #define SENSORS_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 #define SENSORS_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, SENSORS_HEADER_VERSION)
+#define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
 
 /**
  * The id of this module
@@ -62,6 +63,14 @@ __BEGIN_DECLS
 enum {
     SENSORS_BATCH_DRY_RUN               = 0x00000001,
     SENSORS_BATCH_WAKE_UPON_FIFO_FULL   = 0x00000002
+};
+
+/*
+ * what field for meta_data_event_t
+ */
+enum {
+    /* a previous flush operation has completed */
+    META_DATA_FLUSH_COMPLETE = 1
 };
 
 /**
@@ -173,6 +182,40 @@ enum {
  * special:    see details in the sensor type specification below
  *
  */
+
+
+/*
+ * SENSOR_TYPE_META_DATA
+ * trigger-mode: n/a
+ * wake-up sensor: n/a
+ *
+ * NO SENSOR OF THAT TYPE MUST BE RETURNED (*get_sensors_list)()
+ *
+ * SENSOR_TYPE_META_DATA is a special token used to populate the
+ * sensors_meta_data_event structure. It doesn't correspond to a physical
+ * sensor. sensors_meta_data_event are special, they exist only inside
+ * the HAL and are generated spontaneously, as opposed to be related to
+ * a physical sensor.
+ *
+ *   sensors_meta_data_event_t.base.version must be 0
+ *   sensors_meta_data_event_t.base.sensor must be 0
+ *   sensors_meta_data_event_t.base.type must be SENSOR_TYPE_META_DATA
+ *   sensors_meta_data_event_t.base.reserved must be 0
+ *   sensors_meta_data_event_t.base.timestamp must be 0
+ *
+ * The payload is a meta_data_event_t, where:
+ * meta_data_event_t.what can take the following values:
+ *
+ * META_DATA_FLUSH_COMPLETE
+ *   This event indicates that a previous (*flush)() call has completed for the sensor
+ *   handle specified in meta_data_event_t.sensor.
+ *   see (*flush)() for more details
+ *
+ * All other values for meta_data_event_t.what are reserved and
+ * must not be used.
+ *
+ */
+#define SENSOR_TYPE_META_DATA                           (0)
 
 /*
  * SENSOR_TYPE_ACCELEROMETER
@@ -745,6 +788,11 @@ typedef struct {
   };
 } uncalibrated_event_t;
 
+typedef struct meta_data_event {
+    int32_t what;
+    int32_t sensor;
+} meta_data_event_t;
+
 /**
  * Union of the various types of sensor data
  * that can be returned.
@@ -801,6 +849,12 @@ typedef struct sensors_event_t {
 
             /* uncalibrated magnetometer values are in micro-Teslas */
             uncalibrated_event_t uncalibrated_magnetic;
+
+            /* this is a special event. see SENSOR_TYPE_META_DATA above.
+             * sensors_meta_data_event_t events are all reported with a type of
+             * SENSOR_TYPE_META_DATA. The handle is ignored and must be zero.
+             */
+            meta_data_event_t meta_data;
         };
 
         union {
@@ -813,6 +867,9 @@ typedef struct sensors_event_t {
     uint32_t reserved1[4];
 } sensors_event_t;
 
+
+/* see SENSOR_TYPE_META_DATA */
+typedef sensors_event_t sensors_meta_data_event_t;
 
 
 struct sensor_t;
@@ -876,8 +933,21 @@ struct sensor_t {
      */
     int32_t         minDelay;
 
+    /* number of events reserved for this sensor in the batch mode FIFO.
+     * If there is a dedicated FIFO for this sensor, then this is the
+     * size of this FIFO. If the FIFO is shared with other sensors,
+     * this is the size reserved for that sensor and it can be zero.
+     */
+    uint32_t        fifoReservedEventCount;
+
+    /* maximum number of events of this sensor that could be batched.
+     * This is especially relevant when the FIFO is shared between
+     * several sensors; this value is then set to the size of that FIFO.
+     */
+    uint32_t        fifoMaxEventCount;
+
     /* reserved fields, must be zero */
-    void*           reserved[8];
+    void*           reserved[6];
 };
 
 
@@ -1178,6 +1248,35 @@ typedef struct sensors_poll_device_1 {
      */
     int (*batch)(struct sensors_poll_device_1* dev,
             int handle, int flags, int64_t period_ns, int64_t timeout);
+
+    /*
+     * Flush adds a META_DATA_FLUSH_COMPLETE event (sensors_event_meta_data_t)
+     * to the end of the "batch mode" FIFO for the specified sensor and flushes
+     * the FIFO; those events are delivered as usual (i.e.: as if the batch
+     * timeout had expired) and removed from the FIFO.
+     *
+     * See the META_DATA_FLUSH_COMPLETE section for details about the
+     * META_DATA_FLUSH_COMPLETE event.
+     *
+     * The flush happens asynchronously (i.e.: this function must return
+     * immediately).
+     *
+     * If the implementation uses a single FIFO for several sensors, that
+     * FIFO is flushed and the META_DATA_FLUSH_COMPLETE event is added only
+     * for the specified sensor.
+     *
+     * If the specified sensor wasn't in batch mode, flush succeeds and
+     * promptly sends a META_DATA_FLUSH_COMPLETE event for that sensor.
+     *
+     * If the FIFO was empty at the time of the call, flush returns
+     * 0 (success) and promptly sends a META_DATA_FLUSH_COMPLETE event
+     * for that sensor.
+     *
+     * If the specified sensor wasn't enabled, flush returns -EINVAL.
+     *
+     * return 0 on success, negative errno code otherwise.
+     */
+    int (*flush)(struct sensors_poll_device_1* dev, int handle);
 
     void (*reserved_procs[8])(void);
 
