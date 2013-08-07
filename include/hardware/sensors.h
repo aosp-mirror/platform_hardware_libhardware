@@ -70,7 +70,8 @@ enum {
  */
 enum {
     /* a previous flush operation has completed */
-    META_DATA_FLUSH_COMPLETE = 1
+    META_DATA_FLUSH_COMPLETE = 1,
+    META_DATA_VERSION   /* always last, leave auto-assigned */
 };
 
 /**
@@ -197,11 +198,11 @@ enum {
  * the HAL and are generated spontaneously, as opposed to be related to
  * a physical sensor.
  *
- *   sensors_meta_data_event_t.base.version must be 0
- *   sensors_meta_data_event_t.base.sensor must be 0
- *   sensors_meta_data_event_t.base.type must be SENSOR_TYPE_META_DATA
- *   sensors_meta_data_event_t.base.reserved must be 0
- *   sensors_meta_data_event_t.base.timestamp must be 0
+ *   sensors_meta_data_event_t.version must be META_DATA_VERSION
+ *   sensors_meta_data_event_t.sensor must be 0
+ *   sensors_meta_data_event_t.type must be SENSOR_TYPE_META_DATA
+ *   sensors_meta_data_event_t.reserved must be 0
+ *   sensors_meta_data_event_t.timestamp must be 0
  *
  * The payload is a meta_data_event_t, where:
  * meta_data_event_t.what can take the following values:
