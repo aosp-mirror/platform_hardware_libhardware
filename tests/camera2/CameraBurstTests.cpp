@@ -420,7 +420,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
             maxDuration = maxFrameDuration.data.i64[0];
         }
 
-        EXPECT_GT(0, maxDuration) << "Max duration is 0 or not given, using fallback";
+        EXPECT_GT(maxDuration, 0) << "Max duration is 0 or not given, using fallback";
 
         if (maxDuration == 0) {
             maxDuration = 10 * SEC; // Fall back to 10 seconds as max duration
