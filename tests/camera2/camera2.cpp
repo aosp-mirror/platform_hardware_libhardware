@@ -201,7 +201,8 @@ class Camera2Test: public testing::Test {
         if (mDevice != NULL) {
             closeCameraDevice(&mDevice);
         }
-        mDevice = openCameraDevice(id);
+        mId = id;
+        mDevice = openCameraDevice(mId);
         ASSERT_TRUE(NULL != mDevice) << "Failed to open camera device";
 
         camera_info info;
@@ -334,6 +335,7 @@ class Camera2Test: public testing::Test {
         TearDownModule();
     }
 
+    int mId;
     camera2_device    *mDevice;
     const camera_metadata_t *mStaticInfo;
 

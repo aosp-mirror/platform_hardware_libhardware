@@ -93,7 +93,6 @@ private:
 
         CameraModuleFixture::SetUp();
 
-        CameraStreamParams p = mParam;
         sp<CameraDeviceBase> device = mDevice;
 
         /* use an arbitrary w,h */
