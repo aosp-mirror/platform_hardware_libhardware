@@ -74,7 +74,7 @@ typedef struct CNativeWindow {
 	unsigned ydpi;
 	unsigned format;
 
-	hwc_display_contents_1_t *dclist[HWC_NUM_DISPLAY_TYPES];
+	hwc_display_contents_1_t *dclist[HWC_NUM_PHYSICAL_DISPLAY_TYPES];
 
 	hwc_display_contents_1_t dc;
 	hwc_layer_1_t layer[4];
@@ -200,7 +200,7 @@ static void hwc_post(CNativeWindow *win, aBuffer *buf, int ffd) {
 		dc->numHwLayers++;
 	}
 
-	r = hwc->prepare(hwc, HWC_NUM_DISPLAY_TYPES, win->dclist);
+	r = hwc->prepare(hwc, HWC_NUM_PHYSICAL_DISPLAY_TYPES, win->dclist);
 	if (r) {
 		ERROR("hwc->prepare failed r=%d\n",r);
 		return;
@@ -210,7 +210,7 @@ static void hwc_post(CNativeWindow *win, aBuffer *buf, int ffd) {
 //		LOG("dl[%d] ctype=0x%08x hints=0x%08x flags=0x%08x\n", i,
 //			dl[i].compositionType, dl[0].hints, dl[0].flags);
 
-	r = hwc->set(hwc, HWC_NUM_DISPLAY_TYPES, win->dclist);
+	r = hwc->set(hwc, HWC_NUM_PHYSICAL_DISPLAY_TYPES, win->dclist);
 	if (r) {
 		ERROR("hwc->set failed, r=%d\n", r);
 		return;
