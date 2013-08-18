@@ -449,12 +449,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * In a future version, numDisplays may be larger than
-     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
-     * displays, and will be non-NULL.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
@@ -482,12 +482,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * In a future version, numDisplays may be larger than
-     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
-     * displays, and will be non-NULL.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * IMPORTANT NOTE: There is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of
