@@ -10,6 +10,7 @@ LOCAL_SRC_FILES:= \
 	CameraStreamTests.cpp \
 	CameraFrameTests.cpp \
 	CameraBurstTests.cpp \
+	CameraMultiStreamTests.cpp\
 	ForkedTests.cpp \
 	TestForkerEventListener.cpp \
 	TestSettings.cpp \
