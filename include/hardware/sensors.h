@@ -142,7 +142,18 @@ enum {
  *
  * Each sensor has a type which defines what this sensor measures and how
  * measures are reported. All types are defined below.
+ *
+ * Device manufacturers (OEMs) can define their own sensor types, for
+ * their private use by applications or services provided by them. Such
+ * sensor types are specific to an OEM and can't be exposed in the SDK.
+ * These types must start at SENSOR_TYPE_DEVICE_PRIVATE_BASE.
  */
+
+/*
+ * Base for device manufacturers private sensor types.
+ * These sensor types can't be exposed in the SDK.
+ */
+#define SENSOR_TYPE_DEVICE_PRIVATE_BASE     0x10000
 
 /*
  * Sensor fusion and virtual sensors
