@@ -271,7 +271,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             return 0;
         } else {
             // write() returned UNDERRUN or WOULD_BLOCK, retry
-            ALOGE("out_write() write to pipe returned unexpected %16lx", written_frames);
+            ALOGE("out_write() write to pipe returned unexpected %d", written_frames);
             written_frames = sink->write(buffer, frames);
         }
     }
@@ -281,7 +281,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     pthread_mutex_unlock(&out->dev->lock);
 
     if (written_frames < 0) {
-        ALOGE("out_write() failed writing to pipe with %16lx", written_frames);
+        ALOGE("out_write() failed writing to pipe with %d", written_frames);
         return 0;
     } else {
         ALOGV("out_write() wrote %lu bytes)", written_frames * frame_size);
@@ -549,7 +549,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
     rsxadev->config.channel_mask = config->channel_mask;
 
-    if ((config->sample_rate != 48000) || (config->sample_rate != 44100)) {
+    if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
         config->sample_rate = DEFAULT_RATE_HZ;
     }
     rsxadev->config.rate = config->sample_rate;
@@ -708,7 +708,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
     rsxadev->config.channel_mask = config->channel_mask;
 
-    if ((config->sample_rate != 48000) || (config->sample_rate != 44100)) {
+    if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
         config->sample_rate = DEFAULT_RATE_HZ;
     }
     rsxadev->config.rate = config->sample_rate;
