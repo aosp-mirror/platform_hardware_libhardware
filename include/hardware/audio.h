@@ -356,6 +356,18 @@ struct audio_stream_out {
      * Implementation of this function is mandatory for offloaded playback.
      */
    int (*flush)(struct audio_stream_out* stream);
+
+    /**
+     * Return the number of audio frames presented to an external observer.
+     * This excludes frames which have been written but are still in the pipeline.
+     * The count is not reset to zero when output enters standby.
+     * Also returns the value of CLOCK_MONOTONIC as of this presentation count.
+     *
+     * 3.0 and higher only.
+     */
+    int (*get_presentation_position)(const struct audio_stream_out *stream,
+                               uint64_t *frames, struct timespec *timestamp);
+
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
