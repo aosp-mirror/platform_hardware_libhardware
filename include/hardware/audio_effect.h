@@ -147,6 +147,9 @@ typedef struct effect_descriptor_s {
 //  |                           |           | 1 requires audio source updates
 //  |                           |           | 2..3 reserved
 //  +---------------------------+-----------+-----------------------------------
+//  | Effect offload supported  | 22        | 0 The effect cannot be offloaded to an audio DSP
+//  |                           |           | 1 The effect can be offloaded to an audio DSP
+//  +---------------------------+-----------+-----------------------------------
 
 // Insert mode
 #define EFFECT_FLAG_TYPE_SHIFT          0
@@ -228,6 +231,14 @@ typedef struct effect_descriptor_s {
                                           << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
 #define EFFECT_FLAG_AUDIO_SOURCE_IND    (1 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
 #define EFFECT_FLAG_AUDIO_SOURCE_NONE   (0 << EFFECT_FLAG_AUDIO_SOURCE_SHIFT)
+
+// Effect offload indication
+#define EFFECT_FLAG_OFFLOAD_SHIFT       (EFFECT_FLAG_AUDIO_SOURCE_SHIFT + \
+                                                    EFFECT_FLAG_AUDIO_SOURCE_SIZE)
+#define EFFECT_FLAG_OFFLOAD_SIZE        1
+#define EFFECT_FLAG_OFFLOAD_MASK        (((1 << EFFECT_FLAG_OFFLOAD_SIZE) -1) \
+                                          << EFFECT_FLAG_OFFLOAD_SHIFT)
+#define EFFECT_FLAG_OFFLOAD_SUPPORTED   (1 << EFFECT_FLAG_OFFLOAD_SHIFT)
 
 #define EFFECT_MAKE_API_VERSION(M, m)  (((M)<<16) | ((m) & 0xFFFF))
 #define EFFECT_API_VERSION_MAJOR(v)    ((v)>>16)
@@ -426,6 +437,8 @@ enum effect_command_e {
    EFFECT_CMD_GET_FEATURE_CONFIG,   // get current feature configuration
    EFFECT_CMD_SET_FEATURE_CONFIG,   // set current feature configuration
    EFFECT_CMD_SET_AUDIO_SOURCE,     // set the audio source (see audio.h, audio_source_t)
+   EFFECT_CMD_OFFLOAD,              // set if effect thread is an offload one,
+                                    // send the ioHandle of the effect thread
    EFFECT_CMD_FIRST_PROPRIETARY = 0x10000 // first proprietary command code
 };
 
@@ -732,6 +745,20 @@ enum effect_command_e {
 //  size: 0
 //  data: N/A
 //==================================================================================================
+// command: EFFECT_CMD_OFFLOAD
+//--------------------------------------------------------------------------------------------------
+// description:
+//  1.indicate if the playback thread the effect is attached to is offloaded or not
+//  2.update the io handle of the playback thread the effect is attached to
+//--------------------------------------------------------------------------------------------------
+// command format:
+//  size: sizeof(effect_offload_param_t)
+//  data: effect_offload_param_t
+//--------------------------------------------------------------------------------------------------
+// reply format:
+//  size: sizeof(uint32_t)
+//  data: uint32_t
+//--------------------------------------------------------------------------------------------------
 // command: EFFECT_CMD_FIRST_PROPRIETARY
 //--------------------------------------------------------------------------------------------------
 // description:
@@ -868,6 +895,11 @@ typedef struct effect_param_s {
     char        data[];     // Start of Parameter + Value data
 } effect_param_t;
 
+// structure used by EFFECT_CMD_OFFLOAD command
+typedef struct effect_offload_param_s {
+    bool isOffload;         // true if the playback thread the effect is attached to is offloaded
+    int ioHandle;           // io handle of the playback thread the effect is attached to
+} effect_offload_param_t;
 
 
 /////////////////////////////////////////////////
