@@ -33,11 +33,13 @@ __BEGIN_DECLS
 #define KEYSTORE_KEYMASTER "keymaster"
 
 /**
- * The API level of this version of the header. The allows the implementing
- * module to recognize which API level of the client it is dealing with in
- * the case of pre-compiled binary clients.
+ * Settings for "module_api_version" and "hal_api_version"
+ * fields in the keymaster_module initialization.
  */
-#define KEYMASTER_API_VERSION 2
+#define KEYMASTER_HEADER_VERSION 2
+
+#define KEYMASTER_MODULE_API_VERSION_0_2  HARDWARE_MODULE_API_VERSION(0, 2)
+#define KEYMASTER_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION_2(0, 2, KEYMASTER_HEADER_VERSION)
 
 /**
  * Flags for keymaster_device::flags
@@ -139,6 +141,10 @@ typedef struct {
 struct keymaster_device {
     struct hw_device_t common;
 
+    /**
+     * THIS IS DEPRECATED. Use the new "module_api_version" and "hal_api_version"
+     * fields in the keymaster_module initialization instead.
+     */
     uint32_t client_version;
 
     /**
@@ -237,10 +243,6 @@ static inline int keymaster_open(const struct hw_module_t* module,
 {
     int rc = module->methods->open(module, KEYSTORE_KEYMASTER,
             (struct hw_device_t**) device);
-
-    if (!rc) {
-        (*device)->client_version = KEYMASTER_API_VERSION;
-    }
 
     return rc;
 }
