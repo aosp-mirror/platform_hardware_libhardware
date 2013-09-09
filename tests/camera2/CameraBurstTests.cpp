@@ -183,7 +183,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
     ASSERT_EQ(OK, mDevice->createDefaultRequest(CAMERA2_TEMPLATE_PREVIEW,
                                                 &previewRequest));
     {
-        Vector<uint8_t> outputStreamIds;
+        Vector<int32_t> outputStreamIds;
         outputStreamIds.push(mStreamId);
         ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_OUTPUT_STREAMS,
                                             outputStreamIds));
@@ -558,7 +558,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
     ASSERT_EQ(OK, mDevice->createDefaultRequest(CAMERA2_TEMPLATE_PREVIEW,
                                                 &previewRequest));
     {
-        Vector<uint8_t> outputStreamIds;
+        Vector<int32_t> outputStreamIds;
         outputStreamIds.push(mStreamId);
         ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_OUTPUT_STREAMS,
                                             outputStreamIds));

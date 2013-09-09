@@ -270,7 +270,7 @@ public:
             int meteringStreamId,
             int captureStreamId) {
     int32_t requestId = 1;
-    Vector<uint8_t> previewStreamIds;
+    Vector<int32_t> previewStreamIds;
     previewStreamIds.push(previewStreamId);
     ASSERT_EQ(OK, mDevice->createDefaultRequest(CAMERA2_TEMPLATE_PREVIEW,
             &previewRequest));
@@ -284,7 +284,7 @@ public:
     uint8_t cmOff = static_cast<uint8_t>(ANDROID_CONTROL_MODE_OFF);
     uint8_t nrOff = static_cast<uint8_t>(ANDROID_NOISE_REDUCTION_MODE_OFF);
     uint8_t sharpOff = static_cast<uint8_t>(ANDROID_EDGE_MODE_OFF);
-    Vector<uint8_t> meteringStreamIds;
+    Vector<int32_t> meteringStreamIds;
     meteringStreamIds.push(meteringStreamId);
     ASSERT_EQ(OK, mDevice->createDefaultRequest(
             CAMERA2_TEMPLATE_PREVIEW,
@@ -307,7 +307,7 @@ public:
 
     // Create capture request, manual settings
     requestId++;
-    Vector<uint8_t> captureStreamIds;
+    Vector<int32_t> captureStreamIds;
     captureStreamIds.push(captureStreamId);
     ASSERT_EQ(OK, mDevice->createDefaultRequest(
             CAMERA2_TEMPLATE_PREVIEW,
