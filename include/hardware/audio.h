@@ -358,10 +358,18 @@ struct audio_stream_out {
    int (*flush)(struct audio_stream_out* stream);
 
     /**
-     * Return the number of audio frames presented to an external observer.
+     * Return a recent count of the number of audio frames presented to an external observer.
      * This excludes frames which have been written but are still in the pipeline.
      * The count is not reset to zero when output enters standby.
      * Also returns the value of CLOCK_MONOTONIC as of this presentation count.
+     * The returned count is expected to be 'recent',
+     * but does not need to be the most recent possible value.
+     * However, the associated time should correspond to whatever count is returned.
+     * Example:  assume that N+M frames have been presented, where M is a 'small' number.
+     * Then it is permissible to return N instead of N+M,
+     * and the timestamp should correspond to N rather than N+M.
+     * The terms 'recent' and 'small' are not defined.
+     * They reflect the quality of the implementation.
      *
      * 3.0 and higher only.
      */
