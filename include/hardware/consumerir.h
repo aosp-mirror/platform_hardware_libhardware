@@ -51,7 +51,7 @@ typedef struct consumerir_device {
      * returns: 0 on success. A negative error code on error.
      */
     int (*transmit)(struct consumerir_device *dev, int carrier_freq,
-            int pattern[], int pattern_len);
+            const int pattern[], int pattern_len);
 
     /*
      * (*get_num_carrier_freqs)() is called by the ConsumerIrService to get the
