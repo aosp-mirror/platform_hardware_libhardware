@@ -54,10 +54,13 @@ static int consumerir_get_num_carrier_freqs(struct consumerir_device *dev)
 }
 
 static int consumerir_get_carrier_freqs(struct consumerir_device *dev,
-    consumerir_freq_range_t *ranges)
+    size_t len, consumerir_freq_range_t *ranges)
 {
-    memcpy(ranges, consumerir_freqs, sizeof(consumerir_freqs));
-    return ARRAY_SIZE(consumerir_freqs);
+    size_t to_copy = ARRAY_SIZE(consumerir_freqs);
+
+    to_copy = len < to_copy ? len : to_copy;
+    memcpy(ranges, consumerir_freqs, to_copy * sizeof(consumerir_freq_range_t));
+    return to_copy;
 }
 
 static int consumerir_close(hw_device_t *dev)

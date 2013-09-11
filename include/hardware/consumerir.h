@@ -66,12 +66,12 @@ typedef struct consumerir_device {
      * (*get_carrier_freqs)() is called by the ConsumerIrService to enumerate
      * which frequencies the IR transmitter supports.  The HAL implementation
      * should fill an array of consumerir_freq_range structs with the
-     * appropriate values for the transmitter.
+     * appropriate values for the transmitter, up to len elements.
      *
      * returns: the number of ranges on success. A negative error code on error.
      */
     int (*get_carrier_freqs)(struct consumerir_device *dev,
-            consumerir_freq_range_t *ranges);
+            size_t len, consumerir_freq_range_t *ranges);
 
     /* Reserved for future use. Must be NULL. */
     void* reserved[8 - 3];
