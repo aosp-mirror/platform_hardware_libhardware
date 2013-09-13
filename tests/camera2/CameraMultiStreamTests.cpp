@@ -35,6 +35,7 @@
 #define CAMERA_MULTI_STREAM_DEBUGGING  0
 #define CAMERA_FRAME_TIMEOUT    1000000000LL // nsecs (1 secs)
 #define PREVIEW_RENDERING_TIME_INTERVAL 200000 // in unit of us, 200ms
+#define TOLERANCE_MARGIN 0.01 // 1% tolerance margin for exposure sanity check.
 /* constants for display */
 #define DISPLAY_BUFFER_HEIGHT 1024
 #define DISPLAY_BUFFER_WIDTH 1024
@@ -269,64 +270,57 @@ public:
             int previewStreamId,
             int meteringStreamId,
             int captureStreamId) {
-    int32_t requestId = 1;
-    Vector<int32_t> previewStreamIds;
-    previewStreamIds.push(previewStreamId);
-    ASSERT_EQ(OK, mDevice->createDefaultRequest(CAMERA2_TEMPLATE_PREVIEW,
-            &previewRequest));
-    ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_OUTPUT_STREAMS,
-            previewStreamIds));
-    ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_ID,
-            &requestId, 1));
+        int32_t requestId = 0;
+        Vector<int32_t> previewStreamIds;
+        previewStreamIds.push(previewStreamId);
+        ASSERT_EQ(OK, mDevice->createDefaultRequest(CAMERA2_TEMPLATE_PREVIEW,
+                &previewRequest));
+        ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_OUTPUT_STREAMS,
+                previewStreamIds));
+        ASSERT_EQ(OK, previewRequest.update(ANDROID_REQUEST_ID,
+                &requestId, 1));
 
-    // Create metering request, manual settings
-    // Manual control: Disable 3A, noise reduction, edge sharping
-    uint8_t cmOff = static_cast<uint8_t>(ANDROID_CONTROL_MODE_OFF);
-    uint8_t nrOff = static_cast<uint8_t>(ANDROID_NOISE_REDUCTION_MODE_OFF);
-    uint8_t sharpOff = static_cast<uint8_t>(ANDROID_EDGE_MODE_OFF);
-    Vector<int32_t> meteringStreamIds;
-    meteringStreamIds.push(meteringStreamId);
-    ASSERT_EQ(OK, mDevice->createDefaultRequest(
-            CAMERA2_TEMPLATE_PREVIEW,
-            &meteringRequest));
-    ASSERT_EQ(OK, meteringRequest.update(
-            ANDROID_REQUEST_OUTPUT_STREAMS,
-            meteringStreamIds));
-    ASSERT_EQ(OK, meteringRequest.update(
-            ANDROID_REQUEST_ID,
-            &requestId, 1));
-    ASSERT_EQ(OK, meteringRequest.update(
-            ANDROID_CONTROL_MODE,
-            &cmOff, 1));
-    ASSERT_EQ(OK, meteringRequest.update(
-            ANDROID_NOISE_REDUCTION_MODE,
-            &nrOff, 1));
-    ASSERT_EQ(OK, meteringRequest.update(
-            ANDROID_EDGE_MODE,
-            &sharpOff, 1));
+        // Create metering request, manual settings
+        // Manual control: Disable 3A, noise reduction, edge sharping
+        uint8_t cmOff = static_cast<uint8_t>(ANDROID_CONTROL_MODE_OFF);
+        uint8_t nrOff = static_cast<uint8_t>(ANDROID_NOISE_REDUCTION_MODE_OFF);
+        uint8_t sharpOff = static_cast<uint8_t>(ANDROID_EDGE_MODE_OFF);
+        Vector<int32_t> meteringStreamIds;
+        meteringStreamIds.push(meteringStreamId);
+        ASSERT_EQ(OK, mDevice->createDefaultRequest(
+                CAMERA2_TEMPLATE_PREVIEW,
+                &meteringRequest));
+        ASSERT_EQ(OK, meteringRequest.update(
+                ANDROID_REQUEST_OUTPUT_STREAMS,
+                meteringStreamIds));
+        ASSERT_EQ(OK, meteringRequest.update(
+                ANDROID_CONTROL_MODE,
+                &cmOff, 1));
+        ASSERT_EQ(OK, meteringRequest.update(
+                ANDROID_NOISE_REDUCTION_MODE,
+                &nrOff, 1));
+        ASSERT_EQ(OK, meteringRequest.update(
+                ANDROID_EDGE_MODE,
+                &sharpOff, 1));
 
-    // Create capture request, manual settings
-    requestId++;
-    Vector<int32_t> captureStreamIds;
-    captureStreamIds.push(captureStreamId);
-    ASSERT_EQ(OK, mDevice->createDefaultRequest(
-            CAMERA2_TEMPLATE_PREVIEW,
-            &captureRequest));
-    ASSERT_EQ(OK, captureRequest.update(
-            ANDROID_REQUEST_OUTPUT_STREAMS,
-            captureStreamIds));
-    ASSERT_EQ(OK, captureRequest.update(
-            ANDROID_REQUEST_ID,
-            &requestId, 1));
-    ASSERT_EQ(OK, captureRequest.update(
-            ANDROID_CONTROL_MODE,
-            &cmOff, 1));
-    ASSERT_EQ(OK, captureRequest.update(
-            ANDROID_NOISE_REDUCTION_MODE,
-            &nrOff, 1));
-    ASSERT_EQ(OK, captureRequest.update(
-            ANDROID_EDGE_MODE,
-            &sharpOff, 1));
+        // Create capture request, manual settings
+        Vector<int32_t> captureStreamIds;
+        captureStreamIds.push(captureStreamId);
+        ASSERT_EQ(OK, mDevice->createDefaultRequest(
+                CAMERA2_TEMPLATE_PREVIEW,
+                &captureRequest));
+        ASSERT_EQ(OK, captureRequest.update(
+                ANDROID_REQUEST_OUTPUT_STREAMS,
+                captureStreamIds));
+        ASSERT_EQ(OK, captureRequest.update(
+                ANDROID_CONTROL_MODE,
+                &cmOff, 1));
+        ASSERT_EQ(OK, captureRequest.update(
+                ANDROID_NOISE_REDUCTION_MODE,
+                &nrOff, 1));
+        ASSERT_EQ(OK, captureRequest.update(
+                ANDROID_EDGE_MODE,
+                &sharpOff, 1));
     }
 
     sp<CameraStream> CreateStream(
@@ -345,21 +339,23 @@ public:
             const Vector<int64_t>& exposures,
             const Vector<int32_t>& sensitivities,
             const sp<CameraStream>& stream,
-            int64_t minFrameDuration) {
+            int64_t minFrameDuration,
+            int32_t* requestIdStart) {
         ASSERT_EQ(OK, request.update(ANDROID_SENSOR_FRAME_DURATION,
                 &minFrameDuration, 1));
         // Submit a series of requests with the specified exposure/gain values.
+        int32_t targetRequestId = *requestIdStart;
         for (size_t i = 0; i < requestCount; i++) {
-            ASSERT_EQ(OK, request.update(ANDROID_SENSOR_EXPOSURE_TIME,
-                    &exposures[i], 1));
-            ASSERT_EQ(OK, request.update(ANDROID_SENSOR_SENSITIVITY,
-                    &sensitivities[i], 1));
+            ASSERT_EQ(OK, request.update(ANDROID_REQUEST_ID, requestIdStart, 1));
+            ASSERT_EQ(OK, request.update(ANDROID_SENSOR_EXPOSURE_TIME, &exposures[i], 1));
+            ASSERT_EQ(OK, request.update(ANDROID_SENSOR_SENSITIVITY, &sensitivities[i], 1));
             ASSERT_EQ(OK, mDevice->capture(request));
-            ALOGV("Submitting capture %d with exposure %lld, sensitivity %d",
-                    i, exposures[i], sensitivities[i]);
+            ALOGV("Submitting request with: id %d with exposure %lld, sensitivity %d",
+                    *requestIdStart, exposures[i], sensitivities[i]);
             if (CAMERA_MULTI_STREAM_DEBUGGING) {
                 request.dump(STDOUT_FILENO);
             }
+            (*requestIdStart)++;
         }
         // Get capture burst results.
         Vector<nsecs_t> captureBurstTimes;
@@ -379,18 +375,34 @@ public:
                 waitLimit = exposures[i] * EXP_WAIT_MULTIPLIER;
             }
 
-            ASSERT_EQ(OK, mDevice->waitForNextFrame(waitLimit));
             CameraMetadata frameMetadata;
-            ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+            int32_t resultRequestId;
+            do {
+                ASSERT_EQ(OK, mDevice->waitForNextFrame(waitLimit));
+                ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+
+                camera_metadata_entry_t resultEntry = frameMetadata.find(ANDROID_REQUEST_ID);
+                ASSERT_EQ(1u, resultEntry.count);
+                resultRequestId = resultEntry.data.i32[0];
+                if (CAMERA_MULTI_STREAM_DEBUGGING) {
+                    std::cout << "capture result req id: " << resultRequestId << std::endl;
+                }
+            } while (resultRequestId != targetRequestId);
+            targetRequestId++;
             ALOGV("Got capture burst result for request %d", i);
+
             // Validate capture result
             if (CAMERA_MULTI_STREAM_DEBUGGING) {
                 frameMetadata.dump(STDOUT_FILENO);
             }
 
             // TODO: Need revisit it to figure out an accurate margin.
-            EXPECT_EQ(sensitivities[i], GetSensitivity(frameMetadata));
-            EXPECT_EQ(exposures[i], GetExposureValue(frameMetadata));
+            int64_t resultExposure = GetExposureValue(frameMetadata);
+            int32_t resultSensitivity = GetSensitivity(frameMetadata);
+            EXPECT_LE(sensitivities[i] * (1.0 - TOLERANCE_MARGIN), resultSensitivity);
+            EXPECT_GE(sensitivities[i] * (1.0 + TOLERANCE_MARGIN), resultSensitivity);
+            EXPECT_LE(exposures[i] * (1.0 - TOLERANCE_MARGIN), resultExposure);
+            EXPECT_GE(exposures[i] * (1.0 + TOLERANCE_MARGIN), resultExposure);
 
             ASSERT_EQ(OK, listener->waitForFrame(waitLimit));
             captureBurstTimes.push_back(systemTime());
@@ -625,6 +637,9 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
         requestCount = exposures.size();
     }
 
+    // To maintain the request id uniqueness (preview request id is 0), make burst capture start
+    // request id 1 here.
+    int32_t requestIdStart = 1;
     /**
      * Submit metering request, set default frame duration to minimal possible
      * value, we want the capture to run as fast as possible. HAL should adjust
@@ -632,7 +647,7 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
      * exposure value if exposure is larger than frame duration.
      */
     CaptureBurst(meteringRequest, requestCount, exposures, sensitivities,
-            meteringStream, minFrameDuration);
+            meteringStream, minFrameDuration, &requestIdStart);
 
     /**
      * Submit capture request, set default frame duration to minimal possible
@@ -641,7 +656,7 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
      * exposure value if exposure is larger than frame duration.
      */
     CaptureBurst(captureRequest, requestCount, exposures, sensitivities,
-            captureStream, minFrameDuration);
+            captureStream, minFrameDuration, &requestIdStart);
 
     ASSERT_EQ(OK, mDevice->clearStreamingRequest());
 }
