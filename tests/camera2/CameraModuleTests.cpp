@@ -80,9 +80,7 @@ TEST_F(CameraModuleTest, LoadModuleBadIndices) {
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
 
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
-        // Since the initialization should fail at device open(), it doesn't
-        // matter which version of CameraNDevice is used here
-        mDevice = new Camera2Device(idx[i]);
+        CreateCamera(idx[i], &mDevice);
         status_t deviceInitializeCode = initializeDevice(idx[i]);
         EXPECT_NE(OK, deviceInitializeCode);
         EXPECT_EQ(-ENODEV, deviceInitializeCode)
