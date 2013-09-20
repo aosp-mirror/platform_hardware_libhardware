@@ -78,15 +78,19 @@ TEST_F(CameraModuleTest, LoadModuleBadIndices) {
     TEST_EXTENSION_FORKING_INIT;
 
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
+    hw_device_t *device = NULL;
 
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
-        CreateCamera(idx[i], &mDevice);
-        status_t deviceInitializeCode = initializeDevice(idx[i]);
-        EXPECT_NE(OK, deviceInitializeCode);
-        EXPECT_EQ(-ENODEV, deviceInitializeCode)
-            << "Incorrect error code when trying to initialize invalid index "
-            << idx[i];
-        mDevice.clear();
+        String8 deviceName = String8::format("%d", idx[i]);
+        status_t res =
+                mModule->common.methods->open(
+                                             &mModule->common,
+                                             deviceName,
+                                             &device);
+        EXPECT_NE(OK, res);
+        EXPECT_EQ(-ENODEV, res)
+            << "Incorrect error code when trying to open camera with invalid id "
+            << deviceName;
     }
 }
 
