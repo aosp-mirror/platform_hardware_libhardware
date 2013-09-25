@@ -477,6 +477,23 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
     ASSERT_EQ(0u, availableJpegSizes.count % 2);
     ASSERT_GE(availableJpegSizes.count, 2u);
 
+    camera_metadata_ro_entry hardwareLevel =
+        GetStaticEntry(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL);
+    ASSERT_EQ(1u, hardwareLevel.count);
+    uint8_t level = hardwareLevel.data.u8[0];
+    ASSERT_GE(level, ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED);
+    ASSERT_LE(level, ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
+    if (level == ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED) {
+        const ::testing::TestInfo* const test_info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+        std::cerr << "Skipping test "
+                  << test_info->test_case_name() << "."
+                  << test_info->name()
+                  << " because HAL hardware supported level is limited "
+                  << std::endl;
+        return;
+    }
+
     // Find the right sizes for preview, metering, and capture streams
     // assumes at least 2 entries in availableProcessedSizes.
     int64_t minFrameDuration = DEFAULT_FRAME_DURATION;

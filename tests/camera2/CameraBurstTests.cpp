@@ -362,6 +362,23 @@ TEST_F(CameraBurstTest, VariableBurst) {
         }
     }
 
+    camera_metadata_ro_entry hardwareLevel =
+        GetStaticEntry(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL);
+    ASSERT_EQ(1u, hardwareLevel.count);
+    uint8_t level = hardwareLevel.data.u8[0];
+    ASSERT_GE(level, ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED);
+    ASSERT_LE(level, ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_FULL);
+    if (level == ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED) {
+        const ::testing::TestInfo* const test_info =
+            ::testing::UnitTest::GetInstance()->current_test_info();
+        std::cerr << "Skipping test "
+                  << test_info->test_case_name() << "."
+                  << test_info->name()
+                  << " because HAL hardware supported level is limited "
+                  << std::endl;
+        return;
+    }
+
     dout << "Stream size is " << mWidth << " x " << mHeight << std::endl;
     dout << "Valid exposure range is: " <<
             minExp << " - " << maxExp << " ns " << std::endl;
@@ -373,7 +390,9 @@ TEST_F(CameraBurstTest, VariableBurst) {
                 "Falling back to default set.";
         int32_t minSensitivity = 100;
         int32_t maxSensitivity = 800;
-        if (sensivityRange.count >= 2) {
+        if (sensivityRange.count == 2) {
+            ASSERT_GT(sensivityRange.data.i32[0], 0);
+            ASSERT_GT(sensivityRange.data.i32[1], 0);
             minSensitivity = sensivityRange.data.i32[0];
             maxSensitivity = sensivityRange.data.i32[1];
         }
