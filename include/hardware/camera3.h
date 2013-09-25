@@ -398,6 +398,10 @@
  *        well focused. The lens is not moving. The HAL may spontaneously leave
  *        this state.
  *
+ *     AF_STATE_PASSIVE_UNFOCUSED: A continuous focus algorithm believes it is
+ *        not well focused. The lens is not moving. The HAL may spontaneously
+ *        leave this state.
+ *
  *     AF_STATE_ACTIVE_SCAN: A scan triggered by the user is underway.
  *
  *     AF_STATE_FOCUSED_LOCKED: The AF algorithm believes it is focused. The
@@ -571,10 +575,16 @@
  *
  * S4.5. AF state machines
  *
+ *                       when enabling AF or changing AF mode
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| Any                | AF mode change| INACTIVE           |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
  *                            mode = AF_MODE_OFF or AF_MODE_EDOF
  *| state              | trans. cause  | new state          | notes            |
  *+--------------------+---------------+--------------------+------------------+
- *| INACTIVE           |               |                    | AF is disabled   |
+ *| INACTIVE           |               | INACTIVE           | Never changes    |
  *+--------------------+---------------+--------------------+------------------+
  *
  *                            mode = AF_MODE_AUTO or AF_MODE_MACRO
@@ -617,6 +627,9 @@
  *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
  *|                    | current scan  |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL fails     | PASSIVE_UNFOCUSED  | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
  *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
@@ -632,12 +645,13 @@
  *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
  *|                    | new scan      |                    | Lens now moving  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_UNFOCUSED  | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
- *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
- *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
- *|                    |               |                    | if focus is bad  |
+ *| PASSIVE_UNFOCUSED  | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
  *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
@@ -661,6 +675,9 @@
  *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
  *|                    | current scan  |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL fails     | PASSIVE_UNFOCUSED  | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Eventual trans.  |
  *|                    |               |                    | once focus good  |
  *|                    |               |                    | Lens now locked  |
@@ -676,12 +693,13 @@
  *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
  *|                    | new scan      |                    | Lens now moving  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_UNFOCUSED  | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
- *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
- *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
- *|                    |               |                    | if focus is bad  |
+ *| PASSIVE_UNFOCUSED  | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
  *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
@@ -699,10 +717,16 @@
  *   FLASH_REQUIRED and PRECAPTURE states. So rows below that refer to those two
  *   states should be ignored for the AWB state machine.
  *
+ *                  when enabling AE/AWB or changing AE/AWB mode
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| Any                |  mode change  | INACTIVE           |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
  *                            mode = AE_MODE_OFF / AWB mode not AUTO
  *| state              | trans. cause  | new state          | notes            |
  *+--------------------+---------------+--------------------+------------------+
- *| INACTIVE           |               |                    | AE/AWB disabled  |
+ *| INACTIVE           |               | INACTIVE           | AE/AWB disabled  |
  *+--------------------+---------------+--------------------+------------------+
  *
  *                            mode = AE_MODE_ON_* / AWB_MODE_AUTO
