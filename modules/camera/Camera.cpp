@@ -195,6 +195,11 @@ camera_metadata_t *Camera::initStaticInfo()
             ARRAY_SIZE(android_jpeg_available_thumbnail_sizes),
             android_jpeg_available_thumbnail_sizes);
 
+    int32_t android_jpeg_max_size[] = {13 * 1024 * 1024}; // 13MB
+    m.addInt32(ANDROID_JPEG_MAX_SIZE,
+            ARRAY_SIZE(android_jpeg_max_size),
+            android_jpeg_max_size);
+
     /* android.lens */
     float android_lens_info_available_focal_lengths[] = {1.0};
     m.addFloat(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
