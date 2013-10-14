@@ -22,8 +22,7 @@
 #include <cutils/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
-#include <cutils/trace.h>
-#include "ScopedTrace.h"
+#include <utils/Trace.h>
 
 #include "Metadata.h"
 

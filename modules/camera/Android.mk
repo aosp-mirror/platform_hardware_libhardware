@@ -34,6 +34,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libcutils \
 	liblog \
 	libsync \
+	libutils \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
