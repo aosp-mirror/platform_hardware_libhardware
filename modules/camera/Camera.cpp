@@ -29,8 +29,7 @@
 #include <cutils/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
-#include <cutils/trace.h>
-#include "ScopedTrace.h"
+#include <utils/Trace.h>
 
 #include "Camera.h"
 
@@ -79,7 +78,7 @@ Camera::~Camera()
 int Camera::open(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
-    CAMTRACE_CALL();
+    ATRACE_CALL();
     pthread_mutex_lock(&mMutex);
     if (mBusy) {
         pthread_mutex_unlock(&mMutex);
@@ -116,7 +115,7 @@ int Camera::getInfo(struct camera_info *info)
 int Camera::close()
 {
     ALOGI("%s:%d: Closing camera device", __func__, mId);
-    CAMTRACE_CALL();
+    ATRACE_CALL();
     pthread_mutex_lock(&mMutex);
     if (!mBusy) {
         pthread_mutex_unlock(&mMutex);
@@ -300,7 +299,7 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     camera3_stream_t *astream;
     Stream **newStreams = NULL;
 
-    CAMTRACE_CALL();
+    ATRACE_CALL();
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
 
     if (stream_config == NULL) {
@@ -485,7 +484,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
     camera3_capture_result result;
 
     ALOGV("%s:%d: request=%p", __func__, mId, request);
-    CAMTRACE_CALL();
+    ATRACE_CALL();
 
     if (request == NULL) {
         ALOGE("%s:%d: NULL request recieved", __func__, mId);

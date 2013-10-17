@@ -24,8 +24,7 @@
 #include <cutils/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
-#include <cutils/trace.h>
-#include "ScopedTrace.h"
+#include <utils/Trace.h>
 
 #include "Stream.h"
 
@@ -139,7 +138,7 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
 
 int Stream::registerBuffers(const camera3_stream_buffer_set_t *buf_set)
 {
-    CAMTRACE_CALL();
+    ATRACE_CALL();
 
     if (buf_set->stream != mStream) {
         ALOGE("%s:%d: Buffer set for invalid stream. Got %p expect %p",
