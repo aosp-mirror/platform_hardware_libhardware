@@ -17,6 +17,7 @@
 #ifndef METADATA_H_
 #define METADATA_H_
 
+#include <pthread.h>
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
 #include <system/camera_metadata.h>

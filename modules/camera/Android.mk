@@ -29,6 +29,7 @@ LOCAL_SRC_FILES := \
 	ExampleCamera.cpp \
 	Metadata.cpp \
 	Stream.cpp \
+	VendorTags.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
 	libcamera_metadata \

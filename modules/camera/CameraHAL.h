@@ -21,6 +21,7 @@
 #include <hardware/hardware.h>
 #include <hardware/camera_common.h>
 #include "Camera.h"
+#include "VendorTags.h"
 
 namespace default_camera_hal {
 // CameraHAL contains all module state that isn't specific to an individual
@@ -34,6 +35,7 @@ class CameraHAL {
         int getNumberOfCameras();
         int getCameraInfo(int camera_id, struct camera_info *info);
         int setCallbacks(const camera_module_callbacks_t *callbacks);
+        void getVendorTagOps(vendor_tag_ops_t* ops);
 
         // Hardware Module Interface (see <hardware/hardware.h>)
         int open(const hw_module_t* mod, const char* name, hw_device_t** dev);
