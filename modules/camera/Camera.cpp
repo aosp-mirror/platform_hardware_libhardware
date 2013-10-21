@@ -16,6 +16,7 @@
 
 #include <cstdlib>
 #include <pthread.h>
+#include <stdio.h>
 #include <hardware/camera3.h>
 #include <sync/sync.h>
 #include <system/camera_metadata.h>
@@ -491,7 +492,21 @@ void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)
 void Camera::dump(int fd)
 {
     ALOGV("%s:%d: Dumping to fd %d", __func__, mId, fd);
-    // TODO: dprintf all relevant state to fd
+
+    pthread_mutex_lock(&mMutex);
+
+    fdprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
+
+    // TODO: dump all settings
+    fdprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
+
+    fdprintf(fd, "Number of streams: %d\n", mNumStreams);
+    for (int i = 0; i < mNumStreams; i++) {
+        fdprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
+        mStreams[i]->dump(fd);
+    }
+
+    pthread_mutex_unlock(&mMutex);
 }
 
 void Camera::setTemplate(int type, camera_metadata_t *settings)

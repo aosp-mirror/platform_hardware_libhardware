@@ -15,6 +15,7 @@
  */
 
 #include <pthread.h>
+#include <stdio.h>
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
@@ -94,6 +95,61 @@ bool Stream::isOutputType()
         mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
+const char* Stream::typeToString(int type)
+{
+    switch (type) {
+    case CAMERA3_STREAM_INPUT:
+        return "CAMERA3_STREAM_INPUT";
+    case CAMERA3_STREAM_OUTPUT:
+        return "CAMERA3_STREAM_OUTPUT";
+    case CAMERA3_STREAM_BIDIRECTIONAL:
+        return "CAMERA3_STREAM_BIDIRECTIONAL";
+    }
+    return "Invalid stream type!";
+}
+
+const char* Stream::formatToString(int format)
+{
+    // See <system/graphics.h> for full list
+    switch (format) {
+    case HAL_PIXEL_FORMAT_BGRA_8888:
+        return "BGRA 8888";
+    case HAL_PIXEL_FORMAT_RGBA_8888:
+        return "RGBA 8888";
+    case HAL_PIXEL_FORMAT_RGBX_8888:
+        return "RGBX 8888";
+    case HAL_PIXEL_FORMAT_RGB_888:
+        return "RGB 888";
+    case HAL_PIXEL_FORMAT_RGB_565:
+        return "RGB 565";
+    case HAL_PIXEL_FORMAT_sRGB_A_8888:
+        return "sRGB A 8888";
+    case HAL_PIXEL_FORMAT_sRGB_X_8888:
+        return "sRGB B 8888";
+    case HAL_PIXEL_FORMAT_Y8:
+        return "Y8";
+    case HAL_PIXEL_FORMAT_Y16:
+        return "Y16";
+    case HAL_PIXEL_FORMAT_YV12:
+        return "YV12";
+    case HAL_PIXEL_FORMAT_YCbCr_422_SP:
+        return "NV16";
+    case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        return "NV21";
+    case HAL_PIXEL_FORMAT_YCbCr_422_I:
+        return "YUY2";
+    case HAL_PIXEL_FORMAT_RAW_SENSOR:
+        return "RAW SENSOR";
+    case HAL_PIXEL_FORMAT_BLOB:
+        return "BLOB";
+    case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+        return "IMPLEMENTATION DEFINED";
+    case HAL_PIXEL_FORMAT_YCbCr_420_888:
+        return "FLEXIBLE YCbCr 420 888";
+    }
+    return "Invalid stream format!";
+}
+
 bool Stream::isRegistered()
 {
     return mRegistered;
@@ -112,15 +168,15 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
         return false;
     }
     if (s->stream_type != mType) {
-        // TODO: prettyprint type string
-        ALOGE("%s:%d: Mismatched type in reused stream. Got %d expect %d",
-                __func__, mId, s->stream_type, mType);
+        ALOGE("%s:%d: Mismatched type in reused stream. Got %s(%d) "
+                "expect %s(%d)", __func__, mId, typeToString(s->stream_type),
+                s->stream_type, typeToString(mType), mType);
         return false;
     }
     if (s->format != mFormat) {
-        // TODO: prettyprint format string
-        ALOGE("%s:%d: Mismatched format in reused stream. Got %d expect %d",
-                __func__, mId, s->format, mFormat);
+        ALOGE("%s:%d: Mismatched format in reused stream. Got %s(%d) "
+                "expect %s(%d)", __func__, mId, formatToString(s->format),
+                s->format, formatToString(mFormat), mFormat);
         return false;
     }
     if (s->width != mWidth) {
@@ -171,6 +227,26 @@ void Stream::unregisterBuffers_L()
     mNumBuffers = 0;
     delete [] mBuffers;
     // TODO: unregister buffers from hw
+}
+
+void Stream::dump(int fd)
+{
+    pthread_mutex_lock(&mMutex);
+
+    fdprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
+    fdprintf(fd, "Stream Type: %s (%d)\n", typeToString(mType), mType);
+    fdprintf(fd, "Width: %u Height: %u\n", mWidth, mHeight);
+    fdprintf(fd, "Stream Format: %s (%d)", formatToString(mFormat), mFormat);
+    // ToDo: prettyprint usage mask flags
+    fdprintf(fd, "Gralloc Usage Mask: 0x%x\n", mUsage);
+    fdprintf(fd, "Max Buffer Count: %d\n", mMaxBuffers);
+    fdprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
+    fdprintf(fd, "Number of Buffers: %d\n", mNumBuffers);
+    for (int i = 0; i < mNumBuffers; i++) {
+        fdprintf(fd, "Buffer %d/%d: %p\n", i, mNumBuffers, mBuffers[i]);
+    }
+
+    pthread_mutex_unlock(&mMutex);
 }
 
 } // namespace default_camera_hal

@@ -41,6 +41,9 @@ class Stream {
         bool isInputType();
         bool isOutputType();
         bool isRegistered();
+        const char* typeToString(int type);
+        const char* formatToString(int format);
+        void dump(int fd);
 
         // This stream is being reused. Used in stream configuration passes
         bool mReuse;
