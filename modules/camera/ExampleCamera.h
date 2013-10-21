@@ -35,6 +35,12 @@ class ExampleCamera : public Camera {
         camera_metadata_t *initStaticInfo();
         // Initialize whole device (templates/etc) when opened
         int initDevice();
+        // Initialize each template metadata controls
+        int setPreviewTemplate(Metadata m);
+        int setStillTemplate(Metadata m);
+        int setRecordTemplate(Metadata m);
+        int setSnapshotTemplate(Metadata m);
+        int setZslTemplate(Metadata m);
         // Verify settings are valid for a capture with this device
         bool isValidCaptureSettings(const camera_metadata_t* settings);
 };

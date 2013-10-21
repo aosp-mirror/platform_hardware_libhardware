@@ -509,20 +509,47 @@ void Camera::dump(int fd)
     pthread_mutex_unlock(&mMutex);
 }
 
-void Camera::setTemplate(int type, camera_metadata_t *settings)
+const char* Camera::templateToString(int type)
+{
+    switch (type) {
+    case CAMERA3_TEMPLATE_PREVIEW:
+        return "CAMERA3_TEMPLATE_PREVIEW";
+    case CAMERA3_TEMPLATE_STILL_CAPTURE:
+        return "CAMERA3_TEMPLATE_STILL_CAPTURE";
+    case CAMERA3_TEMPLATE_VIDEO_RECORD:
+        return "CAMERA3_TEMPLATE_VIDEO_RECORD";
+    case CAMERA3_TEMPLATE_VIDEO_SNAPSHOT:
+        return "CAMERA3_TEMPLATE_VIDEO_SNAPSHOT";
+    case CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG:
+        return "CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG";
+    }
+    // TODO: support vendor templates
+    return "Invalid template type!";
+}
+
+int Camera::setTemplate(int type, camera_metadata_t *settings)
 {
     if (!isValidTemplateType(type)) {
         ALOGE("%s:%d: Invalid template request type: %d", __func__, mId, type);
-        return;
+        return -EINVAL;
     }
     pthread_mutex_lock(&mMutex);
     if (mTemplates[type] != NULL) {
-        ALOGE("%s:%d: Setting already constructed template type %d: %p to %p!",
-                __func__, mId, type, mStaticInfo, settings);
-        free_camera_metadata(mTemplates[type]);
+        ALOGE("%s:%d: Setting already constructed template type %s(%d)",
+                __func__, mId, templateToString(type), type);
+        pthread_mutex_unlock(&mMutex);
+        return -EINVAL;
     }
+    // Make a durable copy of the underlying metadata
     mTemplates[type] = clone_camera_metadata(settings);
+    if (mTemplates[type] == NULL) {
+        ALOGE("%s:%d: Failed to clone metadata %p for template type %s(%d)",
+                __func__, mId, settings, templateToString(type), type);
+        pthread_mutex_unlock(&mMutex);
+        return -EINVAL;
+    }
     pthread_mutex_unlock(&mMutex);
+    return 0;
 }
 
 extern "C" {
