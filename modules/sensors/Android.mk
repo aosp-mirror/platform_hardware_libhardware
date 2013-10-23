@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-ifeq ($(USE_SENSOR_MULTI_HAL),true)
-
 LOCAL_PATH := $(call my-dir)
+
+ifeq ($(USE_SENSOR_MULTI_HAL),true)
 
 include $(CLEAR_VARS)
 
@@ -25,24 +25,28 @@ LOCAL_MODULE := sensors.$(TARGET_DEVICE)
 LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
 
 LOCAL_CFLAGS := -DLOG_TAG=\"MultiHal\"
-LOCAL_SRC_FILES := multihal.cpp
+
+LOCAL_SRC_FILES := \
+    multihal.cpp \
+    SensorEventQueue.h \
+    SensorEventQueue.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
-    liblog \
     libcutils \
     libdl \
+    liblog \
     libstlport \
     libutils \
-    libcutils \
-    liblog \
 
 LOCAL_PRELINK_MODULE := false
 LOCAL_STRIP_MODULE := false
 
 LOCAL_C_INCLUDES := \
     external/stlport/stlport \
-    bionic /
+    bionic \
 
 include $(BUILD_SHARED_LIBRARY)
 
 endif # USE_SENSOR_MULTI_HAL
+
+include $(call all-subdir-makefiles)
