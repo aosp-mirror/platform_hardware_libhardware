@@ -35,17 +35,11 @@ class SensorEventQueue {
     int mStart; // start of readable region
     int mSize; // number of readable items
     sensors_event_t* mData;
-    pthread_cond_t mDataAvailableCondition;
     pthread_cond_t mSpaceAvailableCondition;
-    pthread_mutex_t mMutex;
 
 public:
     SensorEventQueue(int capacity);
     ~SensorEventQueue();
-    void lock();
-    void unlock();
-    void waitForSpaceAndLock();
-    void waitForDataAndLock();
 
     // Returns length of region, between zero and min(capacity, requestedLength). If there is any
     // writable space, it will return a region of at least one. Because it must return
@@ -73,6 +67,9 @@ public:
     // This will decrease the size by one, freeing up the oldest readable event's slot for writing.
     // Only call while holding the lock.
     void dequeue();
+
+    // Blocks until space is available. No-op if there is already space.
+    void waitForSpace(pthread_mutex_t* mutex);
 };
 
 #endif // SENSOREVENTQUEUE_H_
