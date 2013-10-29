@@ -69,7 +69,8 @@ public:
     void dequeue();
 
     // Blocks until space is available. No-op if there is already space.
-    void waitForSpace(pthread_mutex_t* mutex);
+    // Returns true if it had to wait.
+    bool waitForSpace(pthread_mutex_t* mutex);
 };
 
 #endif // SENSOREVENTQUEUE_H_

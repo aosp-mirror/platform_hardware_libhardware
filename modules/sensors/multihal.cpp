@@ -97,9 +97,9 @@ static int get_local_handle(int global_handle) {
 }
 
 static int get_module_index(int global_handle) {
-    ALOGD("get_module_index for global_handle %d", global_handle);
     FullHandle f = global_to_full[global_handle];
-    ALOGD("FullHandle moduleIndex %d, localHandle %d", f.moduleIndex, f.localHandle);
+    ALOGD("FullHandle for global_handle %d: moduleIndex %d, localHandle %d",
+            global_handle, f.moduleIndex, f.localHandle);
     return f.moduleIndex;
 }
 
@@ -118,11 +118,10 @@ void *writerTask(void* ptr) {
     sensors_event_t* buffer;
     int eventsPolled;
     while (1) {
-        ALOGD("writerTask before lock 1");
         pthread_mutex_lock(&queue_mutex);
-        ALOGD("writerTask before waitForSpace");
-        queue->waitForSpace(&queue_mutex);
-        ALOGD("writerTask after waitForSpace");
+        if (queue->waitForSpace(&queue_mutex)) {
+            ALOGD("writerTask waited for space");
+        }
         int bufferSize = queue->getWritableRegion(SENSOR_EVENT_QUEUE_CAPACITY, &buffer);
         // Do blocking poll outside of lock
         pthread_mutex_unlock(&queue_mutex);
@@ -130,8 +129,9 @@ void *writerTask(void* ptr) {
         ALOGD("writerTask before poll() - bufferSize = %d", bufferSize);
         eventsPolled = device->poll(device, buffer, bufferSize);
         ALOGD("writerTask poll() got %d events.", eventsPolled);
-
-        ALOGD("writerTask before lock 2");
+        if (eventsPolled == 0) {
+            continue;
+        }
         pthread_mutex_lock(&queue_mutex);
         queue->markAsWritten(eventsPolled);
         ALOGD("writerTask wrote %d events", eventsPolled);
@@ -200,9 +200,7 @@ void sensors_poll_context_t::addSubHwDevice(struct hw_device_t* sub_hw_device) {
 }
 
 sensors_poll_device_t* sensors_poll_context_t::get_v0_device_by_handle(int handle) {
-    ALOGD("get_v0_device_by_handle(%d)", handle);
     int sub_index = get_module_index(handle);
-    ALOGD("sub_index: %d", sub_index);
     return (sensors_poll_device_t*) this->sub_hw_devices[sub_index];
 }
 
@@ -260,7 +258,6 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
     while (eventsRead == 0) {
         while (empties < queueCount && eventsRead < maxReads) {
             SensorEventQueue* queue = this->queues.at(this->nextReadIndex);
-            ALOGD("queue size: %d", queue->getSize());
             sensors_event_t* event = queue->peek();
             if (event == NULL) {
                 empties++;
@@ -272,18 +269,16 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
             this->nextReadIndex = (this->nextReadIndex + 1) % queueCount;
         }
         if (eventsRead == 0) {
-            // The queues have been scanned and none contain data.
-            // Wait for any of them to signal that there's data.
+            // The queues have been scanned and none contain data, so wait.
             ALOGD("poll stopping to wait for data");
             waiting_for_data = true;
             pthread_cond_wait(&data_available_cond, &queue_mutex);
             waiting_for_data = false;
             empties = 0;
-            ALOGD("poll done waiting for data");
         }
     }
     pthread_mutex_unlock(&queue_mutex);
-    ALOGD("...poll's blocking read ends. Returning %d events.", eventsRead);
+    ALOGD("poll returning %d events.", eventsRead);
 
     return eventsRead;
 }

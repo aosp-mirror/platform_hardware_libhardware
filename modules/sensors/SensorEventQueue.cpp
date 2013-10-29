@@ -81,8 +81,12 @@ void SensorEventQueue::dequeue() {
     mStart = (mStart + 1) % mCapacity;
 }
 
-void SensorEventQueue::waitForSpace(pthread_mutex_t* mutex) {
+// returns true if it waited, or false if it was a no-op.
+bool SensorEventQueue::waitForSpace(pthread_mutex_t* mutex) {
+    bool waited = false;
     while (mSize == mCapacity) {
+        waited = true;
         pthread_cond_wait(&mSpaceAvailableCondition, mutex);
     }
+    return waited;
 }
