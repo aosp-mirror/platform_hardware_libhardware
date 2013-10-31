@@ -17,11 +17,9 @@
 #ifndef METADATA_H_
 #define METADATA_H_
 
-#include <pthread.h>
+#include <stdint.h>
 #include <hardware/camera3.h>
-#include <hardware/gralloc.h>
 #include <system/camera_metadata.h>
-#include <system/graphics.h>
 
 namespace default_camera_hal {
 // Metadata is a convenience class for dealing with libcamera_metadata
@@ -29,51 +27,32 @@ class Metadata {
     public:
         Metadata();
         ~Metadata();
-        // Constructor used for request metadata templates
-        Metadata(uint8_t mode, uint8_t intent);
+        // Initialize with framework metadata
+        int init(const camera_metadata_t *metadata);
 
-        // Parse and add an entry
-        int addUInt8(uint32_t tag, int count, uint8_t *data);
-        int addInt32(uint32_t tag, int count, int32_t *data);
-        int addFloat(uint32_t tag, int count, float *data);
-        int addInt64(uint32_t tag, int count, int64_t *data);
-        int addDouble(uint32_t tag, int count, double *data);
+        // Parse and add an entry. Allocates and copies new storage for *data.
+        int addUInt8(uint32_t tag, int count, const uint8_t *data);
+        int add1UInt8(uint32_t tag, const uint8_t data);
+        int addInt32(uint32_t tag, int count, const int32_t *data);
+        int addFloat(uint32_t tag, int count, const float *data);
+        int addInt64(uint32_t tag, int count, const int64_t *data);
+        int addDouble(uint32_t tag, int count, const double *data);
         int addRational(uint32_t tag, int count,
-                camera_metadata_rational_t *data);
-        // Generate a camera_metadata structure and fill it with internal data
-        camera_metadata_t *generate();
+                const camera_metadata_rational_t *data);
+
+        // Get a handle to the current metadata
+        // This is not a durable handle, and may be destroyed by add*/init
+        camera_metadata_t* get();
 
     private:
+        // Actual internal storage
+        camera_metadata_t* mData;
+        // Destroy old metadata and replace with new
+        void replace(camera_metadata_t *m);
         // Validate the tag, type and count for a metadata entry
         bool validate(uint32_t tag, int tag_type, int count);
-        // Add a verified tag with data to this Metadata structure
-        int add(uint32_t tag, int count, void *tag_data);
-
-        class Entry {
-            public:
-                Entry(uint32_t tag, void *data, int count);
-                ~Entry();
-                Entry *mNext;
-                Entry *mPrev;
-                const uint32_t mTag;
-                const void *mData;
-                const int mCount;
-                void insertAfter(Entry *e);
-        };
-        // List ends
-        Entry *mHead;
-        Entry *mTail;
-        // Append entry to list
-        void push(Entry *e);
-        // Total of entries and entry data size
-        int mEntryCount;
-        int mDataCount;
-        // Save generated metadata, invalidated on update
-        camera_metadata_t *mGenerated;
-        // Flag to force metadata regeneration
-        bool mDirty;
-        // Lock protecting the Metadata object for modifications
-        pthread_mutex_t mMutex;
+        // Add a verified tag with data
+        int add(uint32_t tag, int count, const void *tag_data);
 };
 } // namespace default_camera_hal
 

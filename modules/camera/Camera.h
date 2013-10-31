@@ -59,8 +59,10 @@ class Camera {
         virtual bool isValidCaptureSettings(const camera_metadata_t *) = 0;
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
-        // Accessor used by initDevice()
-        void setTemplate(int type, camera_metadata_t *static_info);
+        // Accessor used by initDevice() to set the templates' metadata
+        int setTemplate(int type, camera_metadata_t *static_info);
+        // Prettyprint template names
+        const char* templateToString(int type);
 
     private:
         // Camera device handle returned to framework for use
