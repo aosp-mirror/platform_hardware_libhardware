@@ -23,6 +23,8 @@
 #include <pthread.h>
 #include <linux/input.h>
 #include <cutils/atomic.h>
+
+#define LOG_NDEBUG 1
 #include <cutils/log.h>
 
 #include <vector>
@@ -32,8 +34,6 @@
 #include <dlfcn.h>
 #include <SensorEventQueue.h>
 
-// comment out to disable debug-level logging
-#define LOG_NDEBUG 0
 
 static const char* CONFIG_FILENAME = "/system/etc/sensors/hals.conf";
 static const char* LEGAL_SUBHAL_PATH_PREFIX = "/system/lib/hw/";
@@ -98,7 +98,7 @@ static int get_local_handle(int global_handle) {
 
 static int get_module_index(int global_handle) {
     FullHandle f = global_to_full[global_handle];
-    ALOGD("FullHandle for global_handle %d: moduleIndex %d, localHandle %d",
+    ALOGV("FullHandle for global_handle %d: moduleIndex %d, localHandle %d",
             global_handle, f.moduleIndex, f.localHandle);
     return f.moduleIndex;
 }
@@ -111,7 +111,7 @@ struct TaskContext {
 };
 
 void *writerTask(void* ptr) {
-    ALOGD("writerTask STARTS");
+    ALOGV("writerTask STARTS");
     TaskContext* ctx = (TaskContext*)ptr;
     sensors_poll_device_t* device = ctx->device;
     SensorEventQueue* queue = ctx->queue;
@@ -120,23 +120,23 @@ void *writerTask(void* ptr) {
     while (1) {
         pthread_mutex_lock(&queue_mutex);
         if (queue->waitForSpace(&queue_mutex)) {
-            ALOGD("writerTask waited for space");
+            ALOGV("writerTask waited for space");
         }
         int bufferSize = queue->getWritableRegion(SENSOR_EVENT_QUEUE_CAPACITY, &buffer);
         // Do blocking poll outside of lock
         pthread_mutex_unlock(&queue_mutex);
 
-        ALOGD("writerTask before poll() - bufferSize = %d", bufferSize);
+        ALOGV("writerTask before poll() - bufferSize = %d", bufferSize);
         eventsPolled = device->poll(device, buffer, bufferSize);
-        ALOGD("writerTask poll() got %d events.", eventsPolled);
+        ALOGV("writerTask poll() got %d events.", eventsPolled);
         if (eventsPolled == 0) {
             continue;
         }
         pthread_mutex_lock(&queue_mutex);
         queue->markAsWritten(eventsPolled);
-        ALOGD("writerTask wrote %d events", eventsPolled);
+        ALOGV("writerTask wrote %d events", eventsPolled);
         if (waiting_for_data) {
-            ALOGD("writerTask - broadcast data_available_cond");
+            ALOGV("writerTask - broadcast data_available_cond");
             pthread_cond_broadcast(&data_available_cond);
         }
         pthread_mutex_unlock(&queue_mutex);
@@ -184,7 +184,7 @@ struct sensors_poll_context_t {
 };
 
 void sensors_poll_context_t::addSubHwDevice(struct hw_device_t* sub_hw_device) {
-    ALOGD("addSubHwDevice");
+    ALOGV("addSubHwDevice");
     this->sub_hw_devices.push_back(sub_hw_device);
 
     SensorEventQueue *queue = new SensorEventQueue(SENSOR_EVENT_QUEUE_CAPACITY);
@@ -215,18 +215,18 @@ int sensors_poll_context_t::get_device_version_by_handle(int handle) {
 }
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
-    ALOGD("activate");
+    ALOGV("activate");
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
     int retval = v0->activate(v0, get_local_handle(handle), enabled);
-    ALOGD("retval %d", retval);
+    ALOGV("retval %d", retval);
     return retval;
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
-    ALOGD("setDelay");
+    ALOGV("setDelay");
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
     int retval = v0->setDelay(v0, get_local_handle(handle), ns);
-    ALOGD("retval %d", retval);
+    ALOGV("retval %d", retval);
     return retval;
 }
 
@@ -249,7 +249,7 @@ void sensors_poll_context_t::copy_event_remap_handle(sensors_event_t* dest, sens
 }
 
 int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
-    ALOGD("poll");
+    ALOGV("poll");
     int empties = 0;
     int queueCount = (int)this->queues.size();
     int eventsRead = 0;
@@ -270,7 +270,7 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
         }
         if (eventsRead == 0) {
             // The queues have been scanned and none contain data, so wait.
-            ALOGD("poll stopping to wait for data");
+            ALOGV("poll stopping to wait for data");
             waiting_for_data = true;
             pthread_cond_wait(&data_available_cond, &queue_mutex);
             waiting_for_data = false;
@@ -278,42 +278,42 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
         }
     }
     pthread_mutex_unlock(&queue_mutex);
-    ALOGD("poll returning %d events.", eventsRead);
+    ALOGV("poll returning %d events.", eventsRead);
 
     return eventsRead;
 }
 
 int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int64_t timeout) {
-    ALOGD("batch");
+    ALOGV("batch");
     int retval = -EINVAL;
     int version = this->get_device_version_by_handle(handle);
     if (version >= SENSORS_DEVICE_API_VERSION_1_0) {
         sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
         retval = v1->batch(v1, get_local_handle(handle), flags, period_ns, timeout);
     }
-    ALOGD("retval %d", retval);
+    ALOGV("retval %d", retval);
     return retval;
 }
 
 int sensors_poll_context_t::flush(int handle) {
-    ALOGD("flush");
+    ALOGV("flush");
     int retval = -EINVAL;
     int version = this->get_device_version_by_handle(handle);
     if (version >= SENSORS_DEVICE_API_VERSION_1_0) {
         sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
         retval = v1->flush(v1, get_local_handle(handle));
     }
-    ALOGD("retval %d", retval);
+    ALOGV("retval %d", retval);
     return retval;
 }
 
 int sensors_poll_context_t::close() {
-    ALOGD("close");
+    ALOGV("close");
     for (std::vector<hw_device_t*>::iterator it = this->sub_hw_devices.begin();
             it != this->sub_hw_devices.end(); it++) {
         hw_device_t* dev = *it;
         int retval = dev->close(dev);
-        ALOGD("retval %d", retval);
+        ALOGV("retval %d", retval);
     }
     return 0;
 }
@@ -376,10 +376,10 @@ static bool starts_with(const char* s, const char* prefix) {
 static void get_so_paths(std::vector<char*> *so_paths) {
     FILE *conf_file = fopen(CONFIG_FILENAME, "r");
     if (conf_file == NULL) {
-        ALOGD("No multihal config file found at %s", CONFIG_FILENAME);
+        ALOGW("No multihal config file found at %s", CONFIG_FILENAME);
         return;
     }
-    ALOGD("Multihal config file found at %s", CONFIG_FILENAME);
+    ALOGI("Multihal config file found at %s", CONFIG_FILENAME);
     char *line = NULL;
     size_t len = 0;
     int line_count = 0;
@@ -389,22 +389,22 @@ static void get_so_paths(std::vector<char*> *so_paths) {
         if (pch != NULL) {
             *pch = '\0';
         }
-        ALOGD("config file line #%d: '%s'", ++line_count, line);
+        ALOGV("config file line #%d: '%s'", ++line_count, line);
         char *real_path = realpath(line, NULL);
         if (starts_with(real_path, LEGAL_SUBHAL_PATH_PREFIX)) {
-            ALOGD("accepting valid path '%s'", real_path);
+            ALOGI("accepting valid path '%s'", real_path);
             char* compact_line = new char[strlen(real_path) + 1];
             strcpy(compact_line, real_path);
             so_paths->push_back(compact_line);
         } else {
-            ALOGD("rejecting path '%s' because it does not start with '%s'",
+            ALOGW("rejecting path '%s' because it does not start with '%s'",
                     real_path, LEGAL_SUBHAL_PATH_PREFIX);
         }
         free(real_path);
     }
     free(line);
     fclose(conf_file);
-    ALOGD("hals.conf contained %d lines", line_count);
+    ALOGV("hals.conf contained %d lines", line_count);
 }
 
 /*
@@ -428,20 +428,20 @@ static void lazy_init_modules() {
         char* path = *it;
         void* lib_handle = dlopen(path, RTLD_LAZY);
         if (lib_handle == NULL) {
-            ALOGD("dlerror(): %s", dlerror());
+            ALOGW("dlerror(): %s", dlerror());
         } else {
-            ALOGD("hal lib was loaded: %s", path);
-            ALOGD("Opening symbol \"%s\"", sym);
+            ALOGI("hal lib was loaded: %s", path);
+            ALOGV("Opening symbol \"%s\"", sym);
             // clear old errors
             dlerror();
             struct hw_module_t* module = (hw_module_t*) dlsym(lib_handle, sym);
             const char* error;
             if ((error = dlerror()) != NULL) {
-                ALOGD("Error calling dlsym: %s", error);
+                ALOGW("Error calling dlsym: %s", error);
             } else if (module == NULL) {
-                ALOGD("module == NULL");
+                ALOGW("module == NULL");
             } else {
-                ALOGD("OK, dlsym()'ed \"%s\"", sym);
+                ALOGI("OK, dlsym()'ed \"%s\"", sym);
                 sub_hw_modules->push_back(module);
             }
         }
@@ -453,16 +453,16 @@ static void lazy_init_modules() {
  * Lazy-initializes global_sensors_count, global_sensors_list, and module_sensor_handles.
  */
 static void lazy_init_sensors_list() {
-    ALOGD("lazy_init_sensors_list");
+    ALOGV("lazy_init_sensors_list");
     pthread_mutex_lock(&init_sensors_mutex);
     if (global_sensors_list != NULL) {
         // already initialized
         pthread_mutex_unlock(&init_sensors_mutex);
-        ALOGD("lazy_init_sensors_list - early return");
+        ALOGV("lazy_init_sensors_list - early return");
         return;
     }
 
-    ALOGD("lazy_init_sensors_list needs to do work");
+    ALOGV("lazy_init_sensors_list needs to do work");
     lazy_init_modules();
 
     // Count all the sensors, then allocate an array of blanks.
@@ -472,7 +472,7 @@ static void lazy_init_sensors_list() {
             it != sub_hw_modules->end(); it++) {
         struct sensors_module_t *module = (struct sensors_module_t*) *it;
         global_sensors_count += module->get_sensors_list(module, &subhal_sensors_list);
-        ALOGD("increased global_sensors_count to %d", global_sensors_count);
+        ALOGV("increased global_sensors_count to %d", global_sensors_count);
     }
 
     // The global_sensors_list is full of consts.
@@ -486,16 +486,16 @@ static void lazy_init_sensors_list() {
     for (std::vector<hw_module_t*>::iterator it = sub_hw_modules->begin();
             it != sub_hw_modules->end(); it++) {
         hw_module_t *hw_module = *it;
-        ALOGD("examine one module");
+        ALOGV("examine one module");
         // Read the sub-module's sensor list.
         struct sensors_module_t *module = (struct sensors_module_t*) hw_module;
         int module_sensor_count = module->get_sensors_list(module, &subhal_sensors_list);
-        ALOGD("the module has %d sensors", module_sensor_count);
+        ALOGV("the module has %d sensors", module_sensor_count);
 
         // Copy the HAL's sensor list into global_sensors_list,
         // with the handle changed to be a global handle.
         for (int i = 0; i < module_sensor_count; i++) {
-            ALOGD("examining one sensor");
+            ALOGV("examining one sensor");
             const struct sensor_t *local_sensor = &subhal_sensors_list[i];
             int local_handle = local_sensor->handle;
             memcpy(&mutable_sensor_list[mutable_sensor_index], local_sensor,
@@ -505,7 +505,7 @@ static void lazy_init_sensors_list() {
             int global_handle = assign_global_handle(module_index, local_handle);
 
             mutable_sensor_list[mutable_sensor_index].handle = global_handle;
-            ALOGD("module_index %d, local_handle %d, global_handle %d",
+            ALOGI("module_index %d, local_handle %d, global_handle %d",
                     module_index, local_handle, global_handle);
 
             mutable_sensor_index++;
@@ -516,17 +516,17 @@ static void lazy_init_sensors_list() {
     global_sensors_list = mutable_sensor_list;
 
     pthread_mutex_unlock(&init_sensors_mutex);
-    ALOGD("end lazy_init_sensors_list");
+    ALOGV("end lazy_init_sensors_list");
 }
 
 static int module__get_sensors_list(struct sensors_module_t* module,
         struct sensor_t const** list) {
-    ALOGD("module__get_sensors_list start");
+    ALOGV("module__get_sensors_list start");
     lazy_init_sensors_list();
     *list = global_sensors_list;
-    ALOGD("global_sensors_count: %d", global_sensors_count);
+    ALOGV("global_sensors_count: %d", global_sensors_count);
     for (int i = 0; i < global_sensors_count; i++) {
-        ALOGD("sensor type: %d", global_sensors_list[i].type);
+        ALOGV("sensor type: %d", global_sensors_list[i].type);
     }
     return global_sensors_count;
 }
@@ -552,7 +552,7 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
 
 static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         struct hw_device_t** hw_device_out) {
-    ALOGD("open_sensors begin...");
+    ALOGI("open_sensors begin...");
 
     lazy_init_modules();
 
@@ -582,6 +582,6 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
 
     // Prepare the output param and return
     *hw_device_out = &dev->proxy_device.common;
-    ALOGD("...open_sensors end");
+    ALOGI("...open_sensors end");
     return 0;
 }
