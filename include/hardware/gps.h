@@ -595,7 +595,7 @@ typedef struct {
      *      it should be ignored and continue revoking/deleting the rest of them.
      */
     int  (*revoke_certificates) ( const Sha1CertificateFingerprint* fingerprints, size_t length );
-} SuplCertificateInteface;
+} SuplCertificateInterface;
 
 /** Represents an NI request */
 typedef struct {
