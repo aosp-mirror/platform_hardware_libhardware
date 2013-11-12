@@ -15,12 +15,12 @@
  */
 
 #include <cstdlib>
-#include <pthread.h>
 #include <stdio.h>
 #include <hardware/camera3.h>
 #include <sync/sync.h>
 #include <system/camera_metadata.h>
 #include <system/graphics.h>
+#include <utils/Mutex.h>
 #include "CameraHAL.h"
 #include "Metadata.h"
 #include "Stream.h"
@@ -57,9 +57,6 @@ Camera::Camera(int id)
     mNumStreams(0),
     mSettings(NULL)
 {
-    pthread_mutex_init(&mMutex, NULL);
-    pthread_mutex_init(&mStaticInfoMutex, NULL);
-
     memset(&mTemplates, 0, sizeof(mTemplates));
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag    = HARDWARE_DEVICE_TAG;
@@ -71,8 +68,6 @@ Camera::Camera(int id)
 
 Camera::~Camera()
 {
-    pthread_mutex_destroy(&mMutex);
-    pthread_mutex_destroy(&mStaticInfoMutex);
     if (mStaticInfo != NULL) {
         free_camera_metadata(mStaticInfo);
     }
@@ -82,9 +77,9 @@ int Camera::open(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
     ATRACE_CALL();
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mDeviceLock);
+
     if (mBusy) {
-        pthread_mutex_unlock(&mMutex);
         ALOGE("%s:%d: Error! Camera device already opened", __func__, mId);
         return -EBUSY;
     }
@@ -93,25 +88,20 @@ int Camera::open(const hw_module_t *module, hw_device_t **device)
     mBusy = true;
     mDevice.common.module = const_cast<hw_module_t*>(module);
     *device = &mDevice.common;
-
-    pthread_mutex_unlock(&mMutex);
     return 0;
 }
 
 int Camera::getInfo(struct camera_info *info)
 {
+    android::Mutex::Autolock al(mStaticInfoLock);
+
     info->facing = CAMERA_FACING_FRONT;
     info->orientation = 0;
     info->device_version = mDevice.common.version;
-
-    pthread_mutex_lock(&mStaticInfoMutex);
     if (mStaticInfo == NULL) {
         mStaticInfo = initStaticInfo();
     }
-    pthread_mutex_unlock(&mStaticInfoMutex);
-
     info->static_camera_characteristics = mStaticInfo;
-
     return 0;
 }
 
@@ -119,17 +109,15 @@ int Camera::close()
 {
     ALOGI("%s:%d: Closing camera device", __func__, mId);
     ATRACE_CALL();
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mDeviceLock);
+
     if (!mBusy) {
-        pthread_mutex_unlock(&mMutex);
         ALOGE("%s:%d: Error! Camera device not open", __func__, mId);
         return -EINVAL;
     }
 
     // TODO: close camera dev nodes, etc
     mBusy = false;
-
-    pthread_mutex_unlock(&mMutex);
     return 0;
 }
 
@@ -153,8 +141,9 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     camera3_stream_t *astream;
     Stream **newStreams = NULL;
 
-    ATRACE_CALL();
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
+    ATRACE_CALL();
+    android::Mutex::Autolock al(mDeviceLock);
 
     if (stream_config == NULL) {
         ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
@@ -169,8 +158,6 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     newStreams = new Stream*[stream_config->num_streams];
     ALOGV("%s:%d: Number of Streams: %d", __func__, mId,
             stream_config->num_streams);
-
-    pthread_mutex_lock(&mMutex);
 
     // Mark all current streams unused for now
     for (int i = 0; i < mNumStreams; i++)
@@ -209,14 +196,11 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 
     // Clear out last seen settings metadata
     setSettings(NULL);
-
-    pthread_mutex_unlock(&mMutex);
     return 0;
 
 err_out:
     // Clean up temporary streams, preserve existing mStreams/mNumStreams
     destroyStreams(newStreams, stream_config->num_streams);
-    pthread_mutex_unlock(&mMutex);
     return -EINVAL;
 }
 
@@ -492,8 +476,8 @@ void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)
 void Camera::dump(int fd)
 {
     ALOGV("%s:%d: Dumping to fd %d", __func__, mId, fd);
-
-    pthread_mutex_lock(&mMutex);
+    ATRACE_CALL();
+    android::Mutex::Autolock al(mDeviceLock);
 
     fdprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
 
@@ -505,8 +489,6 @@ void Camera::dump(int fd)
         fdprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
         mStreams[i]->dump(fd);
     }
-
-    pthread_mutex_unlock(&mMutex);
 }
 
 const char* Camera::templateToString(int type)
@@ -529,26 +511,26 @@ const char* Camera::templateToString(int type)
 
 int Camera::setTemplate(int type, camera_metadata_t *settings)
 {
+    android::Mutex::Autolock al(mDeviceLock);
+
     if (!isValidTemplateType(type)) {
         ALOGE("%s:%d: Invalid template request type: %d", __func__, mId, type);
         return -EINVAL;
     }
-    pthread_mutex_lock(&mMutex);
+
     if (mTemplates[type] != NULL) {
         ALOGE("%s:%d: Setting already constructed template type %s(%d)",
                 __func__, mId, templateToString(type), type);
-        pthread_mutex_unlock(&mMutex);
         return -EINVAL;
     }
+
     // Make a durable copy of the underlying metadata
     mTemplates[type] = clone_camera_metadata(settings);
     if (mTemplates[type] == NULL) {
         ALOGE("%s:%d: Failed to clone metadata %p for template type %s(%d)",
                 __func__, mId, settings, templateToString(type), type);
-        pthread_mutex_unlock(&mMutex);
         return -EINVAL;
     }
-    pthread_mutex_unlock(&mMutex);
     return 0;
 }
 
