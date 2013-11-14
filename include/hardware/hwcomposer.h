@@ -315,8 +315,8 @@ typedef struct hwc_display_contents_1 {
             hwc_surface_t sur;
         };
 
-        /* WARNING: These fields are for experimental virtual display support,
-         * and are not currently used. */
+        /* These fields are used for virtual displays when the h/w composer
+         * version is at least HWC_DEVICE_VERSION_1_3. */
         struct {
             /* outbuf is the buffer that receives the composed image for
              * virtual displays. Writes to the outbuf must wait until
@@ -324,14 +324,28 @@ typedef struct hwc_display_contents_1 {
              * writes to outbuf are complete should be returned in
              * retireFenceFd.
              *
-             * This field will not be updated until after prepare(). If
-             * prepare() sets all non-FB layers to OVERLAY or sets all non-FB
-             * layers to FRAMEBUFFER, then the FRAMEBUFFER_TARGET buffer and
-             * the output buffer may be the same. In mixed OVERLAY/FRAMEBUFFER
-             * configurations they will have different buffers so the
-             * h/w composer does not have to read and write the same buffer.
+             * This field is set before prepare(), so properties of the buffer
+             * can be used to decide which layers can be handled by h/w
+             * composer.
              *
-             * For physical displays, outbuf will be NULL.
+             * If prepare() sets all layers to FRAMEBUFFER, then GLES
+             * composition will happen directly to the output buffer. In this
+             * case, both outbuf and the FRAMEBUFFER_TARGET layer's buffer will
+             * be the same, and set() has no work to do besides managing fences.
+             *
+             * If the TARGET_FORCE_HWC_FOR_VIRTUAL_DISPLAYS board config
+             * variable is defined (not the default), then this behavior is
+             * changed: if all layers are marked for FRAMEBUFFER, GLES
+             * composition will take place to a scratch framebuffer, and
+             * h/w composer must copy it to the output buffer. This allows the
+             * h/w composer to do format conversion if there are cases where
+             * that is more desirable than doing it in the GLES driver or at the
+             * virtual display consumer.
+             *
+             * If some or all layers are marked OVERLAY, then the framebuffer
+             * and output buffer will be different. As with physical displays,
+             * the framebuffer handle will not change between frames if all
+             * layers are marked for OVERLAY.
              */
             buffer_handle_t outbuf;
 
