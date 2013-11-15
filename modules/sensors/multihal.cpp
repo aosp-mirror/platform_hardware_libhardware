@@ -21,7 +21,6 @@
 #include <math.h>
 #include <poll.h>
 #include <pthread.h>
-#include <linux/input.h>
 #include <cutils/atomic.h>
 
 #define LOG_NDEBUG 1
