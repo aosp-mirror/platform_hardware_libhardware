@@ -67,6 +67,13 @@ __BEGIN_DECLS
  *   framework from the camera HAL module, which is used to notify the framework
  *   about changes to the camera module state. Modules that provide a valid
  *   set_callbacks() method must report at least this version number.
+ *
+ *******************************************************************************
+ * Version: 2.2 [CAMERA_MODULE_API_VERSION_2_2]
+ *
+ *   This camera module version adds vendor tag support from the module, and
+ *   deprecates the old vendor_tag_query_ops that were previously only
+ *   accessible with a device open.
  */
 
 /**
@@ -80,8 +87,9 @@ __BEGIN_DECLS
 #define CAMERA_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
 #define CAMERA_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
 #define CAMERA_MODULE_API_VERSION_2_1 HARDWARE_MODULE_API_VERSION(2, 1)
+#define CAMERA_MODULE_API_VERSION_2_2 HARDWARE_MODULE_API_VERSION(2, 2)
 
-#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_1
+#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_2
 
 /**
  * All device versions <= HARDWARE_DEVICE_API_VERSION(1, 0xFF) must be treated
@@ -91,6 +99,7 @@ __BEGIN_DECLS
 #define CAMERA_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
 #define CAMERA_DEVICE_API_VERSION_2_1 HARDWARE_DEVICE_API_VERSION(2, 1)
 #define CAMERA_DEVICE_API_VERSION_3_0 HARDWARE_DEVICE_API_VERSION(3, 0)
+#define CAMERA_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
 
 // Device version 2.x is outdated; device version 3.0 is experimental
 #define CAMERA_DEVICE_API_VERSION_CURRENT CAMERA_DEVICE_API_VERSION_1_0
@@ -242,6 +251,65 @@ typedef struct camera_module_callbacks {
 
 } camera_module_callbacks_t;
 
+/**
+ * Set up vendor-specific tag query methods. These are needed to properly query
+ * entries with vendor-specified tags, potentially returned by get_camera_info.
+ *
+ * This should be used in place of vendor_tag_query_ops, which are deprecated.
+ */
+typedef struct vendor_tag_ops vendor_tag_ops_t;
+struct vendor_tag_ops {
+    /**
+     * Get the number of vendor tags supported on this platform. Used to
+     * calculate the size of buffer needed for holding the array of all tags
+     * returned by get_all_tags().
+     */
+    int (*get_tag_count)(const vendor_tag_ops_t *v);
+
+    /**
+     * Fill an array with all the supported vendor tags on this platform.
+     * get_tag_count() returns the number of tags supported, and
+     * tag_array will be allocated with enough space to hold all of the tags.
+     */
+    void (*get_all_tags)(const vendor_tag_ops_t *v, uint32_t *tag_array);
+
+    /**
+     * Get vendor section name for a vendor-specified entry tag. Only called for
+     * vendor-defined tags. The section name must start with the name of the
+     * vendor in the Java package style. For example, CameraZoom Inc. must
+     * prefix their sections with "com.camerazoom." Must return NULL if the tag
+     * is outside the bounds of vendor-defined sections.
+     *
+     * There may be different vendor-defined tag sections, for example the
+     * phone maker, the chipset maker, and the camera module maker may each
+     * have their own "com.vendor."-prefixed section.
+     *
+     * The memory pointed to by the return value must remain valid for the
+     * lifetime that the module is loaded, and is owned by the module.
+     */
+    const char *(*get_section_name)(const vendor_tag_ops_t *v, uint32_t tag);
+
+    /**
+     * Get tag name for a vendor-specified entry tag. Only called for
+     * vendor-defined tags. Must return NULL if the it is not a vendor-defined
+     * tag.
+     *
+     * The memory pointed to by the return value must remain valid for the
+     * lifetime that the module is loaded, and is owned by the module.
+     */
+    const char *(*get_tag_name)(const vendor_tag_ops_t *v, uint32_t tag);
+
+    /**
+     * Get tag type for a vendor-specified entry tag. Only called for tags >=
+     * 0x80000000. Must return -1 if the tag is outside the bounds of
+     * vendor-defined sections.
+     */
+    int (*get_tag_type)(const vendor_tag_ops_t *v, uint32_t tag);
+
+    /* reserved for future use */
+    void* reserved[8];
+};
+
 typedef struct camera_module {
     hw_module_t common;
 
@@ -290,6 +358,25 @@ typedef struct camera_module {
      */
     int (*set_callbacks)(const camera_module_callbacks_t *callbacks);
 
+    /**
+     * get_vendor_tag_ops:
+     *
+     * Get methods to query for vendor extension metadata tag information. The
+     * HAL should fill in all the vendor tag operation methods, or leave ops
+     * unchanged if no vendor tags are defined.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     *  CAMERA_MODULE_API_VERSION_1_x/2_0/2_1:
+     *    Not provided by HAL module. Framework may not call this function.
+     *
+     *  CAMERA_MODULE_API_VERSION_2_2:
+     *    Valid to be called by the framework.
+     */
+    void (*get_vendor_tag_ops)(vendor_tag_ops_t* ops);
+
+    /* reserved for future use */
+    void* reserved[8];
 } camera_module_t;
 
 __END_DECLS

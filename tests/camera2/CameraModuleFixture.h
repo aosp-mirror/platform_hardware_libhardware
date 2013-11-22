@@ -22,8 +22,9 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
-#include "Camera2Device.h"
-#include "Camera3Device.h"
+#include <device2/Camera2Device.h>
+#include <device3/Camera3Device.h>
+
 #include "camera2_utils.h"
 #include "TestExtensions.h"
 

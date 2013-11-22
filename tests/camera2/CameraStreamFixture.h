@@ -19,6 +19,7 @@
 
 #include <gtest/gtest.h>
 #include <iostream>
+#include <fstream>
 
 #include <gui/CpuConsumer.h>
 #include <gui/Surface.h>
@@ -28,6 +29,8 @@
 
 #include "CameraModuleFixture.h"
 #include "TestExtensions.h"
+
+#define ALIGN(x, mask) ( ((x) + (mask) - 1) & ~((mask) - 1) )
 
 namespace android {
 namespace camera2 {
@@ -90,7 +93,6 @@ private:
 
         CameraModuleFixture::SetUp();
 
-        CameraStreamParams p = mParam;
         sp<CameraDeviceBase> device = mDevice;
 
         /* use an arbitrary w,h */
@@ -159,11 +161,11 @@ protected:
         sp<CameraDeviceBase> device = mDevice;
         CameraStreamParams p = mParam;
 
-        mCpuConsumer = new CpuConsumer(p.mHeapCount);
+        sp<BufferQueue> bq = new BufferQueue();
+        mCpuConsumer = new CpuConsumer(bq, p.mHeapCount);
         mCpuConsumer->setName(String8("CameraStreamTest::mCpuConsumer"));
 
-        mNativeWindow = new Surface(
-            mCpuConsumer->getProducerInterface());
+        mNativeWindow = new Surface(bq);
 
         int format = MapAutoFormat(p.mFormat);
 
@@ -192,6 +194,80 @@ protected:
             }
         }
         return format;
+    }
+
+    void DumpYuvToFile(const String8 &fileName, const CpuConsumer::LockedBuffer &img) {
+        uint8_t *dataCb, *dataCr;
+        uint32_t stride;
+        uint32_t chromaStride;
+        uint32_t chromaStep;
+
+        switch (img.format) {
+            case HAL_PIXEL_FORMAT_YCbCr_420_888:
+                stride = img.stride;
+                chromaStride = img.chromaStride;
+                chromaStep = img.chromaStep;
+                dataCb = img.dataCb;
+                dataCr = img.dataCr;
+                break;
+            case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+                stride = img.width;
+                chromaStride = img.width;
+                chromaStep = 2;
+                dataCr = img.data + img.width * img.height;
+                dataCb = dataCr + 1;
+                break;
+            case HAL_PIXEL_FORMAT_YV12:
+                stride = img.stride;
+                chromaStride = ALIGN(img.width / 2, 16);
+                chromaStep = 1;
+                dataCr = img.data + img.stride * img.height;
+                dataCb = dataCr + chromaStride * img.height/2;
+                break;
+            default:
+                ALOGE("Unknown format %d, not dumping", img.format);
+                return;
+        }
+
+        // Write Y
+        FILE *yuvFile = fopen(fileName.string(), "w");
+
+        size_t bytes;
+
+        for (size_t y = 0; y < img.height; ++y) {
+            bytes = fwrite(
+                reinterpret_cast<const char*>(img.data + stride * y),
+                1, img.width, yuvFile);
+            if (bytes != img.width) {
+                ALOGE("Unable to write to file %s", fileName.string());
+                fclose(yuvFile);
+                return;
+            }
+        }
+
+        // Write Cb/Cr
+        uint8_t *src = dataCb;
+        for (int c = 0; c < 2; ++c) {
+            for (size_t y = 0; y < img.height / 2; ++y) {
+                uint8_t *px = src + y * chromaStride;
+                if (chromaStep != 1) {
+                    for (size_t x = 0; x < img.width / 2; ++x) {
+                        fputc(*px, yuvFile);
+                        px += chromaStep;
+                    }
+                } else {
+                    bytes = fwrite(reinterpret_cast<const char*>(px),
+                            1, img.width / 2, yuvFile);
+                    if (bytes != img.width / 2) {
+                        ALOGE("Unable to write to file %s", fileName.string());
+                        fclose(yuvFile);
+                        return;
+                    }
+                }
+            }
+            src = dataCr;
+        }
+        fclose(yuvFile);
     }
 
     int mWidth;

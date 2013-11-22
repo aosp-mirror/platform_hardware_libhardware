@@ -104,6 +104,9 @@ enum {
     /* mask for the software usage bit-mask */
     GRALLOC_USAGE_HW_MASK               = 0x00071F00,
 
+    /* buffer will be used as a RenderScript Allocation */
+    GRALLOC_USAGE_RENDERSCRIPT          = 0x00100000,
+
     /* buffer should be displayed full-screen on an external display when
      * possible
      */

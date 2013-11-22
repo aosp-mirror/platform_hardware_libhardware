@@ -210,7 +210,6 @@ int MetadataQueue::consumer_dequeue(const camera2_request_queue_src_ops_t *q,
 
 int MetadataQueue::consumer_free(const camera2_request_queue_src_ops_t *q,
         camera_metadata_t *old_buffer) {
-    MetadataQueue *queue = getInstance(q);
     free_camera_metadata(old_buffer);
     return OK;
 }

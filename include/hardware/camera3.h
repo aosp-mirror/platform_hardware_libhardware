@@ -21,17 +21,17 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.0 [ CAMERA_DEVICE_API_VERSION_3_0 ]
+ * Camera device HAL 3.1 [ CAMERA_DEVICE_API_VERSION_3_1 ]
  *
  * EXPERIMENTAL.
  *
  * Supports the android.hardware.Camera API.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_0 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_1 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
  *
- * Camera modules that may contain version 3.0 devices must implement at least
+ * Camera modules that may contain version 3.1 devices must implement at least
  * version 2.0 of the camera module interface (as defined by
  * camera_module_t.common.module_api_version).
  *
@@ -82,6 +82,12 @@
  *     management. Bidirectional streams replace STREAM_FROM_STREAM construct.
  *
  *   - Limited mode semantics for older/limited hardware devices.
+ *
+ * 3.1: Minor revision of expanded-capability HAL:
+ *
+ *   - configure_streams passes consumer usage flags to the HAL.
+ *
+ *   - flush call to drop all in-flight requests/buffers as fast as possible.
  */
 
 /**
@@ -392,6 +398,10 @@
  *        well focused. The lens is not moving. The HAL may spontaneously leave
  *        this state.
  *
+ *     AF_STATE_PASSIVE_UNFOCUSED: A continuous focus algorithm believes it is
+ *        not well focused. The lens is not moving. The HAL may spontaneously
+ *        leave this state.
+ *
  *     AF_STATE_ACTIVE_SCAN: A scan triggered by the user is underway.
  *
  *     AF_STATE_FOCUSED_LOCKED: The AF algorithm believes it is focused. The
@@ -565,10 +575,16 @@
  *
  * S4.5. AF state machines
  *
+ *                       when enabling AF or changing AF mode
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| Any                | AF mode change| INACTIVE           |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
  *                            mode = AF_MODE_OFF or AF_MODE_EDOF
  *| state              | trans. cause  | new state          | notes            |
  *+--------------------+---------------+--------------------+------------------+
- *| INACTIVE           |               |                    | AF is disabled   |
+ *| INACTIVE           |               | INACTIVE           | Never changes    |
  *+--------------------+---------------+--------------------+------------------+
  *
  *                            mode = AF_MODE_AUTO or AF_MODE_MACRO
@@ -611,6 +627,9 @@
  *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
  *|                    | current scan  |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL fails     | PASSIVE_UNFOCUSED  | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
  *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
@@ -626,12 +645,13 @@
  *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
  *|                    | new scan      |                    | Lens now moving  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_UNFOCUSED  | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
- *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
- *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
- *|                    |               |                    | if focus is bad  |
+ *| PASSIVE_UNFOCUSED  | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
  *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
@@ -655,6 +675,9 @@
  *| PASSIVE_SCAN       | HAL completes | PASSIVE_FOCUSED    | End AF scan      |
  *|                    | current scan  |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_SCAN       | HAL fails     | PASSIVE_UNFOCUSED  | End AF scan      |
+ *|                    | current scan  |                    | Lens now locked  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_SCAN       | AF_TRIGGER    | FOCUSED_LOCKED     | Eventual trans.  |
  *|                    |               |                    | once focus good  |
  *|                    |               |                    | Lens now locked  |
@@ -670,12 +693,13 @@
  *| PASSIVE_FOCUSED    | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
  *|                    | new scan      |                    | Lens now moving  |
  *+--------------------+---------------+--------------------+------------------+
+ *| PASSIVE_UNFOCUSED  | HAL initiates | PASSIVE_SCAN       | Start AF scan    |
+ *|                    | new scan      |                    | Lens now moving  |
+ *+--------------------+---------------+--------------------+------------------+
  *| PASSIVE_FOCUSED    | AF_TRIGGER    | FOCUSED_LOCKED     | Immediate trans. |
- *|                    |               |                    | if focus is good |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
- *| PASSIVE_FOCUSED    | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
- *|                    |               |                    | if focus is bad  |
+ *| PASSIVE_UNFOCUSED  | AF_TRIGGER    | NOT_FOCUSED_LOCKED | Immediate trans. |
  *|                    |               |                    | Lens now locked  |
  *+--------------------+---------------+--------------------+------------------+
  *| FOCUSED_LOCKED     | AF_TRIGGER    | FOCUSED_LOCKED     | No effect        |
@@ -693,10 +717,16 @@
  *   FLASH_REQUIRED and PRECAPTURE states. So rows below that refer to those two
  *   states should be ignored for the AWB state machine.
  *
+ *                  when enabling AE/AWB or changing AE/AWB mode
+ *| state              | trans. cause  | new state          | notes            |
+ *+--------------------+---------------+--------------------+------------------+
+ *| Any                |  mode change  | INACTIVE           |                  |
+ *+--------------------+---------------+--------------------+------------------+
+ *
  *                            mode = AE_MODE_OFF / AWB mode not AUTO
  *| state              | trans. cause  | new state          | notes            |
  *+--------------------+---------------+--------------------+------------------+
- *| INACTIVE           |               |                    | AE/AWB disabled  |
+ *| INACTIVE           |               | INACTIVE           | AE/AWB disabled  |
  *+--------------------+---------------+--------------------+------------------+
  *
  *                            mode = AE_MODE_ON_* / AWB_MODE_AUTO
@@ -1041,6 +1071,9 @@ typedef enum camera3_stream_type {
  * remain valid as if configure_streams() had not been called.
  *
  * The endpoint of the stream is not visible to the camera HAL device.
+ * In DEVICE_API_VERSION_3_1, this was changed to share consumer usage flags
+ * on streams where the camera is a producer (OUTPUT and BIDIRECTIONAL stream
+ * types) see the usage field below.
  */
 typedef struct camera3_stream {
 
@@ -1092,6 +1125,25 @@ typedef struct camera3_stream {
      * the producer and the consumer will be combined together and then passed
      * to the platform gralloc HAL module for allocating the gralloc buffers for
      * each stream.
+     *
+     * Version information:
+     *
+     * == CAMERA_DEVICE_API_VERSION_3_0:
+     *
+     *   No initial value guaranteed when passed via configure_streams().
+     *   HAL may not use this field as input, and must write over this field
+     *   with its usage flags.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_1:
+     *
+     *   For stream_type OUTPUT and BIDIRECTIONAL, when passed via
+     *   configure_streams(), the initial value of this is the consumer's
+     *   usage flags.  The HAL may use these consumer flags to decide stream
+     *   configuration.
+     *   For stream_type INPUT, when passed via configure_streams(), the initial
+     *   value of this is 0.
+     *   For all streams passed via configure_streams(), the HAL must write
+     *   over this field with its usage flags.
      */
     uint32_t usage;
 
@@ -2035,6 +2087,49 @@ typedef struct camera3_device_ops {
      */
     void (*dump)(const struct camera3_device *, int fd);
 
+    /**
+     * flush:
+     *
+     * Flush all currently in-process captures and all buffers in the pipeline
+     * on the given device. The framework will use this to dump all state as
+     * quickly as possible in order to prepare for a configure_streams() call.
+     *
+     * No buffers are required to be successfully returned, so every buffer
+     * held at the time of flush() (whether sucessfully filled or not) may be
+     * returned with CAMERA3_BUFFER_STATUS_ERROR. Note the HAL is still allowed
+     * to return valid (STATUS_OK) buffers during this call, provided they are
+     * succesfully filled.
+     *
+     * All requests currently in the HAL are expected to be returned as soon as
+     * possible.  Not-in-process requests should return errors immediately. Any
+     * interruptible hardware blocks should be stopped, and any uninterruptible
+     * blocks should be waited on.
+     *
+     * flush() should only return when there are no more outstanding buffers or
+     * requests left in the HAL.  The framework may call configure_streams (as
+     * the HAL state is now quiesced) or may issue new requests.
+     *
+     * A flush() call should only take 100ms or less. The maximum time it can
+     * take is 1 second.
+     *
+     * Version information:
+     *
+     *   only available if device version >= CAMERA_DEVICE_API_VERSION_3_1.
+     *
+     * Return values:
+     *
+     *  0:      On a successful flush of the camera HAL.
+     *
+     * -EINVAL: If the input is malformed (the device is not valid).
+     *
+     * -ENODEV: If the camera device has encountered a serious error. After this
+     *          error is returned, only the close() method can be successfully
+     *          called by the framework.
+     */
+    int (*flush)(const struct camera3_device *);
+
+    /* reserved for future use */
+    void *reserved[8];
 } camera3_device_ops_t;
 
 /**********************************************************************

@@ -54,6 +54,13 @@ typedef struct hwc_rect {
     int bottom;
 } hwc_rect_t;
 
+typedef struct hwc_frect {
+    float left;
+    float top;
+    float right;
+    float bottom;
+} hwc_frect_t;
+
 typedef struct hwc_region {
     size_t numRects;
     hwc_rect_t const* rects;
@@ -149,8 +156,17 @@ typedef struct hwc_layer_1 {
             int32_t blending;
 
             /* area of the source to consider, the origin is the top-left corner of
-             * the buffer */
-            hwc_rect_t sourceCrop;
+             * the buffer. As of HWC_DEVICE_API_VERSION_1_3, sourceRect uses floats.
+             * If the h/w can't support a non-integer source crop rectangle, it should
+             * punt to OpenGL ES composition.
+             */
+            union {
+                // crop rectangle in integer (pre HWC_DEVICE_API_VERSION_1_3)
+                hwc_rect_t sourceCropi;
+                hwc_rect_t sourceCrop; // just for source compatibility
+                // crop rectangle in floats (as of HWC_DEVICE_API_VERSION_1_3)
+                hwc_frect_t sourceCropf;
+            };
 
             /* where to composite the sourceCrop onto the display. The sourceCrop
              * is scaled using linear filtering to the displayFrame. The origin is the
@@ -433,12 +449,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * In a future version, numDisplays may be larger than
-     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
-     * displays, and will be non-NULL.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * returns: 0 on success. An negative error code on error. If an error is
      * returned, SurfaceFlinger will assume that none of the layer will be
@@ -466,12 +482,12 @@ typedef struct hwc_composer_device_1 {
      * For HWC 1.0, numDisplays will always be one, and displays[0] will be
      * non-NULL.
      *
-     * For HWC 1.1, numDisplays will always be HWC_NUM_DISPLAY_TYPES. Entries
-     * for unsupported or disabled/disconnected display types will be NULL.
+     * For HWC 1.1, numDisplays will always be HWC_NUM_PHYSICAL_DISPLAY_TYPES.
+     * Entries for unsupported or disabled/disconnected display types will be
+     * NULL.
      *
-     * In a future version, numDisplays may be larger than
-     * HWC_NUM_DISPLAY_TYPES. The extra entries correspond to enabled virtual
-     * displays, and will be non-NULL.
+     * In HWC 1.3, numDisplays may be up to HWC_NUM_DISPLAY_TYPES. The extra
+     * entries correspond to enabled virtual displays, and will be non-NULL.
      *
      * IMPORTANT NOTE: There is an implicit layer containing opaque black
      * pixels behind all the layers in the list. It is the responsibility of

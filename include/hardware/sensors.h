@@ -32,6 +32,7 @@ __BEGIN_DECLS
 #define SENSORS_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 #define SENSORS_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, SENSORS_HEADER_VERSION)
+#define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
 
 /**
  * The id of this module
@@ -62,6 +63,15 @@ __BEGIN_DECLS
 enum {
     SENSORS_BATCH_DRY_RUN               = 0x00000001,
     SENSORS_BATCH_WAKE_UPON_FIFO_FULL   = 0x00000002
+};
+
+/*
+ * what field for meta_data_event_t
+ */
+enum {
+    /* a previous flush operation has completed */
+    META_DATA_FLUSH_COMPLETE = 1,
+    META_DATA_VERSION   /* always last, leave auto-assigned */
 };
 
 /**
@@ -132,7 +142,18 @@ enum {
  *
  * Each sensor has a type which defines what this sensor measures and how
  * measures are reported. All types are defined below.
+ *
+ * Device manufacturers (OEMs) can define their own sensor types, for
+ * their private use by applications or services provided by them. Such
+ * sensor types are specific to an OEM and can't be exposed in the SDK.
+ * These types must start at SENSOR_TYPE_DEVICE_PRIVATE_BASE.
  */
+
+/*
+ * Base for device manufacturers private sensor types.
+ * These sensor types can't be exposed in the SDK.
+ */
+#define SENSOR_TYPE_DEVICE_PRIVATE_BASE     0x10000
 
 /*
  * Sensor fusion and virtual sensors
@@ -173,6 +194,40 @@ enum {
  * special:    see details in the sensor type specification below
  *
  */
+
+
+/*
+ * SENSOR_TYPE_META_DATA
+ * trigger-mode: n/a
+ * wake-up sensor: n/a
+ *
+ * NO SENSOR OF THAT TYPE MUST BE RETURNED (*get_sensors_list)()
+ *
+ * SENSOR_TYPE_META_DATA is a special token used to populate the
+ * sensors_meta_data_event structure. It doesn't correspond to a physical
+ * sensor. sensors_meta_data_event are special, they exist only inside
+ * the HAL and are generated spontaneously, as opposed to be related to
+ * a physical sensor.
+ *
+ *   sensors_meta_data_event_t.version must be META_DATA_VERSION
+ *   sensors_meta_data_event_t.sensor must be 0
+ *   sensors_meta_data_event_t.type must be SENSOR_TYPE_META_DATA
+ *   sensors_meta_data_event_t.reserved must be 0
+ *   sensors_meta_data_event_t.timestamp must be 0
+ *
+ * The payload is a meta_data_event_t, where:
+ * meta_data_event_t.what can take the following values:
+ *
+ * META_DATA_FLUSH_COMPLETE
+ *   This event indicates that a previous (*flush)() call has completed for the sensor
+ *   handle specified in meta_data_event_t.sensor.
+ *   see (*flush)() for more details
+ *
+ * All other values for meta_data_event_t.what are reserved and
+ * must not be used.
+ *
+ */
+#define SENSOR_TYPE_META_DATA                           (0)
 
 /*
  * SENSOR_TYPE_ACCELEROMETER
@@ -451,6 +506,9 @@ enum {
  *  SENSOR_TYPE_MAGNETIC_FIELD must be present and both must return the
  *  same sensor_t::name and sensor_t::vendor.
  *
+ *  Minimum filtering should be applied to this sensor. In particular, low pass
+ *  filters should be avoided.
+ *
  * See SENSOR_TYPE_MAGNETIC_FIELD for more information
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
@@ -608,7 +666,7 @@ enum {
  *
  * A sensor of this type returns the number of steps taken by the user since
  * the last reboot while activated. The value is returned as a uint64_t and is
- * reset to zero only on a system reboot.
+ * reset to zero only on a system / android reboot.
  *
  * The timestamp of the event is set to the time when the first step
  * for that event was taken.
@@ -662,7 +720,9 @@ enum {
  *  of using a gyroscope.
  *
  *  This sensor must be based on a magnetometer. It cannot be implemented using
- *  a gyroscope, and gyroscope input cannot be used by this sensor.
+ *  a gyroscope, and gyroscope input cannot be used by this sensor, as the
+ *  goal of this sensor is to be low power.
+ *  The accelerometer can be (and usually is) used.
  *
  *  Just like SENSOR_TYPE_ROTATION_VECTOR, this sensor reports an estimated
  *  heading accuracy:
@@ -740,6 +800,11 @@ typedef struct {
   };
 } uncalibrated_event_t;
 
+typedef struct meta_data_event {
+    int32_t what;
+    int32_t sensor;
+} meta_data_event_t;
+
 /**
  * Union of the various types of sensor data
  * that can be returned.
@@ -761,47 +826,62 @@ typedef struct sensors_event_t {
     int64_t timestamp;
 
     union {
-        float           data[16];
+        union {
+            float           data[16];
 
-        /* acceleration values are in meter per second per second (m/s^2) */
-        sensors_vec_t   acceleration;
+            /* acceleration values are in meter per second per second (m/s^2) */
+            sensors_vec_t   acceleration;
 
-        /* magnetic vector values are in micro-Tesla (uT) */
-        sensors_vec_t   magnetic;
+            /* magnetic vector values are in micro-Tesla (uT) */
+            sensors_vec_t   magnetic;
 
-        /* orientation values are in degrees */
-        sensors_vec_t   orientation;
+            /* orientation values are in degrees */
+            sensors_vec_t   orientation;
 
-        /* gyroscope values are in rad/s */
-        sensors_vec_t   gyro;
+            /* gyroscope values are in rad/s */
+            sensors_vec_t   gyro;
 
-        /* temperature is in degrees centigrade (Celsius) */
-        float           temperature;
+            /* temperature is in degrees centigrade (Celsius) */
+            float           temperature;
 
-        /* distance in centimeters */
-        float           distance;
+            /* distance in centimeters */
+            float           distance;
 
-        /* light in SI lux units */
-        float           light;
+            /* light in SI lux units */
+            float           light;
 
-        /* pressure in hectopascal (hPa) */
-        float           pressure;
+            /* pressure in hectopascal (hPa) */
+            float           pressure;
 
-        /* relative humidity in percent */
-        float           relative_humidity;
+            /* relative humidity in percent */
+            float           relative_humidity;
 
-        /* step-counter */
-        uint64_t        step_counter;
+            /* uncalibrated gyroscope values are in rad/s */
+            uncalibrated_event_t uncalibrated_gyro;
 
-        /* uncalibrated gyroscope values are in rad/s */
-        uncalibrated_event_t uncalibrated_gyro;
+            /* uncalibrated magnetometer values are in micro-Teslas */
+            uncalibrated_event_t uncalibrated_magnetic;
 
-        /* uncalibrated magnetometer values are in micro-Teslas */
-        uncalibrated_event_t uncalibrated_magnetic;
+            /* this is a special event. see SENSOR_TYPE_META_DATA above.
+             * sensors_meta_data_event_t events are all reported with a type of
+             * SENSOR_TYPE_META_DATA. The handle is ignored and must be zero.
+             */
+            meta_data_event_t meta_data;
+        };
+
+        union {
+            uint64_t        data[8];
+
+            /* step-counter */
+            uint64_t        step_counter;
+        } u64;
     };
-    uint32_t        reserved1[4];
+    uint32_t reserved1[4];
 } sensors_event_t;
 
+
+/* see SENSOR_TYPE_META_DATA */
+typedef sensors_event_t sensors_meta_data_event_t;
 
 
 struct sensor_t;
@@ -865,8 +945,21 @@ struct sensor_t {
      */
     int32_t         minDelay;
 
+    /* number of events reserved for this sensor in the batch mode FIFO.
+     * If there is a dedicated FIFO for this sensor, then this is the
+     * size of this FIFO. If the FIFO is shared with other sensors,
+     * this is the size reserved for that sensor and it can be zero.
+     */
+    uint32_t        fifoReservedEventCount;
+
+    /* maximum number of events of this sensor that could be batched.
+     * This is especially relevant when the FIFO is shared between
+     * several sensors; this value is then set to the size of that FIFO.
+     */
+    uint32_t        fifoMaxEventCount;
+
     /* reserved fields, must be zero */
-    void*           reserved[8];
+    void*           reserved[6];
 };
 
 
@@ -903,6 +996,10 @@ typedef struct sensors_poll_device_1 {
              * handle is the handle of the sensor to change.
              * enabled set to 1 to enable, or 0 to disable the sensor.
              *
+             * if enabled is set to 1, the sensor is activated even if
+             * setDelay() wasn't called before. In this case, a default rate
+             * should be used.
+             *
              * unless otherwise noted in the sensor types definitions, an
              * activated sensor never prevents the SoC to go into suspend
              * mode; that is, the HAL shall not hold a partial wake-lock on
@@ -912,10 +1009,10 @@ typedef struct sensors_poll_device_1 {
              * receiving an event and they must still accept to be deactivated
              * through a call to activate(..., ..., 0).
              *
-             * if "enabled" is true and the sensor is already activated, this
+             * if "enabled" is 1 and the sensor is already activated, this
              * function is a no-op and succeeds.
              *
-             * if "enabled" is false and the sensor is already de-activated,
+             * if "enabled" is 0 and the sensor is already de-activated,
              * this function is a no-op and succeeds.
              *
              * return 0 on success, negative errno code otherwise
@@ -938,6 +1035,9 @@ typedef struct sensors_poll_device_1 {
              * less than sensor_t::minDelay, then it's silently clamped to
              * sensor_t::minDelay unless sensor_t::minDelay is 0, in which
              * case it is clamped to >= 1ms.
+             *
+             * setDelay will not be called when the sensor is in batching mode.
+             * In this case, batch() will be called with the new period.
              *
              * @return 0 if successful, < 0 on error
              */
@@ -1068,19 +1168,30 @@ typedef struct sensors_poll_device_1 {
      * if a batch call with SENSORS_BATCH_DRY_RUN is successful,
      * the same call without SENSORS_BATCH_DRY_RUN must succeed as well).
      *
-     * If successful, 0 is returned.
-     * If the specified sensor doesn't support batch mode, -EINVAL is returned.
-     * If the specified sensor's trigger-mode is one-shot, -EINVAL is returned.
-     * If WAKE_UPON_FIFO_FULL is specified and the specified sensor's internal
-     * FIFO is too small to store at least 10 seconds worth of data at the
-     * given rate, -EINVAL is returned. Note that as stated above, this has to
-     * be determined at compile time, and not based on the state of the system.
-     * If some other constraints above cannot be satisfied, -EINVAL is returned.
+     * When timeout is not 0:
+     *   If successful, 0 is returned.
+     *   If the specified sensor doesn't support batch mode, return -EINVAL.
+     *   If the specified sensor's trigger-mode is one-shot, return -EINVAL.
+     *   If WAKE_UPON_FIFO_FULL is specified and the specified sensor's internal
+     *   FIFO is too small to store at least 10 seconds worth of data at the
+     *   given rate, -EINVAL is returned. Note that as stated above, this has to
+     *   be determined at compile time, and not based on the state of the
+     *   system.
+     *   If some other constraints above cannot be satisfied, return -EINVAL.
      *
      * Note: the timeout parameter, when > 0, has no impact on whether this
      *       function succeeds or fails.
      *
-     * If timeout is set to 0, this function must succeed.
+     * When timeout is 0:
+     *   The caller will never set the wake_upon_fifo_full flag.
+     *   The function must succeed, and batch mode must be deactivated.
+     *
+     * Independently of whether DRY_RUN is specified, When the call to batch()
+     * fails, no state should be changed. In particular, a failed call to
+     * batch() should not change the rate of the sensor. Example:
+     *   setDelay(..., 10ms)
+     *   batch(..., 20ms, ...) fails
+     *   rate should stay 10ms.
      *
      *
      * IMPLEMENTATION NOTES:
@@ -1149,6 +1260,35 @@ typedef struct sensors_poll_device_1 {
      */
     int (*batch)(struct sensors_poll_device_1* dev,
             int handle, int flags, int64_t period_ns, int64_t timeout);
+
+    /*
+     * Flush adds a META_DATA_FLUSH_COMPLETE event (sensors_event_meta_data_t)
+     * to the end of the "batch mode" FIFO for the specified sensor and flushes
+     * the FIFO; those events are delivered as usual (i.e.: as if the batch
+     * timeout had expired) and removed from the FIFO.
+     *
+     * See the META_DATA_FLUSH_COMPLETE section for details about the
+     * META_DATA_FLUSH_COMPLETE event.
+     *
+     * The flush happens asynchronously (i.e.: this function must return
+     * immediately).
+     *
+     * If the implementation uses a single FIFO for several sensors, that
+     * FIFO is flushed and the META_DATA_FLUSH_COMPLETE event is added only
+     * for the specified sensor.
+     *
+     * If the specified sensor wasn't in batch mode, flush succeeds and
+     * promptly sends a META_DATA_FLUSH_COMPLETE event for that sensor.
+     *
+     * If the FIFO was empty at the time of the call, flush returns
+     * 0 (success) and promptly sends a META_DATA_FLUSH_COMPLETE event
+     * for that sensor.
+     *
+     * If the specified sensor wasn't enabled, flush returns -EINVAL.
+     *
+     * return 0 on success, negative errno code otherwise.
+     */
+    int (*flush)(struct sensors_poll_device_1* dev, int handle);
 
     void (*reserved_procs[8])(void);
 
