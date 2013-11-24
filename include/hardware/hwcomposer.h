@@ -262,7 +262,7 @@ typedef struct hwc_layer_1 {
     };
 
     /* Allow for expansion w/o breaking binary compatibility.
-     * Pad layer to 96 bytes, assuming 32-bit pointers.
+     * Pad layer to 96 bytes.
      */
     int32_t reserved[24 - 19];
 

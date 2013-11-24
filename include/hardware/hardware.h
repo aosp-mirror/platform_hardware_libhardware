@@ -144,8 +144,12 @@ typedef struct hw_module_t {
     /** module's dso */
     void* dso;
 
+#ifdef __LP64__
+    uint64_t reserved[32-7];
+#else
     /** padding to 128 bytes, reserved for future use */
     uint32_t reserved[32-7];
+#endif
 
 } hw_module_t;
 
@@ -186,7 +190,11 @@ typedef struct hw_device_t {
     struct hw_module_t* module;
 
     /** padding reserved for future use */
+#ifdef __LP64__
+    uint64_t reserved[12];
+#else
     uint32_t reserved[12];
+#endif
 
     /** Close this device */
     int (*close)(struct hw_device_t* device);
