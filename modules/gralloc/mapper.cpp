@@ -82,10 +82,6 @@ static int gralloc_unmap(gralloc_module_t const* module,
 
 /*****************************************************************************/
 
-static pthread_mutex_t sMapLock = PTHREAD_MUTEX_INITIALIZER;
-
-/*****************************************************************************/
-
 int gralloc_register_buffer(gralloc_module_t const* module,
         buffer_handle_t handle)
 {
