@@ -64,11 +64,22 @@ TEST_F(CameraModuleTest, LoadModule) {
 
     TEST_EXTENSION_FORKING_INIT;
 
+    status_t stat;
     for (int i = 0; i < mNumberOfCameras; ++i) {
-        CreateCamera(i, &mDevice);
-        ASSERT_EQ(OK, initializeDevice(i))
-            << "Failed to initialize device " << i;
-        mDevice.clear();
+        if (isDeviceVersionHal2(i, &stat) && stat == OK) {
+            CreateCamera(i, &mDevice);
+            ASSERT_EQ(OK, initializeDevice(i))
+                << "Failed to initialize device " << i;
+            mDevice.clear();
+        } else {
+            const ::testing::TestInfo* const test_info =
+                ::testing::UnitTest::GetInstance()->current_test_info();
+            std::cerr << "Skipping test "
+                      << test_info->test_case_name() << "."
+                      << test_info->name()
+                      << " because HAL device version is V1"
+                      << std::endl;
+        }
     }
 
 }
