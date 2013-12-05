@@ -17,9 +17,9 @@
 #ifndef CAMERA_H_
 #define CAMERA_H_
 
-#include <pthread.h>
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
+#include <utils/Mutex.h>
 #include "Metadata.h"
 #include "Stream.h"
 
@@ -100,10 +100,10 @@ class Camera {
         // Methods used to call back into the framework
         const camera3_callback_ops_t *mCallbackOps;
         // Lock protecting the Camera object for modifications
-        pthread_mutex_t mMutex;
+        android::Mutex mDeviceLock;
         // Lock protecting only static camera characteristics, which may
         // be accessed without the camera device open
-        pthread_mutex_t mStaticInfoMutex;
+        android::Mutex mStaticInfoLock;
         // Array of handles to streams currently in use by the device
         Stream **mStreams;
         // Number of streams in mStreams

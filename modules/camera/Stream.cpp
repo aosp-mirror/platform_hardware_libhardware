@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <pthread.h>
 #include <stdio.h>
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
+#include <utils/Mutex.h>
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Stream"
@@ -45,37 +45,32 @@ Stream::Stream(int id, camera3_stream_t *s)
     mBuffers(0),
     mNumBuffers(0)
 {
-    // NULL (default) pthread mutex attributes
-    pthread_mutex_init(&mMutex, NULL);
 }
 
 Stream::~Stream()
 {
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mLock);
     unregisterBuffers_L();
-    pthread_mutex_unlock(&mMutex);
 }
 
 void Stream::setUsage(uint32_t usage)
 {
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mLock);
     if (usage != mUsage) {
         mUsage = usage;
         mStream->usage = usage;
         unregisterBuffers_L();
     }
-    pthread_mutex_unlock(&mMutex);
 }
 
 void Stream::setMaxBuffers(uint32_t max_buffers)
 {
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mLock);
     if (max_buffers != mMaxBuffers) {
         mMaxBuffers = max_buffers;
         mStream->max_buffers = max_buffers;
         unregisterBuffers_L();
     }
-    pthread_mutex_unlock(&mMutex);
 }
 
 int Stream::getType()
@@ -195,14 +190,13 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
 int Stream::registerBuffers(const camera3_stream_buffer_set_t *buf_set)
 {
     ATRACE_CALL();
+    android::Mutex::Autolock al(mLock);
 
     if (buf_set->stream != mStream) {
         ALOGE("%s:%d: Buffer set for invalid stream. Got %p expect %p",
                 __func__, mId, buf_set->stream, mStream);
         return -EINVAL;
     }
-
-    pthread_mutex_lock(&mMutex);
 
     mNumBuffers = buf_set->num_buffers;
     mBuffers = new buffer_handle_t*[mNumBuffers];
@@ -215,12 +209,10 @@ int Stream::registerBuffers(const camera3_stream_buffer_set_t *buf_set)
     }
     mRegistered = true;
 
-    pthread_mutex_unlock(&mMutex);
-
     return 0;
 }
 
-// This must only be called with mMutex held
+// This must only be called with mLock held
 void Stream::unregisterBuffers_L()
 {
     mRegistered = false;
@@ -231,7 +223,7 @@ void Stream::unregisterBuffers_L()
 
 void Stream::dump(int fd)
 {
-    pthread_mutex_lock(&mMutex);
+    android::Mutex::Autolock al(mLock);
 
     fdprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
     fdprintf(fd, "Stream Type: %s (%d)\n", typeToString(mType), mType);
@@ -245,8 +237,6 @@ void Stream::dump(int fd)
     for (int i = 0; i < mNumBuffers; i++) {
         fdprintf(fd, "Buffer %d/%d: %p\n", i, mNumBuffers, mBuffers[i]);
     }
-
-    pthread_mutex_unlock(&mMutex);
 }
 
 } // namespace default_camera_hal
