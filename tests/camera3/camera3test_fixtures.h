@@ -26,12 +26,12 @@ namespace tests {
 static const int kMmaxCams = 2;
 static const uint16_t kVersion3_0 = HARDWARE_MODULE_API_VERSION(3, 0);
 
-class Camera3Test : public testing::Test {
+class Camera3Module : public testing::Test {
  public:
-    Camera3Test() :
+    Camera3Module() :
         num_cams_(0),
         cam_module_(NULL) {}
-    ~Camera3Test() {}
+    ~Camera3Module() {}
  protected:
     virtual void SetUp() {
         const hw_module_t *hw_module = NULL;
@@ -50,6 +50,31 @@ class Camera3Test : public testing::Test {
  private:
     int num_cams_;
     const camera_module_t *cam_module_;
+};
+
+class Camera3Device : public Camera3Module {
+ public:
+    Camera3Device() :
+        cam_device_(NULL) {}
+    ~Camera3Device() {}
+ protected:
+    virtual void SetUp() {
+        Camera3Module::SetUp();
+        hw_device_t *device = NULL;
+        ASSERT_TRUE(NULL != cam_module()->common.methods->open)
+                    << "Camera open() is unimplemented";
+        ASSERT_EQ(0, cam_module()->common.methods->open(
+            (const hw_module_t*)cam_module(), "0", &device))
+                << "Can't open camera device";
+        ASSERT_TRUE(NULL != device)
+                    << "Camera open() returned a NULL device";
+        ASSERT_EQ(kVersion3_0, device->version)
+                    << "The device does not support HAL3";
+        cam_device_ = reinterpret_cast<camera3_device_t*>(device);
+    }
+    camera3_device_t* cam_device() { return cam_device_; }
+ private:
+    camera3_device *cam_device_;
 };
 
 }  // namespace tests
