@@ -19,12 +19,12 @@
 
 namespace tests {
 
-TEST_F(Camera3Test, NumberOfCameras) {
+TEST_F(Camera3Module, NumberOfCameras) {
     ASSERT_LT(0, num_cams()) << "No cameras found";
     ASSERT_GE(kMmaxCams, num_cams()) << "Too many cameras found";
 }
 
-TEST_F(Camera3Test, IsActiveArraySizeSubsetPixelArraySize) {
+TEST_F(Camera3Module, IsActiveArraySizeSubsetPixelArraySize) {
     for (int i = 0; i < num_cams(); ++i) {
         ASSERT_TRUE(NULL != cam_module()->get_camera_info)
             << "get_camera_info is not implemented";
@@ -53,6 +53,19 @@ TEST_F(Camera3Test, IsActiveArraySizeSubsetPixelArraySize) {
         EXPECT_LE(active_array_h, pixel_array_h);
         EXPECT_LE(active_array_w, pixel_array_w);
     }
+}
+
+TEST_F(Camera3Device, DefaultSettingsStillCaptureHasAndroidControlMode) {
+    ASSERT_TRUE(NULL != cam_device()->ops) << "Camera device ops are NULL";
+    const camera_metadata_t *default_settings =
+        cam_device()->ops->construct_default_request_settings(cam_device(),
+            CAMERA3_TEMPLATE_STILL_CAPTURE);
+    ASSERT_TRUE(NULL != default_settings) << "Camera default settings are NULL";
+    camera_metadata_entry entry;
+    ASSERT_EQ(0, find_camera_metadata_entry(
+                const_cast<camera_metadata_t*>(default_settings),
+                ANDROID_CONTROL_MODE, &entry))
+                    << "Can't find ANDROID_CONTROL_MODE in default settings.";
 }
 
 }  // namespace tests
