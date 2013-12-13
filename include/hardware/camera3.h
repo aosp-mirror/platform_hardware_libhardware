@@ -1534,6 +1534,16 @@ typedef enum camera3_request_template {
      */
     CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG = 5,
 
+    /**
+     * A basic template for direct application control of capture
+     * parameters. All automatic control is disabled (auto-exposure, auto-white
+     * balance, auto-focus), and post-processing parameters are set to preview
+     * quality. The manual capture parameters (exposure, sensitivity, etc.)
+     * are set to reasonable defaults, but should be overridden by the
+     * application depending on the intended use case.
+     */
+    CAMERA3_TEMPLATE_MANUAL = 6,
+
     /* Total number of templates */
     CAMERA3_TEMPLATE_COUNT,
 
