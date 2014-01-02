@@ -117,15 +117,34 @@ static int load(const char *id,
     return status;
 }
 
+/*
+ * Check if a HAL with given name and subname exists, if so return 0, otherwise
+ * otherwise return negative.  On success path will contain the path to the HAL.
+ */
+static int hw_module_exists(char *path, size_t path_len, const char *name,
+                            const char *subname)
+{
+    snprintf(path, path_len, "%s/%s.%s.so",
+             HAL_LIBRARY_PATH2, name, subname);
+    if (access(path, R_OK) == 0)
+        return 0;
+
+    snprintf(path, path_len, "%s/%s.%s.so",
+             HAL_LIBRARY_PATH1, name, subname);
+    if (access(path, R_OK) == 0)
+        return 0;
+
+    return -ENOENT;
+}
+
 int hw_get_module_by_class(const char *class_id, const char *inst,
                            const struct hw_module_t **module)
 {
-    int status;
     int i;
-    const struct hw_module_t *hmi = NULL;
     char prop[PATH_MAX];
     char path[PATH_MAX];
     char name[PATH_MAX];
+    char prop_name[PATH_MAX];
 
     if (inst)
         snprintf(name, PATH_MAX, "%s.%s", class_id, inst);
@@ -139,38 +158,35 @@ int hw_get_module_by_class(const char *class_id, const char *inst,
      * We also assume that dlopen() is thread-safe.
      */
 
-    /* Loop through the configuration variants looking for a module */
-    for (i=0 ; i<HAL_VARIANT_KEYS_COUNT+1 ; i++) {
-        if (i < HAL_VARIANT_KEYS_COUNT) {
-            if (property_get(variant_keys[i], prop, NULL) == 0) {
-                continue;
-            }
-            snprintf(path, sizeof(path), "%s/%s.%s.so",
-                     HAL_LIBRARY_PATH2, name, prop);
-            if (access(path, R_OK) == 0) break;
-
-            snprintf(path, sizeof(path), "%s/%s.%s.so",
-                     HAL_LIBRARY_PATH1, name, prop);
-            if (access(path, R_OK) == 0) break;
-        } else {
-            snprintf(path, sizeof(path), "%s/%s.default.so",
-                     HAL_LIBRARY_PATH2, name);
-            if (access(path, R_OK) == 0) break;
-
-            snprintf(path, sizeof(path), "%s/%s.default.so",
-                     HAL_LIBRARY_PATH1, name);
-            if (access(path, R_OK) == 0) break;
+    /* First try a property specific to the class and possibly instance */
+    snprintf(prop_name, sizeof(prop_name), "ro.hardware.%s", name);
+    if (property_get(prop_name, prop, NULL) == 0) {
+        if (hw_module_exists(path, sizeof(path), name, prop) == 0) {
+            goto found;
         }
     }
 
-    status = -ENOENT;
-    if (i < HAL_VARIANT_KEYS_COUNT+1) {
-        /* load the module, if this fails, we're doomed, and we should not try
-         * to load a different variant. */
-        status = load(class_id, path, module);
+    /* Loop through the configuration variants looking for a module */
+    for (i=0 ; i<HAL_VARIANT_KEYS_COUNT; i++) {
+        if (property_get(variant_keys[i], prop, NULL) == 0) {
+            continue;
+        }
+        if (hw_module_exists(path, sizeof(path), name, prop) == 0) {
+            goto found;
+        }
     }
 
-    return status;
+    /* Nothing found, try the default */
+    if (hw_module_exists(path, sizeof(path), name, "default") == 0) {
+        goto found;
+    }
+
+    return -ENOENT;
+
+found:
+    /* load the module, if this fails, we're doomed, and we should not try
+     * to load a different variant. */
+    return load(class_id, path, module);
 }
 
 int hw_get_module(const char *id, const struct hw_module_t **module)
