@@ -50,6 +50,7 @@
  *   S4. 3A modes and state machines
  *   S5. Cropping
  *   S6. Error management
+ *   S7. Performance KPI Glossary
  */
 
 /**
@@ -983,6 +984,28 @@
  *
  */
 
+/**
+ * S7. Performance KPI Glossary:
+ *
+ * This includes some critical definitions that are used by performance KPI metrics.
+ *
+ * Pipeline Latency:
+ *  For a given capture request, the duration from the framework calling
+ *  process_capture_request to the HAL sending capture result and all buffers
+ *  back by process_capture_result call. To make the Pipeline Latency measure
+ *  independent of frame rate, it is measured by frame count.
+ *
+ *  For example, when frame rate is 30 (fps), the frame duration (time interval
+ *  between adjacent frame capture time) is 33 (ms).
+ *  If it takes 5 frames for framework to get the result and buffers back for
+ *  a given request, then the Pipeline Latency is 5 (frames), instead of
+ *  5 x 33 = 165 (ms).
+ *
+ *  The Pipeline Latency is determined by android.request.pipelineDepth and
+ *  android.request.pipelineMaxDepth, see their definitions for more details.
+ *
+ */
+
 __BEGIN_DECLS
 
 struct camera3_device;
@@ -1789,6 +1812,13 @@ typedef struct camera3_callback_ops {
      * message. In this case, individual ERROR_RESULT/ERROR_BUFFER messages
      * should not be sent.
      *
+     * Performance requirements:
+     *
+     * This is a non-blocking call. The framework will return this call in 5ms.
+     *
+     * The pipeline latency (see S7 for definition) should be less than or equal to
+     * 4 frame intervals, and must be less than or equal to 8 frame intervals.
+     *
      */
     void (*process_capture_result)(const struct camera3_callback_ops *,
             const camera3_capture_result_t *result);
@@ -1807,6 +1837,10 @@ typedef struct camera3_callback_ops {
      * that request is made.
      *
      * Multiple threads may call notify() simultaneously.
+     *
+     * Performance requirements:
+     *
+     * This is a non-blocking call. The framework will return this call in 5ms.
      */
     void (*notify)(const struct camera3_callback_ops *,
             const camera3_notify_msg_t *msg);
@@ -1826,6 +1860,11 @@ typedef struct camera3_device_ops {
      * One-time initialization to pass framework callback function pointers to
      * the HAL. Will be called once after a successful open() call, before any
      * other functions are called on the camera3_device_ops structure.
+     *
+     * Performance requirements:
+     *
+     * This should be a non-blocking call. The HAL should return from this call
+     * in 5ms, and must return from this call in 10ms.
      *
      * Return values:
      *
@@ -1909,7 +1948,7 @@ typedef struct camera3_device_ops {
      * frame rate given the sizes and formats of the output streams, as
      * documented in the camera device's static metadata.
      *
-     * Performance expectations:
+     * Performance requirements:
      *
      * This call is expected to be heavyweight and possibly take several hundred
      * milliseconds to complete, since it may require resetting and
@@ -1918,6 +1957,9 @@ typedef struct camera3_device_ops {
      * reconfiguration delay to minimize the user-visible pauses during
      * application operational mode changes (such as switching from still
      * capture to video recording).
+     *
+     * The HAL should return from this call in 500ms, and must return from this
+     * call in 1000ms.
      *
      * Return values:
      *
@@ -1976,6 +2018,11 @@ typedef struct camera3_device_ops {
      * the camera HAL should inspect the passed-in buffers here to determine any
      * platform-private pixel format information.
      *
+     * Performance requirements:
+     *
+     * This should be a non-blocking call. The HAL should return from this call
+     * in 1ms, and must return from this call in 5ms.
+     *
      * Return values:
      *
      *  0:      On successful registration of the new stream buffers
@@ -2012,6 +2059,11 @@ typedef struct camera3_device_ops {
      * HAL may not modify the buffer once it is returned by this call. The same
      * buffer may be returned for subsequent calls for the same template, or for
      * other templates.
+     *
+     * Performance requirements:
+     *
+     * This should be a non-blocking call. The HAL should return from this call
+     * in 1ms, and must return from this call in 5ms.
      *
      * Return values:
      *
@@ -2056,6 +2108,13 @@ typedef struct camera3_device_ops {
      * framework is free to immediately reuse the input buffer. Otherwise, the
      * framework will wait on the sync fence before refilling and reusing the
      * input buffer.
+     *
+     * Performance requirements:
+     *
+     * This call must return fast enough to ensure that the requested frame rate
+     * can be sustained, especially for streaming cases (post-processing quality
+     * settings set to FAST). The HAL should return this call in 1 frame interval,
+     * and must return from this call in 4 frame intervals.
      *
      * Return values:
      *
@@ -2109,6 +2168,14 @@ typedef struct camera3_device_ops {
      *
      * The passed-in file descriptor can be used to write debugging text using
      * dprintf() or write(). The text should be in ASCII encoding only.
+     *
+     * Performance requirements:
+     *
+     * This must be a non-blocking call. The HAL should return from this call
+     * in 1ms, must return from this call in 10ms. This call must avoid
+     * deadlocks, as it may be called at any point during camera operation.
+     * Any synchronization primitives used (such as mutex locks or semaphores)
+     * should be acquired with a timeout.
      */
     void (*dump)(const struct camera3_device *, int fd);
 
@@ -2134,8 +2201,11 @@ typedef struct camera3_device_ops {
      * requests left in the HAL.  The framework may call configure_streams (as
      * the HAL state is now quiesced) or may issue new requests.
      *
-     * A flush() call should only take 100ms or less. The maximum time it can
-     * take is 1 second.
+     * Performance requirements:
+     *
+     * The HAL should return from this call in 100ms, and must return from this
+     * call in 1000ms. And this call must not be blocked longer than pipeline
+     * latency (see S7 for definition).
      *
      * Version information:
      *
@@ -2166,6 +2236,10 @@ typedef struct camera3_device {
     /**
      * common.version must equal CAMERA_DEVICE_API_VERSION_3_0 to identify this
      * device as implementing version 3.0 of the camera device HAL.
+     *
+     * Performance requirements:
+     *
+     * common.open should return in 200ms, and must return in 500ms.
      */
     hw_device_t common;
     camera3_device_ops_t *ops;
