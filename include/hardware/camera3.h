@@ -103,6 +103,10 @@
  *
  *   - register_stream_buffers deprecated. All gralloc buffers provided
  *     by framework to HAL in process_capture_request may be new at any time.
+ *
+ *   - add partial result support. process_capture_result may be called
+ *     multiple times with a subset of the available result before the full
+ *     result is available.
  */
 
 /**
@@ -164,8 +168,21 @@
  * 9. When the capture of a request begins (sensor starts exposing for the
  *    capture), the HAL calls camera3_callback_ops_t->notify() with the SHUTTER
  *    event, including the frame number and the timestamp for start of exposure.
+ *
+ *    <= CAMERA_DEVICE_API_VERSION_3_1:
+ *
  *    This notify call must be made before the first call to
  *    process_capture_result() for that frame number.
+ *
+ *    >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ *    The camera3_callback_ops_t->notify() call with the SHUTTER event should
+ *    be made as early as possible since the framework will be unable to
+ *    deliver gralloc buffers to the application layer (for that frame) until
+ *    it has a valid timestamp for the start of exposure.
+ *
+ *    Both partial metadata results and the gralloc buffers may be sent to the
+ *    framework at any time before or after the SHUTTER event.
  *
  * 10. After some pipeline delay, the HAL begins to return completed captures to
  *    the framework with camera3_callback_ops_t->process_capture_result(). These
@@ -181,6 +198,15 @@
  *    buffer is considered to be transferred back to the framework. After that,
  *    the HAL must no longer retain that particular buffer, and the
  *    framework may clean up the memory for it immediately.
+ *
+ *    process_capture_result may be called multiple times for a single frame,
+ *    each time with a new disjoint piece of metadata and/or set of gralloc
+ *    buffers. The framework will accumulate these partial metadata results
+ *    into one result.
+ *
+ *    In particular, it is legal for a process_capture_result to be called
+ *    simultaneously for both a frame N and a frame N+1 as long as the
+ *    above rule holds for gralloc buffers.
  *
  * 11. After some time, the framework may stop submitting new requests, wait for
  *    the existing captures to complete (all buffers filled, all results
@@ -1735,7 +1761,9 @@ typedef struct camera3_capture_request {
  * sent to the framework asynchronously with process_capture_result(), in
  * response to a single capture request sent to the HAL with
  * process_capture_request(). Multiple process_capture_result() calls may be
- * performed by the HAL for each request. Each call, all with the same frame
+ * performed by the HAL for each request.
+ *
+ * Each call, all with the same frame
  * number, may contain some subset of the output buffers, and/or the result
  * metadata. The metadata may only be provided once for a given frame number;
  * all other calls must set the result metadata to NULL.
@@ -1744,6 +1772,23 @@ typedef struct camera3_capture_request {
  * set of output buffers that have been/will be filled for this capture. Each
  * output buffer may come with a release sync fence that the framework will wait
  * on before reading, in case the buffer has not yet been filled by the HAL.
+ *
+ * >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ * The metadata may be provided multiple times for a single frame number. The
+ * framework will accumulate together the final result set by combining each
+ * partial result together into the total result set.
+ *
+ * Performance considerations:
+ *
+ * Applications will also receive these partial results immediately, so sending
+ * partial results is a highly recommended performance optimization to avoid
+ * the total pipeline latency before sending the results for what is known very
+ * early on in the pipeline.
+ *
+ * A typical use case might be calculating the AF state halfway through the
+ * pipeline; by sending the state back to the framework immediately, we get a
+ * 50% performance increase and perceived responsiveness of the auto-focus.
  *
  */
 typedef struct camera3_capture_result {
@@ -1767,6 +1812,18 @@ typedef struct camera3_capture_result {
      *
      * If there was an error producing the result metadata, result must be an
      * empty metadata buffer, and notify() must be called with ERROR_RESULT.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * Multiple calls to process_capture_result() with a given frame_number
+     * may include the result metadata.
+     *
+     * Partial metadata submitted should not include any metadata key returned
+     * in a previous partial result for a given frame. Each new partial result
+     * for that frame must also set a distinct partial_result value.
+     *
+     * If notify has been called with ERROR_RESULT, all further partial
+     * results for that frame are ignored by the framework.
      */
     const camera_metadata_t *result;
 
@@ -1800,8 +1857,44 @@ typedef struct camera3_capture_result {
      * num_output_buffers is zero, this may be NULL. In that case, at least one
      * more process_capture_result call must be made by the HAL to provide the
      * output buffers.
+     *
+     * When process_capture_result is called with a new buffer for a frame,
+     * all previous frames' buffers for that corresponding stream must have been
+     * already delivered (the fences need not have yet been signaled).
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * Gralloc buffers for a frame may be sent to framework before the
+     * corresponding SHUTTER-notify.
+     *
+     * Performance considerations:
+     *
+     * Buffers delivered to the framework will not be dispatched to the
+     * application layer until a start of exposure timestamp has been received
+     * via a SHUTTER notify() call. It is highly recommended to
+     * dispatch that call as early as possible.
      */
      const camera3_stream_buffer_t *output_buffers;
+
+     /**
+      * >= CAMERA_DEVICE_API_VERSION_3_2:
+      *
+      * In order to take advantage of partial results, the HAL must set the
+      * static metadata android.request.partialResultCount to the number of
+      * partial results it will send for each frame.
+      *
+      * Each new capture result with a partial result must set
+      * this field (partial_result) to a distinct inclusive value between
+      * 1 and android.request.partialResultCount.
+      *
+      * HALs not wishing to take advantage of this feature must not
+      * set an android.request.partialResultCount or partial_result to a value
+      * other than 1.
+      *
+      * This value must be set to 0 when a capture result contains buffers only
+      * and no metadata.
+      */
+     uint32_t partial_result;
 
 } camera3_capture_result_t;
 
@@ -1898,12 +1991,22 @@ typedef struct camera3_callback_ops {
      * with the HAL, and the msg only needs to be valid for the duration of this
      * call.
      *
+     * Multiple threads may call notify() simultaneously.
+     *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
+     *
      * The notification for the start of exposure for a given request must be
      * sent by the HAL before the first call to process_capture_result() for
      * that request is made.
      *
-     * Multiple threads may call notify() simultaneously.
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
      *
+     * Buffers delivered to the framework will not be dispatched to the
+     * application layer until a start of exposure timestamp has been received
+     * via a SHUTTER notify() call. It is highly recommended to
+     * dispatch this call as early as possible.
+     *
+     * ------------------------------------------------------------------------
      * Performance requirements:
      *
      * This is a non-blocking call. The framework will return this call in 5ms.
