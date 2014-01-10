@@ -100,6 +100,9 @@
  *
  *   - Deprecates get_metadata_vendor_tag_ops.  Please use get_vendor_tag_ops
  *     in camera_common.h instead.
+ *
+ *   - register_stream_buffers deprecated. All gralloc buffers provided
+ *     by framework to HAL in process_capture_request may be new at any time.
  */
 
 /**
@@ -120,12 +123,19 @@
  * 4. The framework calls camera3_device_t->ops->configure_streams() with a list
  *    of input/output streams to the HAL device.
  *
- * 5. The framework allocates gralloc buffers and calls
+ * 5. <= CAMERA_DEVICE_API_VERSION_3_1:
+ *
+ *    The framework allocates gralloc buffers and calls
  *    camera3_device_t->ops->register_stream_buffers() for at least one of the
  *    output streams listed in configure_streams. The same stream is registered
  *    only once.
  *
- * 5. The framework requests default settings for some number of use cases with
+ *    >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ *    camera3_device_t->ops->register_stream_buffers() is not called and must
+ *    be NULL.
+ *
+ * 6. The framework requests default settings for some number of use cases with
  *    calls to camera3_device_t->ops->construct_default_request_settings(). This
  *    may occur any time after step 3.
  *
@@ -136,10 +146,20 @@
  *    camera3_device_t->ops->process_capture_request(). The HAL must block the
  *    return of this call until it is ready for the next request to be sent.
  *
- * 8. The framework continues to submit requests, and possibly call
- *    register_stream_buffers() for not-yet-registered streams, and call
+ *    >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ *    The buffer_handle_t provided in the camera3_stream_buffer_t array
+ *    in the camera3_capture_request_t may be new and never-before-seen
+ *    by the HAL on any given new request.
+ *
+ * 8. The framework continues to submit requests, and call
  *    construct_default_request_settings to get default settings buffers for
  *    other use cases.
+ *
+ *    <= CAMERA_DEVICE_API_VERSION_3_1:
+ *
+ *    The framework may call register_stream_buffers() at this time for
+ *    not-yet-registered streams.
  *
  * 9. When the capture of a request begins (sensor starts exposing for the
  *    capture), the HAL calls camera3_callback_ops_t->notify() with the SHUTTER
@@ -152,6 +172,15 @@
  *    are returned in the same order as the requests were submitted. Multiple
  *    requests can be in flight at once, depending on the pipeline depth of the
  *    camera HAL device.
+ *
+ *    >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ *    Once a buffer is returned by process_capture_result as part of the
+ *    camera3_stream_buffer_t array, and the fence specified by release_fence
+ *    has been signaled (this is a no-op for -1 fences), the ownership of that
+ *    buffer is considered to be transferred back to the framework. After that,
+ *    the HAL must no longer retain that particular buffer, and the
+ *    framework may clean up the memory for it immediately.
  *
  * 11. After some time, the framework may stop submitting new requests, wait for
  *    the existing captures to complete (all buffers filled, all results
@@ -1139,9 +1168,17 @@ typedef struct camera3_stream {
      * gralloc module will select a format based on the usage flags provided by
      * the camera device and the other endpoint of the stream.
      *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
+     *
      * The camera HAL device must inspect the buffers handed to it in the
      * subsequent register_stream_buffers() call to obtain the
      * implementation-specific format details, if necessary.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * register_stream_buffers() won't be called by the framework, so the HAL
+     * should configure the ISP and sensor pipeline based purely on the sizes,
+     * usage flags, and formats for the configured streams.
      */
     int format;
 
@@ -1303,6 +1340,14 @@ typedef struct camera3_stream_buffer {
      * process_capture_request() call. For the output buffers, the fences must
      * be set in the output_buffers array passed to process_capture_result().
      *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * After signaling the release_fence for this buffer, the HAL
+     * should not make any further attempts to access this buffer as the
+     * ownership has been fully transferred back to the framework.
+     *
+     * If a fence of -1 was specified then the ownership of this buffer
+     * is transferred back immediately upon the call of process_capture_result.
      */
     int release_fence;
 
@@ -1314,6 +1359,12 @@ typedef struct camera3_stream_buffer {
  * The complete set of gralloc buffers for a stream. This structure is given to
  * register_stream_buffers() to allow the camera HAL device to register/map/etc
  * newly allocated stream buffers.
+ *
+ * >= CAMERA_DEVICE_API_VERSION_3_2:
+ *
+ * Deprecated (and not used). In particular,
+ * register_stream_buffers is also deprecated and will never be invoked.
+ *
  */
 typedef struct camera3_stream_buffer_set {
     /**
@@ -1636,8 +1687,15 @@ typedef struct camera3_capture_request {
      * The HAL is required to wait on the acquire sync fence of the input buffer
      * before accessing it.
      *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
+     *
      * Any input buffer included here will have been registered with the HAL
      * through register_stream_buffers() before its inclusion in a request.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * The buffers will not have been pre-registered with the HAL.
+     * Subsequent requests may reuse buffers, or provide entirely new buffers.
      */
     camera3_stream_buffer_t *input_buffer;
 
@@ -1650,13 +1708,21 @@ typedef struct camera3_capture_request {
     /**
      * An array of num_output_buffers stream buffers, to be filled with image
      * data from this capture/reprocess. The HAL must wait on the acquire fences
-     * of each stream buffer before writing to them. All the buffers included
-     * here will have been registered with the HAL through
-     * register_stream_buffers() before their inclusion in a request.
+     * of each stream buffer before writing to them.
      *
      * The HAL takes ownership of the actual buffer_handle_t entries in
      * output_buffers; the framework does not access them until they are
      * returned in a camera3_capture_result_t.
+     *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
+     *
+     * All the buffers included  here will have been registered with the HAL
+     * through register_stream_buffers() before their inclusion in a request.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * Any or all of the buffers included here may be brand new in this
+     * request (having never before seen by the HAL).
      */
     const camera3_stream_buffer_t *output_buffers;
 
@@ -1883,6 +1949,8 @@ typedef struct camera3_device_ops {
     /**
      * configure_streams:
      *
+     * CAMERA_DEVICE_API_VERSION_3_0 only:
+     *
      * Reset the HAL camera device processing pipeline and set up new input and
      * output streams. This call replaces any existing stream configuration with
      * the streams defined in the stream_list. This method will be called at
@@ -1895,16 +1963,19 @@ typedef struct camera3_device_ops {
      * The stream_list may contain streams that are also in the currently-active
      * set of streams (from the previous call to configure_stream()). These
      * streams will already have valid values for usage, max_buffers, and the
-     * private pointer. If such a stream has already had its buffers registered,
+     * private pointer.
+     *
+     * If such a stream has already had its buffers registered,
      * register_stream_buffers() will not be called again for the stream, and
      * buffers from the stream can be immediately included in input requests.
      *
      * If the HAL needs to change the stream configuration for an existing
      * stream due to the new configuration, it may rewrite the values of usage
-     * and/or max_buffers during the configure call. The framework will detect
-     * such a change, and will then reallocate the stream buffers, and call
-     * register_stream_buffers() again before using buffers from that stream in
-     * a request.
+     * and/or max_buffers during the configure call.
+     *
+     * The framework will detect such a change, and will then reallocate the
+     * stream buffers, and call register_stream_buffers() again before using
+     * buffers from that stream in a request.
      *
      * If a currently-active stream is not included in stream_list, the HAL may
      * safely remove any references to that stream. It will not be reused in a
@@ -1932,6 +2003,115 @@ typedef struct camera3_device_ops {
      * _all_ streams before submitting a request. This allows for quick startup
      * of (for example) a preview stream, with allocation for other streams
      * happening later or concurrently.
+     *
+     * ------------------------------------------------------------------------
+     * CAMERA_DEVICE_API_VERSION_3_1 only:
+     *
+     * Reset the HAL camera device processing pipeline and set up new input and
+     * output streams. This call replaces any existing stream configuration with
+     * the streams defined in the stream_list. This method will be called at
+     * least once after initialize() before a request is submitted with
+     * process_capture_request().
+     *
+     * The stream_list must contain at least one output-capable stream, and may
+     * not contain more than one input-capable stream.
+     *
+     * The stream_list may contain streams that are also in the currently-active
+     * set of streams (from the previous call to configure_stream()). These
+     * streams will already have valid values for usage, max_buffers, and the
+     * private pointer.
+     *
+     * If such a stream has already had its buffers registered,
+     * register_stream_buffers() will not be called again for the stream, and
+     * buffers from the stream can be immediately included in input requests.
+     *
+     * If the HAL needs to change the stream configuration for an existing
+     * stream due to the new configuration, it may rewrite the values of usage
+     * and/or max_buffers during the configure call.
+     *
+     * The framework will detect such a change, and will then reallocate the
+     * stream buffers, and call register_stream_buffers() again before using
+     * buffers from that stream in a request.
+     *
+     * If a currently-active stream is not included in stream_list, the HAL may
+     * safely remove any references to that stream. It will not be reused in a
+     * later configure() call by the framework, and all the gralloc buffers for
+     * it will be freed after the configure_streams() call returns.
+     *
+     * The stream_list structure is owned by the framework, and may not be
+     * accessed once this call completes. The address of an individual
+     * camera3_stream_t structure will remain valid for access by the HAL until
+     * the end of the first configure_stream() call which no longer includes
+     * that camera3_stream_t in the stream_list argument. The HAL may not change
+     * values in the stream structure outside of the private pointer, except for
+     * the usage and max_buffers members during the configure_streams() call
+     * itself.
+     *
+     * If the stream is new, max_buffer, and private pointer fields of the
+     * stream structure will all be set to 0. The usage will be set to the
+     * consumer usage flags. The HAL device must set these fields before the
+     * configure_streams() call returns. These fields are then used by the
+     * framework and the platform gralloc module to allocate the gralloc
+     * buffers for each stream.
+     *
+     * Before such a new stream can have its buffers included in a capture
+     * request, the framework will call register_stream_buffers() with that
+     * stream. However, the framework is not required to register buffers for
+     * _all_ streams before submitting a request. This allows for quick startup
+     * of (for example) a preview stream, with allocation for other streams
+     * happening later or concurrently.
+     *
+     * ------------------------------------------------------------------------
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * Reset the HAL camera device processing pipeline and set up new input and
+     * output streams. This call replaces any existing stream configuration with
+     * the streams defined in the stream_list. This method will be called at
+     * least once after initialize() before a request is submitted with
+     * process_capture_request().
+     *
+     * The stream_list must contain at least one output-capable stream, and may
+     * not contain more than one input-capable stream.
+     *
+     * The stream_list may contain streams that are also in the currently-active
+     * set of streams (from the previous call to configure_stream()). These
+     * streams will already have valid values for usage, max_buffers, and the
+     * private pointer.
+     *
+     * If the HAL needs to change the stream configuration for an existing
+     * stream due to the new configuration, it may rewrite the values of usage
+     * and/or max_buffers during the configure call.
+     *
+     * The framework will detect such a change, and may then reallocate the
+     * stream buffers before using buffers from that stream in a request.
+     *
+     * If a currently-active stream is not included in stream_list, the HAL may
+     * safely remove any references to that stream. It will not be reused in a
+     * later configure() call by the framework, and all the gralloc buffers for
+     * it will be freed after the configure_streams() call returns.
+     *
+     * The stream_list structure is owned by the framework, and may not be
+     * accessed once this call completes. The address of an individual
+     * camera3_stream_t structure will remain valid for access by the HAL until
+     * the end of the first configure_stream() call which no longer includes
+     * that camera3_stream_t in the stream_list argument. The HAL may not change
+     * values in the stream structure outside of the private pointer, except for
+     * the usage and max_buffers members during the configure_streams() call
+     * itself.
+     *
+     * If the stream is new, max_buffer, and private pointer fields of the
+     * stream structure will all be set to 0. The usage will be set to the
+     * consumer usage flags. The HAL device must set these fields before the
+     * configure_streams() call returns. These fields are then used by the
+     * framework and the platform gralloc module to allocate the gralloc
+     * buffers for each stream.
+     *
+     * Newly allocated buffers may be included in a capture request at any time
+     * by the framework. Once a gralloc buffer is returned to the framework
+     * with process_capture_result (and its respective release_fence has been
+     * signaled) the framework may free or reuse it at any time.
+     *
+     * ------------------------------------------------------------------------
      *
      * Preconditions:
      *
@@ -1995,6 +2175,12 @@ typedef struct camera3_device_ops {
 
     /**
      * register_stream_buffers:
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * DEPRECATED. This will not be called and must be set to NULL.
+     *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
      *
      * Register buffers for a given stream with the HAL device. This method is
      * called by the framework after a new stream is defined by
@@ -2109,12 +2295,21 @@ typedef struct camera3_device_ops {
      * framework will wait on the sync fence before refilling and reusing the
      * input buffer.
      *
-     * Performance requirements:
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
      *
-     * This call must return fast enough to ensure that the requested frame rate
-     * can be sustained, especially for streaming cases (post-processing quality
-     * settings set to FAST). The HAL should return this call in 1 frame interval,
-     * and must return from this call in 4 frame intervals.
+     * The input/output buffers provided by the framework in each request
+     * may be brand new (having never before seen by the HAL).
+     *
+     * ------------------------------------------------------------------------
+     * Performance considerations:
+     *
+     * Handling a new buffer should be extremely lightweight and there should be
+     * no frame rate degradation or frame jitter introduced.
+     *
+     * This call must return fast enough to ensure that the requested frame
+     * rate can be sustained, especially for streaming cases (post-processing
+     * quality settings set to FAST). The HAL should return this call in 1
+     * frame interval, and must return from this call in 4 frame intervals.
      *
      * Return values:
      *
