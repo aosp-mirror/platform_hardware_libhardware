@@ -48,7 +48,6 @@ class Camera {
         int registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set);
         const camera_metadata_t *constructDefaultRequestSettings(int type);
         int processCaptureRequest(camera3_capture_request_t *request);
-        void getMetadataVendorTagOps(vendor_tag_query_ops_t *ops);
         void dump(int fd);
 
 

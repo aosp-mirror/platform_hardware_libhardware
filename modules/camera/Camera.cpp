@@ -467,12 +467,6 @@ void Camera::notifyShutter(uint32_t frame_number, uint64_t timestamp)
     mCallbackOps->notify(mCallbackOps, &m);
 }
 
-void Camera::getMetadataVendorTagOps(vendor_tag_query_ops_t *ops)
-{
-    ALOGV("%s:%d: ops=%p", __func__, mId, ops);
-    // TODO: return vendor tag ops
-}
-
 void Camera::dump(int fd)
 {
     ALOGV("%s:%d: Dumping to fd %d", __func__, mId, fd);
@@ -571,12 +565,6 @@ static int process_capture_request(const camera3_device_t *dev,
     return camdev_to_camera(dev)->processCaptureRequest(request);
 }
 
-static void get_metadata_vendor_tag_ops(const camera3_device_t *dev,
-        vendor_tag_query_ops_t *ops)
-{
-    camdev_to_camera(dev)->getMetadataVendorTagOps(ops);
-}
-
 static void dump(const camera3_device_t *dev, int fd)
 {
     camdev_to_camera(dev)->dump(fd);
@@ -590,8 +578,7 @@ const camera3_device_ops_t Camera::sOps = {
     .construct_default_request_settings =
             default_camera_hal::construct_default_request_settings,
     .process_capture_request = default_camera_hal::process_capture_request,
-    .get_metadata_vendor_tag_ops =
-            default_camera_hal::get_metadata_vendor_tag_ops,
+    .get_metadata_vendor_tag_ops = NULL,
     .dump                    = default_camera_hal::dump
 };
 

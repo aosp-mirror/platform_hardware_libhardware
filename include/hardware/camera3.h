@@ -21,19 +21,25 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.1 [ CAMERA_DEVICE_API_VERSION_3_1 ]
+ * Camera device HAL 3.2 [ CAMERA_DEVICE_API_VERSION_3_2 ]
  *
  * EXPERIMENTAL.
  *
  * Supports the android.hardware.Camera API.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_1 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_2 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
  *
- * Camera modules that may contain version 3.1 devices must implement at least
- * version 2.0 of the camera module interface (as defined by
- * camera_module_t.common.module_api_version).
+ * CAMERA_DEVICE_API_VERSION_3_2:
+ *    Camera modules that may contain version 3.2 devices must implement at
+ *    least version 2.2 of the camera module interface (as defined by
+ *    camera_module_t.common.module_api_version).
+ *
+ * <= CAMERA_DEVICE_API_VERSION_3_1:
+ *    Camera modules that may contain version 3.1 (or 3.0) devices must
+ *    implement at least version 2.0 of the camera module interface
+ *    (as defined by camera_module_t.common.module_api_version).
  *
  * See camera_common.h for more versioning details.
  *
@@ -88,6 +94,11 @@
  *   - configure_streams passes consumer usage flags to the HAL.
  *
  *   - flush call to drop all in-flight requests/buffers as fast as possible.
+ *
+ * 3.2: Minor revision of expanded-capability HAL:
+ *
+ *   - Deprecates get_metadata_vendor_tag_ops.  Please use get_vendor_tag_ops
+ *     in camera_common.h instead.
  */
 
 /**
@@ -2081,6 +2092,10 @@ typedef struct camera3_device_ops {
      * The definition of vendor_tag_query_ops_t can be found in
      * system/media/camera/include/system/camera_metadata.h.
      *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *    DEPRECATED. This function has been deprecated and should be set to
+     *    NULL by the HAL.  Please implement get_vendor_tag_ops in camera_common.h
+     *    instead.
      */
     void (*get_metadata_vendor_tag_ops)(const struct camera3_device*,
             vendor_tag_query_ops_t* ops);
