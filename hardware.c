@@ -160,7 +160,7 @@ int hw_get_module_by_class(const char *class_id, const char *inst,
 
     /* First try a property specific to the class and possibly instance */
     snprintf(prop_name, sizeof(prop_name), "ro.hardware.%s", name);
-    if (property_get(prop_name, prop, NULL) == 0) {
+    if (property_get(prop_name, prop, NULL) > 0) {
         if (hw_module_exists(path, sizeof(path), name, prop) == 0) {
             goto found;
         }
