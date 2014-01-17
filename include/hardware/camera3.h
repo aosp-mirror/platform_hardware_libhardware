@@ -50,7 +50,7 @@
  *   S4. 3A modes and state machines
  *   S5. Cropping
  *   S6. Error management
- *   S7. Performance KPI Glossary
+ *   S7. Key Performance Indicator (KPI) glossary
  */
 
 /**
@@ -985,9 +985,9 @@
  */
 
 /**
- * S7. Performance KPI Glossary:
+ * S7. Key Performance Indicator (KPI) glossary:
  *
- * This includes some critical definitions that are used by performance KPI metrics.
+ * This includes some critical definitions that are used by KPI metrics.
  *
  * Pipeline Latency:
  *  For a given capture request, the duration from the framework calling
