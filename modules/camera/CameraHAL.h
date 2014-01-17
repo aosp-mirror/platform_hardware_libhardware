@@ -20,7 +20,7 @@
 #include <cutils/bitops.h>
 #include <hardware/hardware.h>
 #include <hardware/camera_common.h>
-#include <system/vendor_tags.h>
+#include <system/camera_vendor_tags.h>
 #include "Camera.h"
 #include "VendorTags.h"
 
