@@ -20,7 +20,7 @@ LOCAL_MODULE := vibrator.default
 
 # HAL module implementation stored in
 # hw/<VIBRATOR_HARDWARE_MODULE_ID>.default.so
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_C_INCLUDES := hardware/libhardware
 LOCAL_SRC_FILES := vibrator.c
 LOCAL_SHARED_LIBRARIES := liblog
