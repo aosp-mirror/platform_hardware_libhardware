@@ -17,7 +17,7 @@ LOCAL_PATH := $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := audio.r_submix.default
-LOCAL_MODULE_PATH := $(TARGET_OUT_SHARED_LIBRARIES)/hw
+LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := \
 	audio_hw.cpp
 LOCAL_C_INCLUDES += \
