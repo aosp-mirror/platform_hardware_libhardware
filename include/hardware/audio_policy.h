@@ -332,10 +332,9 @@ struct audio_policy_service_ops {
                              audio_io_handle_t output,
                              int delay_ms);
 
-    /* reroute a given stream type to the specified output */
-    int (*set_stream_output)(void *service,
-                             audio_stream_type_t stream,
-                             audio_io_handle_t output);
+    /* invalidate a stream type, causing a reroute to an unspecified new output */
+    int (*invalidate_stream)(void *service,
+                             audio_stream_type_t stream);
 
     /* function enabling to send proprietary informations directly from audio
      * policy manager to audio hardware interface. */
