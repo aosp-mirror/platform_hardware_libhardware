@@ -1032,7 +1032,9 @@
  * In each of these transient failure cases, the HAL must still call
  * process_capture_result, with valid output buffer_handle_t. If the result
  * metadata could not be produced, it should be NULL. If some buffers could not
- * be filled, their sync fences must be set to the error state.
+ * be filled, they must be returned with process_capture_result in the error state,
+ * their release fences must be set to the acquire fences passed by the framework,
+ * or -1 if they have been waited on by the HAL already.
  *
  * Invalid input arguments result in -EINVAL from the appropriate methods. In
  * that case, the framework must act as if that call had never been made.
@@ -2485,19 +2487,67 @@ typedef struct camera3_device_ops {
      * quickly as possible in order to prepare for a configure_streams() call.
      *
      * No buffers are required to be successfully returned, so every buffer
-     * held at the time of flush() (whether sucessfully filled or not) may be
+     * held at the time of flush() (whether successfully filled or not) may be
      * returned with CAMERA3_BUFFER_STATUS_ERROR. Note the HAL is still allowed
-     * to return valid (STATUS_OK) buffers during this call, provided they are
-     * succesfully filled.
+     * to return valid (CAMERA3_BUFFER_STATUS_OK) buffers during this call,
+     * provided they are successfully filled.
      *
      * All requests currently in the HAL are expected to be returned as soon as
      * possible.  Not-in-process requests should return errors immediately. Any
      * interruptible hardware blocks should be stopped, and any uninterruptible
      * blocks should be waited on.
      *
+     * More specifically, the HAL must follow below requirements for various cases:
+     *
+     * 1. For captures that are too late for the HAL to cancel/stop, and will be
+     *    completed normally by the HAL; i.e. the HAL can send shutter/notify and
+     *    process_capture_result and buffers as normal.
+     *
+     * 2. For pending requests that have not done any processing, the HAL must call notify
+     *    CAMERA3_MSG_ERROR_REQUEST, and return all the output buffers with
+     *    process_capture_result in the error state (CAMERA3_BUFFER_STATUS_ERROR).
+     *    The HAL must not place the release fence into an error state, instead,
+     *    the release fences must be set to the acquire fences passed by the framework,
+     *    or -1 if they have been waited on by the HAL already. This is also the path
+     *    to follow for any captures for which the HAL already called notify() with
+     *    CAMERA3_MSG_SHUTTER but won't be producing any metadata/valid buffers for.
+     *    After CAMERA3_MSG_ERROR_REQUEST, for a given frame, only process_capture_results with
+     *    buffers in CAMERA3_BUFFER_STATUS_ERROR are allowed. No further notifys or
+     *    process_capture_result with non-null metadata is allowed.
+     *
+     * 3. For partially completed pending requests that will not have all the output
+     *    buffers or perhaps missing metadata, the HAL should follow below:
+     *
+     *    3.1. Call notify with CAMERA3_MSG_ERROR_RESULT if some of the expected result
+     *    metadata (i.e. one or more partial metadata) won't be available for the capture.
+     *
+     *    3.2. Call notify with CAMERA3_MSG_ERROR_BUFFER for every buffer that won't
+     *         be produced for the capture.
+     *
+     *    3.3  Call notify with CAMERA3_MSG_SHUTTER with the capture timestamp before
+     *         any buffers/metadata are returned with process_capture_result.
+     *
+     *    3.4 For captures that will produce some results, the HAL must not call
+     *        CAMERA3_MSG_ERROR_REQUEST, since that indicates complete failure.
+     *
+     *    3.5. Valid buffers/metadata should be passed to the framework as normal.
+     *
+     *    3.6. Failed buffers should be returned to the framework as described for case 2.
+     *         But failed buffers do not have to follow the strict ordering valid buffers do,
+     *         and may be out-of-order with respect to valid buffers. For example, if buffers
+     *         A, B, C, D, E are sent, D and E are failed, then A, E, B, D, C is an acceptable
+     *         return order.
+     *
+     *    3.7. For fully-missing metadata, calling CAMERA3_MSG_ERROR_RESULT is sufficient, no
+     *         need to call process_capture_result with NULL metadata or equivalent.
+     *
      * flush() should only return when there are no more outstanding buffers or
-     * requests left in the HAL.  The framework may call configure_streams (as
+     * requests left in the HAL. The framework may call configure_streams (as
      * the HAL state is now quiesced) or may issue new requests.
+     *
+     * Note that it's sufficient to only support fully-succeeded and fully-failed result cases.
+     * However, it is highly desirable to support the partial failure cases as well, as it
+     * could help improve the flush call overall performance.
      *
      * Performance requirements:
      *
