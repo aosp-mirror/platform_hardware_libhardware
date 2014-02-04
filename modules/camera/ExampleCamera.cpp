@@ -62,7 +62,7 @@ camera_metadata_t *ExampleCamera::initStaticInfo()
             ARRAY_SIZE(android_control_ae_compensation_step),
             android_control_ae_compensation_step);
 
-    int32_t android_control_max_regions[] = {1};
+    int32_t android_control_max_regions[] = {/*AE*/ 1,/*AWB*/ 1,/*AF*/ 1};
     m.addInt32(ANDROID_CONTROL_MAX_REGIONS,
             ARRAY_SIZE(android_control_max_regions),
             android_control_max_regions);
