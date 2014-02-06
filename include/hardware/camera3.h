@@ -114,6 +114,9 @@
  *
  *   - Rework the bidirectional and input stream specifications.
  *
+ *   - change the input buffer return path. The buffer is returned in
+ *     process_capture_result instead of process_capture_request.
+ *
  */
 
 /**
@@ -213,7 +216,7 @@
  *
  *    In particular, it is legal for a process_capture_result to be called
  *    simultaneously for both a frame N and a frame N+1 as long as the
- *    above rule holds for gralloc buffers.
+ *    above rule holds for gralloc buffers (both input and output).
  *
  * 11. After some time, the framework may stop submitting new requests, wait for
  *    the existing captures to complete (all buffers filled, all results
@@ -1037,11 +1040,12 @@
  *   ERROR_BUFFER for each failed buffer.
  *
  * In each of these transient failure cases, the HAL must still call
- * process_capture_result, with valid output buffer_handle_t. If the result
- * metadata could not be produced, it should be NULL. If some buffers could not
- * be filled, they must be returned with process_capture_result in the error state,
- * their release fences must be set to the acquire fences passed by the framework,
- * or -1 if they have been waited on by the HAL already.
+ * process_capture_result, with valid output and input (if an input buffer was
+ * submitted) buffer_handle_t. If the result metadata could not be produced, it
+ * should be NULL. If some buffers could not be filled, they must be returned with
+ * process_capture_result in the error state, their release fences must be set to
+ * the acquire fences passed by the framework, or -1 if they have been waited on by
+ * the HAL already.
  *
  * Invalid input arguments result in -EINVAL from the appropriate methods. In
  * that case, the framework must act as if that call had never been made.
@@ -1424,6 +1428,13 @@ typedef struct camera3_stream_buffer {
      *
      * For input buffers, the HAL must not change the acquire_fence field during
      * the process_capture_request() call.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * When the HAL returns an input buffer to the framework with
+     * process_capture_result(), the acquire_fence must be set to -1. If the HAL
+     * never waits on input buffer acquire fence due to an error, the sync fences
+     * should be handled similarly to the way they are handled for output buffers.
      */
      int acquire_fence;
 
@@ -1432,11 +1443,18 @@ typedef struct camera3_stream_buffer {
      * returning buffers to the framework, or write -1 to indicate that no
      * waiting is required for this buffer.
      *
+     * For the output buffers, the fences must be set in the output_buffers
+     * array passed to process_capture_result().
+     *
+     * <= CAMERA_DEVICE_API_VERSION_3_1:
+     *
      * For the input buffer, the release fence must be set by the
-     * process_capture_request() call. For the output buffers, the fences must
-     * be set in the output_buffers array passed to process_capture_result().
+     * process_capture_request() call.
      *
      * >= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     * For the input buffer, the fences must be set in the input_buffer
+     * passed to process_capture_result().
      *
      * After signaling the release_fence for this buffer, the HAL
      * should not make any further attempts to access this buffer as the
@@ -1849,6 +1867,12 @@ typedef struct camera3_capture_request {
  * framework will accumulate together the final result set by combining each
  * partial result together into the total result set.
  *
+ * If an input buffer is given in a request, the HAL must return it in one of
+ * the process_capture_result calls, and the call may be to just return the input
+ * buffer, without metadata and output buffers; the sync fences must be handled
+ * the same way they are done for output buffers.
+ *
+ *
  * Performance considerations:
  *
  * Applications will also receive these partial results immediately, so sending
@@ -1945,6 +1969,32 @@ typedef struct camera3_capture_result {
      * dispatch that call as early as possible.
      */
      const camera3_stream_buffer_t *output_buffers;
+
+     /**
+      * >= CAMERA_DEVICE_API_VERSION_3_2:
+      *
+      * The handle for the input stream buffer for this capture. It may not
+      * yet be consumed at the time the HAL calls process_capture_result(); the
+      * framework will wait on the release sync fences provided by the HAL before
+      * reusing the buffer.
+      *
+      * The HAL should handle the sync fences the same way they are done for
+      * output_buffers.
+      *
+      * Only one input buffer is allowed to be sent per request. Similarly to
+      * output buffers, the ordering of returned input buffers must be
+      * maintained by the HAL.
+      *
+      * Performance considerations:
+      *
+      * The input buffer should be returned as early as possible. If the HAL
+      * supports sync fences, it can call process_capture_result to hand it back
+      * with sync fences being set appropriately. If the sync fences are not
+      * supported, the buffer can only be returned when it is consumed, which
+      * may take long time; the HAL may choose to copy this input buffer to make
+      * the buffer return sooner.
+      */
+      const camera3_stream_buffer_t *input_buffer;
 
      /**
       * >= CAMERA_DEVICE_API_VERSION_3_2:
