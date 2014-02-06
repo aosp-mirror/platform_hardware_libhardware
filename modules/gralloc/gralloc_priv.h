@@ -75,7 +75,7 @@ struct private_handle_t {
     int     offset;
 
     // FIXME: the attributes below should be out-of-line
-    int     base;
+    uintptr_t base;
     int     pid;
 
 #ifdef __cplusplus

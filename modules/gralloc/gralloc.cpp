@@ -166,7 +166,7 @@ static int gralloc_alloc_framebuffer(alloc_device_t* dev,
 }
 
 static int gralloc_alloc_buffer(alloc_device_t* dev,
-        size_t size, int usage, buffer_handle_t* pHandle)
+        size_t size, int /*usage*/, buffer_handle_t* pHandle)
 {
     int err = 0;
     int fd = -1;
