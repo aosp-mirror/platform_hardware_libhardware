@@ -51,6 +51,7 @@
  *   S5. Cropping
  *   S6. Error management
  *   S7. Key Performance Indicator (KPI) glossary
+ *   S8. Sample Use Cases
  */
 
 /**
@@ -107,6 +108,12 @@
  *   - add partial result support. process_capture_result may be called
  *     multiple times with a subset of the available result before the full
  *     result is available.
+ *
+ *   - add manual template to camera3_request_template. The applications may
+ *     use this template to control the capture settings directly.
+ *
+ *   - Rework the bidirectional and input stream specifications.
+ *
  */
 
 /**
@@ -1063,6 +1070,73 @@
  *
  */
 
+/**
+ * S8. Sample Use Cases:
+ *
+ * This includes some typical use case examples the camera HAL may support.
+ *
+ * S8.1 Zero Shutter Lag (ZSL) with CAMERA3_STREAM_INPUT stream.
+ *
+ *   When Zero Shutter Lag (ZSL) is supported by the camera device, the INPUT stream
+ *   can be used for application/framework implemented ZSL use case. This kind of stream
+ *   will be used by the framework as follows:
+ *
+ *   1. Framework configures an opaque raw format output stream that is used to
+ *      produce the ZSL output buffers. The stream pixel format will be
+ *      HAL_PIXEL_FORMAT_RAW_OPAQUE.
+ *
+ *   2. Framework configures an opaque raw format input stream that is used to
+ *      send the reprocess ZSL buffers to the HAL. The stream pixel format will
+ *      also be HAL_PIXEL_FORMAT_RAW_OPAQUE.
+ *
+ *   3. Framework configures a YUV/JPEG output stream that is used to receive the
+ *      reprocessed data. The stream pixel format will be YCbCr_420/HAL_PIXEL_FORMAT_BLOB.
+ *
+ *   4. Framework picks a ZSL buffer from the output stream when a ZSL capture is
+ *      issued by the application, and sends the data back as an input buffer in a
+ *      reprocessing request, then sends to the HAL for reprocessing.
+ *
+ *   5. The HAL sends back the output JPEG result to framework.
+ *
+ *   The HAL can select the actual raw buffer format and configure the ISP pipeline
+ *   appropriately based on the HAL_PIXEL_FORMAT_RAW_OPAQUE format. See this format
+ *   definition for more details.
+ *
+ * S8.2 Zero Shutter Lag (ZSL) with CAMERA3_STREAM_BIDIRECTIONAL stream.
+ *
+ *   For this use case, the bidirectional stream will be used by the framework as follows:
+ *
+ *   1. The framework includes a buffer from this stream as output buffer in a
+ *      request as normal.
+ *
+ *   2. Once the HAL device returns a filled output buffer to the framework,
+ *      the framework may do one of two things with the filled buffer:
+ *
+ *   2. a. The framework uses the filled data, and returns the now-used buffer
+ *         to the stream queue for reuse. This behavior exactly matches the
+ *         OUTPUT type of stream.
+ *
+ *   2. b. The framework wants to reprocess the filled data, and uses the
+ *         buffer as an input buffer for a request. Once the HAL device has
+ *         used the reprocessing buffer, it then returns it to the
+ *         framework. The framework then returns the now-used buffer to the
+ *         stream queue for reuse.
+ *
+ *   3. The HAL device will be given the buffer again as an output buffer for
+ *        a request at some future point.
+ *
+ *   For ZSL use case, the pixel format for bidirectional stream will be
+ *   HAL_PIXEL_FORMAT_RAW_OPAQUE if it is listed in android.scaler.availableInputFormats.
+ *   A configuration stream list that has BIDIRECTIONAL stream used as input, will usually
+ *   also have a distinct OUTPUT stream to get the reprocessing data. For example, for the
+ *   ZSL use case, the stream list might be configured with the following:
+ *
+ *     - A HAL_PIXEL_FORMAT_RAW_OPAQUE bidirectional stream is used
+ *       as input.
+ *     - And a HAL_PIXEL_FORMAT_BLOB (JPEG) output stream.
+ *
+ */
+
 __BEGIN_DECLS
 
 struct camera3_device;
@@ -1097,6 +1171,20 @@ typedef enum camera3_stream_type {
      * for reading buffers from this stream and sending them through the camera
      * processing pipeline, as if the buffer was a newly captured image from the
      * imager.
+     *
+     * The pixel format for input stream can be any format reported by
+     * android.scaler.availableInputFormats. The pixel format of the output stream
+     * that is used to produce the reprocessing data may be any format reported by
+     * android.scaler.availableFormats. The supported input/output stream combinations
+     * depends the camera device capabilities, see android.scaler.availableInputFormats
+     * for stream map details.
+     *
+     * This kind of stream is generally used to reprocess data into higher quality images
+     * (that otherwise would cause a frame rate performance loss), or to do off-line
+     * reprocessing.
+     *
+     * A typical use case is Zero Shutter Lag (ZSL), see S8.1 for more details.
+     *
      */
     CAMERA3_STREAM_INPUT = 1,
 
@@ -1105,29 +1193,9 @@ typedef enum camera3_stream_type {
      * used as an output stream, but occasionally one already-filled buffer may
      * be sent back to the HAL device for reprocessing.
      *
-     * This kind of stream is meant generally for zero-shutter-lag features,
+     * This kind of stream is meant generally for Zero Shutter Lag (ZSL) features,
      * where copying the captured image from the output buffer to the
-     * reprocessing input buffer would be expensive. The stream will be used by
-     * the framework as follows:
-     *
-     * 1. The framework includes a buffer from this stream as output buffer in a
-     *    request as normal.
-     *
-     * 2. Once the HAL device returns a filled output buffer to the framework,
-     *    the framework may do one of two things with the filled buffer:
-     *
-     * 2. a. The framework uses the filled data, and returns the now-used buffer
-     *       to the stream queue for reuse. This behavior exactly matches the
-     *       OUTPUT type of stream.
-     *
-     * 2. b. The framework wants to reprocess the filled data, and uses the
-     *       buffer as an input buffer for a request. Once the HAL device has
-     *       used the reprocessing buffer, it then returns it to the
-     *       framework. The framework then returns the now-used buffer to the
-     *       stream queue for reuse.
-     *
-     * 3. The HAL device will be given the buffer again as an output buffer for
-     *    a request at some future point.
+     * reprocessing input buffer would be expensive. See S8.2 for more details.
      *
      * Note that the HAL will always be reprocessing data it produced.
      *
