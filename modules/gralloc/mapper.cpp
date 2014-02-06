@@ -43,7 +43,7 @@ pid_t gettid() { return syscall(__NR_gettid);}
 
 /*****************************************************************************/
 
-static int gralloc_map(gralloc_module_t const* module,
+static int gralloc_map(gralloc_module_t const* /*module*/,
         buffer_handle_t handle,
         void** vaddr)
 {
@@ -56,7 +56,7 @@ static int gralloc_map(gralloc_module_t const* module,
             ALOGE("Could not mmap %s", strerror(errno));
             return -errno;
         }
-        hnd->base = intptr_t(mappedAddress) + hnd->offset;
+        hnd->base = uintptr_t(mappedAddress) + hnd->offset;
         //ALOGD("gralloc_map() succeeded fd=%d, off=%d, size=%d, vaddr=%p",
         //        hnd->fd, hnd->offset, hnd->size, mappedAddress);
     }
@@ -64,7 +64,7 @@ static int gralloc_map(gralloc_module_t const* module,
     return 0;
 }
 
-static int gralloc_unmap(gralloc_module_t const* module,
+static int gralloc_unmap(gralloc_module_t const* /*module*/,
         buffer_handle_t handle)
 {
     private_handle_t* hnd = (private_handle_t*)handle;
@@ -163,9 +163,9 @@ int terminateBuffer(gralloc_module_t const* module,
     return 0;
 }
 
-int gralloc_lock(gralloc_module_t const* module,
-        buffer_handle_t handle, int usage,
-        int l, int t, int w, int h,
+int gralloc_lock(gralloc_module_t const* /*module*/,
+        buffer_handle_t handle, int /*usage*/,
+        int /*l*/, int /*t*/, int /*w*/, int /*h*/,
         void** vaddr)
 {
     // this is called when a buffer is being locked for software
@@ -184,7 +184,7 @@ int gralloc_lock(gralloc_module_t const* module,
     return 0;
 }
 
-int gralloc_unlock(gralloc_module_t const* module,
+int gralloc_unlock(gralloc_module_t const* /*module*/,
         buffer_handle_t handle)
 {
     // we're done with a software buffer. nothing to do in this
