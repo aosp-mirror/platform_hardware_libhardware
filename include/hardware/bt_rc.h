@@ -171,6 +171,10 @@ typedef void (* btrc_volume_change_callback) (uint8_t volume, uint8_t ctype);
 /** Callback for passthrough commands */
 typedef void (* btrc_passthrough_cmd_callback) (int id, int key_state);
 
+typedef void (* btrc_passthrough_rsp_callback) (int id, int key_state);
+
+typedef void (* btrc_connection_state_callback) (int state, bt_bdaddr_t *bd_addr);
+
 /** BT-RC callback structure. */
 typedef struct {
     /** set to sizeof(BtRcCallbacks) */
@@ -187,6 +191,8 @@ typedef struct {
     btrc_register_notification_callback         register_notification_cb;
     btrc_volume_change_callback                 volume_change_cb;
     btrc_passthrough_cmd_callback               passthrough_cmd_cb;
+    btrc_passthrough_rsp_callback               passthrough_rsp_cb;
+    btrc_connection_state_callback              connection_state_cb;
 } btrc_callbacks_t;
 
 /** Represents the standard BT-RC interface. */
@@ -256,6 +262,8 @@ typedef struct {
     ** volume: Should be in the range 0-127. bit7 is reseved and cannot be set
     */
     bt_status_t (*set_volume)(uint8_t volume);
+
+    bt_status_t (*send_pass_through_cmd) (uint8_t key_code, uint8_t key_state);
 
     /** Closes the interface. */
     void  (*cleanup)( void );
