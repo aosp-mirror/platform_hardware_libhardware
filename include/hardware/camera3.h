@@ -353,13 +353,10 @@
  *
  *   android.scaler.cropRegion (controls)
  *       [ignores (x,y), assumes center-zoom]
- *   android.scaler.availableFormats (static)
- *       [RAW not supported]
- *   android.scaler.availableJpegMinDurations (static)
- *   android.scaler.availableJpegSizes (static)
+ *   android.scaler.availableStreamConfigurations (static)
+ *   android.scaler.availableMinFrameDurations (static)
+ *   android.scaler.availableStallDurations (static)
  *   android.scaler.availableMaxDigitalZoom (static)
- *   android.scaler.availableProcessedMinDurations (static)
- *   android.scaler.availableProcessedSizes (static)
  *       [full resolution not supported]
  *   android.scaler.maxDigitalZoom (static)
  *   android.scaler.cropRegion (dynamic)
@@ -1130,9 +1127,10 @@
  *        a request at some future point.
  *
  *   For ZSL use case, the pixel format for bidirectional stream will be
- *   HAL_PIXEL_FORMAT_RAW_OPAQUE if it is listed in android.scaler.availableInputFormats.
- *   A configuration stream list that has BIDIRECTIONAL stream used as input, will usually
- *   also have a distinct OUTPUT stream to get the reprocessing data. For example, for the
+ *   HAL_PIXEL_FORMAT_RAW_OPAQUE if it is listed in
+ *   android.scaler.availableInputOutputFormatsMap.  A configuration stream list
+ *   that has BIDIRECTIONAL stream used as input, will usually also have a
+ *   distinct OUTPUT stream to get the reprocessing data. For example, for the
  *   ZSL use case, the stream list might be configured with the following:
  *
  *     - A HAL_PIXEL_FORMAT_RAW_OPAQUE bidirectional stream is used
@@ -1177,15 +1175,16 @@ typedef enum camera3_stream_type {
      * imager.
      *
      * The pixel format for input stream can be any format reported by
-     * android.scaler.availableInputFormats. The pixel format of the output stream
-     * that is used to produce the reprocessing data may be any format reported by
-     * android.scaler.availableFormats. The supported input/output stream combinations
-     * depends the camera device capabilities, see android.scaler.availableInputFormats
-     * for stream map details.
+     * android.scaler.availableInputOutputFormatsMap. The pixel format of the
+     * output stream that is used to produce the reprocessing data may be any
+     * format reported by android.scaler.availableStreamConfigurations. The
+     * supported input/output stream combinations depends the camera device
+     * capabilities, see android.scaler.availableInputOutputFormatsMap for
+     * stream map details.
      *
-     * This kind of stream is generally used to reprocess data into higher quality images
-     * (that otherwise would cause a frame rate performance loss), or to do off-line
-     * reprocessing.
+     * This kind of stream is generally used to reprocess data into higher
+     * quality images (that otherwise would cause a frame rate performance
+     * loss), or to do off-line reprocessing.
      *
      * A typical use case is Zero Shutter Lag (ZSL), see S8.1 for more details.
      *
@@ -1197,8 +1196,8 @@ typedef enum camera3_stream_type {
      * used as an output stream, but occasionally one already-filled buffer may
      * be sent back to the HAL device for reprocessing.
      *
-     * This kind of stream is meant generally for Zero Shutter Lag (ZSL) features,
-     * where copying the captured image from the output buffer to the
+     * This kind of stream is meant generally for Zero Shutter Lag (ZSL)
+     * features, where copying the captured image from the output buffer to the
      * reprocessing input buffer would be expensive. See S8.2 for more details.
      *
      * Note that the HAL will always be reprocessing data it produced.
@@ -1433,8 +1432,9 @@ typedef struct camera3_stream_buffer {
      *
      * When the HAL returns an input buffer to the framework with
      * process_capture_result(), the acquire_fence must be set to -1. If the HAL
-     * never waits on input buffer acquire fence due to an error, the sync fences
-     * should be handled similarly to the way they are handled for output buffers.
+     * never waits on input buffer acquire fence due to an error, the sync
+     * fences should be handled similarly to the way they are handled for output
+     * buffers.
      */
      int acquire_fence;
 
