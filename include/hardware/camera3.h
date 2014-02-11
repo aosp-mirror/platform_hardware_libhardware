@@ -2705,7 +2705,8 @@ typedef struct camera3_device {
      *
      * Performance requirements:
      *
-     * Camera open (common.methods->open) should return in 200ms, and must return in 500ms.
+     * Camera open (common.module->common.methods->open) should return in 200ms, and must return
+     * in 500ms.
      * Camera close (common.close) should return in 200ms, and must return in 500ms.
      *
      */
