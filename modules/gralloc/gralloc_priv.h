@@ -79,7 +79,9 @@ struct private_handle_t {
     int     pid;
 
 #ifdef __cplusplus
-    static const int sNumInts = 6;
+    static inline int sNumInts() {
+        return (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
+    }
     static const int sNumFds = 1;
     static const int sMagic = 0x3141592;
 
@@ -88,7 +90,7 @@ struct private_handle_t {
         base(0), pid(getpid())
     {
         version = sizeof(native_handle);
-        numInts = sNumInts;
+        numInts = sNumInts();
         numFds = sNumFds;
     }
     ~private_handle_t() {
@@ -98,7 +100,7 @@ struct private_handle_t {
     static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
-                h->numInts != sNumInts || h->numFds != sNumFds ||
+                h->numInts != sNumInts() || h->numFds != sNumFds ||
                 hnd->magic != sMagic)
         {
             ALOGE("invalid gralloc handle (at %p)", h);
