@@ -121,6 +121,26 @@ typedef struct hwc_layer_1 {
      *   that the layer will be handled by the HWC (ie: it must not be
      *   composited with OpenGL ES).
      *
+     *
+     * HWC_SIDEBAND
+     *   Set by the caller before calling (*prepare)(), this value indicates
+     *   the contents of this layer come from a sideband video stream.
+     *
+     *   The h/w composer is responsible for receiving new image buffers from
+     *   the stream at the appropriate time (e.g. synchronized to a separate
+     *   audio stream), compositing them with the current contents of other
+     *   layers, and displaying the resulting image. This happens
+     *   independently of the normal prepare/set cycle. The prepare/set calls
+     *   only happen when other layers change, or when properties of the
+     *   sideband layer such as position or size change.
+     *
+     *   If the h/w composer can't handle the layer as a sideband stream for
+     *   some reason (e.g. unsupported scaling/blending/rotation, or too many
+     *   sideband layers) it can set compositionType to HWC_FRAMEBUFFER in
+     *   (*prepare)(). However, doing so will result in the layer being shown
+     *   as a solid color since the platform is not currently able to composite
+     *   sideband layers with the GPU. This may be improved in future
+     *   versions of the platform.
      */
     int32_t compositionType;
 
@@ -141,13 +161,21 @@ typedef struct hwc_layer_1 {
         hwc_color_t backgroundColor;
 
         struct {
-            /* handle of buffer to compose. This handle is guaranteed to have been
-             * allocated from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag. If
-             * the layer's handle is unchanged across two consecutive prepare calls and
-             * the HWC_GEOMETRY_CHANGED flag is not set for the second call then the
-             * HWComposer implementation may assume that the contents of the buffer have
-             * not changed. */
-            buffer_handle_t handle;
+            union {
+                /* When compositionType is HWC_FRAMEBUFFER, HWC_OVERLAY,
+                 * HWC_FRAMEBUFFER_TARGET, this is the handle of the buffer to
+                 * compose. This handle is guaranteed to have been allocated
+                 * from gralloc using the GRALLOC_USAGE_HW_COMPOSER usage flag.
+                 * If the layer's handle is unchanged across two consecutive
+                 * prepare calls and the HWC_GEOMETRY_CHANGED flag is not set
+                 * for the second call then the HWComposer implementation may
+                 * assume that the contents of the buffer have not changed. */
+                buffer_handle_t handle;
+
+                /* When compositionType is HWC_SIDEBAND, this is the handle
+                 * of the sideband video stream to compose. */
+                const native_handle_t* sidebandStream;
+            };
 
             /* transformation to apply to the buffer during composition */
             uint32_t transform;
@@ -191,6 +219,10 @@ typedef struct hwc_layer_1 {
              * reads from them are complete before the framebuffer is ready for
              * display.
              *
+             * HWC_SIDEBAND layers will never have an acquire fence, since
+             * synchronization is handled through implementation-defined
+             * sideband mechanisms.
+             *
              * The HWC takes ownership of the acquireFenceFd and is responsible
              * for closing it when no longer needed.
              */
@@ -213,6 +245,10 @@ typedef struct hwc_layer_1 {
              * Since HWC doesn't read from HWC_FRAMEBUFFER layers, it shouldn't
              * produce a release fence for them. The releaseFenceFd will be -1
              * for these layers when set() is called.
+             *
+             * Since HWC_SIDEBAND buffers don't pass through the HWC client,
+             * the HWC shouldn't produce a release fence for them. The
+             * releaseFenceFd will be -1 for these layers when set() is called.
              *
              * The HWC client taks ownership of the releaseFenceFd and is
              * responsible for closing it when no longer needed.
@@ -262,7 +298,7 @@ typedef struct hwc_layer_1 {
     };
 
     /* Allow for expansion w/o breaking binary compatibility.
-     * Pad layer to 96 bytes.
+     * Pad layer to 96 bytes, assuming 32-bit pointers.
      */
     int32_t reserved[24 - 19];
 
