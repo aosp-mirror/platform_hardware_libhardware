@@ -66,6 +66,8 @@ qemu_pipe_open(const char*  pipeName)
     snprintf(buff, sizeof buff, "pipe:%s", pipeName);
 
     fd = open("/dev/qemu_pipe", O_RDWR);
+    if (fd < 0 && errno == ENOENT)
+        fd = open("/dev/goldfish_pipe", O_RDWR);
     if (fd < 0) {
         D("%s: Could not open /dev/qemu_pipe: %s", __FUNCTION__, strerror(errno));
         //errno = ENOSYS;
