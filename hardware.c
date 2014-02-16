@@ -28,8 +28,13 @@
 #include <utils/Log.h>
 
 /** Base path of the hal modules */
+#if defined(__LP64__)
+#define HAL_LIBRARY_PATH1 "/system/lib64/hw"
+#define HAL_LIBRARY_PATH2 "/vendor/lib64/hw"
+#else
 #define HAL_LIBRARY_PATH1 "/system/lib/hw"
 #define HAL_LIBRARY_PATH2 "/vendor/lib/hw"
+#endif
 
 /**
  * There are a set of variant filename for modules. The form of the filename
