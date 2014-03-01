@@ -34,6 +34,7 @@ __BEGIN_DECLS
 #define SENSORS_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, SENSORS_HEADER_VERSION)
+#define SENSORS_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, SENSORS_HEADER_VERSION)
 
 /**
  * Please see the Sensors section of source.android.com for an
@@ -63,9 +64,12 @@ __BEGIN_DECLS
 
 
 /*
+ * **** Deprecated *****
  * flags for (*batch)()
  * Availability: SENSORS_DEVICE_API_VERSION_1_0
- * see (*batch)() documentation for details
+ * see (*batch)() documentation for details.
+ * Deprecated as of  SENSORS_DEVICE_API_VERSION_1_3.
+ * WAKE_UP_* sensors replace WAKE_UPON_FIFO_FULL concept.
  */
 enum {
     SENSORS_BATCH_DRY_RUN               = 0x00000001,
@@ -87,6 +91,17 @@ enum {
  * permission.
  */
 #define SENSOR_PERMISSION_BODY_SENSORS "android.permission.BODY_SENSORS"
+
+/*
+ * Availability: SENSORS_DEVICE_API_VERSION_1_3
+ * Sensor flags used in sensor_t.flags.
+ */
+enum {
+    /*
+     * Whether this sensor wakes up the AP from suspend mode when data is available.
+     */
+    SENSOR_FLAG_WAKE_UP = 1U << 0
+};
 
 /*
  * Sensor type
@@ -250,7 +265,7 @@ enum {
 /*
  * SENSOR_TYPE_PROXIMITY
  * trigger-mode: on-change
- * wake-up sensor: yes
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * The value corresponds to the distance to the nearest object in centimeters.
  */
@@ -348,7 +363,7 @@ enum {
 /*
  * SENSOR_TYPE_SIGNIFICANT_MOTION
  * trigger-mode: one-shot
- * wake-up sensor: yes
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type triggers an event each time significant motion
  * is detected and automatically disables itself.
@@ -409,6 +424,84 @@ enum {
  */
 #define SENSOR_TYPE_HEART_RATE                      (21)
 #define SENSOR_STRING_TYPE_HEART_RATE               "android.sensor.heart_rate"
+
+/*
+ * SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR
+ * Same as proximity_sensor but does not wake up the AP from suspend mode.
+ * wake-up sensor: no
+ */
+#define SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR           (22)
+#define SENSOR_STRING_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR    "android.sensor.non_wake_up_proximity_sensor"
+
+/*
+ * The sensors below are wake_up variants of the base sensor types defined
+ * above. When registered in batch mode, these sensors will wake up the AP when
+ * their FIFOs are full. A separate FIFO has to be maintained for wake up
+ * sensors and non wake up sensors. The non wake-up sensors need to overwrite
+ * their FIFOs when they are full till the AP wakes up and the wake-up sensors
+ * will wake-up the AP when their FIFOs are full without losing events.
+ *
+ * Define these sensors only if:
+ * 1) batching is supported.
+ * 2) wake-up and non wake-up variants of each sensor can be activated at
+ *    different rates.
+ *
+ * wake-up sensor: yes
+ * Set SENSOR_FLAG_WAKE_UP flag for all these sensors.
+ */
+#define SENSOR_TYPE_WAKE_UP_ACCELEROMETER                      (23)
+#define SENSOR_STRING_TYPE_WAKE_UP_ACCELEROMETER               "android.sensor.wake_up_accelerometer"
+
+#define SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD                     (24)
+#define SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD              "android.sensor.wake_up_magnetic_field"
+
+#define SENSOR_TYPE_WAKE_UP_ORIENTATION                        (25)
+#define SENSOR_STRING_TYPE_WAKE_UP_ORIENTATION                 "android.sensor.wake_up_orientation"
+
+#define SENSOR_TYPE_WAKE_UP_GYROSCOPE                          (26)
+#define SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE                   "android.sensor.wake_up_gyroscope"
+
+#define SENSOR_TYPE_WAKE_UP_LIGHT                              (27)
+#define SENSOR_STRING_TYPE_WAKE_UP_LIGHT                       "android.sensor.wake_up_light"
+
+#define SENSOR_TYPE_WAKE_UP_PRESSURE                           (28)
+#define SENSOR_STRING_TYPE_WAKE_UP_PRESSURE                    "android.sensor.wake_up_pressure"
+
+#define SENSOR_TYPE_WAKE_UP_GRAVITY                            (29)
+#define SENSOR_STRING_TYPE_WAKE_UP_GRAVITY                     "android.sensor.wake_up_gravity"
+
+#define SENSOR_TYPE_WAKE_UP_LINEAR_ACCELERATION                (30)
+#define SENSOR_STRING_TYPE_WAKE_UP_LINEAR_ACCELERATION         "android.sensor.wake_up_linear_acceleration"
+
+#define SENSOR_TYPE_WAKE_UP_ROTATION_VECTOR                    (31)
+#define SENSOR_STRING_TYPE_WAKE_UP_ROTATION_VECTOR             "android.sensor.wake_up_rotation_vector"
+
+#define SENSOR_TYPE_WAKE_UP_RELATIVE_HUMIDITY                  (32)
+#define SENSOR_STRING_TYPE_WAKE_UP_RELATIVE_HUMIDITY           "android.sensor.wake_up_relative_humidity"
+
+#define SENSOR_TYPE_WAKE_UP_AMBIENT_TEMPERATURE                (33)
+#define SENSOR_STRING_TYPE_WAKE_UP_AMBIENT_TEMPERATURE         "android.sensor.wake_up_ambient_temperature"
+
+#define SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED        (34)
+#define SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED "android.sensor.wake_up_magnetic_field_uncalibrated"
+
+#define SENSOR_TYPE_WAKE_UP_GAME_ROTATION_VECTOR               (35)
+#define SENSOR_STRING_TYPE_WAKE_UP_GAME_ROTATION_VECTOR        "android.sensor.wake_up_game_rotation_vector"
+
+#define SENSOR_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED             (36)
+#define SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED      "android.sensor.wake_up_gyroscope_uncalibrated"
+
+#define SENSOR_TYPE_WAKE_UP_STEP_DETECTOR                      (37)
+#define SENSOR_STRING_TYPE_WAKE_UP_STEP_DETECTOR               "android.sensor.wake_up_step_detector"
+
+#define SENSOR_TYPE_WAKE_UP_STEP_COUNTER                       (38)
+#define SENSOR_STRING_TYPE_WAKE_UP_STEP_COUNTER                "android.sensor.wake_up_step_counter"
+
+#define SENSOR_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR        (39)
+#define SENSOR_STRING_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR "android.sensor.wake_up_geomagnetic_rotation_vector"
+
+#define SENSOR_TYPE_WAKE_UP_HEART_RATE                         (40)
+#define SENSOR_STRING_TYPE_WAKE_UP_HEART_RATE                  "android.sensor.wake_up_heart_rate"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -556,7 +649,11 @@ typedef struct sensors_event_t {
             uint64_t        step_counter;
         } u64;
     };
-    uint32_t reserved1[4];
+
+    /* Reserved flags for internal use. Set to zero. */
+    uint32_t flags;
+
+    uint32_t reserved1[3];
 } sensors_event_t;
 
 
@@ -596,7 +693,7 @@ struct sensor_t {
      * must increase when the driver is updated in a way that changes the
      * output of this sensor. This is important for fused sensors when the
      * fusion algorithm is updated.
-     */    
+     */
     int             version;
 
     /* handle that identifies this sensors. This handle is used to reference
@@ -657,8 +754,31 @@ struct sensor_t {
      */
     const char*    requiredPermission;
 
+    /* This value is defined only for continuous mode sensors. It is the delay between two
+     * sensor events corresponding to the lowest frequency that this sensor supports. When
+     * lower frequencies are requested through batch()/setDelay() the events will be generated
+     * at this frequency instead. It can be used by the framework or applications to estimate
+     * when the batch FIFO may be full.
+     * NOTE: period_ns is in nanoseconds where as maxDelay/minDelay are in microseconds.
+     *     continuous: maximum sampling period allowed in microseconds.
+     *     on-change, one-shot, special : -1
+     * Availability: SENSORS_DEVICE_API_VERSION_1_3
+     */
+    #ifdef __LP64__
+       int64_t maxDelay;
+    #else
+       int32_t maxDelay;
+    #endif
+
+    /* Flags for sensor. See SENSOR_FLAG_* above. */
+    #ifdef __LP64__
+       uint64_t flags;
+    #else
+       uint32_t flags;
+    #endif
+
     /* reserved fields, must be zero */
-    void*           reserved[4];
+    void*           reserved[2];
 };
 
 
@@ -703,7 +823,9 @@ typedef struct sensors_poll_device_1 {
                     int handle, int enabled);
 
             /**
-             * Set the events's period in nanoseconds for a given sensor.
+             * Set the events's period in nanoseconds for a given sensor. If
+             * period_ns > max_delay it will be truncated to max_delay and if
+             * period_ns < min_delay it will be replaced by min_delay.
              */
             int (*setDelay)(struct sensors_poll_device_t *dev,
                     int handle, int64_t period_ns);
