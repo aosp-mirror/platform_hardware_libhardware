@@ -212,7 +212,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
 err:
     pthread_mutex_unlock(&out->lock);
-
+    pthread_mutex_unlock(&out->dev->lock);
     if (ret != 0) {
         usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
                out_get_sample_rate(&stream->common));
