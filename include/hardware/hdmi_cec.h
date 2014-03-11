@@ -194,7 +194,7 @@ typedef struct hdmi_event {
  * Callback function type that will be called by HAL implementation.
  * Services can not close/open the device in the callback.
  */
-typedef void (*event_callback_t)(const hdmi_event_t* event);
+typedef void (*event_callback_t)(const hdmi_event_t* event, void* arg);
 
 typedef struct hdmi_cec_module {
     struct hw_module_t common;
@@ -214,7 +214,6 @@ typedef struct hdmi_cec_device {
      * is not successful the addr will be set to CEC_ADDR_UNREGISTERED.
      *
      * Returns 0 on success or -errno on error.
-     *
      */
     int (*allocate_logical_address)(const struct hdmi_cec_device* dev,
             int device_type, cec_logical_address_t* addr);
@@ -238,14 +237,17 @@ typedef struct hdmi_cec_device {
      * Returns 0 on success or -errno on error.
      */
     int (*send_message)(const struct hdmi_cec_device* dev,
-            const cec_message_t *);
+            const cec_message_t*);
 
     /*
      * (*register_event_callback)() registers a callback that HDMI-CEC HAL
      * can later use for incoming CEC messages or internal HDMI events.
+     * When calling from C++, use the argument arg to pass the calling object.
+     * It will be passed back when the callback is invoked so that the context
+     * can be retrieved.
      */
     void (*register_event_callback)(const struct hdmi_cec_device* dev,
-            event_callback_t callback);
+            event_callback_t callback, void* arg);
 
     /*
      * (*get_version)() returns the CEC version supported by underlying
