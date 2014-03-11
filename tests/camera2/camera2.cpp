@@ -172,13 +172,6 @@ class Camera2Test: public testing::Test {
         err = listener.getNotificationsFrom(dev);
         if (err != OK) return err;
 
-        vendor_tag_query_ops_t *vendor_metadata_tag_ops;
-        err = dev->ops->get_metadata_vendor_tag_ops(dev, &vendor_metadata_tag_ops);
-        if (err != OK) return err;
-
-        err = set_camera_metadata_vendor_tag_ops(vendor_metadata_tag_ops);
-        if (err != OK) return err;
-
         return OK;
     }
 
