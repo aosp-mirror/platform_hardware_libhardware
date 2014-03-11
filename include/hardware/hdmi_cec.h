@@ -219,6 +219,21 @@ typedef struct hdmi_cec_device {
             int device_type, cec_logical_address_t* addr);
 
     /*
+     * (*get_logical_address)() returns the logical address already allocated
+     * for the device of the given type. It is necessary to call this function
+     * when HAL implementation, without being triggered by service, updated
+     * the address by itself. Such situation happens when an event like
+     * hotplug occurs, since it is possible the HDMI network topology or
+     * the port which the device was connected to might have changed while it
+     * was unplugged. In response to such events, the service is required to
+     * call this function to get the updated address. The address is written
+     * to addr.
+     *
+     * Returns 0 on success or -errno on error.
+     */
+    int (*get_logical_address)(const struct hdmi_cec_device* dev,
+            int device_type, cec_logical_address_t* addr);
+    /*
      * (*get_physical_address)() returns the CEC physical address. The
      * address is written to addr.
      *
@@ -264,7 +279,7 @@ typedef struct hdmi_cec_device {
     void (*get_vendor_id)(const struct hdmi_cec_device* dev, uint32_t* vendor_id);
 
     /* Reserved for future use to maximum 16 functions. Must be NULL. */
-    void* reserved[16 - 6];
+    void* reserved[16 - 7];
 } hdmi_cec_device_t;
 
 /** convenience API for opening and closing a device */
