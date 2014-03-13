@@ -24,6 +24,7 @@ LOCAL_C_INCLUDES += \
 	external/tinyalsa/include
 LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa
 LOCAL_MODULE_TAGS := optional
+LOCAL_32_BIT_ONLY := true
 
 include $(BUILD_SHARED_LIBRARY)
 
