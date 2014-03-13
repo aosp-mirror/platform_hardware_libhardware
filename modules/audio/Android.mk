@@ -27,6 +27,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := audio_hw.c
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_MODULE_TAGS := optional
+LOCAL_32_BIT_ONLY := true
 
 include $(BUILD_SHARED_LIBRARY)
 
@@ -39,5 +40,6 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := audio_policy.c
 LOCAL_SHARED_LIBRARIES := liblog libcutils
 LOCAL_MODULE_TAGS := optional
+LOCAL_32_BIT_ONLY := true
 
 include $(BUILD_SHARED_LIBRARY)
