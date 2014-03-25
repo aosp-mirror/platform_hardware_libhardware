@@ -214,9 +214,11 @@ int sensors_poll_context_t::get_device_version_by_handle(int handle) {
 }
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
+    int retval = -EINVAL;
     ALOGV("activate");
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
-    int retval = v0->activate(v0, get_local_handle(handle), enabled);
+    if (v0)
+        retval = v0->activate(v0, get_local_handle(handle), enabled);
     ALOGV("retval %d", retval);
     return retval;
 }
@@ -576,7 +578,8 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         sensors_module_t *sensors_module = (sensors_module_t*) *it;
         struct hw_device_t* sub_hw_device;
         int sub_open_result = sensors_module->common.methods->open(*it, name, &sub_hw_device);
-        dev->addSubHwDevice(sub_hw_device);
+        if (!sub_open_result)
+            dev->addSubHwDevice(sub_hw_device);
     }
 
     // Prepare the output param and return
