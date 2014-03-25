@@ -156,6 +156,9 @@ typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
  */
 typedef void (*listen_callback)(int status, int server_if);
 
+/** Callback invoked when the MTU for a given connection changes */
+typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
+
 typedef struct {
     register_client_callback            register_client_cb;
     scan_result_callback                scan_result_cb;
@@ -175,6 +178,7 @@ typedef struct {
     execute_write_callback              execute_write_cb;
     read_remote_rssi_callback           read_remote_rssi_cb;
     listen_callback                     listen_cb;
+    configure_mtu_callback              configure_mtu_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -281,6 +285,9 @@ typedef struct {
                     uint16_t manufacturer_len, char* manufacturer_data,
                     uint16_t service_data_len, char* service_data,
                     uint16_t service_uuid_len, char* service_uuid);
+
+    /** Configure the MTU for a given connection */
+    bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
