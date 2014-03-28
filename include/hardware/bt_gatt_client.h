@@ -174,6 +174,13 @@ typedef void (*multi_adv_data_callback)(int client_if, int status);
 /** Callback invoked when multi-adv disable operation has completed */
 typedef void (*multi_adv_disable_callback)(int client_if, int status);
 
+/**
+ * Callback notifying an application that a remote device connection is currently congested
+ * and cannot receive any more data. An application should avoid sending more data until
+ * a further callback is received indicating the congestion status has been cleared.
+ */
+typedef void (*congestion_callback)(int conn_id, bool congested);
+
 typedef struct {
     register_client_callback            register_client_cb;
     scan_result_callback                scan_result_cb;
@@ -199,6 +206,7 @@ typedef struct {
     multi_adv_update_callback           multi_adv_update_cb;
     multi_adv_data_callback             multi_adv_data_cb;
     multi_adv_disable_callback          multi_adv_disable_cb;
+    congestion_callback                 congestion_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
