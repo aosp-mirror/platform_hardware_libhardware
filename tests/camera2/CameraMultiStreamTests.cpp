@@ -35,7 +35,10 @@
 #define CAMERA_MULTI_STREAM_DEBUGGING  0
 #define CAMERA_FRAME_TIMEOUT    1000000000LL // nsecs (1 secs)
 #define PREVIEW_RENDERING_TIME_INTERVAL 200000 // in unit of us, 200ms
-#define TOLERANCE_MARGIN 0.01 // 1% tolerance margin for exposure sanity check.
+// 1% tolerance margin for exposure sanity check against metadata
+#define TOLERANCE_MARGIN_METADATA 0.01
+// 5% tolerance margin for exposure sanity check against capture times
+#define TOLERANCE_MARGIN_CAPTURE 0.05
 /* constants for display */
 #define DISPLAY_BUFFER_HEIGHT 1024
 #define DISPLAY_BUFFER_WIDTH 1024
@@ -399,10 +402,10 @@ public:
             // TODO: Need revisit it to figure out an accurate margin.
             int64_t resultExposure = GetExposureValue(frameMetadata);
             int32_t resultSensitivity = GetSensitivity(frameMetadata);
-            EXPECT_LE(sensitivities[i] * (1.0 - TOLERANCE_MARGIN), resultSensitivity);
-            EXPECT_GE(sensitivities[i] * (1.0 + TOLERANCE_MARGIN), resultSensitivity);
-            EXPECT_LE(exposures[i] * (1.0 - TOLERANCE_MARGIN), resultExposure);
-            EXPECT_GE(exposures[i] * (1.0 + TOLERANCE_MARGIN), resultExposure);
+            EXPECT_LE(sensitivities[i] * (1.0 - TOLERANCE_MARGIN_METADATA), resultSensitivity);
+            EXPECT_GE(sensitivities[i] * (1.0 + TOLERANCE_MARGIN_METADATA), resultSensitivity);
+            EXPECT_LE(exposures[i] * (1.0 - TOLERANCE_MARGIN_METADATA), resultExposure);
+            EXPECT_GE(exposures[i] * (1.0 + TOLERANCE_MARGIN_METADATA), resultExposure);
 
             ASSERT_EQ(OK, listener->waitForFrame(waitLimit));
             captureBurstTimes.push_back(systemTime());
@@ -422,7 +425,7 @@ public:
             if (i > 0) {
                 nsecs_t timeDelta =
                         captureBurstTimes[i] - captureBurstTimes[i-1];
-                EXPECT_GE(timeDelta, exposures[i]);
+                EXPECT_GE(timeDelta * ( 1 + TOLERANCE_MARGIN_CAPTURE), exposures[i]);
             }
         }
     }
