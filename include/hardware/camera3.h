@@ -52,6 +52,7 @@
  *   S6. Error management
  *   S7. Key Performance Indicator (KPI) glossary
  *   S8. Sample Use Cases
+ *   S9. Notes on Controls and Metadata
  */
 
 /**
@@ -1139,6 +1140,32 @@
  *
  */
 
+/**
+ *   S9. Notes on Controls and Metadata
+ *
+ *   This section contains notes about the interpretation and usage of various metadata tags.
+ *
+ *   S9.1 HIGH_QUALITY and FAST modes.
+ *
+ *   Many camera post-processing blocks may be listed as having HIGH_QUALITY,
+ *   FAST, and OFF operating modes. These blocks will typically also have an
+ *   'available modes' tag representing which of these operating modes are
+ *   available on a given device. The general policy regarding implementing
+ *   these modes is as follows:
+ *
+ *   1. Operating mode controls of hardware blocks that cannot be disabled
+ *      must not list OFF in their corresponding 'available modes' tags.
+ *
+ *   2. OFF will always be included in their corresponding 'available modes'
+ *      tag if it is possible to disable that hardware block.
+ *
+ *   3. FAST must always be included in the 'available modes' tags for all
+ *      post-processing blocks supported on the device.  If a post-processing
+ *      block also has a slower and higher quality operating mode that does
+ *      not meet the framerate requirements for FAST mode, HIGH_QUALITY should
+ *      be included in the 'available modes' tag to represent this operating
+ *      mode.
+ */
 __BEGIN_DECLS
 
 struct camera3_device;
