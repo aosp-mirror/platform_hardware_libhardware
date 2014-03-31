@@ -34,6 +34,7 @@ __BEGIN_DECLS
 #define HDMI_CEC_HARDWARE_INTERFACE "hdmi_cec_hw_if"
 
 typedef enum cec_device_type {
+    CEC_DEVICE_INACTIVE = -1,
     CEC_DEVICE_TV = 0,
     CEC_DEVICE_RECORDER = 1,
     CEC_DEVICE_RESERVED = 2,
@@ -127,7 +128,20 @@ enum cec_message_type {
     CEC_MESSAGE_GET_CEC_VERSION = 0x9F,
     CEC_MESSAGE_VENDOR_COMMAND_WITH_ID = 0xA0,
     CEC_MESSAGE_CLEAR_EXTERNAL_TIMER = 0xA1,
-    CEC_MESSAGE_SET_EXTERNAL_TIMER = 0xA2
+    CEC_MESSAGE_SET_EXTERNAL_TIMER = 0xA2,
+    CEC_MESSAGE_ABORT = 0xFF
+};
+
+/*
+ * Operand description [Abort Reason]
+ */
+enum abort_reason {
+    ABORT_UNRECOGNIZED_MODE = 0,
+    ABORT_NOT_IN_CORRECT_MODE = 1,
+    ABORT_CANNOT_PROVIDE_SOURCE = 2,
+    ABORT_INVALID_OPERAND = 3,
+    ABORT_REFUSED = 4,
+    ABORT_UNABLE_TO_DETERMINE = 5
 };
 
 /*
@@ -210,13 +224,15 @@ typedef struct hdmi_cec_device {
      * (*allocate_logical_address)() allocates a new logical address
      * for a given device type. The address is written to addr. The HAL
      * implementation is also expected to configure itself to start receiving
-     * the messages addressed to the allocated one. If allocation
-     * is not successful the addr will be set to CEC_ADDR_UNREGISTERED.
+     * the messages addressed to the allocated one. If the address has been already
+     * allocated, it should simply return the allocated address without attempting
+     * the allocation again. If allocation is not successful the addr will be
+     * set to CEC_ADDR_UNREGISTERED.
      *
      * Returns 0 on success or -errno on error.
      */
     int (*allocate_logical_address)(const struct hdmi_cec_device* dev,
-            int device_type, cec_logical_address_t* addr);
+            cec_device_type_t device_type, cec_logical_address_t* addr);
 
     /*
      * (*get_logical_address)() returns the logical address already allocated
@@ -232,7 +248,7 @@ typedef struct hdmi_cec_device {
      * Returns 0 on success or -errno on error.
      */
     int (*get_logical_address)(const struct hdmi_cec_device* dev,
-            int device_type, cec_logical_address_t* addr);
+            cec_device_type_t device_type, cec_logical_address_t* addr);
     /*
      * (*get_physical_address)() returns the CEC physical address. The
      * address is written to addr.
@@ -251,8 +267,7 @@ typedef struct hdmi_cec_device {
      *
      * Returns 0 on success or -errno on error.
      */
-    int (*send_message)(const struct hdmi_cec_device* dev,
-            const cec_message_t*);
+    int (*send_message)(const struct hdmi_cec_device* dev, const cec_message_t*);
 
     /*
      * (*register_event_callback)() registers a callback that HDMI-CEC HAL
