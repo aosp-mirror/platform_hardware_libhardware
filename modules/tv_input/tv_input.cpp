@@ -86,6 +86,17 @@ static int tv_input_close_stream(struct tv_input_device*, int, int)
     return -EINVAL;
 }
 
+static int tv_input_request_capture(
+        struct tv_input_device*, int, int, buffer_handle_t, uint32_t)
+{
+    return -EINVAL;
+}
+
+static int tv_input_cancel_capture(struct tv_input_device*, int, int, uint32_t)
+{
+    return -EINVAL;
+}
+
 /*****************************************************************************/
 
 static int tv_input_device_close(struct hw_device_t *dev)
@@ -120,6 +131,8 @@ static int tv_input_device_open(const struct hw_module_t* module,
                 tv_input_get_stream_configurations;
         dev->device.open_stream = tv_input_open_stream;
         dev->device.close_stream = tv_input_close_stream;
+        dev->device.request_capture = tv_input_request_capture;
+        dev->device.cancel_capture = tv_input_cancel_capture;
 
         *device = &dev->device.common;
         status = 0;

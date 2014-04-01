@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include <hardware/hardware.h>
+#include <system/window.h>
 
 __BEGIN_DECLS
 
@@ -103,8 +104,41 @@ typedef enum {
      * get_stream_configurations() again, opening some of them if necessary.
      */
     TV_INPUT_EVENT_STREAM_CONFIGURATIONS_CHANGED = 3,
-    /* TODO: Buffer notifications, etc. */
+    /*
+     * Hardware is done with capture request with the buffer. Client can assume
+     * ownership of the buffer again.
+     */
+    TV_INPUT_EVENT_CAPTURE_SUCCEEDED = 4,
+    /*
+     * Hardware met a failure while processing a capture request or client
+     * canceled the request. Client can assume ownership of the buffer again.
+     */
+    TV_INPUT_EVENT_CAPTURE_FAILED = 5,
 } tv_input_event_type_t;
+
+typedef struct tv_input_capture_result {
+    /* Device ID */
+    int device_id;
+
+    /* Stream ID */
+    int stream_id;
+
+    /* Sequence number of the request */
+    uint32_t seq;
+
+    /*
+     * The buffer passed to hardware in request_capture(). The content of
+     * buffer is undefined (although buffer itself is valid) for
+     * TV_INPUT_CAPTURE_FAILED event.
+     */
+    buffer_handle_t buffer;
+
+    /*
+     * Error code for the request. -ECANCELED if request is cancelled; other
+     * error codes are unknown errors.
+     */
+    int error_code;
+} tv_input_capture_result_t;
 
 typedef struct tv_input_event {
     tv_input_event_type_t type;
@@ -117,6 +151,11 @@ typedef struct tv_input_event {
          *    relevant
          */
         tv_input_device_info_t device_info;
+        /*
+         * TV_INPUT_EVENT_CAPTURE_SUCCEEDED: error_code is not relevant
+         * TV_INPUT_EVENT_CAPTURE_FAILED: all fields are relevant
+         */
+        tv_input_capture_result_t capture_result;
     };
 } tv_input_event_t;
 
@@ -135,7 +174,7 @@ typedef struct tv_input_callback_ops {
 
 typedef enum {
     TV_STREAM_TYPE_INDEPENDENT_VIDEO_SOURCE = 1,
-    /* TODO: TV_STREAM_TYPE_BUFFER_PRODUCER = 2, */
+    TV_STREAM_TYPE_BUFFER_PRODUCER = 2,
 } tv_stream_type_t;
 
 typedef struct tv_stream_config {
@@ -153,17 +192,36 @@ typedef struct tv_stream_config {
     uint32_t max_video_height;
 } tv_stream_config_t;
 
+typedef struct buffer_producer_stream {
+    /*
+     * IN/OUT: Width / height of the stream. Client may request for specific
+     * size but hardware may change it. Client must allocate buffers with
+     * specified width and height.
+     */
+    uint32_t width;
+    uint32_t height;
+
+    /* OUT: Client must set this usage when allocating buffer. */
+    uint32_t usage;
+
+    /* OUT: Client must allocate a buffer with this format. */
+    uint32_t format;
+} buffer_producer_stream_t;
+
 typedef struct tv_stream {
-    /* IN: ID in the stream configuration.  */
+    /* IN: ID in the stream configuration */
     int stream_id;
 
     /* OUT: Type of the stream (for convenience) */
     tv_stream_type_t type;
 
-    /* OUT: Data associated with the stream for client's use */
+    /* Data associated with the stream for client's use */
     union {
+        /* OUT: A native handle describing the sideband stream source */
         native_handle_t* sideband_stream_source_handle;
-        /* TODO: buffer_producer_stream_t buffer_producer; */
+
+        /* IN/OUT: Details are in buffer_producer_stream_t */
+        buffer_producer_stream_t buffer_producer;
     };
 } tv_stream_t;
 
@@ -233,9 +291,39 @@ typedef struct tv_input_device {
             int stream_id);
 
     /*
-     * TODO: Add more APIs such as buffer operations in case of buffer producer
-     * profile.
+     * request_capture:
+     *
+     * Request buffer capture for a stream. This is only valid for buffer
+     * producer streams. The buffer should be created with size, format and
+     * usage specified in the stream. Framework provides seq in an
+     * increasing sequence per each stream. Hardware should provide the picture
+     * in a chronological order according to seq. For example, if two
+     * requests are being processed at the same time, the request with the
+     * smaller seq should get an earlier frame.
+     *
+     * The framework releases the ownership of the buffer upon calling this
+     * function. When the buffer is filled, hardware notifies the framework
+     * via TV_INPUT_EVENT_CAPTURE_FINISHED callback, and the ownership is
+     * transferred back to framework at that time.
+     *
+     * Return 0 on success; -ENOENT if the stream is not open; -EINVAL if
+     * device_id and/or stream_id are invalid; -EWOULDBLOCK if HAL cannot take
+     * additional requests until it releases a buffer.
      */
+    int (*request_capture)(struct tv_input_device* dev, int device_id,
+            int stream_id, buffer_handle_t buffer, uint32_t seq);
+
+    /*
+     * cancel_capture:
+     *
+     * Cancel an ongoing capture. Hardware should release the buffer as soon as
+     * possible via TV_INPUT_EVENT_CAPTURE_FAILED callback.
+     *
+     * Return 0 on success; -ENOENT if the stream is not open; -EINVAL if
+     * device_id, stream_id, and/or seq are invalid.
+     */
+    int (*cancel_capture)(struct tv_input_device* dev, int device_id,
+            int stream_id, uint32_t seq);
 
     void* reserved[16];
 } tv_input_device_t;
