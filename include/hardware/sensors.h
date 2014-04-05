@@ -33,7 +33,6 @@ __BEGIN_DECLS
 #define SENSORS_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION_2(0, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION_2(1, 0, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
-#define SENSORS_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, SENSORS_HEADER_VERSION)
 
 /**
  * Please see the Sensors section of source.android.com for an
@@ -82,13 +81,6 @@ enum {
 };
 
 /*
- * The permission to use for body sensors (like heart rate monitors).
- * See sensor types for more details on what sensors should require this
- * permission.
- */
-#define SENSOR_PERMISSION_BODY_SENSORS "android.permission.BODY_SENSORS"
-
-/*
  * Sensor type
  *
  * Each sensor has a type which defines what this sensor measures and how
@@ -101,38 +93,6 @@ enum {
  * their private use by applications or services provided by them. Such
  * sensor types are specific to an OEM and can't be exposed in the SDK.
  * These types must start at SENSOR_TYPE_DEVICE_PRIVATE_BASE.
- *
- * All sensors defined outside of the device private range must correspond to
- * a type defined in this file, and must satisfy the characteristics listed in
- * the description of the sensor type.
- *
- * Starting with version SENSORS_DEVICE_API_VERSION_1_2, each sensor also
- * has a stringType.
- *  - StringType of sensors inside of the device private range MUST be prefixed
- *    by the sensor provider's or OEM reverse domain name. In particular, they
- *    cannot use the "android.sensor" prefix.
- *  - StringType of sensors outside of the device private range MUST correspond
- *    to the one defined in this file (starting with "android.sensor").
- *    For example, accelerometers must have
- *      type=SENSOR_TYPE_ACCELEROMETER and
- *      stringType=SENSOR_STRING_TYPE_ACCELEROMETER
- *
- * When android introduces a new sensor type that can replace an OEM-defined
- * sensor type, the OEM must use the official sensor type and stringType on
- * versions of the HAL that support this new official sensor type.
- *
- * Example (made up): Suppose Google's Glass team wants to surface a sensor
- * detecting that Glass is on a head.
- *  - Such a sensor is not officially supported in android KitKat
- *  - Glass devices launching on KitKat can implement a sensor with
- *    type = 0x10001 and stringType = "com.google.glass.onheaddetector"
- *  - In L android release, if android decides to define
- *    SENSOR_TYPE_ON_HEAD_DETECTOR and STRING_SENSOR_TYPE_ON_HEAD_DETECTOR,
- *    those types should replace the Glass-team-specific types in all future
- *    launches.
- *  - When launching glass on the L release, Google should now use the official
- *    type (SENSOR_TYPE_ON_HEAD_DETECTOR) and stringType.
- *  - This way, all applications can now use this sensor.
  */
 
 /*
@@ -172,7 +132,7 @@ enum {
  * must not be used.
  *
  */
-#define SENSOR_TYPE_META_DATA                        (0)
+#define SENSOR_TYPE_META_DATA                           (0)
 
 /*
  * SENSOR_TYPE_ACCELEROMETER
@@ -184,7 +144,6 @@ enum {
  *
  */
 #define SENSOR_TYPE_ACCELEROMETER                    (1)
-#define SENSOR_STRING_TYPE_ACCELEROMETER             "android.sensor.accelerometer"
 
 /*
  * SENSOR_TYPE_GEOMAGNETIC_FIELD
@@ -197,7 +156,6 @@ enum {
  */
 #define SENSOR_TYPE_GEOMAGNETIC_FIELD                (2)
 #define SENSOR_TYPE_MAGNETIC_FIELD  SENSOR_TYPE_GEOMAGNETIC_FIELD
-#define SENSOR_STRING_TYPE_MAGNETIC_FIELD            "android.sensor.magnetic_field"
 
 /*
  * SENSOR_TYPE_ORIENTATION
@@ -210,7 +168,6 @@ enum {
  * rate defined by setDelay().
  */
 #define SENSOR_TYPE_ORIENTATION                      (3)
-#define SENSOR_STRING_TYPE_ORIENTATION               "android.sensor.orientation"
 
 /*
  * SENSOR_TYPE_GYROSCOPE
@@ -221,7 +178,6 @@ enum {
  *  around the X, Y and Z axis.
  */
 #define SENSOR_TYPE_GYROSCOPE                        (4)
-#define SENSOR_STRING_TYPE_GYROSCOPE                 "android.sensor.gyroscope"
 
 /*
  * SENSOR_TYPE_LIGHT
@@ -231,7 +187,6 @@ enum {
  * The light sensor value is returned in SI lux units.
  */
 #define SENSOR_TYPE_LIGHT                            (5)
-#define SENSOR_STRING_TYPE_LIGHT                     "android.sensor.light"
 
 /*
  * SENSOR_TYPE_PRESSURE
@@ -241,11 +196,9 @@ enum {
  * The pressure sensor return the athmospheric pressure in hectopascal (hPa)
  */
 #define SENSOR_TYPE_PRESSURE                         (6)
-#define SENSOR_STRING_TYPE_PRESSURE                  "android.sensor.pressure"
 
 /* SENSOR_TYPE_TEMPERATURE is deprecated in the HAL */
 #define SENSOR_TYPE_TEMPERATURE                      (7)
-#define SENSOR_STRING_TYPE_TEMPERATURE               "android.sensor.temperature"
 
 /*
  * SENSOR_TYPE_PROXIMITY
@@ -255,7 +208,6 @@ enum {
  * The value corresponds to the distance to the nearest object in centimeters.
  */
 #define SENSOR_TYPE_PROXIMITY                        (8)
-#define SENSOR_STRING_TYPE_PROXIMITY                 "android.sensor.proximity"
 
 /*
  * SENSOR_TYPE_GRAVITY
@@ -266,7 +218,6 @@ enum {
  * the devices's coordinates.
  */
 #define SENSOR_TYPE_GRAVITY                          (9)
-#define SENSOR_STRING_TYPE_GRAVITY                   "android.sensor.gravity"
 
 /*
  * SENSOR_TYPE_LINEAR_ACCELERATION
@@ -277,7 +228,6 @@ enum {
  * not including gravity.
  */
 #define SENSOR_TYPE_LINEAR_ACCELERATION             (10)
-#define SENSOR_STRING_TYPE_LINEAR_ACCELERATION      "android.sensor.linear_acceleration"
 
 
 /*
@@ -289,7 +239,6 @@ enum {
  * East-North-Up coordinates frame.
  */
 #define SENSOR_TYPE_ROTATION_VECTOR                 (11)
-#define SENSOR_STRING_TYPE_ROTATION_VECTOR          "android.sensor.rotation_vector"
 
 /*
  * SENSOR_TYPE_RELATIVE_HUMIDITY
@@ -300,7 +249,6 @@ enum {
  * returns a value in percent.
  */
 #define SENSOR_TYPE_RELATIVE_HUMIDITY               (12)
-#define SENSOR_STRING_TYPE_RELATIVE_HUMIDITY        "android.sensor.relative_humidity"
 
 /*
  * SENSOR_TYPE_AMBIENT_TEMPERATURE
@@ -310,7 +258,6 @@ enum {
  * The ambient (room) temperature in degree Celsius.
  */
 #define SENSOR_TYPE_AMBIENT_TEMPERATURE             (13)
-#define SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE      "android.sensor.ambient_temperature"
 
 /*
  * SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED
@@ -321,7 +268,6 @@ enum {
  *  reported separately instead of being included in the measurement.
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
-#define SENSOR_STRING_TYPE_MAGNETIC_FIELD_UNCALIBRATED "android.sensor.magnetic_field_uncalibrated"
 
 /*
  * SENSOR_TYPE_GAME_ROTATION_VECTOR
@@ -332,7 +278,6 @@ enum {
  *  field.
  */
 #define SENSOR_TYPE_GAME_ROTATION_VECTOR            (15)
-#define SENSOR_STRING_TYPE_GAME_ROTATION_VECTOR     "android.sensor.game_rotation_vector"
 
 /*
  * SENSOR_TYPE_GYROSCOPE_UNCALIBRATED
@@ -343,7 +288,6 @@ enum {
  *  around the X, Y and Z axis.
  */
 #define SENSOR_TYPE_GYROSCOPE_UNCALIBRATED          (16)
-#define SENSOR_STRING_TYPE_GYROSCOPE_UNCALIBRATED   "android.sensor.gyroscope_uncalibrated"
 
 /*
  * SENSOR_TYPE_SIGNIFICANT_MOTION
@@ -356,7 +300,7 @@ enum {
  */
 
 #define SENSOR_TYPE_SIGNIFICANT_MOTION              (17)
-#define SENSOR_STRING_TYPE_SIGNIFICANT_MOTION       "android.sensor.significant_motion"
+
 
 /*
  * SENSOR_TYPE_STEP_DETECTOR
@@ -369,7 +313,6 @@ enum {
  */
 
 #define SENSOR_TYPE_STEP_DETECTOR                   (18)
-#define SENSOR_STRING_TYPE_STEP_DETECTOR            "android.sensor.step_detector"
 
 
 /*
@@ -383,7 +326,6 @@ enum {
  */
 
 #define SENSOR_TYPE_STEP_COUNTER                    (19)
-#define SENSOR_STRING_TYPE_STEP_COUNTER             "android.sensor.step_counter"
 
 /*
  * SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR
@@ -393,22 +335,7 @@ enum {
  *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but using a magnetometer instead
  *  of using a gyroscope.
  */
-#define SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR     (20)
-#define SENSOR_STRING_TYPE_GEOMAGNETIC_ROTATION_VECTOR "android.sensor.geomagnetic_rotation_vector"
-
-/*
- * SENSOR_TYPE_HEART_RATE
- * trigger-mode: on-change
- * wake-up sensor: no
- *
- *  A sensor of this type returns the current heart rate if activated.
- *  The value is returned as a float which represents the heart rate in beats
- *  per minute (BPM).
- *  When the sensor cannot measure the heart rate, the returned value must be 0.
- *  sensor_t.requiredPermission must be set to SENSOR_PERMISSION_BODY_SENSORS.
- */
-#define SENSOR_TYPE_HEART_RATE                      (21)
-#define SENSOR_STRING_TYPE_HEART_RATE               "android.sensor.heart_rate"
+#define SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR            (20)
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -539,9 +466,6 @@ typedef struct sensors_event_t {
             /* uncalibrated magnetometer values are in micro-Teslas */
             uncalibrated_event_t uncalibrated_magnetic;
 
-            /* heart rate in bpm */
-            float           heart_rate;
-
             /* this is a special event. see SENSOR_TYPE_META_DATA above.
              * sensors_meta_data_event_t events are all reported with a type of
              * SENSOR_TYPE_META_DATA. The handle is ignored and must be zero.
@@ -638,27 +562,8 @@ struct sensor_t {
      */
     uint32_t        fifoMaxEventCount;
 
-    /* type of this sensor as a string. Set to corresponding
-     * SENSOR_STRING_TYPE_*.
-     * When defining an OEM specific sensor or sensor manufacturer specific
-     * sensor, use your reserve domain name as a prefix.
-     * ex: com.google.glass.onheaddetector
-     * For sensors of known type, the android framework might overwrite this
-     * string automatically.
-     */
-    const char*    stringType;
-
-    /* permission required to see this sensor, register to it and receive data.
-     * Set to "" if no permission is required. Some sensor types like the
-     * heart rate monitor have a mandatory require_permission.
-     * For sensors that always require a specific permission, like the heart
-     * rate monitor, the android framework might overwrite this string
-     * automatically.
-     */
-    const char*    requiredPermission;
-
     /* reserved fields, must be zero */
-    void*           reserved[4];
+    void*           reserved[6];
 };
 
 
