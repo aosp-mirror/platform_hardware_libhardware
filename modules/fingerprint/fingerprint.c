@@ -64,7 +64,7 @@ static int fingerprint_open(const hw_module_t* module, const char* id,
     memset(dev, 0, sizeof(fingerprint_device_t));
 
     dev->common.tag = HARDWARE_DEVICE_TAG;
-    dev->common.version = 0;
+    dev->common.version = HARDWARE_MODULE_API_VERSION(1, 0);
     dev->common.module = (struct hw_module_t*) module;
     dev->common.close = fingerprint_close;
 
