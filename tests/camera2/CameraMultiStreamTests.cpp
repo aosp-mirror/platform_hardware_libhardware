@@ -181,11 +181,13 @@ public:
               mHeight(height) {
             mFormat = param.mFormat;
             if (useCpuConsumer) {
-                sp<BufferQueue> bq = new BufferQueue();
-                mCpuConsumer = new CpuConsumer(bq, param.mHeapCount);
+                sp<IGraphicBufferProducer> producer;
+                sp<IGraphicBufferConsumer> consumer;
+                BufferQueue::createBufferQueue(&producer, &consumer);
+                mCpuConsumer = new CpuConsumer(consumer, param.mHeapCount);
                 mCpuConsumer->setName(String8(
                         "CameraMultiStreamTest::mCpuConsumer"));
-                mNativeWindow = new Surface(bq);
+                mNativeWindow = new Surface(producer);
             } else {
                 // Render the stream to screen.
                 mCpuConsumer = NULL;
