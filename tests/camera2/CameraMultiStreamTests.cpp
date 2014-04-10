@@ -380,11 +380,13 @@ public:
                 waitLimit = exposures[i] * EXP_WAIT_MULTIPLIER;
             }
 
+            CaptureResult result;
             CameraMetadata frameMetadata;
             int32_t resultRequestId;
             do {
                 ASSERT_EQ(OK, mDevice->waitForNextFrame(waitLimit));
-                ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+                ASSERT_EQ(OK, mDevice->getNextResult(&result));
+                frameMetadata = result.mMetadata;
 
                 camera_metadata_entry_t resultEntry = frameMetadata.find(ANDROID_REQUEST_ID);
                 ASSERT_EQ(1u, resultEntry.count);

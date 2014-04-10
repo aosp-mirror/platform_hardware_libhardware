@@ -233,8 +233,8 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
         ALOGV("Reading capture request %d with exposure %lld", i, exposures[i]);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
         ALOGV("Reading capture request-1 %d", i);
-        CameraMetadata frameMetadata;
-        ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+        CaptureResult result;
+        ASSERT_EQ(OK, mDevice->getNextResult(&result));
         ALOGV("Reading capture request-2 %d", i);
 
         ASSERT_EQ(OK, mFrameListener->waitForFrame(CAMERA_FRAME_TIMEOUT));
@@ -645,8 +645,8 @@ TEST_F(CameraBurstTest, VariableBurst) {
 
         ASSERT_EQ(OK, mDevice->waitForNextFrame(waitLimit));
         ALOGV("Reading capture request-1 %d", i);
-        CameraMetadata frameMetadata;
-        ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+        CaptureResult result;
+        ASSERT_EQ(OK, mDevice->getNextResult(&result));
         ALOGV("Reading capture request-2 %d", i);
 
         ASSERT_EQ(OK, mFrameListener->waitForFrame(CAMERA_FRAME_TIMEOUT));

@@ -115,8 +115,8 @@ TEST_P(CameraFrameTest, GetFrame) {
         ALOGV("Reading capture request %d", i);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
 
-        CameraMetadata frameMetadata;
-        ASSERT_EQ(OK, mDevice->getNextFrame(&frameMetadata));
+        CaptureResult result;
+        ASSERT_EQ(OK, mDevice->getNextResult(&result));
 
         // wait for buffer to be available
         ASSERT_EQ(OK, mFrameListener->waitForFrame(CAMERA_FRAME_TIMEOUT));
