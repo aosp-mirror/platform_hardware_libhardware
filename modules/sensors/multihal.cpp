@@ -49,7 +49,7 @@ static pthread_cond_t data_available_cond = PTHREAD_COND_INITIALIZER;
 bool waiting_for_data = false;
 
 /*
- * Vector of sub modules, whose indexes are referred to ni this file as module_index.
+ * Vector of sub modules, whose indexes are referred to in this file as module_index.
  */
 static std::vector<hw_module_t *> *sub_hw_modules = NULL;
 
@@ -91,15 +91,38 @@ static int assign_global_handle(int module_index, int local_handle) {
     return global_handle;
 }
 
+// Returns the local handle, or -1 if it does not exist.
 static int get_local_handle(int global_handle) {
+    if (global_to_full.count(global_handle) == 0) {
+        ALOGW("Unknown global_handle %d", global_handle);
+        return -1;
+    }
     return global_to_full[global_handle].localHandle;
 }
 
+// Returns the sub_hw_modules index of the module that contains the sensor associates with this
+// global_handle, or -1 if that global_handle does not exist.
 static int get_module_index(int global_handle) {
+    if (global_to_full.count(global_handle) == 0) {
+        ALOGW("Unknown global_handle %d", global_handle);
+        return -1;
+    }
     FullHandle f = global_to_full[global_handle];
     ALOGV("FullHandle for global_handle %d: moduleIndex %d, localHandle %d",
             global_handle, f.moduleIndex, f.localHandle);
     return f.moduleIndex;
+}
+
+// Returns the global handle for this full_handle, or -1 if the full_handle is unknown.
+static int get_global_handle(FullHandle* full_handle) {
+    int global_handle = -1;
+    if (full_to_global.count(*full_handle)) {
+        global_handle = full_to_global[*full_handle];
+    } else {
+        ALOGW("Unknown FullHandle: moduleIndex %d, localHandle %d",
+            full_handle->moduleIndex, full_handle->localHandle);
+    }
+    return global_handle;
 }
 
 static const int SENSOR_EVENT_QUEUE_CAPACITY = 20;
@@ -198,35 +221,54 @@ void sensors_poll_context_t::addSubHwDevice(struct hw_device_t* sub_hw_device) {
     this->threads.push_back(writerThread);
 }
 
-sensors_poll_device_t* sensors_poll_context_t::get_v0_device_by_handle(int handle) {
-    int sub_index = get_module_index(handle);
+// Returns the device pointer, or NULL if the global handle is invalid.
+sensors_poll_device_t* sensors_poll_context_t::get_v0_device_by_handle(int global_handle) {
+    int sub_index = get_module_index(global_handle);
+    if (sub_index < 0 || sub_index >= this->sub_hw_devices.size()) {
+        return NULL;
+    }
     return (sensors_poll_device_t*) this->sub_hw_devices[sub_index];
 }
 
-sensors_poll_device_1_t* sensors_poll_context_t::get_v1_device_by_handle(int handle) {
-    int sub_index = get_module_index(handle);
+// Returns the device pointer, or NULL if the global handle is invalid.
+sensors_poll_device_1_t* sensors_poll_context_t::get_v1_device_by_handle(int global_handle) {
+    int sub_index = get_module_index(global_handle);
+    if (sub_index < 0 || sub_index >= this->sub_hw_devices.size()) {
+        return NULL;
+    }
     return (sensors_poll_device_1_t*) this->sub_hw_devices[sub_index];
 }
 
+// Returns the device version, or -1 if the handle is invalid.
 int sensors_poll_context_t::get_device_version_by_handle(int handle) {
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
-    return v0->common.version;
+    if (v0) {
+        return v0->common.version;
+    } else {
+        return -1;
+    }
 }
 
 int sensors_poll_context_t::activate(int handle, int enabled) {
     int retval = -EINVAL;
     ALOGV("activate");
+    int local_handle = get_local_handle(handle);
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
-    if (v0)
-        retval = v0->activate(v0, get_local_handle(handle), enabled);
+    if (local_handle >= 0 && v0) {
+        retval = v0->activate(v0, local_handle, enabled);
+    }
     ALOGV("retval %d", retval);
     return retval;
 }
 
 int sensors_poll_context_t::setDelay(int handle, int64_t ns) {
+    int retval = -EINVAL;
     ALOGV("setDelay");
+    int local_handle = get_local_handle(handle);
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
-    int retval = v0->setDelay(v0, get_local_handle(handle), ns);
+    if (local_handle >= 0 && v0) {
+        retval = v0->setDelay(v0, local_handle, ns);
+    }
     ALOGV("retval %d", retval);
     return retval;
 }
@@ -239,13 +281,17 @@ void sensors_poll_context_t::copy_event_remap_handle(sensors_event_t* dest, sens
     // with a local handle that needs to be converted to a global handle.
     FullHandle full_handle;
     full_handle.moduleIndex = sub_index;
+
     // If it's a metadata event, rewrite the inner payload, not the sensor field.
+    // If the event's sensor field is unregistered for any reason, rewrite the sensor field
+    // with a -1, instead of writing an incorrect but plausible sensor number, because
+    // get_global_handle() returns -1 for unknown FullHandles.
     if (dest->type == SENSOR_TYPE_META_DATA) {
         full_handle.localHandle = dest->meta_data.sensor;
-        dest->meta_data.sensor = full_to_global[full_handle];
+        dest->meta_data.sensor = get_global_handle(&full_handle);
     } else {
         full_handle.localHandle = dest->sensor;
-        dest->sensor = full_to_global[full_handle];
+        dest->sensor = get_global_handle(&full_handle);
     }
 }
 
@@ -288,9 +334,10 @@ int sensors_poll_context_t::batch(int handle, int flags, int64_t period_ns, int6
     ALOGV("batch");
     int retval = -EINVAL;
     int version = this->get_device_version_by_handle(handle);
-    if (version >= SENSORS_DEVICE_API_VERSION_1_0) {
-        sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
-        retval = v1->batch(v1, get_local_handle(handle), flags, period_ns, timeout);
+    int local_handle = get_local_handle(handle);
+    sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
+    if (version >= SENSORS_DEVICE_API_VERSION_1_0 && local_handle >= 0 && v1) {
+        retval = v1->batch(v1, local_handle, flags, period_ns, timeout);
     }
     ALOGV("retval %d", retval);
     return retval;
@@ -300,9 +347,10 @@ int sensors_poll_context_t::flush(int handle) {
     ALOGV("flush");
     int retval = -EINVAL;
     int version = this->get_device_version_by_handle(handle);
-    if (version >= SENSORS_DEVICE_API_VERSION_1_0) {
-        sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
-        retval = v1->flush(v1, get_local_handle(handle));
+    int local_handle = get_local_handle(handle);
+    sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(handle);
+    if (version >= SENSORS_DEVICE_API_VERSION_1_0 && local_handle >= 0 && v1) {
+        retval = v1->flush(v1, local_handle);
     }
     ALOGV("retval %d", retval);
     return retval;
