@@ -428,7 +428,7 @@ static void get_so_paths(std::vector<char*> *so_paths) {
         ALOGW("No multihal config file found at %s", CONFIG_FILENAME);
         return;
     }
-    ALOGI("Multihal config file found at %s", CONFIG_FILENAME);
+    ALOGV("Multihal config file found at %s", CONFIG_FILENAME);
     char *line = NULL;
     size_t len = 0;
     int line_count = 0;
@@ -441,7 +441,7 @@ static void get_so_paths(std::vector<char*> *so_paths) {
         ALOGV("config file line #%d: '%s'", ++line_count, line);
         char *real_path = realpath(line, NULL);
         if (starts_with(real_path, LEGAL_SUBHAL_PATH_PREFIX)) {
-            ALOGI("accepting valid path '%s'", real_path);
+            ALOGV("accepting valid path '%s'", real_path);
             char* compact_line = new char[strlen(real_path) + 1];
             strcpy(compact_line, real_path);
             so_paths->push_back(compact_line);
@@ -479,7 +479,7 @@ static void lazy_init_modules() {
         if (lib_handle == NULL) {
             ALOGW("dlerror(): %s", dlerror());
         } else {
-            ALOGI("hal lib was loaded: %s", path);
+            ALOGI("Loaded library from %s", path);
             ALOGV("Opening symbol \"%s\"", sym);
             // clear old errors
             dlerror();
@@ -490,7 +490,7 @@ static void lazy_init_modules() {
             } else if (module == NULL) {
                 ALOGW("module == NULL");
             } else {
-                ALOGI("OK, dlsym()'ed \"%s\"", sym);
+                ALOGV("Loaded symbols from \"%s\"", sym);
                 sub_hw_modules->push_back(module);
             }
         }
@@ -554,7 +554,7 @@ static void lazy_init_sensors_list() {
             int global_handle = assign_global_handle(module_index, local_handle);
 
             mutable_sensor_list[mutable_sensor_index].handle = global_handle;
-            ALOGI("module_index %d, local_handle %d, global_handle %d",
+            ALOGV("module_index %d, local_handle %d, global_handle %d",
                     module_index, local_handle, global_handle);
 
             mutable_sensor_index++;
@@ -601,7 +601,7 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
 
 static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         struct hw_device_t** hw_device_out) {
-    ALOGI("open_sensors begin...");
+    ALOGV("open_sensors begin...");
 
     lazy_init_modules();
 
@@ -632,6 +632,6 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
 
     // Prepare the output param and return
     *hw_device_out = &dev->proxy_device.common;
-    ALOGI("...open_sensors end");
+    ALOGV("...open_sensors end");
     return 0;
 }
