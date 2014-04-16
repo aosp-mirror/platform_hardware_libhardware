@@ -15,7 +15,7 @@
  */
 
 #define LOG_TAG "usb_audio_hw"
-/*#define LOG_NDEBUG 0*/
+/* #define LOG_NDEBUG 0 */
 
 #include <errno.h>
 #include <pthread.h>
@@ -99,7 +99,7 @@ struct stream_out {
 
 /*
  * Output Configuration Cache
- * FIXME(pmclean) This is not rentrant. Should probably be moved into the stream structure
+ * FIXME(pmclean) This is not reentrant. Should probably be moved into the stream structure
  * but that will involve changes in The Framework.
  */
 static struct pcm_config cached_output_hardware_config;
@@ -112,20 +112,29 @@ struct stream_in {
     struct pcm *pcm;
     bool standby;
 
-    struct pcm_config alsa_pcm_config;
-
     struct audio_device *dev;
 
     struct audio_config hal_pcm_config;
 
-    unsigned int requested_rate;
 //    struct resampler_itfe *resampler;
 //    struct resampler_buffer_provider buf_provider;
-    int16_t *buffer;
-    size_t buffer_size;
-    size_t frames_in;
+
     int read_status;
+
+    // We may need to read more data from the device in order to data reduce to 16bit, 4chan */
+    void * conversion_buffer;           /* any conversions are put into here
+                                         * they could come from here too if
+                                         * there was a previous conversion */
+    size_t conversion_buffer_size;      /* in bytes */
 };
+
+/*
+ * Input Configuration Cache
+ * FIXME(pmclean) This is not reentrant. Should probably be moved into the stream structure
+ * but that will involve changes in The Framework.
+ */
+static struct pcm_config cached_input_hardware_config;
+static bool input_hardware_config_is_cached = false;
 
 /*
  * Utility
@@ -162,15 +171,16 @@ static audio_format_t alsa_to_fw_format_id(int alsa_fmt_id)
  *   in_buff points to the buffer of PCM16 samples
  *   num_in_samples size of input buffer in SAMPLES
  *   out_buff points to the buffer to receive converted PCM24 LE samples.
- *   returns the number of BYTES of output data.
+ * returns
+ *   the number of BYTES of output data.
  * We are doing this since we *always* present to The Framework as A PCM16LE device, but need to
  * support PCM24_3LE (24-bit, packed).
- * NOTE: we're just filling the low-order byte of the PCM24LE samples with 0.
+ * NOTE:
+ *   We're just filling the low-order byte of the PCM24LE samples with 0.
+ *   This conversion is safe to do in-place (in_buff == out_buff).
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static size_t convert_16_to_24_3(unsigned short * in_buff,
-                                 size_t num_in_samples,
-                                 unsigned char * out_buff) {
+static size_t convert_16_to_24_3(short * in_buff, size_t num_in_samples, unsigned char * out_buff) {
     /*
      * Move from back to front so that the conversion can be done in-place
      * i.e. in_buff == out_buff
@@ -179,11 +189,12 @@ static size_t convert_16_to_24_3(unsigned short * in_buff,
     /* we need 3 bytes in the output for every 2 bytes in the input */
     int out_buff_size_in_bytes = ((3 * in_buff_size_in_bytes) / 2);
     unsigned char* dst_ptr = out_buff + out_buff_size_in_bytes - 1;
-    int src_smpl_index;
+    size_t src_smpl_index;
     unsigned char* src_ptr = ((unsigned char *)in_buff) + in_buff_size_in_bytes - 1;
     for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
         *dst_ptr-- = *src_ptr--; /* hi-byte */
         *dst_ptr-- = *src_ptr--; /* low-byte */
+        /*TODO(pmclean) - we might want to consider dithering the lowest byte. */
         *dst_ptr-- = 0;          /* zero-byte */
     }
 
@@ -192,36 +203,125 @@ static size_t convert_16_to_24_3(unsigned short * in_buff,
 }
 
 /*
- * Convert a buffer of 2-channel PCM16 samples to 4-channel PCM16 channels
- *   in_buff points to the buffer of PCM16 samples
+ * Convert a buffer of packed (3-byte) PCM24LE samples to PCM16LE samples.
+ *   in_buff points to the buffer of PCM24LE samples
  *   num_in_samples size of input buffer in SAMPLES
+ *   out_buff points to the buffer to receive converted PCM16LE LE samples.
+ * returns
+ *   the number of BYTES of output data.
+ * We are doing this since we *always* present to The Framework as A PCM16LE device, but need to
+ * support PCM24_3LE (24-bit, packed).
+ * NOTE:
+ *   We're just filling the low-order byte of the PCM24LE samples with 0.
+ *   This conversion is safe to do in-place (in_buff == out_buff).
+ * TODO(pmclean, hung) Move this to a utilities module.
+ */
+static size_t convert_24_3_to_16(unsigned char * in_buff, size_t num_in_samples, short * out_buff) {
+    /*
+     * Move from front to back so that the conversion can be done in-place
+     * i.e. in_buff == out_buff
+     */
+    /* we need 2 bytes in the output for every 3 bytes in the input */
+    unsigned char* dst_ptr = (unsigned char*)out_buff;
+    unsigned char* src_ptr = in_buff;
+    size_t src_smpl_index;
+    for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
+        src_ptr++;               /* lowest-(skip)-byte */
+        *dst_ptr++ = *src_ptr++; /* low-byte */
+        *dst_ptr++ = *src_ptr++; /* high-byte */
+    }
+
+    /* return number of *bytes* generated: */
+    return num_in_samples * 2;
+}
+
+/*
+ * Convert a buffer of N-channel, interleaved PCM16 samples to M-channel PCM16 channels
+ * (where N < M).
+ *   in_buff points to the buffer of PCM16 samples
+ *   in_buff_channels Specifies the number of channels in the input buffer.
  *   out_buff points to the buffer to receive converted PCM16 samples.
- *   returns the number of BYTES of output data.
- * NOTE channels 3 & 4 are filled with silence.
+ *   out_buff_channels Specifies the number of channels in the output buffer.
+ *   num_in_samples size of input buffer in SAMPLES
+ * returns
+ *   the number of BYTES of output data.
+ * NOTE
+ *   channels > N are filled with silence.
+ *   This conversion is safe to do in-place (in_buff == out_buff)
  * We are doing this since we *always* present to The Framework as STEREO device, but need to
  * support 4-channel devices.
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static size_t convert_2chan16_to_4chan16(unsigned short* in_buff,
-                                          size_t num_in_samples,
-                                          unsigned short* out_buff) {
+static size_t expand_channels_16(short* in_buff, int in_buff_chans,
+                                 short* out_buff, int out_buff_chans,
+                                 size_t num_in_samples) {
     /*
      * Move from back to front so that the conversion can be done in-place
      * i.e. in_buff == out_buff
+     * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
      */
-    int out_buff_size = num_in_samples * 2;
-    unsigned short* dst_ptr = out_buff + out_buff_size - 1;
+    int num_out_samples = (num_in_samples * out_buff_chans)/in_buff_chans;
+
+    short* dst_ptr = out_buff + num_out_samples - 1;
     int src_index;
-    unsigned short* src_ptr = in_buff + num_in_samples - 1;
-    for (src_index = 0; src_index < num_in_samples; src_index += 2) {
-        *dst_ptr-- = 0;          /* chan 4 */
-        *dst_ptr-- = 0;          /* chan 3 */
-        *dst_ptr-- = *src_ptr--; /* chan 2 */
-        *dst_ptr-- = *src_ptr--; /* chan 1 */
+    short* src_ptr = in_buff + num_in_samples - 1;
+    int num_zero_chans = out_buff_chans - in_buff_chans;
+    for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
+        int dst_offset;
+        for(dst_offset = 0; dst_offset < num_zero_chans; dst_offset++) {
+            *dst_ptr-- = 0;
+        }
+        for(; dst_offset < out_buff_chans; dst_offset++) {
+            *dst_ptr-- = *src_ptr--;
+        }
     }
 
     /* return number of *bytes* generated */
-    return out_buff_size * 2;
+    return num_out_samples * sizeof(short);
+}
+
+/*
+ * Convert a buffer of N-channel, interleaved PCM16 samples to M-channel PCM16 channels
+ * (where N > M).
+ *   in_buff points to the buffer of PCM16 samples
+ *   in_buff_channels Specifies the number of channels in the input buffer.
+ *   out_buff points to the buffer to receive converted PCM16 samples.
+ *   out_buff_channels Specifies the number of channels in the output buffer.
+ *   num_in_samples size of input buffer in SAMPLES
+ * returns
+ *   the number of BYTES of output data.
+ * NOTE
+ *   channels > N are thrown away.
+ *   This conversion is safe to do in-place (in_buff == out_buff)
+ * We are doing this since we *always* present to The Framework as STEREO device, but need to
+ * support 4-channel devices.
+ * TODO(pmclean, hung) Move this to a utilities module.
+ */
+static size_t contract_channels_16(short* in_buff, int in_buff_chans,
+                                   short* out_buff, int out_buff_chans,
+                                   size_t num_in_samples) {
+    /*
+     * Move from front to back so that the conversion can be done in-place
+     * i.e. in_buff == out_buff
+     * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
+     */
+    int num_out_samples = (num_in_samples * out_buff_chans)/in_buff_chans;
+
+    int num_skip_samples = in_buff_chans - out_buff_chans;
+
+    short* dst_ptr = out_buff;
+    short* src_ptr = in_buff;
+    int src_index;
+    for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
+        int dst_offset;
+        for(dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
+            *dst_ptr++ = *src_ptr++;
+        }
+        src_ptr += num_skip_samples;
+    }
+
+    /* return number of *bytes* generated */
+    return num_out_samples * sizeof(short);
 }
 
 /*
@@ -236,8 +336,8 @@ static int bits_to_alsa_format(int bits_per_sample, int default_format)
     enum pcm_format format;
     for (format = PCM_FORMAT_S16_LE; format < PCM_FORMAT_MAX; format++) {
         if (pcm_format_to_bits(format) == bits_per_sample) {
-            return  format;
-         }
+            return format;
+        }
     }
     return default_format;
 }
@@ -247,7 +347,7 @@ static int bits_to_alsa_format(int bits_per_sample, int default_format)
  */
 static int read_alsa_device_config(int card, int device, int io_type, struct pcm_config * config)
 {
-    ALOGV("usb:audio_hw - read_alsa_device_config(card:%d device:%d)", card, device);
+    ALOGV("usb:audio_hw - read_alsa_device_config(c:%d d:%d t:0x%X)",card, device, io_type);
 
     if (card < 0 || device < 0) {
         return -EINVAL;
@@ -384,7 +484,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     if (recache_device_params && adev->out_card >= 0 && adev->out_device >= 0) {
         ret_value = read_alsa_device_config(adev->out_card, adev->out_device, PCM_OUT,
-                                            &(cached_output_hardware_config));
+                                            &cached_output_hardware_config);
         output_hardware_config_is_cached = (ret_value == 0);
     }
 
@@ -397,9 +497,15 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 //TODO(pmclean) it seems like both out_get_parameters() and in_get_parameters()
 // could be written in terms of a get_device_parameters(io_type)
 
-static char * out_get_parameters(const struct audio_stream *stream, const char *keys) {
+static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
+{
+    ALOGV("usb:audio_hw::out out_get_parameters() keys:%s", keys);
+
     struct stream_out *out = (struct stream_out *) stream;
     struct audio_device *adev = out->dev;
+
+    if (adev->out_card < 0 || adev->out_device < 0)
+        return strdup("");
 
     unsigned min, max;
 
@@ -422,8 +528,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
         num_written = snprintf(buffer, buffer_size, "%d", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d",
-                     max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES,
                           buffer);
@@ -465,17 +570,16 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 
 static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
-    struct stream_out *out = (struct stream_out *)stream;
+    struct stream_out *out = (struct stream_out *) stream;
 
     //TODO(pmclean): Do we need a term here for the USB latency
     // (as reported in the USB descriptors)?
-    uint32_t latency = (cached_output_hardware_config.period_size *
-        cached_output_hardware_config.period_count * 1000) / out_get_sample_rate(&stream->common);
+    uint32_t latency = (cached_output_hardware_config.period_size
+            * cached_output_hardware_config.period_count * 1000) / out_get_sample_rate(&stream->common);
     return latency;
 }
 
-static int out_set_volume(struct audio_stream_out *stream, float left,
-                          float right)
+static int out_set_volume(struct audio_stream_out *stream, float left, float right)
 {
     return -ENOSYS;
 }
@@ -486,8 +590,8 @@ static int start_output_stream(struct stream_out *out)
     struct audio_device *adev = out->dev;
     int return_val = 0;
 
-     ALOGV("usb:audio_hw::out start_output_stream(card:%d device:%d)",
-           adev->out_card, adev->out_device);
+    ALOGV("usb:audio_hw::out start_output_stream(card:%d device:%d)",
+          adev->out_card, adev->out_device);
 
     out->pcm = pcm_open(adev->out_card, adev->out_device, PCM_OUT, &cached_output_hardware_config);
     if (out->pcm == NULL) {
@@ -499,17 +603,6 @@ static int start_output_stream(struct stream_out *out)
         pcm_close(out->pcm);
         return -ENOMEM;
     }
-
-    // Setup conversion buffer
-    size_t buffer_size = out_get_buffer_size(&(out->stream.common));
-
-    // computer maximum potential buffer size.
-    // * 2 for stereo -> quad conversion
-    // * 3/2 for 16bit -> 24 bit conversion
-    //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
-    // (and do these conversions themselves)
-    out->conversion_buffer_size = (buffer_size * 3 * 2) / 2;
-    out->conversion_buffer = realloc(out->conversion_buffer, out->conversion_buffer_size);
 
     return 0;
 }
@@ -529,6 +622,18 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
         out->standby = false;
     }
 
+    // Setup conversion buffer
+    // compute maximum potential buffer size.
+    // * 2 for stereo -> quad conversion
+    // * 3/2 for 16bit -> 24 bit conversion
+    int required_conversion_buffer_size = (bytes * 3 * 2) / 2;
+    if (required_conversion_buffer_size > out->conversion_buffer_size) {
+        //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
+        // (and do these conversions themselves)
+        out->conversion_buffer_size = required_conversion_buffer_size;
+        out->conversion_buffer = realloc(out->conversion_buffer, out->conversion_buffer_size);
+    }
+
     void * write_buff = buffer;
     int num_write_buff_bytes = bytes;
 
@@ -537,10 +642,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
      */
     int num_device_channels = cached_output_hardware_config.channels;
     int num_req_channels = 2; /* always, for now */
-    if (num_device_channels != num_req_channels && num_device_channels == 4) {
+    if (num_device_channels != num_req_channels) {
         num_write_buff_bytes =
-                convert_2chan16_to_4chan16(write_buff, num_write_buff_bytes / 2,
-                                           out->conversion_buffer);
+                expand_channels_16(write_buff, num_req_channels,
+                                   out->conversion_buffer, num_device_channels,
+                                   num_write_buff_bytes / sizeof(short));
         write_buff = out->conversion_buffer;
     }
 
@@ -554,8 +660,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
 
     case PCM_FORMAT_S24_3LE:
         // 16-bit LE2 - 24-bit LE3
-        num_write_buff_bytes =
-                convert_16_to_24_3(write_buff, num_write_buff_bytes / 2, out->conversion_buffer);
+        num_write_buff_bytes = convert_16_to_24_3(write_buff,
+                                                  num_write_buff_bytes / sizeof(short),
+                                                  out->conversion_buffer);
         write_buff = out->conversion_buffer;
         break;
 
@@ -585,8 +692,7 @@ err:
     return bytes;
 }
 
-static int out_get_render_position(const struct audio_stream_out *stream,
-                                   uint32_t *dsp_frames)
+static int out_get_render_position(const struct audio_stream_out *stream, uint32_t *dsp_frames)
 {
     return -EINVAL;
 }
@@ -601,8 +707,7 @@ static int out_remove_audio_effect(const struct audio_stream *stream, effect_han
     return 0;
 }
 
-static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
-                                        int64_t *timestamp)
+static int out_get_next_write_timestamp(const struct audio_stream_out *stream, int64_t *timestamp)
 {
     return -EINVAL;
 }
@@ -614,7 +719,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out)
 {
-    ALOGV("usb:audio_hw::out adev_open_output_stream() handle:0x%X, devices:0x%X, flags:0x%X",
+    ALOGV("usb:audio_hw::out adev_open_output_stream() handle:0x%X, device:0x%X, flags:0x%X",
           handle, devices, flags);
 
     struct audio_device *adev = (struct audio_device *)dev;
@@ -672,9 +777,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         config->channel_mask = out_get_channels(&out->stream.common);
         config->sample_rate = out_get_sample_rate(&out->stream.common);
     }
-    ALOGV("usb:audio_hw  config->sample_rate:%d", config->sample_rate);
-    ALOGV("usb:audio_hw  config->format:0x%X", config->format);
-    ALOGV("usb:audio_hw  config->channel_mask:0x%X", config->channel_mask);
 
     out->conversion_buffer = NULL;
     out->conversion_buffer_size = 0;
@@ -712,8 +814,7 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
     return 0;
 }
 
-static char * adev_get_parameters(const struct audio_hw_device *dev,
-                                  const char *keys)
+static char * adev_get_parameters(const struct audio_hw_device *dev, const char *keys)
 {
     return strdup("");
 }
@@ -757,8 +858,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
 /* Helper functions */
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
-    struct stream_in *in = (struct stream_in *)stream;
-    return in->alsa_pcm_config.rate;
+    return cached_input_hardware_config.rate;
 }
 
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
@@ -768,19 +868,16 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
-    struct stream_in *in = (struct stream_in *)stream;
-    size_t buff_size =
-            in->alsa_pcm_config.period_size
-            * audio_stream_frame_size((struct audio_stream *)stream);
-    return buff_size;
+    ALOGV("usb: in_get_buffer_size() = %d",
+          cached_input_hardware_config.period_size * audio_stream_frame_size(stream));
+    return cached_input_hardware_config.period_size * audio_stream_frame_size(stream);
+
 }
 
 static uint32_t in_get_channels(const struct audio_stream *stream)
 {
-    struct stream_in *in = (struct stream_in *)stream;
-    //TODO(pmclean) this should be done with a num_channels_to_alsa_channels()
-    return in->alsa_pcm_config.channels == 2
-            ? AUDIO_CHANNEL_IN_STEREO : AUDIO_CHANNEL_IN_MONO;
+    // just report stereo for now
+    return AUDIO_CHANNEL_IN_STEREO;
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
@@ -796,7 +893,20 @@ static int in_set_format(struct audio_stream *stream, audio_format_t format)
 
 static int in_standby(struct audio_stream *stream)
 {
-    ALOGV("-pcm-audio_hw::in in_standby() [Not Implemented]");
+    struct stream_in *in = (struct stream_in *) stream;
+
+    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->lock);
+
+    if (!in->standby) {
+        pcm_close(in->pcm);
+        in->pcm = NULL;
+        in->standby = true;
+    }
+
+    pthread_mutex_unlock(&in->lock);
+    pthread_mutex_unlock(&in->dev->lock);
+
     return 0;
 }
 
@@ -807,7 +917,7 @@ static int in_dump(const struct audio_stream *stream, int fd)
 
 static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
-    ALOGV("Vaudio_hw::in in_set_parameters() keys:%s", kvpairs);
+    ALOGV("usb: audio_hw::in in_set_parameters() keys:%s", kvpairs);
 
     struct stream_in *in = (struct stream_in *)stream;
     struct audio_device *adev = in->dev;
@@ -820,19 +930,25 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     parms = str_parms_create_str(kvpairs);
     pthread_mutex_lock(&adev->lock);
 
+    bool recache_device_params = false;
+
     // Card/Device
     param_val = str_parms_get_str(parms, "card", value, sizeof(value));
     if (param_val >= 0) {
         adev->in_card = atoi(value);
+        recache_device_params = true;
     }
 
     param_val = str_parms_get_str(parms, "device", value, sizeof(value));
     if (param_val >= 0) {
         adev->in_device = atoi(value);
+        recache_device_params = true;
     }
 
-    if (adev->in_card >= 0 && adev->in_device >= 0) {
-        ret_value = read_alsa_device_config(adev->in_card, adev->in_device, PCM_IN, &(in->alsa_pcm_config));
+    if (recache_device_params && adev->in_card >= 0 && adev->in_device >= 0) {
+        ret_value = read_alsa_device_config(adev->in_card, adev->in_device,
+                                            PCM_IN, &(cached_input_hardware_config));
+        input_hardware_config_is_cached = (ret_value == 0);
     }
 
     pthread_mutex_unlock(&adev->lock);
@@ -844,72 +960,74 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 //TODO(pmclean) it seems like both out_get_parameters() and in_get_parameters()
 // could be written in terms of a get_device_parameters(io_type)
 
-static char * in_get_parameters(const struct audio_stream *stream, const char *keys)
-{
-  ALOGV("usb:audio_hw::in in_get_parameters() keys:%s", keys);
+static char * in_get_parameters(const struct audio_stream *stream, const char *keys) {
+    ALOGV("usb:audio_hw::in in_get_parameters() keys:%s", keys);
 
-  struct stream_in *in = (struct stream_in *)stream;
-  struct audio_device *adev = in->dev;
+    struct stream_in *in = (struct stream_in *)stream;
+    struct audio_device *adev = in->dev;
 
-  struct pcm_params * alsa_hw_params = pcm_params_get(adev->in_card, adev->in_device, PCM_IN);
-  if (alsa_hw_params == NULL)
-      return strdup("");
+    if (adev->in_card < 0 || adev->in_device < 0)
+        return strdup("");
 
-  struct str_parms *query = str_parms_create_str(keys);
-  struct str_parms *result = str_parms_create();
+    struct pcm_params * alsa_hw_params = pcm_params_get(adev->in_card, adev->in_device, PCM_IN);
+    if (alsa_hw_params == NULL)
+        return strdup("");
 
-  int num_written = 0;
-  char buffer[256];
-  int buffer_size = sizeof(buffer)/sizeof(buffer[0]);
-  char* result_str = NULL;
+    struct str_parms *query = str_parms_create_str(keys);
+    struct str_parms *result = str_parms_create();
 
-  unsigned min, max;
+    int num_written = 0;
+    char buffer[256];
+    int buffer_size = sizeof(buffer) / sizeof(buffer[0]);
+    char* result_str = NULL;
 
-  // These keys are from hardware/libhardware/include/audio.h
-  // supported sample rates
-  if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES)) {
-    // pcm_hw_params doesn't have a list of supported samples rates, just a min and a max, so
-    // if they are different, return a list containing those two values, otherwise just the one.
-    min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
-    max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
-    num_written = snprintf(buffer, buffer_size, "%d", min);
-    if (min != max) {
-      snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
-    }
-    str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SAMPLING_RATE, buffer);
-  } // AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES
+    unsigned min, max;
 
-  // supported channel counts
-  if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
-    // Similarly for output channels count
-    min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
-    max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
-    num_written = snprintf(buffer, buffer_size, "%d", min);
-    if (min != max) {
-      snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
-    }
-    str_parms_add_str(result, AUDIO_PARAMETER_STREAM_CHANNELS, buffer);
-  } // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
+    // These keys are from hardware/libhardware/include/audio.h
+    // supported sample rates
+    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES)) {
+        // pcm_hw_params doesn't have a list of supported samples rates, just a min and a max, so
+        // if they are different, return a list containing those two values, otherwise just the one.
+        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
+        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
+        num_written = snprintf(buffer, buffer_size, "%d", min);
+        if (min != max) {
+            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+        }
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SAMPLING_RATE, buffer);
+    }  // AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES
 
-  // supported sample formats
-  if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-    //TODO(pmclean): this is wrong.
-    min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-    max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-    num_written = snprintf(buffer, buffer_size, "%d", min);
-    if (min != max) {
-      snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
-    }
-    str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
-  } // AUDIO_PARAMETER_STREAM_SUP_FORMATS
+    // supported channel counts
+    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
+        // Similarly for output channels count
+        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
+        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
+        num_written = snprintf(buffer, buffer_size, "%d", min);
+        if (min != max) {
+            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+        }
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_CHANNELS, buffer);
+    }  // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
 
-  result_str = str_parms_to_str(result);
+    // supported sample formats
+    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
+        //TODO(pmclean): this is wrong.
+        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
+        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
+        num_written = snprintf(buffer, buffer_size, "%d", min);
+        if (min != max) {
+            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+        }
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
+    }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
 
-  // done with these...
-  str_parms_destroy(query);
-  str_parms_destroy(result);
+    result_str = str_parms_to_str(result);
 
-  return result_str;
+    // done with these...
+    str_parms_destroy(query);
+    str_parms_destroy(result);
+
+    return result_str;
 }
 
 static int in_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
@@ -922,32 +1040,123 @@ static int in_remove_audio_effect(const struct audio_stream *stream, effect_hand
     return 0;
 }
 
-static int in_set_gain(struct audio_stream_in *stream, float gain) {
+static int in_set_gain(struct audio_stream_in *stream, float gain)
+{
     return 0;
 }
 
-static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t bytes) {
-    struct stream_in * in = (struct stream_in *)stream;
+/* must be called with hw device and output stream mutexes locked */
+static int start_input_stream(struct stream_in *in) {
+    struct audio_device *adev = in->dev;
+    int return_val = 0;
 
-    int err = pcm_read(in->pcm, buffer, bytes);
+    ALOGV("usb:audio_hw::start_input_stream(card:%d device:%d)",
+          adev->in_card, adev->in_device);
 
-    return err == 0 ? bytes : 0;
+    in->pcm = pcm_open(adev->in_card, adev->in_device, PCM_IN, &cached_input_hardware_config);
+    if (in->pcm == NULL) {
+        ALOGE("usb:audio_hw pcm_open() in->pcm == NULL");
+        return -ENOMEM;
+    }
+
+    if (in->pcm && !pcm_is_ready(in->pcm)) {
+        ALOGE("usb:audio_hw audio_hw pcm_open() failed: %s", pcm_get_error(in->pcm));
+        pcm_close(in->pcm);
+        return -ENOMEM;
+    }
+
+    return 0;
 }
 
-static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream) {
+//TODO(pmclean) mutex stuff here (see out_write)
+static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t bytes)
+{
+    int num_read_buff_bytes = 0;
+    void * read_buff = buffer;
+    void * out_buff = buffer;
+
+    struct stream_in * in = (struct stream_in *) stream;
+
+    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->lock);
+
+    if (in->standby) {
+        if (start_input_stream(in) != 0) {
+            goto err;
+        }
+        in->standby = false;
+    }
+
+    // OK, we need to figure out how much data to read to be able to output the requested
+    // number of bytes in the HAL format (16-bit, stereo).
+    num_read_buff_bytes = bytes;
+    int num_device_channels = cached_input_hardware_config.channels;
+    int num_req_channels = 2; /* always, for now */
+
+    if (num_device_channels != num_req_channels) {
+        num_read_buff_bytes *= num_device_channels/num_req_channels;
+    }
+
+    if (cached_output_hardware_config.format == PCM_FORMAT_S24_3LE) {
+        num_read_buff_bytes = (3 * num_read_buff_bytes) / 2;
+    }
+
+    // Setup/Realloc the conversion buffer (if necessary).
+    if (num_read_buff_bytes != bytes) {
+        if (num_read_buff_bytes > in->conversion_buffer_size) {
+            //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
+            // (and do these conversions themselves)
+            in->conversion_buffer_size = num_read_buff_bytes;
+            in->conversion_buffer = realloc(in->conversion_buffer, in->conversion_buffer_size);
+        }
+        read_buff = in->conversion_buffer;
+    }
+
+    if (pcm_read(in->pcm, read_buff, num_read_buff_bytes) == 0) {
+        /*
+         * Do any conversions necessary to send the data in the format specified to/by the HAL
+         * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
+         */
+        if (cached_output_hardware_config.format == PCM_FORMAT_S24_3LE) {
+            if (num_device_channels != num_req_channels) {
+                out_buff = read_buff;
+            }
+
+            /* Bit Format Conversion */
+            num_read_buff_bytes =
+                convert_24_3_to_16(read_buff, num_read_buff_bytes / 3, out_buff);
+        }
+
+        if (num_device_channels != num_req_channels) {
+            out_buff = buffer;
+            /* Num Channels conversion */
+            num_read_buff_bytes =
+                contract_channels_16(read_buff, num_device_channels,
+                                     out_buff, num_req_channels,
+                                     num_read_buff_bytes / sizeof(short));
+        }
+    }
+
+err:
+    pthread_mutex_unlock(&in->lock);
+    pthread_mutex_unlock(&in->dev->lock);
+
+    return num_read_buff_bytes;
+}
+
+static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
+{
     return 0;
 }
 
 static int adev_open_input_stream(struct audio_hw_device *dev,
                                   audio_io_handle_t handle,
                                   audio_devices_t devices,
-                                  struct audio_config *hal_config,
+                                  struct audio_config *config,
                                   struct audio_stream_in **stream_in)
 {
-    ALOGV("usb:audio_hw::in adev_open_input_stream() rate:%d, chanMask:0x%X, fmt:%d",
-          hal_config->sample_rate,
-          hal_config->channel_mask,
-          hal_config->format);
+    ALOGV("usb: in adev_open_input_stream() rate:%d, chanMask:0x%X, fmt:%d",
+          config->sample_rate, config->channel_mask, config->format);
 
     struct stream_in *in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
     if (in == NULL)
@@ -971,52 +1180,56 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
-    struct audio_device *adev = (struct audio_device *)dev;
-    in->dev = adev;
+    in->dev = (struct audio_device *)dev;
+
+    if (output_hardware_config_is_cached) {
+        config->sample_rate = cached_output_hardware_config.rate;
+
+        config->format = alsa_to_fw_format_id(cached_output_hardware_config.format);
+        if (config->format != AUDIO_FORMAT_PCM_16_BIT) {
+            // Always report PCM16 for now. AudioPolicyManagerBase/AudioFlinger dont' understand
+            // formats with more other format, so we won't get chosen (say with a 24bit DAC).
+            //TODO(pmclean) remove this when the above restriction is removed.
+            config->format = AUDIO_FORMAT_PCM_16_BIT;
+        }
+
+        config->channel_mask = audio_channel_out_mask_from_count(
+                cached_output_hardware_config.channels);
+        if (config->channel_mask != AUDIO_CHANNEL_OUT_STEREO) {
+            // Always report STEREO for now.  AudioPolicyManagerBase/AudioFlinger dont' understand
+            // formats with more channels, so we won't get chosen (say with a 4-channel DAC).
+            //TODO(pmclean) remove this when the above restriction is removed.
+            config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+        }
+    } else {
+        cached_input_hardware_config = default_alsa_in_config;
+
+        config->format = out_get_format(&in->stream.common);
+        config->channel_mask = out_get_channels(&in->stream.common);
+        config->sample_rate = out_get_sample_rate(&in->stream.common);
+    }
 
     in->standby = true;
-    in->requested_rate = hal_config->sample_rate;
-    in->alsa_pcm_config = default_alsa_in_config;
 
-    if (hal_config->sample_rate != 0)
-        in->alsa_pcm_config.rate = hal_config->sample_rate;
-
-    //TODO(pmclean) is this correct, or do we need to map from ALSA format?
-    // hal_config->format is an audio_format_t
-    // logical
-    // hal_config->format = default_alsa_in_config.format;
-    //TODO(pmclean) use audio_format_from_pcm_format() (in hardware/audio_alsaops.h)
-    switch (default_alsa_in_config.format) {
-    case PCM_FORMAT_S32_LE:
-        hal_config->format = AUDIO_FORMAT_PCM_32_BIT;
-        break;
-
-    case PCM_FORMAT_S8:
-        hal_config->format = AUDIO_FORMAT_PCM_8_BIT;
-        break;
-
-    case PCM_FORMAT_S24_LE:
-        hal_config->format = AUDIO_FORMAT_PCM_8_24_BIT;
-        break;
-
-    case PCM_FORMAT_S24_3LE:
-        hal_config->format = AUDIO_FORMAT_PCM_8_24_BIT;
-        break;
-
-    default:
-    case PCM_FORMAT_S16_LE:
-        hal_config->format = AUDIO_FORMAT_PCM_16_BIT;
-        break;
-    }
+    in->conversion_buffer = NULL;
+    in->conversion_buffer_size = 0;
 
     *stream_in = &in->stream;
 
     return 0;
 }
 
-static void adev_close_input_stream(struct audio_hw_device *dev,
-                                   struct audio_stream_in *stream)
+static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_stream_in *stream)
 {
+    struct stream_in *in = (struct stream_in *)stream;
+
+    //TODO(pmclean) why are we doing this when stream get's freed at the end
+    // because it closes the pcm device
+    in_standby(&stream->common);
+
+    free(in->conversion_buffer);
+
+    free(stream);
 }
 
 static int adev_dump(const audio_hw_device_t *device, int fd)
@@ -1026,21 +1239,17 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
 
 static int adev_close(hw_device_t *device)
 {
-    ALOGV("usb:audio_hw::adev_close()");
-
     struct audio_device *adev = (struct audio_device *)device;
     free(device);
 
     output_hardware_config_is_cached = false;
+    input_hardware_config_is_cached = false;
 
     return 0;
 }
 
-static int adev_open(const hw_module_t* module, const char* name,
-                     hw_device_t** device)
+static int adev_open(const hw_module_t* module, const char* name, hw_device_t** device)
 {
-    // ALOGV("usb:audio_hw::adev_open(%s)", name);
-
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
         return -EINVAL;
 
