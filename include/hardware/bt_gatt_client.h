@@ -195,7 +195,7 @@ typedef struct {
 
     /** Create a connection to a remote LE or dual-mode device */
     bt_status_t (*connect)( int client_if, const bt_bdaddr_t *bd_addr,
-                         bool is_direct );
+                         bool is_direct, int transport );
 
     /** Disconnect a remote device or cancel a pending connection */
     bt_status_t (*disconnect)( int client_if, const bt_bdaddr_t *bd_addr,
@@ -291,6 +291,7 @@ typedef struct {
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
+
 } btgatt_client_interface_t;
 
 __END_DECLS
