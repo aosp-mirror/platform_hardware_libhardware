@@ -36,10 +36,13 @@ __BEGIN_DECLS
  * Settings for "module_api_version" and "hal_api_version"
  * fields in the keymaster_module initialization.
  */
-#define KEYMASTER_HEADER_VERSION 2
+#define KEYMASTER_HEADER_VERSION 3
 
 #define KEYMASTER_MODULE_API_VERSION_0_2  HARDWARE_MODULE_API_VERSION(0, 2)
 #define KEYMASTER_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION_2(0, 2, KEYMASTER_HEADER_VERSION)
+
+#define KEYMASTER_MODULE_API_VERSION_0_3  HARDWARE_MODULE_API_VERSION(0, 3)
+#define KEYMASTER_DEVICE_API_VERSION_0_3  HARDWARE_DEVICE_API_VERSION_2(0, 3, KEYMASTER_HEADER_VERSION)
 
 /**
  * Flags for keymaster_device::flags
@@ -52,7 +55,31 @@ enum {
      * This should not be implemented on anything other than the default
      * implementation.
      */
-    KEYMASTER_SOFTWARE_ONLY = 0x00000001,
+    KEYMASTER_SOFTWARE_ONLY = 1 << 0,
+
+    /*
+     * This indicates that the key blobs returned via all the primitives
+     * are sufficient to operate on their own without the trusted OS
+     * querying userspace to retrieve some other data. Key blobs of
+     * this type are normally returned encrypted with a
+     * Key Encryption Key (KEK).
+     *
+     * This is currently used by "vold" to know whether the whole disk
+     * encryption secret can be unwrapped without having some external
+     * service started up beforehand since the "/data" partition will
+     * be unavailable at that point.
+     */
+    KEYMASTER_BLOBS_ARE_STANDALONE = 1 << 1,
+
+    /*
+     * Indicates that the keymaster module supports DSA keys.
+     */
+    KEYMASTER_SUPPORTS_DSA = 1 << 2,
+
+    /*
+     * Indicates that the keymaster module supports EC keys.
+     */
+    KEYMASTER_SUPPORTS_EC = 1 << 3,
 };
 
 struct keystore_module {
