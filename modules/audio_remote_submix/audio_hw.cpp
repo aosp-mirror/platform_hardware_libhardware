@@ -271,7 +271,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             return 0;
         } else {
             // write() returned UNDERRUN or WOULD_BLOCK, retry
-            ALOGE("out_write() write to pipe returned unexpected %d", written_frames);
+            ALOGE("out_write() write to pipe returned unexpected %zd", written_frames);
             written_frames = sink->write(buffer, frames);
         }
     }
@@ -281,10 +281,10 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     pthread_mutex_unlock(&out->dev->lock);
 
     if (written_frames < 0) {
-        ALOGE("out_write() failed writing to pipe with %d", written_frames);
+        ALOGE("out_write() failed writing to pipe with %zd", written_frames);
         return 0;
     } else {
-        ALOGV("out_write() wrote %lu bytes)", written_frames * frame_size);
+        ALOGV("out_write() wrote %zu bytes)", written_frames * frame_size);
         return written_frames * frame_size;
     }
 }
@@ -327,7 +327,7 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
     const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
-    ALOGV("in_get_buffer_size() returns %u",
+    ALOGV("in_get_buffer_size() returns %zu",
             in->dev->config.period_size * audio_stream_frame_size(stream));
     return in->dev->config.period_size * audio_stream_frame_size(stream);
 }
@@ -449,7 +449,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
     if (remaining_frames > 0) {
-        ALOGV("  remaining_frames = %d", remaining_frames);
+        ALOGV("  remaining_frames = %zu", remaining_frames);
         memset(((char*)buffer)+ bytes - (remaining_frames * frame_size), 0,
                 remaining_frames * frame_size);
     }
@@ -488,7 +488,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
 
-    ALOGV("in_read returns %d", bytes);
+    ALOGV("in_read returns %zu", bytes);
     return bytes;
 
 }
