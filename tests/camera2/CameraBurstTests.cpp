@@ -15,6 +15,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <inttypes.h>
 
 #define LOG_TAG "CameraBurstTest"
 //#define LOG_NDEBUG 0
@@ -218,7 +219,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
         CameraMetadata tmpRequest = previewRequest;
         ASSERT_EQ(OK, tmpRequest.update(ANDROID_SENSOR_EXPOSURE_TIME,
                                         &exposures[i], 1));
-        ALOGV("Submitting capture request %d with exposure %lld", i,
+        ALOGV("Submitting capture request %d with exposure %"PRId64, i,
             exposures[i]);
         dout << "Capture request " << i << " exposure is "
              << (exposures[i]/1e6f) << std::endl;
@@ -230,7 +231,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
     float brightnesses[CAMERA_FRAME_BURST_COUNT];
     // Get each frame (metadata) and then the buffer. Calculate brightness.
     for (int i = 0; i < CAMERA_FRAME_BURST_COUNT; ++i) {
-        ALOGV("Reading capture request %d with exposure %lld", i, exposures[i]);
+        ALOGV("Reading capture request %d with exposure %"PRId64, i, exposures[i]);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
         ALOGV("Reading capture request-1 %d", i);
         CaptureResult result;
@@ -613,7 +614,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
                                         &durationList[i], 1));
         ASSERT_EQ(OK, tmpRequest.update(ANDROID_SENSOR_SENSITIVITY,
                                         &sensitivityList[i], 1));
-        ALOGV("Submitting capture %d with exposure %lld, frame duration %lld, sensitivity %d",
+        ALOGV("Submitting capture %zu with exposure %"PRId64", frame duration %"PRId64", sensitivity %d",
                 i, expList[i], durationList[i], sensitivityList[i]);
         dout << "Capture request " << i <<
                 ": exposure is " << (expList[i]/1e6f) << " ms" <<
@@ -631,7 +632,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
     // Get each frame (metadata) and then the buffer. Calculate brightness.
     for (size_t i = 0; i < expList.size(); ++i) {
 
-        ALOGV("Reading request %d", i);
+        ALOGV("Reading request %zu", i);
         dout << "Waiting for capture " << i << ": " <<
                 " exposure " << (expList[i]/1e6f) << " ms," <<
                 " frame duration " << (durationList[i]/1e6f) << " ms," <<
@@ -644,10 +645,10 @@ TEST_F(CameraBurstTest, VariableBurst) {
         if (durationList[i] * 2 > waitLimit) waitLimit = durationList[i] * 2;
 
         ASSERT_EQ(OK, mDevice->waitForNextFrame(waitLimit));
-        ALOGV("Reading capture request-1 %d", i);
+        ALOGV("Reading capture request-1 %zu", i);
         CaptureResult result;
         ASSERT_EQ(OK, mDevice->getNextResult(&result));
-        ALOGV("Reading capture request-2 %d", i);
+        ALOGV("Reading capture request-2 %zu", i);
 
         ASSERT_EQ(OK, mFrameListener->waitForFrame(CAMERA_FRAME_TIMEOUT));
         ALOGV("We got the frame now");
@@ -668,7 +669,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
             avgBrightness = 255;
         }
 
-        ALOGV("Total brightness for frame %d was %lld (underexposed %d, "
+        ALOGV("Total brightness for frame %zu was %lld (underexposed %d, "
               "overexposed %d), avg %f", i, brightness, underexposed,
               overexposed, avgBrightness);
         dout << "Average brightness (frame " << i << ") was " << avgBrightness
@@ -711,7 +712,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
 
         if (dumpFrames) {
             String8 dumpName =
-                    String8::format("/data/local/tmp/camera2_test_variable_burst_frame_%03d.yuv", i);
+                    String8::format("/data/local/tmp/camera2_test_variable_burst_frame_%03zu.yuv", i);
             dout << "  Writing YUV dump to " << dumpName << std::endl;
             DumpYuvToFile(dumpName, imgBuffer);
         }

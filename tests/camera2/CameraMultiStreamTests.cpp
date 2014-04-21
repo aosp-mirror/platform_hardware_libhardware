@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #define LOG_TAG "CameraMultiStreamTest"
 //#define LOG_NDEBUG 0
 #include "CameraStreamFixture.h"
@@ -355,7 +356,7 @@ public:
             ASSERT_EQ(OK, request.update(ANDROID_SENSOR_EXPOSURE_TIME, &exposures[i], 1));
             ASSERT_EQ(OK, request.update(ANDROID_SENSOR_SENSITIVITY, &sensitivities[i], 1));
             ASSERT_EQ(OK, mDevice->capture(request));
-            ALOGV("Submitting request with: id %d with exposure %lld, sensitivity %d",
+            ALOGV("Submitting request with: id %d with exposure %"PRId64", sensitivity %d",
                     *requestIdStart, exposures[i], sensitivities[i]);
             if (CAMERA_MULTI_STREAM_DEBUGGING) {
                 request.dump(STDOUT_FILENO);
@@ -370,7 +371,7 @@ public:
         // Set wait limit based on expected frame duration.
         int64_t waitLimit = CAMERA_FRAME_TIMEOUT;
         for (size_t i = 0; i < requestCount; i++) {
-            ALOGV("Reading request result %d", i);
+            ALOGV("Reading request result %zu", i);
 
             /**
              * Raise the timeout to be at least twice as long as the exposure
@@ -396,7 +397,7 @@ public:
                 }
             } while (resultRequestId != targetRequestId);
             targetRequestId++;
-            ALOGV("Got capture burst result for request %d", i);
+            ALOGV("Got capture burst result for request %zu", i);
 
             // Validate capture result
             if (CAMERA_MULTI_STREAM_DEBUGGING) {
@@ -415,7 +416,7 @@ public:
             captureBurstTimes.push_back(systemTime());
             CpuConsumer::LockedBuffer imgBuffer;
             ASSERT_EQ(OK, consumer->lockNextBuffer(&imgBuffer));
-            ALOGV("Got capture buffer for request %d", i);
+            ALOGV("Got capture buffer for request %zu", i);
 
             /**
              * TODO: Validate capture buffer. Current brightness calculation
@@ -527,7 +528,7 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
         minFrameDuration = DEFAULT_FRAME_DURATION;
     }
 
-    ALOGV("targeted minimal frame duration is: %lldns", minFrameDuration);
+    ALOGV("targeted minimal frame duration is: %"PRId64"ns", minFrameDuration);
 
     data = &(availableJpegSizes.data.i32[0]);
     count = availableJpegSizes.count;
@@ -647,7 +648,7 @@ TEST_F(CameraMultiStreamTest, MultiBurst) {
         ASSERT_EQ(OK, previewRequest.update(
                 ANDROID_SENSOR_EXPOSURE_TIME,
                 &exposures[i], 1));
-        ALOGV("Submitting preview request %d with exposure %lld",
+        ALOGV("Submitting preview request %zu with exposure %"PRId64,
                 i, exposures[i]);
 
         ASSERT_EQ(OK, mDevice->setStreamingRequest(previewRequest));
