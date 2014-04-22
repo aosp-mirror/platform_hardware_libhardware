@@ -21,17 +21,17 @@ namespace tests {
 
 TEST_F(FingerprintDevice, isThereEnroll) {
     ASSERT_TRUE(NULL != fp_device()->enroll)
-        << "Enroll function is not implemented";
+        << "enroll() function is not implemented";
 }
 
 TEST_F(FingerprintDevice, isThereRemove) {
     ASSERT_TRUE(NULL != fp_device()->remove)
-        << "Remove function is not implemented";
+        << "remove() function is not implemented";
 }
 
-TEST_F(FingerprintDevice, isThereMatch) {
-    ASSERT_TRUE(NULL != fp_device()->match)
-        << "Match function is not implemented";
+TEST_F(FingerprintDevice, isThereSetNotify) {
+    ASSERT_TRUE(NULL != fp_device()->set_notify)
+        << "set_notify() function is not implemented";
 }
 
 }  // namespace tests

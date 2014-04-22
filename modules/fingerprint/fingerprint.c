@@ -31,30 +31,26 @@ static int fingerprint_close(hw_device_t *dev)
     }
 }
 
-static fingerprint_msg_t fingerprint_enroll(unsigned timeout_sec,
-                                            unsigned *data) {
-    (void)timeout_sec;
-    (void)data;
+static int fingerprint_enroll(struct fingerprint_device __unused *dev,
+                                unsigned __unused timeout_sec) {
     return FINGERPRINT_ERROR;
 }
 
-static fingerprint_msg_t fingerprint_remove(unsigned fingerprint_id) {
-    (void)fingerprint_id;
+static int fingerprint_remove(struct fingerprint_device __unused *dev,
+                                uint16_t __unused fingerprint_id) {
     return FINGERPRINT_ERROR;
 }
 
-static fingerprint_msg_t fingerprint_match(unsigned fingerprint_id,
-                                            unsigned timeout_sec) {
-    (void)fingerprint_id;
-    (void)timeout_sec;
+static int set_notify_callback(struct fingerprint_device *dev,
+                                fingerprint_notify_t notify) {
+    /* Decorate with locks */
+    dev->notify = notify;
     return FINGERPRINT_ERROR;
 }
 
-static int fingerprint_open(const hw_module_t* module, const char* id,
+static int fingerprint_open(const hw_module_t* module, const char __unused *id,
                             hw_device_t** device)
 {
-    (void)id;
-
     if (device == NULL) {
         ALOGE("NULL device on open");
         return -EINVAL;
@@ -70,7 +66,8 @@ static int fingerprint_open(const hw_module_t* module, const char* id,
 
     dev->enroll = fingerprint_enroll;
     dev->remove = fingerprint_remove;
-    dev->match = fingerprint_match;
+    dev->set_notify = set_notify_callback;
+    dev->notify = NULL;
 
     *device = (hw_device_t*) dev;
     return 0;
