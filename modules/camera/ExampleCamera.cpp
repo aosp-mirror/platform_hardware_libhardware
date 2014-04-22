@@ -184,25 +184,37 @@ int ExampleCamera::initDevice()
 
     // Create standard settings templates from copies of base metadata
     // TODO: use vendor tags in base metadata
-    if (res = base.add1UInt8(ANDROID_CONTROL_MODE, ANDROID_CONTROL_MODE_OFF))
+    res = base.add1UInt8(ANDROID_CONTROL_MODE, ANDROID_CONTROL_MODE_OFF);
+    if (res)
         return res;
 
     // Use base settings to create all other templates and set them
-    if (res = setPreviewTemplate(base)) return res;
-    if (res = setStillTemplate(base)) return res;
-    if (res = setRecordTemplate(base)) return res;
-    if (res = setSnapshotTemplate(base)) return res;
-    if (res = setZslTemplate(base)) return res;
+    res = setPreviewTemplate(base);
+    if (res)
+        return res;
+    res = setStillTemplate(base);
+    if (res)
+        return res;
+    res = setRecordTemplate(base);
+    if (res)
+        return res;
+    res = setSnapshotTemplate(base);
+    if (res)
+        return res;
+    res = setZslTemplate(base);
+    if (res)
+        return res;
 
     return 0;
 }
 
 int ExampleCamera::setPreviewTemplate(Metadata m)
 {
-    int res;
     // Setup default preview controls
-    if (res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
-            ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW))
+    int res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                            ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW);
+
+    if (res)
         return res;
     // TODO: set fast auto-focus, auto-whitebalance, auto-exposure, auto flash
     return setTemplate(CAMERA3_TEMPLATE_PREVIEW, m.get());
@@ -210,10 +222,10 @@ int ExampleCamera::setPreviewTemplate(Metadata m)
 
 int ExampleCamera::setStillTemplate(Metadata m)
 {
-    int res;
+    int res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                            ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE);
     // Setup default still capture controls
-    if (res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
-            ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE))
+    if (res)
         return res;
     // TODO: set fast auto-focus, auto-whitebalance, auto-exposure, auto flash
     return setTemplate(CAMERA3_TEMPLATE_STILL_CAPTURE, m.get());
@@ -221,10 +233,10 @@ int ExampleCamera::setStillTemplate(Metadata m)
 
 int ExampleCamera::setRecordTemplate(Metadata m)
 {
-    int res;
+    int res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD);
     // Setup default video record controls
-    if (res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
-            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD))
+    if (res)
         return res;
     // TODO: set slow auto-focus, auto-whitebalance, auto-exposure, flash off
     return setTemplate(CAMERA3_TEMPLATE_VIDEO_RECORD, m.get());
@@ -232,21 +244,21 @@ int ExampleCamera::setRecordTemplate(Metadata m)
 
 int ExampleCamera::setSnapshotTemplate(Metadata m)
 {
-    int res;
+    int res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT);
     // Setup default video snapshot controls
-    if (res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
-            ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT))
+    if (res)
         return res;
-    // TODO: set slow auto-focus, auto-whitebalance, auto-exposure, flash off 
+    // TODO: set slow auto-focus, auto-whitebalance, auto-exposure, flash off
     return setTemplate(CAMERA3_TEMPLATE_VIDEO_SNAPSHOT, m.get());
 }
 
 int ExampleCamera::setZslTemplate(Metadata m)
 {
-    int res;
+    int res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
+                            ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG);
     // Setup default zero shutter lag controls
-    if (res = m.add1UInt8(ANDROID_CONTROL_CAPTURE_INTENT,
-            ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG))
+    if (res)
         return res;
     // TODO: set reprocessing parameters for zsl input queue
     return setTemplate(CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG, m.get());

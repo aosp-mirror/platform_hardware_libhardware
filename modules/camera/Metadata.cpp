@@ -143,18 +143,20 @@ int Metadata::add(uint32_t tag, int count, const void *tag_data)
     // Double new dimensions to minimize future reallocations
     tmp = allocate_camera_metadata(entry_capacity * 2, data_capacity * 2);
     if (tmp == NULL) {
-        ALOGE("%s: Failed to allocate new metadata with %d entries, %d data",
+        ALOGE("%s: Failed to allocate new metadata with %zu entries, %zu data",
                 __func__, entry_capacity, data_capacity);
         return -ENOMEM;
     }
     // Append the current metadata to the new (empty) metadata
-    if (res = append_camera_metadata(tmp, mData)) {
+    res = append_camera_metadata(tmp, mData);
+    if (res) {
         ALOGE("%s: Failed to append old metadata %p to new %p",
                 __func__, mData, tmp);
         return res;
     }
     // Add the remaining new item
-    if (res = add_camera_metadata_entry(tmp, tag, tag_data, count)) {
+    res = add_camera_metadata_entry(tmp, tag, tag_data, count);
+    if (res) {
         ALOGE("%s: Failed to add new entry (%d, %p, %d) to metadata %p",
                 __func__, tag, tag_data, count, tmp);
         return res;

@@ -49,29 +49,28 @@ enum {
     DEMO_SECTION_COUNT
 };
 
+const uint32_t vendor_section_start = VENDOR_SECTION_START;
+
 // Each section starts at increments of 0x1_0000
-enum {
-    DEMO_WIZARDRY_START = (DEMO_WIZARDRY + VENDOR_SECTION) << 16,
-    DEMO_SORCERY_START  = (DEMO_SORCERY  + VENDOR_SECTION) << 16,
-    DEMO_MAGIC_START    = (DEMO_MAGIC    + VENDOR_SECTION) << 16,
-};
+const uint32_t demo_wizardry_start = (DEMO_WIZARDRY + VENDOR_SECTION) << 16;
+const uint32_t demo_sorcery_start  = (DEMO_SORCERY  + VENDOR_SECTION) << 16;
+const uint32_t demo_magic_start    = (DEMO_MAGIC    + VENDOR_SECTION) << 16;
 
 // Vendor Tag values, start value begins each section
-enum {
-    DEMO_WIZARDRY_DIMENSION_SIZE = DEMO_WIZARDRY_START,
-    DEMO_WIZARDRY_DIMENSIONS,
-    DEMO_WIZARDRY_FAMILIAR,
-    DEMO_WIZARDRY_FIRE,
-    DEMO_WIZARDRY_END,
+const uint32_t demo_wizardry_dimension_size = demo_wizardry_start;
+const uint32_t demo_wizardry_dimensions = demo_wizardry_start + 1;
+const uint32_t demo_wizardry_familiar = demo_wizardry_start + 2;
+const uint32_t demo_wizardry_fire = demo_wizardry_start + 3;
+const uint32_t demo_wizardry_end = demo_wizardry_start + 4;
 
-    DEMO_SORCERY_DIFFICULTY = DEMO_SORCERY_START,
-    DEMO_SORCERY_LIGHT,
-    DEMO_SORCERY_END,
+const uint32_t demo_sorcery_difficulty = demo_sorcery_start;
+const uint32_t demo_sorcery_light = demo_sorcery_start + 1;
+const uint32_t demo_sorcery_end = demo_sorcery_start + 2;
 
-    DEMO_MAGIC_CARD_TRICK = DEMO_MAGIC_START,
-    DEMO_MAGIC_LEVITATION,
-    DEMO_MAGIC_END,
-};
+const uint32_t demo_magic_card_trick = demo_magic_start;
+const uint32_t demo_magic_levitation = demo_magic_start + 1;
+const uint32_t demo_magic_end = demo_magic_start + 2;
+
 } // namespace default_camera_hal
 
 #endif // VENDOR_TAGS_H_

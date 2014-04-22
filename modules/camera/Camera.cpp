@@ -569,17 +569,26 @@ static void dump(const camera3_device_t *dev, int fd)
 {
     camdev_to_camera(dev)->dump(fd);
 }
+
+static int flush(const camera3_device_t*)
+{
+    ALOGE("%s: unimplemented.", __func__);
+    return -1;
+}
+
 } // extern "C"
 
 const camera3_device_ops_t Camera::sOps = {
-    .initialize              = default_camera_hal::initialize,
-    .configure_streams       = default_camera_hal::configure_streams,
+    .initialize = default_camera_hal::initialize,
+    .configure_streams = default_camera_hal::configure_streams,
     .register_stream_buffers = default_camera_hal::register_stream_buffers,
-    .construct_default_request_settings =
-            default_camera_hal::construct_default_request_settings,
+    .construct_default_request_settings
+        = default_camera_hal::construct_default_request_settings,
     .process_capture_request = default_camera_hal::process_capture_request,
     .get_metadata_vendor_tag_ops = NULL,
-    .dump                    = default_camera_hal::dump
+    .dump = default_camera_hal::dump,
+    .flush = default_camera_hal::flush,
+    .reserved = {0},
 };
 
 } // namespace default_camera_hal

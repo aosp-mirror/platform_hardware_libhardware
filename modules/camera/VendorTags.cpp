@@ -46,53 +46,53 @@ struct Section {
 };
 
 // Entry arrays for each section
-const Entry DemoWizardry[DEMO_WIZARDRY_END - DEMO_WIZARDRY_START] = {
-    [DEMO_WIZARDRY_DIMENSION_SIZE - DEMO_WIZARDRY_START] =
+const Entry DemoWizardry[demo_wizardry_end - demo_wizardry_start] = {
+    [demo_wizardry_dimension_size - demo_wizardry_start] =
         {"dimensionSize",   TYPE_INT32},
-    [DEMO_WIZARDRY_DIMENSIONS - DEMO_WIZARDRY_START] =
+    [demo_wizardry_dimensions - demo_wizardry_start] =
         {"dimensions",      TYPE_INT32},
-    [DEMO_WIZARDRY_FAMILIAR - DEMO_WIZARDRY_START] =
+    [demo_wizardry_familiar - demo_wizardry_start] =
         {"familiar",        TYPE_BYTE},
-    [DEMO_WIZARDRY_FIRE - DEMO_WIZARDRY_START] =
+    [demo_wizardry_fire - demo_wizardry_start] =
         {"fire",            TYPE_RATIONAL}
 };
 
-const Entry DemoSorcery[DEMO_SORCERY_END - DEMO_SORCERY_START] = {
-    [DEMO_SORCERY_DIFFICULTY - DEMO_SORCERY_START] =
+const Entry DemoSorcery[demo_sorcery_end - demo_sorcery_start] = {
+    [demo_sorcery_difficulty - demo_sorcery_start] =
         {"difficulty",      TYPE_INT64},
-    [DEMO_SORCERY_LIGHT - DEMO_SORCERY_START] =
+    [demo_sorcery_light - demo_sorcery_start] =
         {"light",           TYPE_BYTE}
 };
 
-const Entry DemoMagic[DEMO_MAGIC_END - DEMO_MAGIC_START] = {
-    [DEMO_MAGIC_CARD_TRICK - DEMO_MAGIC_START] =
+const Entry DemoMagic[demo_magic_end - demo_magic_start] = {
+    [demo_magic_card_trick - demo_magic_start] =
         {"cardTrick",       TYPE_DOUBLE},
-    [DEMO_MAGIC_LEVITATION - DEMO_MAGIC_START] =
+    [demo_magic_levitation - demo_magic_start] =
         {"levitation",      TYPE_FLOAT}
 };
 
 // Array of all sections
 const Section DemoSections[DEMO_SECTION_COUNT] = {
     [DEMO_WIZARDRY] = { "demo.wizardry",
-                        DEMO_WIZARDRY_START,
-                        DEMO_WIZARDRY_END,
+                        demo_wizardry_start,
+                        demo_wizardry_end,
                         DemoWizardry },
     [DEMO_SORCERY]  = { "demo.sorcery",
-                        DEMO_SORCERY_START,
-                        DEMO_SORCERY_END,
+                        demo_sorcery_start,
+                        demo_sorcery_end,
                         DemoSorcery },
     [DEMO_MAGIC]    = { "demo.magic",
-                        DEMO_MAGIC_START,
-                        DEMO_MAGIC_END,
+                        demo_magic_start,
+                        demo_magic_end,
                         DemoMagic }
 };
 
 // Get a static handle to a specific vendor tag section
 const Section* getSection(uint32_t tag)
 {
-    uint32_t section = (tag - VENDOR_SECTION_START) >> 16;
+    uint32_t section = (tag - vendor_section_start) >> 16;
 
-    if (tag < VENDOR_SECTION_START) {
+    if (tag < vendor_section_start) {
         ALOGE("%s: Tag 0x%x before vendor section", __func__, tag);
         return NULL;
     }

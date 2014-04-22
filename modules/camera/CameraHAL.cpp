@@ -183,7 +183,8 @@ camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
     get_number_of_cameras : get_number_of_cameras,
     get_camera_info       : get_camera_info,
     set_callbacks         : set_callbacks,
-    get_vendor_tag_ops    : get_vendor_tag_ops
+    get_vendor_tag_ops    : get_vendor_tag_ops,
+    reserved              : {0},
 };
 } // extern "C"
 
