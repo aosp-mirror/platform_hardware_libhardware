@@ -35,11 +35,11 @@ typedef enum fingerprint_error {
 
 typedef struct fingerprint_enroll {
     uint32_t id;
-    /* samples_remaining goes form N (no data collected, but N scans needed)
+    /* samples_remaining goes from N (no data collected, but N scans needed)
      * to 0 (no more data is needed to build a template)
      * If HAL fails to decrement samples_remaining between calls the client
      * will declare template collection a failure and should abort the operation
-     * by calling fingerprint_close() */
+     * by calling module->common.methods->close() */
     uint32_t samples_remaining;
 } fingerprint_enroll_t;
 
@@ -66,20 +66,20 @@ typedef struct fingerprint_device {
     struct hw_device_t common;
 
     /*
-     * Figerprint enroll request:
+     * Fingerprint enroll request:
      * Switches the HAL state machine to collect and store a new fingerprint
      * template. Switches back as soon as enroll is complete
      * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_COLLECTING &&
      *  fingerprint_msg.data.enroll.samples_remaining == 0)
-     * or after temeout_sec seconds.
+     * or after timeout_sec seconds.
      *
      * Function return: 0 if enrollment process can be successfully started
      *                 -1 otherwise.
      */
-    int (*enroll)(struct fingerprint_device *dev, unsigned timeout_sec);
+    int (*enroll)(struct fingerprint_device *dev, uint32_t timeout_sec);
 
     /*
-     * Figerprint remove request:
+     * Fingerprint remove request:
      * deletes a fingerprint template.
      * If the fingerprint id is 0 the entire template database will be removed.
      *

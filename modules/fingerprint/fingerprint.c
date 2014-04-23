@@ -32,12 +32,12 @@ static int fingerprint_close(hw_device_t *dev)
 }
 
 static int fingerprint_enroll(struct fingerprint_device __unused *dev,
-                                unsigned __unused timeout_sec) {
+                                uint32_t __unused timeout_sec) {
     return FINGERPRINT_ERROR;
 }
 
 static int fingerprint_remove(struct fingerprint_device __unused *dev,
-                                uint16_t __unused fingerprint_id) {
+                                uint32_t __unused fingerprint_id) {
     return FINGERPRINT_ERROR;
 }
 
