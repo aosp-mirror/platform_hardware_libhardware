@@ -46,7 +46,7 @@ typedef struct fingerprint_enroll {
 typedef struct fingerprint_scanned {
     uint32_t id; /* 0 is a special id and means no match */
     uint32_t confidence; /* Goes form 0 (no match) to 0xffffFFFF (100% sure) */
-} fingerprint_ident_t;
+} fingerprint_scanned_t;
 
 typedef struct fingerprint_msg {
     fingerprint_msg_type_t type;
@@ -54,7 +54,7 @@ typedef struct fingerprint_msg {
         uint64_t raw;
         fingerprint_error_t error;
         fingerprint_enroll_t enroll;
-        fingerprint_ident_t ident;
+        fingerprint_scanned_t scan;
     } data;
 } fingerprint_msg_t;
 
