@@ -88,6 +88,8 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(sensors_event_t, u64, 24, 24);
     CHECK_MEMBER_AT(sensors_event_t, u64.data, 24, 24);
     CHECK_MEMBER_AT(sensors_event_t, u64.step_counter, 24, 24);
+    CHECK_MEMBER_AT(sensors_event_t, flags, 88, 88);
+    CHECK_MEMBER_AT(sensors_event_t, reserved1, 92, 92);
 
     CHECK_MEMBER_AT(struct sensor_t, name, 0, 0);
     CHECK_MEMBER_AT(struct sensor_t, vendor, 4, 8);
@@ -100,6 +102,11 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(struct sensor_t, minDelay, 32, 40);
     CHECK_MEMBER_AT(struct sensor_t, fifoReservedEventCount, 36, 44);
     CHECK_MEMBER_AT(struct sensor_t, fifoMaxEventCount, 40, 48);
+    CHECK_MEMBER_AT(struct sensor_t, stringType, 44, 56);
+    CHECK_MEMBER_AT(struct sensor_t, requiredPermission, 48, 64);
+    CHECK_MEMBER_AT(struct sensor_t, maxDelay, 52, 72);
+    CHECK_MEMBER_AT(struct sensor_t, flags, 56, 80);
+    CHECK_MEMBER_AT(struct sensor_t, reserved, 60, 88);
 
     CHECK_MEMBER_AT(sensors_poll_device_1_t, v0, 0, 0);
     CHECK_MEMBER_AT(sensors_poll_device_1_t, common, 0, 0);
