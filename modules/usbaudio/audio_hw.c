@@ -18,12 +18,13 @@
 /*#define LOG_NDEBUG 0*/
 
 #include <errno.h>
+#include <inttypes.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/time.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <cutils/str_parms.h>
 #include <cutils/properties.h>
 
@@ -180,7 +181,7 @@ static audio_format_t alsa_to_fw_format_id(int alsa_fmt_id)
  *   This conversion is safe to do in-place (in_buff == out_buff).
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static size_t convert_16_to_24_3(short * in_buff, size_t num_in_samples, unsigned char * out_buff) {
+static size_t convert_16_to_24_3(const short * in_buff, size_t num_in_samples, unsigned char * out_buff) {
     /*
      * Move from back to front so that the conversion can be done in-place
      * i.e. in_buff == out_buff
@@ -190,7 +191,7 @@ static size_t convert_16_to_24_3(short * in_buff, size_t num_in_samples, unsigne
     int out_buff_size_in_bytes = ((3 * in_buff_size_in_bytes) / 2);
     unsigned char* dst_ptr = out_buff + out_buff_size_in_bytes - 1;
     size_t src_smpl_index;
-    unsigned char* src_ptr = ((unsigned char *)in_buff) + in_buff_size_in_bytes - 1;
+    const unsigned char* src_ptr = ((const unsigned char *)in_buff) + in_buff_size_in_bytes - 1;
     for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
         *dst_ptr-- = *src_ptr--; /* hi-byte */
         *dst_ptr-- = *src_ptr--; /* low-byte */
@@ -216,14 +217,14 @@ static size_t convert_16_to_24_3(short * in_buff, size_t num_in_samples, unsigne
  *   This conversion is safe to do in-place (in_buff == out_buff).
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static size_t convert_24_3_to_16(unsigned char * in_buff, size_t num_in_samples, short * out_buff) {
+static size_t convert_24_3_to_16(const unsigned char * in_buff, size_t num_in_samples, short * out_buff) {
     /*
      * Move from front to back so that the conversion can be done in-place
      * i.e. in_buff == out_buff
      */
     /* we need 2 bytes in the output for every 3 bytes in the input */
     unsigned char* dst_ptr = (unsigned char*)out_buff;
-    unsigned char* src_ptr = in_buff;
+    const unsigned char* src_ptr = in_buff;
     size_t src_smpl_index;
     for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
         src_ptr++;               /* lowest-(skip)-byte */
@@ -252,7 +253,7 @@ static size_t convert_24_3_to_16(unsigned char * in_buff, size_t num_in_samples,
  * support 4-channel devices.
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static size_t expand_channels_16(short* in_buff, int in_buff_chans,
+static size_t expand_channels_16(const short* in_buff, int in_buff_chans,
                                  short* out_buff, int out_buff_chans,
                                  size_t num_in_samples) {
     /*
@@ -263,8 +264,8 @@ static size_t expand_channels_16(short* in_buff, int in_buff_chans,
     int num_out_samples = (num_in_samples * out_buff_chans)/in_buff_chans;
 
     short* dst_ptr = out_buff + num_out_samples - 1;
-    int src_index;
-    short* src_ptr = in_buff + num_in_samples - 1;
+    size_t src_index;
+    const short* src_ptr = in_buff + num_in_samples - 1;
     int num_zero_chans = out_buff_chans - in_buff_chans;
     for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
         int dst_offset;
@@ -311,7 +312,7 @@ static size_t contract_channels_16(short* in_buff, int in_buff_chans,
 
     short* dst_ptr = out_buff;
     short* src_ptr = in_buff;
-    int src_index;
+    size_t src_index;
     for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
         int dst_offset;
         for(dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
@@ -331,7 +332,7 @@ static size_t contract_channels_16(short* in_buff, int in_buff_chans,
  * gets the ALSA bit-format flag from a bits-per-sample value.
  * TODO(pmclean, hung) Move this to a utilities module.
  */
-static int bits_to_alsa_format(int bits_per_sample, int default_format)
+static int bits_to_alsa_format(unsigned int bits_per_sample, int default_format)
 {
     enum pcm_format format;
     for (format = PCM_FORMAT_S16_LE; format < PCM_FORMAT_MAX; format++) {
@@ -407,7 +408,7 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
     config->period_size = pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIODS);
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
-    int bits_per_sample = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
+    unsigned int bits_per_sample = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
     config->format = bits_to_alsa_format(bits_per_sample, PCM_FORMAT_S16_LE);
 
     return 0;
@@ -554,9 +555,9 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         // if they are different, return a list containing those two values, otherwise just the one.
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES,
                           buffer);
@@ -567,9 +568,9 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         // Similarly for output channels count
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
@@ -580,9 +581,9 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
         //TODO(pmclean): this is wrong.
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
@@ -654,7 +655,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     // compute maximum potential buffer size.
     // * 2 for stereo -> quad conversion
     // * 3/2 for 16bit -> 24 bit conversion
-    int required_conversion_buffer_size = (bytes * 3 * 2) / 2;
+    size_t required_conversion_buffer_size = (bytes * 3 * 2) / 2;
     if (required_conversion_buffer_size > out->conversion_buffer_size) {
         //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
         // (and do these conversions themselves)
@@ -662,7 +663,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
         out->conversion_buffer = realloc(out->conversion_buffer, out->conversion_buffer_size);
     }
 
-    void * write_buff = buffer;
+    const void * write_buff = buffer;
     int num_write_buff_bytes = bytes;
 
     /*
@@ -896,7 +897,7 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
-    ALOGV("usb: in_get_buffer_size() = %d",
+    ALOGV("usb: in_get_buffer_size() = %zu",
           cached_input_hardware_config.period_size * audio_stream_frame_size(stream));
     return cached_input_hardware_config.period_size * audio_stream_frame_size(stream);
 
@@ -1018,9 +1019,9 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
         // if they are different, return a list containing those two values, otherwise just the one.
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SAMPLING_RATE, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES
@@ -1030,9 +1031,9 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
         // Similarly for output channels count
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_CHANNELS, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
@@ -1042,9 +1043,9 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
         //TODO(pmclean): this is wrong.
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        num_written = snprintf(buffer, buffer_size, "%d", min);
+        num_written = snprintf(buffer, buffer_size, "%u", min);
         if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%d", max);
+            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
         }
         str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
@@ -1099,7 +1100,7 @@ static int start_input_stream(struct stream_in *in) {
 //TODO(pmclean) mutex stuff here (see out_write)
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t bytes)
 {
-    int num_read_buff_bytes = 0;
+    size_t num_read_buff_bytes = 0;
     void * read_buff = buffer;
     void * out_buff = buffer;
 
@@ -1192,7 +1193,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in)
 {
-    ALOGV("usb: in adev_open_input_stream() rate:%d, chanMask:0x%X, fmt:%d",
+    ALOGV("usb: in adev_open_input_stream() rate:%" PRIu32 ", chanMask:0x%" PRIX32 ", fmt:%" PRIu8,
           config->sample_rate, config->channel_mask, config->format);
 
     struct stream_in *in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
