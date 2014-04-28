@@ -15,7 +15,7 @@
  */
 
 #define LOG_TAG "usb_audio_hw"
-/* #define LOG_NDEBUG 0 */
+/*#define LOG_NDEBUG 0*/
 
 #include <errno.h>
 #include <pthread.h>
@@ -342,6 +342,45 @@ static int bits_to_alsa_format(int bits_per_sample, int default_format)
     return default_format;
 }
 
+static void log_pcm_params(struct pcm_params * alsa_hw_params) {
+    ALOGV("usb:audio_hw - PCM_PARAM_SAMPLE_BITS min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS));
+    ALOGV("usb:audio_hw - PCM_PARAM_FRAME_BITS min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_FRAME_BITS),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_FRAME_BITS));
+    ALOGV("usb:audio_hw - PCM_PARAM_CHANNELS min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS));
+    ALOGV("usb:audio_hw - PCM_PARAM_RATE min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE));
+    ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_TIME min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_TIME),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_TIME));
+    ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_SIZE min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_SIZE),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_SIZE));
+    ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_BYTES min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_BYTES),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_BYTES));
+    ALOGV("usb:audio_hw - PCM_PARAM_PERIODS min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIODS));
+    ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_TIME min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_TIME),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_TIME));
+    ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_SIZE min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_SIZE),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_SIZE));
+    ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_BYTES min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_BYTES),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_BYTES));
+    ALOGV("usb:audio_hw - PCM_PARAM_TICK_TIME min:%u, max:%u",
+          pcm_params_get_min(alsa_hw_params, PCM_PARAM_TICK_TIME),
+          pcm_params_get_max(alsa_hw_params, PCM_PARAM_TICK_TIME));
+}
+
 /*
  * Reads and decodes configuration info from the specified ALSA card/device
  */
@@ -361,18 +400,7 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
     /*
      * This Logging will be useful when testing new USB devices.
      */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_SAMPLE_BITS min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS), pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_FRAME_BITS min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_FRAME_BITS), pcm_params_get_max(alsa_hw_params, PCM_PARAM_FRAME_BITS)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_CHANNELS min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS), pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_RATE min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE), pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_TIME min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_TIME), pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_TIME)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_SIZE min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_SIZE), pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_SIZE)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_PERIOD_BYTES min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIOD_BYTES), pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIOD_BYTES)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_PERIODS min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS), pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIODS)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_TIME min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_TIME), pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_TIME)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_SIZE min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_SIZE), pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_SIZE)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_BUFFER_BYTES min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_BYTES), pcm_params_get_max(alsa_hw_params, PCM_PARAM_BUFFER_BYTES)); */
-    /* ALOGV("usb:audio_hw - PCM_PARAM_TICK_TIME min:%d, max:%d", pcm_params_get_min(alsa_hw_params, PCM_PARAM_TICK_TIME), pcm_params_get_max(alsa_hw_params, PCM_PARAM_TICK_TIME)); */
+    /* log_pcm_params(alsa_hw_params); */
 
     config->channels = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
     config->rate = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
@@ -1077,6 +1105,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
     struct stream_in * in = (struct stream_in *) stream;
 
+    ALOGV("usb: in_read(%d)", bytes);
+
     pthread_mutex_lock(&in->dev->lock);
     pthread_mutex_lock(&in->lock);
 
@@ -1094,7 +1124,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     int num_req_channels = 2; /* always, for now */
 
     if (num_device_channels != num_req_channels) {
-        num_read_buff_bytes *= num_device_channels/num_req_channels;
+        num_read_buff_bytes = (num_device_channels * num_read_buff_bytes) / num_req_channels;
     }
 
     if (cached_output_hardware_config.format == PCM_FORMAT_S24_3LE) {
@@ -1130,10 +1160,17 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         if (num_device_channels != num_req_channels) {
             out_buff = buffer;
             /* Num Channels conversion */
-            num_read_buff_bytes =
-                contract_channels_16(read_buff, num_device_channels,
-                                     out_buff, num_req_channels,
-                                     num_read_buff_bytes / sizeof(short));
+            if (num_device_channels < num_req_channels) {
+                num_read_buff_bytes =
+                    contract_channels_16(read_buff, num_device_channels,
+                                         out_buff, num_req_channels,
+                                         num_read_buff_bytes / sizeof(short));
+            } else {
+                num_read_buff_bytes =
+                    expand_channels_16(read_buff, num_device_channels,
+                                       out_buff, num_req_channels,
+                                       num_read_buff_bytes / sizeof(short));
+            }
         }
     }
 
