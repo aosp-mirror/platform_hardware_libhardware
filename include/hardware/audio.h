@@ -97,6 +97,9 @@ __BEGIN_DECLS
 /* Screen state */
 #define AUDIO_PARAMETER_KEY_SCREEN_STATE "screen_state"
 
+/* Bluetooth SCO wideband */
+#define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
+
 /**
  *  audio stream parameters
  */
