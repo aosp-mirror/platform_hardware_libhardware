@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <pthread.h>
 #include <sys/socket.h>
+#include <stdbool.h>
 
 #include <hardware/hardware.h>
 
@@ -38,6 +39,9 @@ typedef int64_t GpsUtcTime;
 
 /** Maximum number of SVs for gps_sv_status_callback(). */
 #define GPS_MAX_SVS 32
+
+/** Maximum number of Measurements in gps_measurement_callback(). */
+#define GPS_MAX_MEASUREMENT   32
 
 /** Requested operational mode for GPS operation. */
 typedef uint32_t GpsPositionMode;
@@ -213,6 +217,102 @@ typedef uint16_t AGpsStatusValue;
 #define AGPS_RIL_NETWORK_TTYPE_WIMAX        6
 
 /**
+ * Flags to indicate what fields in GpsClock are valid.
+ */
+typedef uint16_t GpsClockFlags;
+/** A valid 'leap second' is stored in the data structure. */
+#define GPS_CLOCK_HAS_LEAP_SECOND               (1<<0)
+/** A valid 'time uncertainty' is stored in the data structure. */
+#define GPS_CLOCK_HAS_TIME_UNCERTAINTY          (1<<1)
+/** A valid 'bias' is stored in the data structure. */
+#define GPS_CLOCK_HAS_BIAS                      (1<<2)
+/** A valid 'bias uncertainty' is stored in the data structure. */
+#define GPS_CLOCK_HAS_BIAS_UNCERTAINTY          (1<<3)
+/** A valid 'drift' is stored in the data structure. */
+#define GPS_CLOCK_HAS_DRIFT                     (1<<4)
+/** A valid 'drift uncertainty' is stored in the data structure. */
+#define GPS_CLOCK_HAS_DRIFT_UNCERTAINTY         (1<<5)
+
+/**
+ * Flags to indicate what fields in GpsMeasurement are valid.
+ */
+typedef uint32_t GpsMeasurementFlags;
+/** A valid 'snr' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_SNR                               (1<<0)
+/** A valid 'elevation' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_ELEVATION                         (1<<1)
+/** A valid 'elevation uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_ELEVATION_UNCERTAINTY             (1<<2)
+/** A valid 'azimuth' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_AZIMUTH                           (1<<3)
+/** A valid 'azimuth uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_AZIMUTH_UNCERTAINTY               (1<<4)
+/** A valid 'pseudorange' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_PSEUDORANGE                       (1<<5)
+/** A valid 'pseudorange uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_PSEUDORANGE_UNCERTAINTY           (1<<6)
+/** A valid 'code phase' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CODE_PHASE                        (1<<7)
+/** A valid 'code phase uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CODE_PHASE_UNCERTAINTY            (1<<8)
+/** A valid 'carrier frequency' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CARRIER_FREQUENCY                 (1<<9)
+/** A valid 'carrier cycles' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CARRIER_CYCLES                    (1<<10)
+/** A valid 'carrier phase' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CARRIER_PHASE                     (1<<11)
+/** A valid 'carrier phase uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_CARRIER_PHASE_UNCERTAINTY         (1<<12)
+/** A valid 'bit number' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_BIT_NUMBER                        (1<<13)
+/** A valid 'time from last bit' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_TIME_FROM_LAST_BIT                (1<<14)
+/** A valid 'doppler shift' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_DOPPLER_SHIFT                     (1<<15)
+/** A valid 'doppler shift uncertainty' is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_DOPPLER_SHIFT_UNCERTAINTY         (1<<16)
+/** A valid 'used in fix' flag is stored in the data structure. */
+#define GPS_MEASUREMENT_HAS_USED_IN_FIX                       (1<<17)
+
+/**
+ * Flags that indicate the available values for the GPS Measurement's loss of lock.
+ */
+typedef uint8_t GpsLossOfLock;
+/** The indicator is not available or it is unknown. */
+#define GPS_LOSS_OF_LOCK_UNKNOWN                            0
+/** The measurement does not present any indication of loss of lock. */
+#define GPS_LOSS_OF_LOCK_OK                                 1
+/** Loss of lock between previous and current observation: cycle slip possible. */
+#define GPS_LOSS_OF_LOCK_CYCLE_SLIP                         2
+
+/**
+ * Flags that indicate the available values for the GPS Measurement's multipath indicator.
+ */
+typedef uint8_t GpsMultipathIndicator;
+/** The indicator is not available or unknown. */
+#define GPS_MULTIPATH_INDICATOR_UNKNOWN                 0
+/** The measurement has been indicated to use multipath. */
+#define GPS_MULTIPATH_INDICATOR_DETECTED                1
+/** The measurement has been indicated Not to use multipath. */
+#define GPS_MULTIPATH_INDICATOR_NOT_USED                2
+
+/**
+ * Flags to indicate the available GPS Natigation message types.
+ */
+typedef uint8_t GpsNavigationMessageType;
+/** The message type is unknown. */
+#define GPS_NAVIGATION_MESSAGE_TYPE_UNKNOWN         0
+/** L1 C/A message contained in the structure.  */
+#define GPS_NAVIGATION_MESSAGE_TYPE_L1CA            1
+/** L2-CNAV message contained in the structure. */
+#define GPS_NAVIGATION_MESSAGE_TYPE_L2CNAV          2
+/** L5-CNAV message contained in the structure. */
+#define GPS_NAVIGATION_MESSAGE_TYPE_L5CNAV          3
+/** CNAV-2 message contained in the structure. */
+#define GPS_NAVIGATION_MESSAGE_TYPE_CNAV2           4
+
+
+/**
  * Name for the GPS XTRA interface.
  */
 #define GPS_XTRA_INTERFACE      "gps-xtra"
@@ -246,6 +346,16 @@ typedef uint16_t AGpsStatusValue;
  * Name for the GPS_Geofencing interface.
  */
 #define GPS_GEOFENCING_INTERFACE   "gps_geofencing"
+
+/**
+ * Name of the GPS Measurements interface.
+ */
+#define GPS_MEASUREMENT_INTERFACE   "gps_measurement"
+
+/**
+ * Name of the GPS navigation message interface.
+ */
+ #define GPS_NAVIGATION_MESSAGE_INTERFACE     "gps_navigation_message"
 
 
 /** Represents a location. */
@@ -320,6 +430,7 @@ typedef struct {
     uint32_t    used_in_fix_mask;
 } GpsSvStatus;
 
+
 /* 2G and 3G */
 /* In 3G lac is discarded */
 typedef struct {
@@ -353,8 +464,9 @@ typedef void (* gps_location_callback)(GpsLocation* location);
  */
 typedef void (* gps_status_callback)(GpsStatus* status);
 
-/** Callback with SV status information.
- *  Can only be called from a thread created by create_thread_cb.
+/**
+ * Callback with SV status information.
+ * Can only be called from a thread created by create_thread_cb.
  */
 typedef void (* gps_sv_status_callback)(GpsSvStatus* sv_info);
 
@@ -406,7 +518,7 @@ typedef struct {
     size_t          size;
     /**
      * Opens the interface and provides the callback routines
-     * to the implemenation of this interface.
+     * to the implementation of this interface.
      */
     int   (*init)( GpsCallbacks* callbacks );
 
@@ -467,7 +579,7 @@ typedef struct {
     size_t          size;
     /**
      * Opens the XTRA interface and provides the callback routines
-     * to the implemenation of this interface.
+     * to the implementation of this interface.
      */
     int  (*init)( GpsXtraCallbacks* callbacks );
     /** Injects XTRA data into the GPS. */
@@ -547,7 +659,7 @@ typedef struct {
 
     /**
      * Opens the AGPS interface and provides the callback routines
-     * to the implemenation of this interface.
+     * to the implementation of this interface.
      */
     void  (*init)( AGpsCallbacks* callbacks );
     /**
@@ -631,7 +743,7 @@ typedef struct {
     u_char data[20];
 } Sha1CertificateFingerprint;
 
-/** AGPS Inteface to handle SUPL certificate operations */
+/** AGPS Interface to handle SUPL certificate operations */
 typedef struct {
     /** set to sizeof(SuplCertificateInterface) */
     size_t size;
@@ -803,7 +915,7 @@ typedef struct {
     size_t          size;
     /**
      * Opens the AGPS interface and provides the callback routines
-     * to the implemenation of this interface.
+     * to the implementation of this interface.
      */
     void  (*init)( AGpsRilCallbacks* callbacks );
 
@@ -942,7 +1054,7 @@ typedef void (*gps_geofence_transition_callback) (int32_t geofence_id,  GpsLocat
         int32_t transition, GpsUtcTime timestamp);
 
 /**
- * The callback associated with the availablity of the GPS system for geofencing
+ * The callback associated with the availability of the GPS system for geofencing
  * monitoring. If the GPS system determines that it cannot monitor geofences
  * because of lack of reliability or unavailability of the GPS signals, it will
  * call this callback with GPS_GEOFENCE_UNAVAILABLE parameter.
@@ -1020,7 +1132,7 @@ typedef struct {
 
    /**
     * Opens the geofence interface and provides the callback routines
-    * to the implemenation of this interface.
+    * to the implementation of this interface.
     */
    void  (*init)( GpsGeofenceCallbacks* callbacks );
 
@@ -1050,14 +1162,12 @@ typedef struct {
     *       sampling the GPS for power-saving reasons; thus the rate of
     *       sampling may be faster or slower than this.
     *    unknown_timer_ms - The time limit after which the UNCERTAIN transition
-    *       should be triggered. This paramter is defined in milliseconds.
+    *       should be triggered. This parameter is defined in milliseconds.
     *       See above for a detailed explanation.
     */
-   void (*add_geofence_area) (int32_t geofence_id, double latitude,
-                                double longitude, double radius_meters,
-                                int last_transition, int monitor_transitions,
-                                int notification_responsiveness_ms,
-                                int unknown_timer_ms);
+   void (*add_geofence_area) (int32_t geofence_id, double latitude, double longitude,
+       double radius_meters, int last_transition, int monitor_transitions,
+       int notification_responsiveness_ms, int unknown_timer_ms);
 
    /**
     * Pause monitoring a particular geofence.
@@ -1086,6 +1196,471 @@ typedef struct {
     */
    void (*remove_geofence_area) (int32_t geofence_id);
 } GpsGeofencingInterface;
+
+
+/**
+ * Represents an estimate of the GPS clock time.
+ */
+typedef struct {
+    /** set to sizeof(GpsClock) */
+    size_t size;
+
+    /** A set of flags indicating the validity of the fields in this data structure. */
+    GpsClockFlags flags;
+
+    /**
+     * Leap second data.
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_LEAP_SECOND.
+     */
+    int16_t leap_second;
+
+    /**
+     * The receiver's GPS time since 0000Z, January 6, 1980 in nanoseconds.
+     * It is referenced using the uncorrected receiver's clock ('bias_ns' included).
+     * The current precision allows a range that spans approximately to the end of the year 2272.
+     *
+     * Sub-nanosecond accuracy can be provided for each individual measurement using the field
+     * GpsMeasurement::time_offset_ns.
+     *
+     * The value contains the 'time uncertainty' in it.
+     * This is a Mandatory field.
+     */
+    int64_t time_ns;
+
+    /**
+     * 1-Sigma uncertainty associated with the clock's time in nanoseconds.
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_TIME_UNCERTAINTY.
+     */
+    double time_uncertainty_ns;
+
+    /**
+     * The clock's bias in nanoseconds.
+     * The sign of the value is defined by the following equation:
+     *    true time = time - bias.
+     *
+     * The value contains the 'bias uncertainty' in it.
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_BIAS.
+     */
+    double bias_ns;
+
+    /**
+     * 1-Sigma uncertainty associated with the clock's bias in nanoseconds.
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_BIAS_UNCERTAINTY.
+     */
+    double bias_uncertainty_ns;
+
+    /**
+     * The clock's drift in nanoseconds (per second).
+     * A positive value means that the frequency is higher than the nominal frequency.
+     *
+     * The value contains the 'drift uncertainty' in it.
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_DRIFT.
+     */
+    double drift_nsps;
+
+    /**
+     * 1-Sigma uncertainty associated with the clock's drift in nanoseconds (per second).
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_DRIFT_UNCERTAINTY.
+     */
+    double drift_uncertainty_nsps;
+} GpsClock;
+
+/**
+ * Represents a GPS Measurement, it contains raw and computed information.
+ */
+typedef struct {
+    /** set to sizeof(GpsMeasurement) */
+    size_t size;
+
+    /** A set of flags indicating the validity of the fields in this data structure. */
+    GpsMeasurementFlags flags;
+
+    /**
+     * Pseudo-random number in the range of [1, 32]
+     * This is a Mandatory value.
+     */
+    int8_t prn;
+
+    /**
+     * Local hardware time offset at which the measurement was taken in nanoseconds.
+     * The reference receiver's time is specified by GpsData::clock.
+     * The sign of time_offset_ns is given by the following equation:
+     *      measurement time = GpsClock::time_ns + time_offset_ns
+     *
+     * It provides an individual time-stamp for the measurement, and allows sub-nanosecond accuracy.
+     * This is a Mandatory value.
+     */
+    int64_t time_offset_ns;
+
+    /**
+     * Received GPS Time-of-Week in nanoseconds.
+     * The value is relative to the beginning of the current GPS week.
+     *
+     * This is a Mandatory value.
+     */
+    int64_t received_gps_tow_ns;
+
+    /**
+     * Carrier-to-noise density in dB-Hz, in the range [0, 63].
+     * It contains the measured C/N0 value for the signal at the antenna input.
+     *
+     * This is a Mandatory value.
+     */
+    double c_n0_dbhz;
+
+    /**
+     * Pseudorange rate at the timestamp in m/s.
+     * The value also includes the effects of the receiver clock frequency and satellite clock
+     * frequency errors.
+     *
+     * The value includes the 'pseudorange rate uncertainty' in it.
+     * A positive value indicates that the pseudorange is getting larger.
+     *
+     * This is a Mandatory value.
+     */
+    double pseudorange_rate_mpersec;
+
+    /**
+     * 1-Sigma uncertainty of the pseudurange rate in m/s.
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * This is a Mandatory value.
+     */
+    double pseudorange_rate_uncertainty_mpersec;
+
+    /**
+     * Accumulated delta range since the last channel reset in meters.
+     *
+     * This is a Mandatory value.
+     */
+    double accumulated_delta_range_m;
+
+    /**
+     * 1-Sigma uncertainty of the accumulated delta range in meters.
+     *
+     * This is a Mandatory value.
+     */
+    double accumulated_delta_range_uncertainty_m;
+
+    /**
+     * Best derived Pseudorange by the chip-set, in meters.
+     * The value contains the 'pseudorange uncertainty' in it.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_PSEUDORANGE.
+     */
+    double pseudorange_m;
+
+    /**
+     * 1-Sigma uncertainty of the pseudorange in meters.
+     * The value contains the 'pseudorange' and 'clock' uncertainty in it.
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_PSEUDORANGE_UNCERTAINTY.
+     */
+    double pseudorange_uncertainty_m;
+
+    /**
+     * A fraction of the current C/A code cycle, in the range [0.0, 1023.0]
+     * This value contains the time (in Chip units) since the last C/A code cycle (GPS Msec epoch).
+     *
+     * The reference frequency is given by the field 'carrier_frequency_hz'.
+     * The value contains the 'code-phase uncertainty' in it.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CODE_PHASE.
+     */
+    double code_phase_chips;
+
+    /**
+     * 1-Sigma uncertainty of the code-phase, in a fraction of chips.
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CODE_PHASE_UNCERTAINTY.
+     */
+    double code_phase_uncertainty_chips;
+
+    /**
+     * Carrier frequency at which codes and messages are modulated, it can be L1 or L2.
+     * If the field is not set, the carrier frequency is assumed to be L1.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CARRIER_FREQUENCY.
+     */
+    float carrier_frequency_hz;
+
+    /**
+     * The number of full carrier cycles between the satellite and the receiver.
+     * The reference frequency is given by the field 'carrier_frequency_hz'.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CARRIER_CYCLES.
+     */
+    int64_t carrier_cycles;
+
+    /**
+     * The RF phase detected by the receiver, in the range [0.0, 1.0].
+     * This is usually the fractional part of the complete carrier phase measurement.
+     *
+     * The reference frequency is given by the field 'carrier_frequency_hz'.
+     * The value contains the 'carrier-phase uncertainty' in it.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CARRIER_PHASE.
+     */
+    double carrier_phase;
+
+    /**
+     * 1-Sigma uncertainty of the carrier-phase.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_CARRIER_PHASE_UNCERTAINTY.
+     */
+    double carrier_phase_uncertainty;
+
+    /**
+     * An enumeration that indicates the 'loss of lock' state of the event.
+     */
+    GpsLossOfLock loss_of_lock;
+
+    /**
+     * The number of GPS bits transmitted since Sat-Sun midnight (GPS week).
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_BIT_NUMBER.
+     */
+    int16_t bit_number;
+
+    /**
+     * The elapsed time since the last received bit in nanoseconds, in the range [0, 20,000,000]
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_TIME_FROM_LAST_BIT.
+     */
+    int64_t time_from_last_bit_ns;
+
+    /**
+     * Doppler shift in Hz.
+     * A positive value indicates that the SV is moving toward the receiver.
+     *
+     * The reference frequency is given by the field 'carrier_frequency_hz'.
+     * The value contains the 'doppler shift uncertainty' in it.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_DOPPLER_SHIFT.
+     */
+    double doppler_shift_hz;
+
+    /**
+     * 1-Sigma uncertainty of the doppler shift in Hz.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_DOPPLER_SHIFT_UNCERTAINTY.
+     */
+    double doppler_shift_uncertainty_hz;
+
+    /**
+     * An enumeration that indicates the 'multipath' state of the event.
+     */
+    GpsMultipathIndicator multipath_indicator;
+
+    /**
+     * Signal-to-noise ratio in dB.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_SNR.
+     */
+    double snr_db;
+
+    /**
+     * Elevation in degrees, the valid range is [-90, 90].
+     * The value contains the 'elevation uncertainty' in it.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_ELEVATION.
+     */
+    double elevation_deg;
+
+    /**
+     * 1-Sigma uncertainty of the elevation in degrees, the valid range is [0, 90].
+     * The uncertainty is represented as the absolute (single sided) value.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_ELEVATION_UNCERTAINTY.
+     */
+    double elevation_uncertainty_deg;
+
+    /**
+     * Azimuth in degrees, in the range [0, 360).
+     * The value contains the 'azimuth uncertainty' in it.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_AZIMUTH.
+     *  */
+    double azimuth_deg;
+
+    /**
+     * 1-Sigma uncertainty of the azimuth in degrees, the valid range is [0, 180].
+     * The uncertainty is represented as an absolute (single sided) value.
+     *
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_AZIMUTH_UNCERTAINTY.
+     */
+    double azimuth_uncertainty_deg;
+
+    /**
+     * Whether the GPS represented by the measurement was used for computing the most recent fix.
+     * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_USED_IN_FIX.
+     */
+    bool used_in_fix;
+} GpsMeasurement;
+
+/** Represents a reading of GPS measurements. */
+typedef struct {
+    /** set to sizeof(GpsData) */
+    size_t size;
+
+    /** Number of measurements. */
+    size_t measurement_count;
+
+    /** The array of measurements. */
+    GpsMeasurement measurements[GPS_MAX_MEASUREMENT];
+
+    /** The GPS clock time reading. */
+    GpsClock clock;
+} GpsData;
+
+/**
+ * The callback for to report measurements from the HAL.
+ *
+ * Parameters:
+ *    data - A data structure containing the measurements.
+ */
+typedef void (*gps_measurement_callback) (GpsData* data);
+
+typedef struct {
+    /** set to sizeof(GpsMeasurementCallbacks) */
+    size_t size;
+    gps_measurement_callback measurement_callback;
+} GpsMeasurementCallbacks;
+
+#define GPS_MEASUREMENT_OPERATION_SUCCESS          0
+#define GPS_MEASUREMENT_ERROR_ALREADY_INIT      -100
+#define GPS_MEASUREMENT_ERROR_GENERIC           -101
+
+/**
+ * Extended interface for GPS Measurements support.
+ */
+typedef struct {
+    /** Set to sizeof(GpsMeasurementInterface) */
+    size_t size;
+
+    /**
+     * Initializes the interface and registers the callback routines with the HAL.
+     * After a successful call to 'init' the HAL must begin to provide updates at its own phase.
+     *
+     * Status:
+     *    GPS_MEASUREMENT_OPERATION_SUCCESS
+     *    GPS_MEASUREMENT_ERROR_ALREADY_INIT - if a callback has already been registered without a
+     *              corresponding call to 'close'
+     *    GPS_MEASUREMENT_ERROR_GENERIC - if any other error occurred, it is expected that the HAL
+     *              will not generate any updates upon returning this error code.
+     */
+    int (*init) (GpsMeasurementCallbacks* callbacks);
+
+    /**
+     * Stops updates from the HAL, and unregisters the callback routines.
+     * After a call to stop, the previously registered callbacks must be considered invalid by the
+     * HAL.
+     * If stop is invoked without a previous 'init', this function should perform no work.
+     */
+    void (*close) ();
+
+} GpsMeasurementInterface;
+
+
+/** Represents a GPS navigation message (or a fragment of it). */
+typedef struct {
+    /** set to sizeof(GpsNavigationMessage) */
+    size_t size;
+
+    /**
+     * Pseudo-random number in the range of [1, 32]
+     * This is a Mandatory value.
+     */
+    int8_t prn;
+
+    /**
+     * The type of message contained in the structure.
+     * This is a Mandatory value.
+     */
+    GpsNavigationMessageType type;
+
+    /**
+     * Message identifier.
+     * It provides an index so the complete Navigation Message can be assembled.
+     * i.e. for L1 C/A the message id corresponds to the frame id of the navigation message.
+     */
+    int16_t message_id;
+
+    /**
+     * Sub-message identifier.
+     * If required by the message 'type', this value contains a sub-index within the current
+     * message (or frame) that is being transmitted.
+     * i.e. for L1 C/A the submessage id corresponds to the sub-frame id of the navigation message.
+     */
+    int16_t submessage_id;
+
+    /**
+     * The length of the data (in bytes) contained in the current message.
+     * If this value is different from zero, 'data' must point to an array of the same size.
+     * i.e. for L1 C/A the size of the sub-frame will be 40 bytes (10 words).
+     *
+     * This is a Mandatory value.
+     */
+    size_t data_length;
+
+    /**
+     * The data of the reported GPS message.
+     * The bytes (or words) specified using big endian format (MSB first).
+     */
+    uint8_t* data;
+
+} GpsNavigationMessage;
+
+/**
+ * The callback to report an available fragment of a GPS navigation messages from the HAL.
+ *
+ * Parameters:
+ *      message - The GPS navigation submessage/subframe representation.
+ */
+typedef void (*gps_navigation_message_callback) (GpsNavigationMessage* message);
+
+typedef struct {
+    /** set to sizeof(GpsNavigationMessageCallbacks) */
+    size_t size;
+    gps_navigation_message_callback navigation_message_callback;
+} GpsNavigationMessageCallbacks;
+
+#define GPS_NAVIGATION_MESSAGE_OPERATION_SUCCESS             0
+#define GPS_NAVIGATION_MESSAGE_ERROR_ALREADY_INIT         -100
+#define GPS_NAVIGATION_MESSAGE_ERROR_GENERIC              -101
+
+/**
+ * Extended interface for GPS navigation message reporting support.
+ */
+typedef struct {
+    /** Set to sizeof(GpsNavigationMessageInterface) */
+    size_t size;
+
+    /**
+     * Initializes the interface and registers the callback routines with the HAL.
+     * After a successful call to 'init' the HAL must begin to provide updates as they become
+     * available.
+     *
+     * Status:
+     *      GPS_NAVIGATION_MESSAGE_OPERATION_SUCCESS
+     *      GPS_NAVIGATION_MESSAGE_ERROR_ALREADY_INIT - if a callback has already been registered
+     *              without a corresponding call to 'close'.
+     *      GPS_NAVIGATION_MESSAGE_ERROR_GENERIC - if any other error occurred, it is expected that
+     *              the HAL will not generate any updates upon returning this error code.
+     */
+    int (*init) (GpsNavigationMessageCallbacks* callbacks);
+
+    /**
+     * Stops updates from the HAL, and unregisters the callback routines.
+     * After a call to stop, the previously registered callbacks must be considered invalid by the
+     * HAL.
+     * If stop is invoked without a previous 'init', this function should perform no work.
+     */
+    void (*close) ();
+
+} GpsNavigationMessageInterface;
+
 __END_DECLS
 
 #endif /* ANDROID_INCLUDE_HARDWARE_GPS_H */
