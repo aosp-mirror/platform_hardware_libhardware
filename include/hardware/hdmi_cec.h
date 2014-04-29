@@ -221,34 +221,25 @@ typedef struct hdmi_cec_device {
     struct hw_device_t common;
 
     /*
-     * (*allocate_logical_address)() allocates a new logical address
-     * for a given device type. The address is written to addr. The HAL
-     * implementation is also expected to configure itself to start receiving
-     * the messages addressed to the allocated one. If the address has been already
-     * allocated, it should simply return the allocated address without attempting
-     * the allocation again. If allocation is not successful the addr will be
-     * set to CEC_ADDR_UNREGISTERED.
+     * (*add_logical_address)() passes the logical address that will be used in this system.
+     *
+     * HAL may use it to configure the hardware so that the CEC commands addressed
+     * the given logical address can be filtered in. This method can be called as many times
+     * as necessary in order to support multiple logical devices. addr should be in the range
+     * of valid logical addresses for the call to succeed.
      *
      * Returns 0 on success or -errno on error.
      */
-    int (*allocate_logical_address)(const struct hdmi_cec_device* dev,
-            cec_device_type_t device_type, cec_logical_address_t* addr);
+    int (*add_logical_address)(const struct hdmi_cec_device* dev, cec_logical_address_t addr);
 
     /*
-     * (*get_logical_address)() returns the logical address already allocated
-     * for the device of the given type. It is necessary to call this function
-     * when HAL implementation, without being triggered by service, updated
-     * the address by itself. Such situation happens when an event like
-     * hotplug occurs, since it is possible the HDMI network topology or
-     * the port which the device was connected to might have changed while it
-     * was unplugged. In response to such events, the service is required to
-     * call this function to get the updated address. The address is written
-     * to addr.
+     * (*clear_logical_address)() tells HAL to reset all the logical addresses.
      *
-     * Returns 0 on success or -errno on error.
+     * It is used when the system doesn't need to process CEC command any more, hence to tell
+     * HAL to stop receiving commands from the CEC bus, and change the state back to the beginning.
      */
-    int (*get_logical_address)(const struct hdmi_cec_device* dev,
-            cec_device_type_t device_type, cec_logical_address_t* addr);
+    void (*clear_logical_address)(const struct hdmi_cec_device* dev);
+
     /*
      * (*get_physical_address)() returns the CEC physical address. The
      * address is written to addr.
@@ -263,7 +254,10 @@ typedef struct hdmi_cec_device {
     int (*get_physical_address)(const struct hdmi_cec_device* dev, uint16_t* addr);
 
     /*
-     * (*send_message)() transmits HDMI-CEC message to other HDMI device.
+     * (*send_message)() transmits HDMI-CEC message to other HDMI device. The method should be
+     * designed to return in a certain amount of time not hanging forever, which can happen
+     * if CEC signal line is pulled low for some reason. HAL implementation should take
+     * the situation into account so as not to wait forever for the message to get sent out.
      *
      * Returns 0 on success or -errno on error.
      */
@@ -280,9 +274,7 @@ typedef struct hdmi_cec_device {
             event_callback_t callback, void* arg);
 
     /*
-     * (*get_version)() returns the CEC version supported by underlying
-     * hardware. The version this HAL interface is based on is 0x04,
-     * which corresponds to 1.3a.
+     * (*get_version)() returns the CEC version supported by underlying hardware.
      */
     void (*get_version)(const struct hdmi_cec_device* dev, int* version);
 
