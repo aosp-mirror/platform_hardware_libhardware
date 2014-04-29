@@ -1535,17 +1535,18 @@ typedef struct camera3_stream_buffer_set {
  * Transport header for compressed JPEG buffers in output streams.
  *
  * To capture JPEG images, a stream is created using the pixel format
- * HAL_PIXEL_FORMAT_BLOB, and the static metadata field android.jpeg.maxSize is
- * used as the buffer size. Since compressed JPEG images are of variable size,
- * the HAL needs to include the final size of the compressed image using this
- * structure inside the output stream buffer. The JPEG blob ID field must be set
- * to CAMERA3_JPEG_BLOB_ID.
+ * HAL_PIXEL_FORMAT_BLOB. The buffer size for the stream is calculated by the
+ * framework, based on the static metadata field android.jpeg.maxSize. Since
+ * compressed JPEG images are of variable size, the HAL needs to include the
+ * final size of the compressed image using this structure inside the output
+ * stream buffer. The JPEG blob ID field must be set to CAMERA3_JPEG_BLOB_ID.
  *
- * Transport header should be at the end of the JPEG output stream buffer.  That
- * means the jpeg_blob_id must start at byte[android.jpeg.maxSize -
- * sizeof(camera3_jpeg_blob)].  Any HAL using this transport header must
- * account for it in android.jpeg.maxSize.  The JPEG data itself starts at
- * the beginning of the buffer and should be jpeg_size bytes long.
+ * Transport header should be at the end of the JPEG output stream buffer. That
+ * means the jpeg_blob_id must start at byte[buffer_size -
+ * sizeof(camera3_jpeg_blob)], where the buffer_size is the size of gralloc buffer.
+ * Any HAL using this transport header must account for it in android.jpeg.maxSize
+ * The JPEG data itself starts at the beginning of the buffer and should be
+ * jpeg_size bytes long.
  */
 typedef struct camera3_jpeg_blob {
     uint16_t jpeg_blob_id;
