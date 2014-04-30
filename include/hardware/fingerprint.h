@@ -23,14 +23,15 @@
 typedef enum fingerprint_msg_type {
     FINGERPRINT_ERROR = -1,
     FINGERPRINT_SCANNED = 1,
-    FINGERPRINT_TEMPLATE_COLLECTING = 2,
-    FINGERPRINT_TEMPLATE_DELETED = 4
+    FINGERPRINT_TEMPLATE_ENROLLING = 2,
+    FINGERPRINT_TEMPLATE_REMOVED = 4
 } fingerprint_msg_type_t;
 
 typedef enum fingerprint_error {
     FINGERPRINT_ERROR_HW_UNAVAILABLE = 1,
     FINGERPRINT_ERROR_BAD_CAPTURE = 2,
-    FINGERPRINT_ERROR_TIMEOUT = 3
+    FINGERPRINT_ERROR_TIMEOUT = 3,
+    FINGERPRINT_ERROR_NO_SPACE = 4  /* No space available to store a template */
 } fingerprint_error_t;
 
 typedef struct fingerprint_enroll {
@@ -43,6 +44,10 @@ typedef struct fingerprint_enroll {
     uint32_t samples_remaining;
 } fingerprint_enroll_t;
 
+typedef struct fingerprint_removed {
+    uint32_t id;
+} fingerprint_removed_t;
+
 typedef struct fingerprint_scanned {
     uint32_t id; /* 0 is a special id and means no match */
     uint32_t confidence; /* Goes form 0 (no match) to 0xffffFFFF (100% sure) */
@@ -54,6 +59,7 @@ typedef struct fingerprint_msg {
         uint64_t raw;
         fingerprint_error_t error;
         fingerprint_enroll_t enroll;
+        fingerprint_removed_t removed;
         fingerprint_scanned_t scan;
     } data;
 } fingerprint_msg_t;
@@ -69,12 +75,13 @@ typedef struct fingerprint_device {
      * Fingerprint enroll request:
      * Switches the HAL state machine to collect and store a new fingerprint
      * template. Switches back as soon as enroll is complete
-     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_COLLECTING &&
+     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
      *  fingerprint_msg.data.enroll.samples_remaining == 0)
      * or after timeout_sec seconds.
      *
      * Function return: 0 if enrollment process can be successfully started
-     *                 -1 otherwise.
+     *                 -1 otherwise. A notify() function may be called
+     *                    indicating the error condition.
      */
     int (*enroll)(struct fingerprint_device *dev, uint32_t timeout_sec);
 
@@ -82,8 +89,11 @@ typedef struct fingerprint_device {
      * Fingerprint remove request:
      * deletes a fingerprint template.
      * If the fingerprint id is 0 the entire template database will be removed.
+     * notify() will be called for each template deleted with
+     * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
+     * fingerprint_msg.data.removed.id indicating each template id removed.
      *
-     * Function return: 0 if fingerprint template can be successfully deleted
+     * Function return: 0 if fingerprint template(s) can be successfully deleted
      *                 -1 otherwise.
      */
     int (*remove)(struct fingerprint_device *dev, uint32_t fingerprint_id);
