@@ -436,10 +436,14 @@ enum {
 /*
  * The sensors below are wake_up variants of the base sensor types defined
  * above. When registered in batch mode, these sensors will wake up the AP when
- * their FIFOs are full. A separate FIFO has to be maintained for wake up
- * sensors and non wake up sensors. The non wake-up sensors need to overwrite
- * their FIFOs when they are full till the AP wakes up and the wake-up sensors
- * will wake-up the AP when their FIFOs are full without losing events.
+ * their FIFOs are full or when the batch timeout expires. A separate FIFO has
+ * to be maintained for wake up sensors and non wake up sensors. The non wake-up
+ * sensors need to overwrite their FIFOs when they are full till the AP wakes up
+ * and the wake-up sensors will wake-up the AP when their FIFOs are full or when
+ * the batch timeout expires without losing events.
+ * Note: Sensors of type SENSOR_TYPE_PROXIMITY are also wake up sensors and
+ * should be treated as such. Wake-up one-shot sensors like SIGNIFICANT_MOTION
+ * cannot be batched, hence the text about batch above doesn't apply to them.
  *
  * Define these sensors only if:
  * 1) batching is supported.
@@ -502,6 +506,32 @@ enum {
 
 #define SENSOR_TYPE_WAKE_UP_HEART_RATE                         (40)
 #define SENSOR_STRING_TYPE_WAKE_UP_HEART_RATE                  "android.sensor.wake_up_heart_rate"
+
+/*
+ * SENSOR_TYPE_WAKE_UP_TILT_DETECTOR
+ * trigger-mode: special (setDelay has no impact)
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
+ *
+ * A sensor of this type generates an event each time a tilt event is detected. A tilt event
+ * should be generated if the direction of the 2-seconds window average gravity changed by at least
+ * 35 degrees since the activation of the sensor.
+ *     initial_estimated_gravity = average of accelerometer measurements over the first
+ *                                 1 second after activation.
+ *     current_estimated_gravity = average of accelerometer measurements over the last 2 seconds.
+ *     trigger when angle (initial_estimated_gravity, current_estimated_gravity) > 35 degrees
+ *
+ * Large accelerations without a change in phone orientation should not trigger a tilt event.
+ * For example, a sharp turn or strong acceleration while driving a car should not trigger a tilt
+ * event, even though the angle of the average acceleration might vary by more than 35 degrees.
+ *
+ * Typically, this sensor is implemented with the help of only an accelerometer. Other sensors can
+ * be used as well if they do not increase the power consumption significantly. This is a low power
+ * sensor that should allow the AP to go into suspend mode. Do not emulate this sensor in the HAL.
+ * Like other wake up sensors, the driver is expected to a hold a wake_lock with a timeout of 200 ms
+ * while reporting this event. The only allowed return value is 1.0.
+ */
+#define SENSOR_TYPE_WAKE_UP_TILT_DETECTOR                      (41)
+#define SENSOR_STRING_TYPE_WAKE_UP_TILT_DETECTOR               "android.sensor.wake_up_tilt_detector"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
