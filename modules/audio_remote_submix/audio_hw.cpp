@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/limits.h>
 
 #include <cutils/log.h>
 #include <cutils/properties.h>
@@ -74,11 +75,16 @@ namespace android {
 // multiple input streams from this device.  If this option is enabled, each input stream returned
 // is *the same stream* which means that readers will race to read data from these streams.
 #define ENABLE_LEGACY_INPUT_OPEN     1
+// Whether channel conversion (16-bit signed PCM mono->stereo, stereo->mono) is enabled.
+#define ENABLE_CHANNEL_CONVERSION    1
 
 // Common limits macros.
 #ifndef min
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #endif // min
+#ifndef max
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#endif // max
 
 // Set *result_variable_ptr to true if value_to_find is present in the array array_to_search,
 // otherwise set *result_variable_ptr to false.
@@ -103,6 +109,7 @@ struct submix_config {
     // channel bitfields are not equivalent.
     audio_channel_mask_t input_channel_mask;
     audio_channel_mask_t output_channel_mask;
+    size_t pipe_frame_size;  // Number of bytes in each audio frame in the pipe.
     size_t buffer_size_frames; // Size of the audio pipe in frames.
     // Maximum number of frames buffered by the input and output streams.
     size_t buffer_period_size_frames;
@@ -283,6 +290,7 @@ uint32_t get_channel_count_from_mask(const audio_channel_mask_t channel_mask) {
 static bool audio_config_compare(const audio_config * const input_config,
         const audio_config * const output_config)
 {
+#if !ENABLE_CHANNEL_CONVERSION
     const uint32_t input_channels = get_channel_count_from_mask(input_config->channel_mask);
     const uint32_t output_channels = get_channel_count_from_mask(output_config->channel_mask);
     if (input_channels != output_channels) {
@@ -290,6 +298,7 @@ static bool audio_config_compare(const audio_config * const input_config,
               input_channels, output_channels);
         return false;
     }
+#endif // !ENABLE_CHANNEL_CONVERSION
     if (input_config->sample_rate != output_config->sample_rate) {
         ALOGE("audio_config_compare() sample rate mismatch %ul vs. %ul",
               input_config->sample_rate, output_config->sample_rate);
@@ -356,6 +365,11 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
         device_config->buffer_size_frames = sink->maxFrames();
         device_config->buffer_period_size_frames = device_config->buffer_size_frames /
                 buffer_period_count;
+        if (in) device_config->pipe_frame_size = audio_stream_frame_size(&in->stream.common);
+        if (out) device_config->pipe_frame_size = audio_stream_frame_size(&out->stream.common);
+        SUBMIX_ALOGV("submix_audio_device_create_pipe(): pipe frame size %zd, pipe size %zd, "
+                     "period size %zd", device_config->pipe_frame_size,
+                     device_config->buffer_size_frames, device_config->buffer_period_size_frames);
     }
     pthread_mutex_unlock(&rsxadev->lock);
 }
@@ -454,6 +468,17 @@ static bool submix_open_validate(const struct submix_audio_device * const rsxade
     return true;
 }
 
+// Calculate the maximum size of the pipe buffer in frames for the specified stream.
+static size_t calculate_stream_pipe_size_in_frames(const struct audio_stream *stream,
+                                                   const struct submix_config *config,
+                                                   const size_t pipe_frames)
+{
+    const size_t stream_frame_size = audio_stream_frame_size(stream);
+    const size_t pipe_frame_size = config->pipe_frame_size;
+    const size_t max_frame_size = max(stream_frame_size, pipe_frame_size);
+    return (pipe_frames * config->pipe_frame_size) / max_frame_size;
+}
+
 /* audio HAL functions */
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
@@ -482,10 +507,12 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
     const struct submix_config * const config = &out->dev->config;
-    const size_t buffer_size = config->buffer_period_size_frames * audio_stream_frame_size(stream);
+    const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
+        stream, config, config->buffer_period_size_frames);
+    const size_t buffer_size_bytes = buffer_size_frames * audio_stream_frame_size(stream);
     SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
-                 buffer_size, config->buffer_period_size_frames);
-    return buffer_size;
+                 buffer_size_bytes, buffer_size_frames);
+    return buffer_size_bytes;
 }
 
 static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
@@ -577,9 +604,11 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     const struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(
             const_cast<struct audio_stream_out *>(stream));
     const struct submix_config * const config = &out->dev->config;
-    const uint32_t latency_ms = (config->buffer_size_frames * 1000) / config->common.sample_rate;
-    SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u", latency_ms,
-          config->buffer_size_frames, config->common.sample_rate);
+    const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
+            &stream->common, config, config->buffer_size_frames);
+    const uint32_t latency_ms = (buffer_size_frames * 1000) / config->common.sample_rate;
+    SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u",
+                 latency_ms, buffer_size_frames, config->common.sample_rate);
     return latency_ms;
 }
 
@@ -732,10 +761,13 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
             const_cast<struct audio_stream*>(stream));
-    const size_t buffer_size = in->dev->config.buffer_period_size_frames *
-            audio_stream_frame_size(stream);
-    SUBMIX_ALOGV("in_get_buffer_size() returns %zu", buffer_size);
-    return buffer_size;
+    const struct submix_config * const config = &in->dev->config;
+    const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
+        stream, config, config->buffer_period_size_frames);
+    const size_t buffer_size_bytes = buffer_size_frames * audio_stream_frame_size(stream);
+    SUBMIX_ALOGV("in_get_buffer_size() returns %zu bytes, %zu frames", buffer_size_bytes,
+                 buffer_size_frames);
+    return buffer_size_bytes;
 }
 
 static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
@@ -816,6 +848,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     ssize_t frames_read = -1977;
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
     struct submix_audio_device * const rsxadev = in->dev;
+    struct audio_config *format;
     const size_t frame_size = audio_stream_frame_size(&stream->common);
     const size_t frames_to_read = bytes / frame_size;
 
@@ -854,8 +887,65 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         // read the data from the pipe (it's non blocking)
         int attempts = 0;
         char* buff = (char*)buffer;
+#if ENABLE_CHANNEL_CONVERSION
+        // Determine whether channel conversion is required.
+        const uint32_t input_channels = get_channel_count_from_mask(
+            rsxadev->config.input_channel_mask);
+        const uint32_t output_channels = get_channel_count_from_mask(
+            rsxadev->config.output_channel_mask);
+        if (input_channels != output_channels) {
+            SUBMIX_ALOGV("in_read(): %d output channels will be converted to %d "
+                         "input channels", output_channels, input_channels);
+            // Only support 16-bit PCM channel conversion from mono to stereo or stereo to mono.
+            ALOG_ASSERT(rsxadev->config.common.format == AUDIO_FORMAT_PCM_16_BIT);
+            ALOG_ASSERT((input_channels == 1 && output_channels == 2) ||
+                        (input_channels == 2 && output_channels == 1));
+        }
+#endif // ENABLE_CHANNEL_CONVERSION
+
         while ((remaining_frames > 0) && (attempts < MAX_READ_ATTEMPTS)) {
-            frames_read = source->read(buff, remaining_frames, AudioBufferProvider::kInvalidPTS);
+            size_t read_frames = remaining_frames;
+#if ENABLE_CHANNEL_CONVERSION
+            if (output_channels == 1 && input_channels == 2) {
+                // Need to read half the requested frames since the converted output
+                // data will take twice the space (mono->stereo).
+                read_frames /= 2;
+            }
+#endif // ENABLE_CHANNEL_CONVERSION
+
+            SUBMIX_ALOGV("in_read(): frames available to read %zd", source->availableToRead());
+
+            frames_read = source->read(buff, read_frames, AudioBufferProvider::kInvalidPTS);
+
+            SUBMIX_ALOGV("in_read(): frames read %zd", frames_read);
+
+#if ENABLE_CHANNEL_CONVERSION
+            // Perform in-place channel conversion.
+            // NOTE: In the following "input stream" refers to the data returned by this function
+            // and "output stream" refers to the data read from the pipe.
+            if (input_channels != output_channels && frames_read > 0) {
+                int16_t *data = (int16_t*)buff;
+                if (output_channels == 2 && input_channels == 1) {
+                    // Offset into the output stream data in samples.
+                    ssize_t output_stream_offset = 0;
+                    for (ssize_t input_stream_frame = 0; input_stream_frame < frames_read;
+                         input_stream_frame++, output_stream_offset += 2) {
+                        // Average the content from both channels.
+                        data[input_stream_frame] = ((int32_t)data[output_stream_offset] +
+                                                    (int32_t)data[output_stream_offset + 1]) / 2;
+                    }
+                } else if (output_channels == 1 && input_channels == 2) {
+                    // Offset into the input stream data in samples.
+                    ssize_t input_stream_offset = (frames_read - 1) * 2;
+                    for (ssize_t output_stream_frame = frames_read - 1; output_stream_frame >= 0;
+                         output_stream_frame--, input_stream_offset -= 2) {
+                        const short sample = data[output_stream_frame];
+                        data[input_stream_offset] = sample;
+                        data[input_stream_offset + 1] = sample;
+                    }
+                }
+            }
+#endif // ENABLE_CHANNEL_CONVERSION
 
             if (frames_read > 0) {
                 remaining_frames -= frames_read;
