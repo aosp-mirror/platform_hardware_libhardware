@@ -211,6 +211,11 @@ typedef struct hdmi_event {
 typedef void (*event_callback_t)(const hdmi_event_t* event, void* arg);
 
 typedef struct hdmi_cec_module {
+    /**
+     * Common methods of the HDMI CEC module.  This *must* be the first member of
+     * hdmi_cec_module as users of this structure will cast a hw_module_t to hdmi_cec_module
+     * pointer in contexts where it's known the hw_module_t references a hdmi_cec_module.
+     */
     struct hw_module_t common;
 } hdmi_module_t;
 
@@ -218,6 +223,11 @@ typedef struct hdmi_cec_module {
  * HDMI-CEC HAL interface definition.
  */
 typedef struct hdmi_cec_device {
+    /**
+     * Common methods of the HDMI CEC device.  This *must* be the first member of
+     * hdmi_cec_device as users of this structure will cast a hw_device_t to hdmi_cec_device
+     * pointer in contexts where it's known the hw_device_t references a hdmi_cec_device.
+     */
     struct hw_device_t common;
 
     /*

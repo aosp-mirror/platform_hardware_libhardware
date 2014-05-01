@@ -103,6 +103,12 @@ typedef struct activity_event {
 } activity_event_t;
 
 typedef struct activity_recognition_module {
+    /**
+     * Common methods of the activity recognition module.  This *must* be the first member of
+     * activity_recognition_module as users of this structure will cast a hw_module_t to
+     * activity_recognition_module pointer in contexts where it's known the hw_module_t
+     * references an activity_recognition_module.
+     */
     hw_module_t common;
 
     /*
@@ -126,6 +132,12 @@ typedef struct activity_recognition_callback_procs {
 } activity_recognition_callback_procs_t;
 
 typedef struct activity_recognition_device {
+    /**
+     * Common methods of the activity recognition device.  This *must* be the first member of
+     * activity_recognition_device as users of this structure will cast a hw_device_t to
+     * activity_recognition_device pointer in contexts where it's known the hw_device_t
+     * references an activity_recognition_device.
+     */
     hw_device_t common;
 
     /*

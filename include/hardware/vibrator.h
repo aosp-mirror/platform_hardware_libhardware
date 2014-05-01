@@ -35,7 +35,13 @@ __BEGIN_DECLS
 
 struct vibrator_device;
 typedef struct vibrator_device {
-  struct hw_device_t common;
+    /**
+     * Common methods of the vibrator device.  This *must* be the first member of
+     * vibrator_device as users of this structure will cast a hw_device_t to
+     * vibrator_device pointer in contexts where it's known the hw_device_t references a
+     * vibrator_device.
+     */
+    struct hw_device_t common;
 
     /** Turn on vibrator
      *

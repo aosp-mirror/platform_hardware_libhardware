@@ -471,10 +471,22 @@ typedef struct hwc_procs {
 /*****************************************************************************/
 
 typedef struct hwc_module {
+    /**
+     * Common methods of the hardware composer module.  This *must* be the first member of
+     * hwc_module as users of this structure will cast a hw_module_t to
+     * hwc_module pointer in contexts where it's known the hw_module_t references a
+     * hwc_module.
+     */
     struct hw_module_t common;
 } hwc_module_t;
 
 typedef struct hwc_composer_device_1 {
+    /**
+     * Common methods of the hardware composer device.  This *must* be the first member of
+     * hwc_composer_device_1 as users of this structure will cast a hw_device_t to
+     * hwc_composer_device_1 pointer in contexts where it's known the hw_device_t references a
+     * hwc_composer_device_1.
+     */
     struct hw_device_t common;
 
     /*

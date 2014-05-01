@@ -55,6 +55,12 @@ struct local_time_module {
 };
 
 struct local_time_hw_device {
+    /**
+     * Common methods of the local time hardware device.  This *must* be the first member of
+     * local_time_hw_device as users of this structure will cast a hw_device_t to
+     * local_time_hw_device pointer in contexts where it's known the hw_device_t references a
+     * local_time_hw_device.
+     */
     struct hw_device_t common;
 
     /**
