@@ -20,27 +20,38 @@
 #include <errno.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/time.h>
 #include <stdlib.h>
+#include <sys/param.h>
+#include <sys/time.h>
 
 #include <cutils/log.h>
-#include <cutils/str_parms.h>
 #include <cutils/properties.h>
+#include <cutils/str_parms.h>
 
+#include <hardware/audio.h>
 #include <hardware/hardware.h>
 #include <system/audio.h>
-#include <hardware/audio.h>
 
+#include <media/AudioParameter.h>
+#include <media/AudioBufferProvider.h>
 #include <media/nbaio/MonoPipe.h>
 #include <media/nbaio/MonoPipeReader.h>
-#include <media/AudioBufferProvider.h>
 
 #include <utils/String8.h>
-#include <media/AudioParameter.h>
 
 extern "C" {
 
 namespace android {
+
+// Set to 1 to enable extremely verbose logging in this module.
+#define SUBMIX_VERBOSE_LOGGING 0
+#if SUBMIX_VERBOSE_LOGGING
+#define SUBMIX_ALOGV(...) ALOGV(__VA_ARGS__)
+#define SUBMIX_ALOGE(...) ALOGE(__VA_ARGS__)
+#else
+#define SUBMIX_ALOGV(...)
+#define SUBMIX_ALOGE(...)
+#endif // SUBMIX_VERBOSE_LOGGING
 
 #define MAX_PIPE_DEPTH_IN_FRAMES     (1024*8)
 // The duration of MAX_READ_ATTEMPTS * READ_ATTEMPT_SLEEP_MS must be stricly inferior to
@@ -95,7 +106,6 @@ struct submix_stream_in {
     int64_t read_counter_frames;
 };
 
-
 /* audio HAL functions */
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
@@ -103,7 +113,7 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
     const struct submix_stream_out *out =
             reinterpret_cast<const struct submix_stream_out *>(stream);
     uint32_t out_rate = out->dev->config.rate;
-    //ALOGV("out_get_sample_rate() returns %u", out_rate);
+    SUBMIX_ALOGV("out_get_sample_rate() returns %u", out_rate);
     return out_rate;
 }
 
@@ -114,7 +124,7 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
         return -ENOSYS;
     }
     struct submix_stream_out *out = reinterpret_cast<struct submix_stream_out *>(stream);
-    //ALOGV("out_set_sample_rate(rate=%u)", rate);
+    SUBMIX_ALOGV("out_set_sample_rate(rate=%u)", rate);
     out->dev->config.rate = rate;
     return 0;
 }
@@ -126,8 +136,8 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     const struct submix_config& config_out = out->dev->config;
     size_t buffer_size = config_out.period_size * popcount(config_out.channel_mask)
                             * sizeof(int16_t); // only PCM 16bit
-    //ALOGV("out_get_buffer_size() returns %u, period size=%u",
-    //        buffer_size, config_out.period_size);
+    SUBMIX_ALOGV("out_get_buffer_size() returns %u, period size=%u",
+            buffer_size, config_out.period_size);
     return buffer_size;
 }
 
@@ -136,7 +146,7 @@ static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
     const struct submix_stream_out *out =
             reinterpret_cast<const struct submix_stream_out *>(stream);
     uint32_t channels = out->dev->config.channel_mask;
-    //ALOGV("out_get_channels() returns %08x", channels);
+    SUBMIX_ALOGV("out_get_channels() returns %08x", channels);
     return channels;
 }
 
@@ -147,11 +157,13 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
 
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
+    (void)stream;
     if (format != AUDIO_FORMAT_PCM_16_BIT) {
+        ALOGE("out_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
-    } else {
-        return 0;
     }
+    SUBMIX_ALOGV("out_set_format(format=%x)", format);
+    return 0;
 }
 
 static int out_standby(struct audio_stream *stream)
@@ -171,6 +183,8 @@ static int out_standby(struct audio_stream *stream)
 
 static int out_dump(const struct audio_stream *stream, int fd)
 {
+    (void)stream;
+    (void)fd;
     return 0;
 }
 
@@ -178,6 +192,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
     int exiting = -1;
     AudioParameter parms = AudioParameter(String8(kvpairs));
+    SUBMIX_ALOGV("out_set_parameters() kvpairs='%s'", kvpairs);
     // FIXME this is using hard-coded strings but in the future, this functionality will be
     //       converted to use audio HAL extensions required to support tunneling
     if ((parms.getInt(String8("exiting"), exiting) == NO_ERROR) && (exiting > 0)) {
@@ -193,7 +208,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                 return 0;
             }
 
-            ALOGI("shutdown");
+            ALOGI("out_set_parameters(): shutdown");
             sink->shutdown(true);
         } // done using the sink
 
@@ -205,6 +220,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
 {
+    (void)stream;
+    (void)keys;
     return strdup("");
 }
 
@@ -221,13 +238,16 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 static int out_set_volume(struct audio_stream_out *stream, float left,
                           float right)
 {
+    (void)stream;
+    (void)left;
+    (void)right;
     return -ENOSYS;
 }
 
 static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                          size_t bytes)
 {
-    //ALOGV("out_write(bytes=%d)", bytes);
+    SUBMIX_ALOGV("out_write(bytes=%zd)", bytes);
     ssize_t written_frames = 0;
     struct submix_stream_out *out = reinterpret_cast<struct submix_stream_out *>(stream);
 
@@ -243,6 +263,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         if (sink->isShutdown()) {
             sink.clear();
             pthread_mutex_unlock(&out->dev->lock);
+            SUBMIX_ALOGV("out_write(): pipe shutdown, ignoring the write.");
             // the pipe has already been shutdown, this buffer will be lost but we must
             //   simulate timing so we don't drain the output faster than realtime
             usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
@@ -283,31 +304,39 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     if (written_frames < 0) {
         ALOGE("out_write() failed writing to pipe with %zd", written_frames);
         return 0;
-    } else {
-        ALOGV("out_write() wrote %zu bytes)", written_frames * frame_size);
-        return written_frames * frame_size;
     }
+    const ssize_t written_bytes = written_frames * frame_size;
+    SUBMIX_ALOGV("out_write() wrote %zd bytes %zd frames)", written_bytes, written_frames);
+    return written_bytes;
 }
 
 static int out_get_render_position(const struct audio_stream_out *stream,
                                    uint32_t *dsp_frames)
 {
+    (void)stream;
+    (void)dsp_frames;
     return -EINVAL;
 }
 
 static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
+    (void)stream;
+    (void)effect;
     return 0;
 }
 
 static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
+    (void)stream;
+    (void)effect;
     return 0;
 }
 
 static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
                                         int64_t *timestamp)
 {
+    (void)stream;
+    (void)timestamp;
     return -EINVAL;
 }
 
@@ -315,7 +344,7 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
-    //ALOGV("in_get_sample_rate() returns %u", in->dev->config.rate);
+    SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.sample_rate);
     return in->dev->config.rate;
 }
 
@@ -334,6 +363,7 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
 
 static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
+    (void)stream;
     return AUDIO_CHANNEL_IN_STEREO;
 }
 
@@ -345,10 +375,11 @@ static audio_format_t in_get_format(const struct audio_stream *stream)
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
 {
     if (format != AUDIO_FORMAT_PCM_16_BIT) {
+        ALOGE("in_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
-    } else {
-        return 0;
     }
+    SUBMIX_ALOGV("in_set_format(format=%x)", format);
+    return 0;
 }
 
 static int in_standby(struct audio_stream *stream)
@@ -367,33 +398,42 @@ static int in_standby(struct audio_stream *stream)
 
 static int in_dump(const struct audio_stream *stream, int fd)
 {
+    (void)stream;
+    (void)fd;
     return 0;
 }
 
 static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
+    (void)stream;
+    (void)kvpairs;
     return 0;
 }
 
 static char * in_get_parameters(const struct audio_stream *stream,
                                 const char *keys)
 {
+    (void)stream;
+    (void)keys;
     return strdup("");
 }
 
 static int in_set_gain(struct audio_stream_in *stream, float gain)
 {
+    (void)stream;
+    (void)gain;
     return 0;
 }
 
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                        size_t bytes)
 {
-    //ALOGV("in_read bytes=%u", bytes);
     ssize_t frames_read = -1977;
     struct submix_stream_in *in = reinterpret_cast<struct submix_stream_in *>(stream);
     const size_t frame_size = audio_stream_frame_size(&stream->common);
     const size_t frames_to_read = bytes / frame_size;
+
+    SUBMIX_ALOGV("in_read bytes=%zu", bytes);
 
     pthread_mutex_lock(&in->dev->lock);
 
@@ -435,10 +475,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             if (frames_read > 0) {
                 remaining_frames -= frames_read;
                 buff += frames_read * frame_size;
-                //ALOGV("  in_read (att=%d) got %ld frames, remaining=%u",
-                //      attempts, frames_read, remaining_frames);
+                SUBMIX_ALOGV("  in_read (att=%d) got %zd frames, remaining=%zu",
+                             attempts, frames_read, remaining_frames);
             } else {
-                //ALOGE("  in_read read returned %ld", frames_read);
+                SUBMIX_ALOGE("  in_read read returned %zd", frames_read);
                 usleep(READ_ATTEMPT_SLEEP_MS * 1000);
             }
         }
@@ -449,7 +489,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     }
 
     if (remaining_frames > 0) {
-        ALOGV("  remaining_frames = %zu", remaining_frames);
+        SUBMIX_ALOGV("  remaining_frames = %zu", remaining_frames);
         memset(((char*)buffer)+ bytes - (remaining_frames * frame_size), 0,
                 remaining_frames * frame_size);
     }
@@ -479,7 +519,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                         * 1000000 / sample_rate
                 - (record_duration.tv_nsec / 1000);
 
-        ALOGV("  record duration %5lds %3ldms, will wait: %7ldus",
+        SUBMIX_ALOGV("  record duration %5lds %3ldms, will wait: %7ldus",
                 record_duration.tv_sec, record_duration.tv_nsec/1000000,
                 projected_vs_observed_offset_us);
         if (projected_vs_observed_offset_us > 0) {
@@ -487,24 +527,28 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         }
     }
 
-
-    ALOGV("in_read returns %zu", bytes);
+    SUBMIX_ALOGV("in_read returns %zu", bytes);
     return bytes;
 
 }
 
 static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
 {
+    (void)stream;
     return 0;
 }
 
 static int in_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
+    (void)stream;
+    (void)effect;
     return 0;
 }
 
 static int in_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
+    (void)stream;
+    (void)effect;
     return 0;
 }
 
@@ -519,6 +563,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
     struct submix_stream_out *out;
     int ret;
+    (void)handle;
+    (void)devices;
+    (void)flags;
 
     out = (struct submix_stream_out *)calloc(1, sizeof(struct submix_stream_out));
     if (!out) {
@@ -608,64 +655,87 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
 {
+    (void)dev;
+    (void)kvpairs;
     return -ENOSYS;
 }
 
 static char * adev_get_parameters(const struct audio_hw_device *dev,
                                   const char *keys)
 {
+    (void)dev;
+    (void)keys;
     return strdup("");;
 }
 
 static int adev_init_check(const struct audio_hw_device *dev)
 {
     ALOGI("adev_init_check()");
+    (void)dev;
     return 0;
 }
 
 static int adev_set_voice_volume(struct audio_hw_device *dev, float volume)
 {
+    (void)dev;
+    (void)volume;
     return -ENOSYS;
 }
 
 static int adev_set_master_volume(struct audio_hw_device *dev, float volume)
 {
+    (void)dev;
+    (void)volume;
     return -ENOSYS;
 }
 
 static int adev_get_master_volume(struct audio_hw_device *dev, float *volume)
 {
+    (void)dev;
+    (void)volume;
     return -ENOSYS;
 }
 
 static int adev_set_master_mute(struct audio_hw_device *dev, bool muted)
 {
+    (void)dev;
+    (void)muted;
     return -ENOSYS;
 }
 
 static int adev_get_master_mute(struct audio_hw_device *dev, bool *muted)
 {
+    (void)dev;
+    (void)muted;
     return -ENOSYS;
 }
 
 static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
 {
+    (void)dev;
+    (void)mode;
     return 0;
 }
 
 static int adev_set_mic_mute(struct audio_hw_device *dev, bool state)
 {
+    (void)dev;
+    (void)state;
     return -ENOSYS;
 }
 
 static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 {
+    (void)dev;
+    (void)state;
     return -ENOSYS;
 }
 
 static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
                                          const struct audio_config *config)
 {
+    (void)dev;
+    (void)config;
     //### TODO correlate this with pipe parameters
     return 4096;
 }
@@ -681,6 +751,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
     struct submix_stream_in *in;
     int ret;
+    (void)handle;
+    (void)devices;
 
     in = (struct submix_stream_in *)calloc(1, sizeof(struct submix_stream_in));
     if (!in) {
@@ -737,7 +809,7 @@ err_open:
 }
 
 static void adev_close_input_stream(struct audio_hw_device *dev,
-                                   struct audio_stream_in *stream)
+                                    struct audio_stream_in *stream)
 {
     ALOGV("adev_close_input_stream()");
     struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
@@ -757,6 +829,8 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
 
 static int adev_dump(const audio_hw_device_t *device, int fd)
 {
+    (void)device;
+    (void)fd;
     return 0;
 }
 
