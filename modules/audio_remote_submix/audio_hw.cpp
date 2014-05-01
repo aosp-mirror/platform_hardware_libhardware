@@ -67,18 +67,36 @@ namespace android {
 // See NBAIO_Format frameworks/av/include/media/nbaio/NBAIO.h.
 #define DEFAULT_FORMAT               AUDIO_FORMAT_PCM_16_BIT
 
+// Set *result_variable_ptr to true if value_to_find is present in the array array_to_search,
+// otherwise set *result_variable_ptr to false.
+#define SUBMIX_VALUE_IN_SET(value_to_find, array_to_search, result_variable_ptr) \
+    { \
+        size_t i; \
+        *(result_variable_ptr) = false; \
+        for (i = 0; i < sizeof(array_to_search) / sizeof((array_to_search)[0]); i++) { \
+          if ((value_to_find) == (array_to_search)[i]) { \
+                *(result_variable_ptr) = true; \
+                break; \
+            } \
+        } \
+    }
+
 // Configuration of the submix pipe.
 struct submix_config {
-    audio_format_t format;
-    audio_channel_mask_t channel_mask;
-    unsigned int sample_rate; // Sample rate for the device in Hz.
+    // Channel mask field in this data structure is set to either input_channel_mask or
+    // output_channel_mask depending upon the last stream to be opened on this device.
+    struct audio_config common;
+    // Input stream and output stream channel masks.  This is required since input and output
+    // channel bitfields are not equivalent.
+    audio_channel_mask_t input_channel_mask;
+    audio_channel_mask_t output_channel_mask;
     size_t period_size; // Size of the audio pipe is period_size * period_count in frames.
 };
 
 struct submix_audio_device {
     struct audio_hw_device device;
-    bool output_standby;
     bool input_standby;
+    bool output_standby;
     submix_config config;
     // Pipe variables: they handle the ring buffer that "pipes" audio:
     //  - from the submix virtual audio output == what needs to be played
@@ -111,6 +129,69 @@ struct submix_stream_in {
     // how many frames have been requested to be read
     int64_t read_counter_frames;
 };
+
+// Determine whether the specified sample rate is supported by the submix module.
+static bool sample_rate_supported(const uint32_t sample_rate)
+{
+    // Set of sample rates supported by Format_from_SR_C() frameworks/av/media/libnbaio/NAIO.cpp.
+    static const unsigned int supported_sample_rates[] = {
+        8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000,
+    };
+    bool return_value;
+    SUBMIX_VALUE_IN_SET(sample_rate, supported_sample_rates, &return_value);
+    return return_value;
+}
+
+// Determine whether the specified sample rate is supported, if it is return the specified sample
+// rate, otherwise return the default sample rate for the submix module.
+static uint32_t get_supported_sample_rate(uint32_t sample_rate)
+{
+  return sample_rate_supported(sample_rate) ? sample_rate : DEFAULT_SAMPLE_RATE_HZ;
+}
+
+// Determine whether the specified channel in mask is supported by the submix module.
+static bool channel_in_mask_supported(const audio_channel_mask_t channel_in_mask)
+{
+    // Set of channel in masks supported by Format_from_SR_C()
+    // frameworks/av/media/libnbaio/NAIO.cpp.
+    static const audio_channel_mask_t supported_channel_in_masks[] = {
+        AUDIO_CHANNEL_IN_MONO, AUDIO_CHANNEL_IN_STEREO,
+    };
+    bool return_value;
+    SUBMIX_VALUE_IN_SET(channel_in_mask, supported_channel_in_masks, &return_value);
+    return return_value;
+}
+
+// Determine whether the specified channel in mask is supported, if it is return the specified
+// channel in mask, otherwise return the default channel in mask for the submix module.
+static audio_channel_mask_t get_supported_channel_in_mask(
+        const audio_channel_mask_t channel_in_mask)
+{
+    return channel_in_mask_supported(channel_in_mask) ? channel_in_mask :
+            static_cast<audio_channel_mask_t>(AUDIO_CHANNEL_IN_STEREO);
+}
+
+// Determine whether the specified channel out mask is supported by the submix module.
+static bool channel_out_mask_supported(const audio_channel_mask_t channel_out_mask)
+{
+    // Set of channel out masks supported by Format_from_SR_C()
+    // frameworks/av/media/libnbaio/NAIO.cpp.
+    static const audio_channel_mask_t supported_channel_out_masks[] = {
+        AUDIO_CHANNEL_OUT_MONO, AUDIO_CHANNEL_OUT_STEREO,
+    };
+    bool return_value;
+    SUBMIX_VALUE_IN_SET(channel_out_mask, supported_channel_out_masks, &return_value);
+    return return_value;
+}
+
+// Determine whether the specified channel out mask is supported, if it is return the specified
+// channel out mask, otherwise return the default channel out mask for the submix module.
+static audio_channel_mask_t get_supported_channel_out_mask(
+        const audio_channel_mask_t channel_out_mask)
+{
+    return channel_out_mask_supported(channel_out_mask) ? channel_out_mask :
+        static_cast<audio_channel_mask_t>(AUDIO_CHANNEL_OUT_STEREO);
+}
 
 // Get a pointer to submix_stream_out given an audio_stream_out that is embedded within the
 // structure.
@@ -172,26 +253,107 @@ uint32_t get_channel_count_from_mask(const audio_channel_mask_t channel_mask) {
     return 0;
 }
 
+// Convert a input channel mask to output channel mask where a mapping is available, returns 0
+// otherwise.
+static audio_channel_mask_t audio_channel_in_mask_to_out(
+        const audio_channel_mask_t channel_in_mask)
+{
+  switch (channel_in_mask) {
+      case AUDIO_CHANNEL_IN_MONO:
+          return AUDIO_CHANNEL_OUT_MONO;
+      case AUDIO_CHANNEL_IN_STEREO:
+          return AUDIO_CHANNEL_OUT_STEREO;
+      default:
+          return 0;
+  }
+}
+
+// Compare an audio_config with input channel mask and an audio_config with output channel mask
+// returning false if they do *not* match, true otherwise.
+static bool audio_config_compare(const audio_config * const input_config,
+        const audio_config * const output_config)
+{
+    audio_channel_mask_t channel_mask = audio_channel_in_mask_to_out(input_config->channel_mask);
+    if (channel_mask != output_config->channel_mask) {
+        ALOGE("audio_config_compare() channel mask mismatch %x (%x) vs. %x",
+              channel_mask, input_config->channel_mask, output_config->channel_mask);
+        return false;
+    }
+    if (input_config->sample_rate != output_config->sample_rate) {
+        ALOGE("audio_config_compare() sample rate mismatch %ul vs. %ul",
+              input_config->sample_rate, output_config->sample_rate);
+        return false;
+    }
+    if (input_config->format != output_config->format) {
+        ALOGE("audio_config_compare() format mismatch %x vs. %x",
+              input_config->format, output_config->format);
+        return false;
+    }
+    // This purposely ignores offload_info as it's not required for the submix device.
+    return true;
+}
+
+// Sanitize the user specified audio config for a submix input / output stream.
+static void submix_sanitize_config(struct audio_config * const config, const bool is_input_format)
+{
+    config->channel_mask = is_input_format ? get_supported_channel_in_mask(config->channel_mask) :
+            get_supported_channel_out_mask(config->channel_mask);
+    config->sample_rate = get_supported_sample_rate(config->sample_rate);
+    config->format = DEFAULT_FORMAT;
+}
+
+// Verify a submix input or output stream can be opened.
+static bool submix_open_validate(const struct submix_audio_device * const rsxadev,
+                                 pthread_mutex_t * const lock,
+                                 const struct audio_config * const config,
+                                 const bool opening_input)
+{
+    bool pipe_open;
+    audio_config pipe_config;
+
+    // Query the device for the current audio config and whether input and output streams are open.
+    pthread_mutex_lock(lock);
+    pipe_open = rsxadev->rsxSink.get() != NULL || rsxadev->rsxSource.get() != NULL;
+    memcpy(&pipe_config, &rsxadev->config.common, sizeof(pipe_config));
+    pthread_mutex_unlock(lock);
+
+    // If the pipe is open, verify the existing audio config the pipe matches the user
+    // specified config.
+    if (pipe_open) {
+        const audio_config * const input_config = opening_input ? config : &pipe_config;
+        const audio_config * const output_config = opening_input ? &pipe_config : config;
+        // Get the channel mask of the open device.
+        pipe_config.channel_mask =
+            opening_input ? rsxadev->config.output_channel_mask :
+                rsxadev->config.input_channel_mask;
+        if (!audio_config_compare(input_config, output_config)) {
+            ALOGE("submix_open_validate(): Unsupported format.");
+            return -EINVAL;
+        }
+    }
+    return true;
+}
+
 /* audio HAL functions */
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    const uint32_t out_rate = out->dev->config.sample_rate;
+    const uint32_t out_rate = out->dev->config.common.sample_rate;
     SUBMIX_ALOGV("out_get_sample_rate() returns %u", out_rate);
     return out_rate;
 }
 
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
-    if ((rate != 44100) && (rate != 48000)) {
+    if (!sample_rate_supported(rate)) {
         ALOGE("out_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
     }
     struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
     SUBMIX_ALOGV("out_set_sample_rate(rate=%u)", rate);
-    out->dev->config.sample_rate = rate;
+    out->dev->config.common.sample_rate = rate;
     return 0;
 }
 
@@ -202,7 +364,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     const struct submix_config * const config = &out->dev->config;
     const size_t buffer_size = config->period_size * audio_stream_frame_size(stream);
     SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
-                 buffer_size, config->buffer_period_size_frames);
+                 buffer_size, config->period_size);
     return buffer_size;
 }
 
@@ -210,7 +372,7 @@ static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    uint32_t channel_mask = out->dev->config.channel_mask;
+    uint32_t channel_mask = out->dev->config.output_channel_mask;
     SUBMIX_ALOGV("out_get_channels() returns %08x", channel_mask);
     return channel_mask;
 }
@@ -219,7 +381,7 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    const audio_format_t format = out->dev->config.format;
+    const audio_format_t format = out->dev->config.common.format;
     SUBMIX_ALOGV("out_get_format() returns %x", format);
     return format;
 }
@@ -227,7 +389,7 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
-    if (format != out->dev->config.format) {
+    if (format != out->dev->config.common.format) {
         ALOGE("out_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
     }
@@ -294,9 +456,9 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     const struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(
             const_cast<struct audio_stream_out *>(stream));
     const struct submix_config * const config = &out->dev->config;
-    const uint32_t latency_ms = (MAX_PIPE_DEPTH_IN_FRAMES * 1000) / config->sample_rate;
+    const uint32_t latency_ms = (MAX_PIPE_DEPTH_IN_FRAMES * 1000) / config->common.sample_rate;
     SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u", latency_ms,
-          config->buffer_size_frames, config->common.sample_rate);
+          MAX_PIPE_DEPTH_IN_FRAMES, config->common.sample_rate);
     return latency_ms;
 }
 
@@ -410,14 +572,18 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
         const_cast<struct audio_stream*>(stream));
-    SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.sample_rate);
-    return in->dev->config.sample_rate;
+    SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.common.sample_rate);
+    return in->dev->config.common.sample_rate;
 }
 
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
-    in->dev->config.sample_rate = rate;
+    if (!sample_rate_supported(rate)) {
+        ALOGE("in_set_sample_rate(rate=%u) rate unsupported", rate);
+        return -ENOSYS;
+    }
+    in->dev->config.common.sample_rate = rate;
     SUBMIX_ALOGV("in_set_sample_rate() set %u", rate);
     return 0;
 }
@@ -433,15 +599,18 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
 
 static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
-    (void)stream;
-    return AUDIO_CHANNEL_IN_STEREO;
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
+            const_cast<struct audio_stream*>(stream));
+    const audio_channel_mask_t channel_mask = in->dev->config.input_channel_mask;
+    SUBMIX_ALOGV("in_get_channels() returns %x", channel_mask);
+    return channel_mask;
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
-        const_cast<struct audio_stream*>(stream));
-    const audio_format_t format = in->dev->config.format;
+            const_cast<struct audio_stream*>(stream));
+    const audio_format_t format = in->dev->config.common.format;
     SUBMIX_ALOGV("in_get_format() returns %x", format);
     return format;
 }
@@ -449,7 +618,7 @@ static audio_format_t in_get_format(const struct audio_stream *stream)
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
-    if (format != in->dev->config.format) {
+    if (format != in->dev->config.common.format) {
         ALOGE("in_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
     }
@@ -642,6 +811,13 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     (void)devices;
     (void)flags;
 
+    // Make sure it's possible to open the device given the current audio config.
+    submix_sanitize_config(config, false);
+    if (!submix_open_validate(rsxadev, &rsxadev->lock, config, false)) {
+        ALOGE("adev_open_output_stream(): Unable to open output stream.");
+        return -EINVAL;
+    }
+
     out = (struct submix_stream_out *)calloc(1, sizeof(struct submix_stream_out));
     if (!out) {
         ret = -ENOMEM;
@@ -669,16 +845,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
-    config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
-    rsxadev->config.channel_mask = config->channel_mask;
-
-    if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
-        config->sample_rate = DEFAULT_SAMPLE_RATE_HZ;
-    }
-    rsxadev->config.sample_rate = config->sample_rate;
-
-    config->format = AUDIO_FORMAT_PCM_16_BIT;
-    rsxadev->config.format = config->format;
+    memcpy(&rsxadev->config.common, config, sizeof(rsxadev->config.common));
+    rsxadev->config.output_channel_mask = config->channel_mask;
 
     rsxadev->config.period_size = PERIOD_SIZE_IN_FRAMES;
 
@@ -691,8 +859,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     // initialize pipe
     {
         ALOGV("  initializing pipe");
-        const NBAIO_Format format = Format_from_SR_C(config->sample_rate,
-                get_channel_count_from_mask(config->channel_mask), config->format);
+        const NBAIO_Format format = Format_from_SR_C(rsxadev->config.common.sample_rate,
+                get_channel_count_from_mask(rsxadev->config.common.channel_mask),
+                rsxadev->config.common.format);
         const NBAIO_Format offers[1] = {format};
         size_t numCounterOffers = 0;
         // creating a MonoPipe with optional blocking set to true.
@@ -839,6 +1008,13 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     (void)handle;
     (void)devices;
 
+    // Make sure it's possible to open the device given the current audio config.
+    submix_sanitize_config(config, true);
+    if (!submix_open_validate(rsxadev, &rsxadev->lock, config, true)) {
+        ALOGE("adev_open_input_stream(): Unable to open input stream.");
+        return -EINVAL;
+    }
+
     in = (struct submix_stream_in *)calloc(1, sizeof(struct submix_stream_in));
     if (!in) {
         ret = -ENOMEM;
@@ -864,16 +1040,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
-    config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
-    rsxadev->config.channel_mask = config->channel_mask;
-
-    if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
-        config->sample_rate = DEFAULT_SAMPLE_RATE_HZ;
-    }
-    rsxadev->config.sample_rate = config->sample_rate;
-
-    config->format = AUDIO_FORMAT_PCM_16_BIT;
-    rsxadev->config.format = config->format;
+    memcpy(&rsxadev->config.common, config, sizeof(rsxadev->config.common));
+    rsxadev->config.input_channel_mask = config->channel_mask;
 
     rsxadev->config.period_size = PERIOD_SIZE_IN_FRAMES;
 
