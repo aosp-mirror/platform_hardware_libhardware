@@ -624,6 +624,25 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         return 0;
     }
 
+    // If the write to the sink would block when no input stream is present, flush enough frames
+    // from the pipe to make space to write the most recent data.
+    {
+        const size_t availableToWrite = sink->availableToWrite();
+        sp<MonoPipeReader> source = rsxadev->rsxSource;
+        if (rsxadev->input == NULL && availableToWrite < frames) {
+            static uint8_t flush_buffer[64];
+            const size_t flushBufferSizeFrames = sizeof(flush_buffer) / frame_size;
+            size_t frames_to_flush_from_source = frames - availableToWrite;
+            SUBMIX_ALOGV("out_write(): flushing %d frames from the pipe to avoid blocking",
+                         frames_to_flush_from_source);
+            while (frames_to_flush_from_source) {
+                const size_t flush_size = min(frames_to_flush_from_source, flushBufferSizeFrames);
+                frames_to_flush_from_source -= flush_size;
+                source->read(flush_buffer, flush_size, AudioBufferProvider::kInvalidPTS);
+            }
+        }
+    }
+
     pthread_mutex_unlock(&rsxadev->lock);
 
     written_frames = sink->write(buffer, frames);
