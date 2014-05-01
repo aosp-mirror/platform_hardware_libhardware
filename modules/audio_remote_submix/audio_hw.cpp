@@ -106,12 +106,60 @@ struct submix_stream_in {
     int64_t read_counter_frames;
 };
 
+// Get a pointer to submix_stream_out given an audio_stream_out that is embedded within the
+// structure.
+static struct submix_stream_out * audio_stream_out_get_submix_stream_out(
+        struct audio_stream_out * const stream)
+{
+    ALOG_ASSERT(stream);
+    return reinterpret_cast<struct submix_stream_out *>(reinterpret_cast<uint8_t *>(stream) -
+                offsetof(struct submix_stream_out, stream));
+}
+
+// Get a pointer to submix_stream_out given an audio_stream that is embedded within the structure.
+static struct submix_stream_out * audio_stream_get_submix_stream_out(
+        struct audio_stream * const stream)
+{
+    ALOG_ASSERT(stream);
+    return audio_stream_out_get_submix_stream_out(
+            reinterpret_cast<struct audio_stream_out *>(stream));
+}
+
+// Get a pointer to submix_stream_in given an audio_stream_in that is embedded within the
+// structure.
+static struct submix_stream_in * audio_stream_in_get_submix_stream_in(
+        struct audio_stream_in * const stream)
+{
+    ALOG_ASSERT(stream);
+    return reinterpret_cast<struct submix_stream_in *>(reinterpret_cast<uint8_t *>(stream) -
+            offsetof(struct submix_stream_in, stream));
+}
+
+// Get a pointer to submix_stream_in given an audio_stream that is embedded within the structure.
+static struct submix_stream_in * audio_stream_get_submix_stream_in(
+        struct audio_stream * const stream)
+{
+    ALOG_ASSERT(stream);
+    return audio_stream_in_get_submix_stream_in(
+            reinterpret_cast<struct audio_stream_in *>(stream));
+}
+
+// Get a pointer to submix_audio_device given a pointer to an audio_device that is embedded within
+// the structure.
+static struct submix_audio_device * audio_hw_device_get_submix_audio_device(
+        struct audio_hw_device *device)
+{
+    ALOG_ASSERT(device);
+    return reinterpret_cast<struct submix_audio_device *>(reinterpret_cast<uint8_t *>(device) -
+        offsetof(struct submix_audio_device, device));
+}
+
 /* audio HAL functions */
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
-    const struct submix_stream_out *out =
-            reinterpret_cast<const struct submix_stream_out *>(stream);
+    const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
+            const_cast<struct audio_stream *>(stream));
     uint32_t out_rate = out->dev->config.rate;
     SUBMIX_ALOGV("out_get_sample_rate() returns %u", out_rate);
     return out_rate;
@@ -123,7 +171,7 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
         ALOGE("out_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
     }
-    struct submix_stream_out *out = reinterpret_cast<struct submix_stream_out *>(stream);
+    struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
     SUBMIX_ALOGV("out_set_sample_rate(rate=%u)", rate);
     out->dev->config.rate = rate;
     return 0;
@@ -131,8 +179,8 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
-    const struct submix_stream_out *out =
-            reinterpret_cast<const struct submix_stream_out *>(stream);
+    const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
+            const_cast<struct audio_stream *>(stream));
     const struct submix_config& config_out = out->dev->config;
     size_t buffer_size = config_out.period_size * popcount(config_out.channel_mask)
                             * sizeof(int16_t); // only PCM 16bit
@@ -143,8 +191,8 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 
 static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
-    const struct submix_stream_out *out =
-            reinterpret_cast<const struct submix_stream_out *>(stream);
+    const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
+            const_cast<struct audio_stream *>(stream));
     uint32_t channels = out->dev->config.channel_mask;
     SUBMIX_ALOGV("out_get_channels() returns %08x", channels);
     return channels;
@@ -168,15 +216,14 @@ static int out_set_format(struct audio_stream *stream, audio_format_t format)
 
 static int out_standby(struct audio_stream *stream)
 {
+    struct submix_audio_device * const rsxadev = audio_stream_get_submix_stream_out(stream)->dev;
     ALOGI("out_standby()");
 
-    const struct submix_stream_out *out = reinterpret_cast<const struct submix_stream_out *>(stream);
+    pthread_mutex_lock(&rsxadev->lock);
 
-    pthread_mutex_lock(&out->dev->lock);
+    rsxadev->output_standby = true;
 
-    out->dev->output_standby = true;
-
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_unlock(&rsxadev->lock);
 
     return 0;
 }
@@ -196,25 +243,21 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     // FIXME this is using hard-coded strings but in the future, this functionality will be
     //       converted to use audio HAL extensions required to support tunneling
     if ((parms.getInt(String8("exiting"), exiting) == NO_ERROR) && (exiting > 0)) {
-        const struct submix_stream_out *out =
-                reinterpret_cast<const struct submix_stream_out *>(stream);
-
-        pthread_mutex_lock(&out->dev->lock);
-
+        struct submix_audio_device * const rsxadev =
+                audio_stream_get_submix_stream_out(stream)->dev;
+        pthread_mutex_lock(&rsxadev->lock);
         { // using the sink
-            sp<MonoPipe> sink = out->dev->rsxSink.get();
-            if (sink == 0) {
-                pthread_mutex_unlock(&out->dev->lock);
+            sp<MonoPipe> sink = rsxadev->rsxSink.get();
+            if (sink == NULL) {
+                pthread_mutex_unlock(&rsxadev->lock);
                 return 0;
             }
 
             ALOGI("out_set_parameters(): shutdown");
             sink->shutdown(true);
         } // done using the sink
-
-        pthread_mutex_unlock(&out->dev->lock);
+        pthread_mutex_unlock(&rsxadev->lock);
     }
-
     return 0;
 }
 
@@ -227,8 +270,8 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 
 static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
-    const struct submix_stream_out *out =
-            reinterpret_cast<const struct submix_stream_out *>(stream);
+    const struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(
+            const_cast<struct audio_stream_out *>(stream));
     const struct submix_config * config_out = &(out->dev->config);
     uint32_t latency = (MAX_PIPE_DEPTH_IN_FRAMES * 1000) / config_out->rate;
     ALOGV("out_get_latency() returns %u", latency);
@@ -249,20 +292,20 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 {
     SUBMIX_ALOGV("out_write(bytes=%zd)", bytes);
     ssize_t written_frames = 0;
-    struct submix_stream_out *out = reinterpret_cast<struct submix_stream_out *>(stream);
-
     const size_t frame_size = audio_stream_frame_size(&stream->common);
+    struct submix_audio_device * const rsxadev =
+            audio_stream_out_get_submix_stream_out(stream)->dev;
     const size_t frames = bytes / frame_size;
 
-    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&rsxadev->lock);
 
-    out->dev->output_standby = false;
+    rsxadev->output_standby = false;
 
-    sp<MonoPipe> sink = out->dev->rsxSink.get();
-    if (sink != 0) {
+    sp<MonoPipe> sink = rsxadev->rsxSink.get();
+    if (sink != NULL) {
         if (sink->isShutdown()) {
             sink.clear();
-            pthread_mutex_unlock(&out->dev->lock);
+            pthread_mutex_unlock(&rsxadev->lock);
             SUBMIX_ALOGV("out_write(): pipe shutdown, ignoring the write.");
             // the pipe has already been shutdown, this buffer will be lost but we must
             //   simulate timing so we don't drain the output faster than realtime
@@ -270,13 +313,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             return bytes;
         }
     } else {
-        pthread_mutex_unlock(&out->dev->lock);
+        pthread_mutex_unlock(&rsxadev->lock);
         ALOGE("out_write without a pipe!");
         ALOG_ASSERT("out_write without a pipe!");
         return 0;
     }
 
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_unlock(&rsxadev->lock);
 
     written_frames = sink->write(buffer, frames);
 
@@ -284,9 +327,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         if (written_frames == (ssize_t)NEGOTIATE) {
             ALOGE("out_write() write to pipe returned NEGOTIATE");
 
-            pthread_mutex_lock(&out->dev->lock);
+            pthread_mutex_lock(&rsxadev->lock);
             sink.clear();
-            pthread_mutex_unlock(&out->dev->lock);
+            pthread_mutex_unlock(&rsxadev->lock);
 
             written_frames = 0;
             return 0;
@@ -297,9 +340,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         }
     }
 
-    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&rsxadev->lock);
     sink.clear();
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_unlock(&rsxadev->lock);
 
     if (written_frames < 0) {
         ALOGE("out_write() failed writing to pipe with %zd", written_frames);
@@ -343,7 +386,8 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
 /** audio_stream_in implementation **/
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
-    const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
+        const_cast<struct audio_stream*>(stream));
     SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.sample_rate);
     return in->dev->config.rate;
 }
@@ -355,7 +399,8 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
-    const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
+            const_cast<struct audio_stream*>(stream));
     ALOGV("in_get_buffer_size() returns %zu",
             in->dev->config.period_size * audio_stream_frame_size(stream));
     return in->dev->config.period_size * audio_stream_frame_size(stream);
@@ -384,14 +429,14 @@ static int in_set_format(struct audio_stream *stream, audio_format_t format)
 
 static int in_standby(struct audio_stream *stream)
 {
+    struct submix_audio_device * const rsxadev = audio_stream_get_submix_stream_in(stream)->dev;
     ALOGI("in_standby()");
-    const struct submix_stream_in *in = reinterpret_cast<const struct submix_stream_in *>(stream);
 
-    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&rsxadev->lock);
 
-    in->dev->input_standby = true;
+    rsxadev->input_standby = true;
 
-    pthread_mutex_unlock(&in->dev->lock);
+    pthread_mutex_unlock(&rsxadev->lock);
 
     return 0;
 }
@@ -429,19 +474,19 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                        size_t bytes)
 {
     ssize_t frames_read = -1977;
-    struct submix_stream_in *in = reinterpret_cast<struct submix_stream_in *>(stream);
+    struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
+    struct submix_audio_device * const rsxadev = in->dev;
     const size_t frame_size = audio_stream_frame_size(&stream->common);
     const size_t frames_to_read = bytes / frame_size;
 
     SUBMIX_ALOGV("in_read bytes=%zu", bytes);
-
-    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&rsxadev->lock);
 
     const bool output_standby_transition = (in->output_standby != in->dev->output_standby);
-    in->output_standby = in->dev->output_standby;
+    in->output_standby = rsxadev->output_standby;
 
-    if (in->dev->input_standby || output_standby_transition) {
-        in->dev->input_standby = false;
+    if (rsxadev->input_standby || output_standby_transition) {
+        rsxadev->input_standby = false;
         // keep track of when we exit input standby (== first read == start "real recording")
         // or when we start recording silence, and reset projected time
         int rc = clock_gettime(CLOCK_MONOTONIC, &in->record_start_time);
@@ -455,16 +500,16 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     {
         // about to read from audio source
-        sp<MonoPipeReader> source = in->dev->rsxSource.get();
-        if (source == 0) {
+        sp<MonoPipeReader> source = rsxadev->rsxSource;
+        if (source == NULL) {
             ALOGE("no audio pipe yet we're trying to read!");
-            pthread_mutex_unlock(&in->dev->lock);
+            pthread_mutex_unlock(&rsxadev->lock);
             usleep((bytes / frame_size) * 1000000 / in_get_sample_rate(&stream->common));
             memset(buffer, 0, bytes);
             return bytes;
         }
 
-        pthread_mutex_unlock(&in->dev->lock);
+        pthread_mutex_unlock(&rsxadev->lock);
 
         // read the data from the pipe (it's non blocking)
         int attempts = 0;
@@ -483,9 +528,9 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             }
         }
         // done using the source
-        pthread_mutex_lock(&in->dev->lock);
+        pthread_mutex_lock(&rsxadev->lock);
         source.clear();
-        pthread_mutex_unlock(&in->dev->lock);
+        pthread_mutex_unlock(&rsxadev->lock);
     }
 
     if (remaining_frames > 0) {
@@ -509,10 +554,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             record_duration.tv_nsec += 1000000000;
         }
 
-        // read_counter_frames contains the number of frames that have been read since the beginning
-        // of recording (including this call): it's converted to usec and compared to how long we've
-        // been recording for, which gives us how long we must wait to sync the projected recording
-        // time, and the observed recording time
+        // read_counter_frames contains the number of frames that have been read since the
+        // beginning of recording (including this call): it's converted to usec and compared to
+        // how long we've been recording for, which gives us how long we must wait to sync the
+        // projected recording time, and the observed recording time.
         long projected_vs_observed_offset_us =
                 ((int64_t)(in->read_counter_frames
                             - (record_duration.tv_sec*sample_rate)))
@@ -559,8 +604,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out)
 {
+    struct submix_audio_device * const rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGV("adev_open_output_stream()");
-    struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
     struct submix_stream_out *out;
     int ret;
     (void)handle;
@@ -641,8 +686,8 @@ err_open:
 static void adev_close_output_stream(struct audio_hw_device *dev,
                                      struct audio_stream_out *stream)
 {
+    struct submix_audio_device *rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGV("adev_close_output_stream()");
-    struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
 
     pthread_mutex_lock(&rsxadev->lock);
 
@@ -747,8 +792,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   struct audio_stream_in **stream_in)
 {
     ALOGI("adev_open_input_stream()");
-
-    struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
+    struct submix_audio_device *rsxadev = audio_hw_device_get_submix_audio_device(dev);
     struct submix_stream_in *in;
     int ret;
     (void)handle;
@@ -811,8 +855,8 @@ err_open:
 static void adev_close_input_stream(struct audio_hw_device *dev,
                                     struct audio_stream_in *stream)
 {
+    struct submix_audio_device *rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGV("adev_close_input_stream()");
-    struct submix_audio_device *rsxadev = (struct submix_audio_device *)dev;
 
     pthread_mutex_lock(&rsxadev->lock);
 
