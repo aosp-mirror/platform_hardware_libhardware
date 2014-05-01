@@ -53,21 +53,26 @@ namespace android {
 #define SUBMIX_ALOGE(...)
 #endif // SUBMIX_VERBOSE_LOGGING
 
+// Size of the pipe's buffer in frames.
 #define MAX_PIPE_DEPTH_IN_FRAMES     (1024*8)
+// Maximum number of frames users of the input and output stream should buffer.
+#define PERIOD_SIZE_IN_FRAMES         1024
 // The duration of MAX_READ_ATTEMPTS * READ_ATTEMPT_SLEEP_MS must be stricly inferior to
 //   the duration of a record buffer at the current record sample rate (of the device, not of
 //   the recording itself). Here we have:
 //      3 * 5ms = 15ms < 1024 frames * 1000 / 48000 = 21.333ms
 #define MAX_READ_ATTEMPTS            3
 #define READ_ATTEMPT_SLEEP_MS        5 // 5ms between two read attempts when pipe is empty
-#define DEFAULT_RATE_HZ              48000 // default sample rate
+#define DEFAULT_SAMPLE_RATE_HZ       48000 // default sample rate
+// See NBAIO_Format frameworks/av/include/media/nbaio/NBAIO.h.
+#define DEFAULT_FORMAT               AUDIO_FORMAT_PCM_16_BIT
 
+// Configuration of the submix pipe.
 struct submix_config {
     audio_format_t format;
     audio_channel_mask_t channel_mask;
-    unsigned int rate; // sample rate for the device
-    unsigned int period_size; // size of the audio pipe is period_size * period_count in frames
-    unsigned int period_count;
+    unsigned int sample_rate; // Sample rate for the device in Hz.
+    size_t period_size; // Size of the audio pipe is period_size * period_count in frames.
 };
 
 struct submix_audio_device {
@@ -83,10 +88,11 @@ struct submix_audio_device {
     // A usecase example is one where the component capturing the audio is then sending it over
     // Wifi for presentation on a remote Wifi Display device (e.g. a dongle attached to a TV, or a
     // TV with Wifi Display capabilities), or to a wireless audio player.
-    sp<MonoPipe>       rsxSink;
+    sp<MonoPipe> rsxSink;
     sp<MonoPipeReader> rsxSource;
 
-    // device lock, also used to protect access to the audio pipe
+    // Device lock, also used to protect access to submix_audio_device from the input and output
+    // streams.
     pthread_mutex_t lock;
 };
 
@@ -154,13 +160,25 @@ static struct submix_audio_device * audio_hw_device_get_submix_audio_device(
         offsetof(struct submix_audio_device, device));
 }
 
+// Get the number of channels referenced by the specified channel_mask.  The channel_mask can
+// reference either input or output channels.
+uint32_t get_channel_count_from_mask(const audio_channel_mask_t channel_mask) {
+    if (audio_is_input_channel(channel_mask)) {
+        return popcount(channel_mask & AUDIO_CHANNEL_IN_ALL);
+    } else if (audio_is_output_channel(channel_mask)) {
+        return popcount(channel_mask & AUDIO_CHANNEL_OUT_ALL);
+    }
+    ALOGE("get_channel_count(): No channels specified in channel mask %x", channel_mask);
+    return 0;
+}
+
 /* audio HAL functions */
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    uint32_t out_rate = out->dev->config.rate;
+    const uint32_t out_rate = out->dev->config.sample_rate;
     SUBMIX_ALOGV("out_get_sample_rate() returns %u", out_rate);
     return out_rate;
 }
@@ -173,7 +191,7 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
     }
     struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
     SUBMIX_ALOGV("out_set_sample_rate(rate=%u)", rate);
-    out->dev->config.rate = rate;
+    out->dev->config.sample_rate = rate;
     return 0;
 }
 
@@ -181,11 +199,10 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    const struct submix_config& config_out = out->dev->config;
-    size_t buffer_size = config_out.period_size * popcount(config_out.channel_mask)
-                            * sizeof(int16_t); // only PCM 16bit
-    SUBMIX_ALOGV("out_get_buffer_size() returns %u, period size=%u",
-            buffer_size, config_out.period_size);
+    const struct submix_config * const config = &out->dev->config;
+    const size_t buffer_size = config->period_size * audio_stream_frame_size(stream);
+    SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
+                 buffer_size, config->buffer_period_size_frames);
     return buffer_size;
 }
 
@@ -193,20 +210,24 @@ static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-    uint32_t channels = out->dev->config.channel_mask;
-    SUBMIX_ALOGV("out_get_channels() returns %08x", channels);
-    return channels;
+    uint32_t channel_mask = out->dev->config.channel_mask;
+    SUBMIX_ALOGV("out_get_channels() returns %08x", channel_mask);
+    return channel_mask;
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
+            const_cast<struct audio_stream *>(stream));
+    const audio_format_t format = out->dev->config.format;
+    SUBMIX_ALOGV("out_get_format() returns %x", format);
+    return format;
 }
 
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
-    (void)stream;
-    if (format != AUDIO_FORMAT_PCM_16_BIT) {
+    const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
+    if (format != out->dev->config.format) {
         ALOGE("out_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
     }
@@ -272,10 +293,11 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
     const struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(
             const_cast<struct audio_stream_out *>(stream));
-    const struct submix_config * config_out = &(out->dev->config);
-    uint32_t latency = (MAX_PIPE_DEPTH_IN_FRAMES * 1000) / config_out->rate;
-    ALOGV("out_get_latency() returns %u", latency);
-    return latency;
+    const struct submix_config * const config = &out->dev->config;
+    const uint32_t latency_ms = (MAX_PIPE_DEPTH_IN_FRAMES * 1000) / config->sample_rate;
+    SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u", latency_ms,
+          config->buffer_size_frames, config->common.sample_rate);
+    return latency_ms;
 }
 
 static int out_set_volume(struct audio_stream_out *stream, float left,
@@ -389,21 +411,24 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
         const_cast<struct audio_stream*>(stream));
     SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.sample_rate);
-    return in->dev->config.rate;
+    return in->dev->config.sample_rate;
 }
 
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
-    return -ENOSYS;
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
+    in->dev->config.sample_rate = rate;
+    SUBMIX_ALOGV("in_set_sample_rate() set %u", rate);
+    return 0;
 }
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
             const_cast<struct audio_stream*>(stream));
-    ALOGV("in_get_buffer_size() returns %zu",
-            in->dev->config.period_size * audio_stream_frame_size(stream));
-    return in->dev->config.period_size * audio_stream_frame_size(stream);
+    const size_t buffer_size = in->dev->config.period_size * audio_stream_frame_size(stream);
+    SUBMIX_ALOGV("in_get_buffer_size() returns %zu", buffer_size);
+    return buffer_size;
 }
 
 static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
@@ -414,12 +439,17 @@ static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
+        const_cast<struct audio_stream*>(stream));
+    const audio_format_t format = in->dev->config.format;
+    SUBMIX_ALOGV("in_get_format() returns %x", format);
+    return format;
 }
 
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
 {
-    if (format != AUDIO_FORMAT_PCM_16_BIT) {
+    const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
+    if (format != in->dev->config.format) {
         ALOGE("in_set_format(format=%x) format unsupported", format);
         return -ENOSYS;
     }
@@ -620,6 +650,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     pthread_mutex_lock(&rsxadev->lock);
 
+    // Initialize the function pointer tables (v-tables).
     out->stream.common.get_sample_rate = out_get_sample_rate;
     out->stream.common.set_sample_rate = out_set_sample_rate;
     out->stream.common.get_buffer_size = out_get_buffer_size;
@@ -642,24 +673,26 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     rsxadev->config.channel_mask = config->channel_mask;
 
     if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
-        config->sample_rate = DEFAULT_RATE_HZ;
+        config->sample_rate = DEFAULT_SAMPLE_RATE_HZ;
     }
-    rsxadev->config.rate = config->sample_rate;
+    rsxadev->config.sample_rate = config->sample_rate;
 
     config->format = AUDIO_FORMAT_PCM_16_BIT;
     rsxadev->config.format = config->format;
 
-    rsxadev->config.period_size = 1024;
-    rsxadev->config.period_count = 4;
-    out->dev = rsxadev;
+    rsxadev->config.period_size = PERIOD_SIZE_IN_FRAMES;
 
+    // Store a pointer to the device from the output stream.
+    out->dev = rsxadev;
+    // Return the output stream.
     *stream_out = &out->stream;
+
 
     // initialize pipe
     {
         ALOGV("  initializing pipe");
         const NBAIO_Format format = Format_from_SR_C(config->sample_rate,
-                popcount(config->channel_mask), config->format);
+                get_channel_count_from_mask(config->channel_mask), config->format);
         const NBAIO_Format offers[1] = {format};
         size_t numCounterOffers = 0;
         // creating a MonoPipe with optional blocking set to true.
@@ -779,10 +812,18 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
                                          const struct audio_config *config)
 {
-    (void)dev;
-    (void)config;
-    //### TODO correlate this with pipe parameters
-    return 4096;
+    if (audio_is_linear_pcm(config->format)) {
+        const size_t buffer_period_size_frames =
+            audio_hw_device_get_submix_audio_device(const_cast<struct audio_hw_device*>(dev))->
+                config.period_size;
+        const size_t frame_size_in_bytes = get_channel_count_from_mask(config->channel_mask) *
+                audio_bytes_per_sample(config->format);
+        const size_t buffer_size = buffer_period_size_frames * frame_size_in_bytes;
+        SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
+                 buffer_size, buffer_period_size_frames);
+        return buffer_size;
+    }
+    return 0;
 }
 
 static int adev_open_input_stream(struct audio_hw_device *dev,
@@ -791,10 +832,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in)
 {
-    ALOGI("adev_open_input_stream()");
     struct submix_audio_device *rsxadev = audio_hw_device_get_submix_audio_device(dev);
     struct submix_stream_in *in;
     int ret;
+    ALOGI("adev_open_input_stream()");
     (void)handle;
     (void)devices;
 
@@ -806,6 +847,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     pthread_mutex_lock(&rsxadev->lock);
 
+    // Initialize the function pointer tables (v-tables).
     in->stream.common.get_sample_rate = in_get_sample_rate;
     in->stream.common.set_sample_rate = in_set_sample_rate;
     in->stream.common.get_buffer_size = in_get_buffer_size;
@@ -826,20 +868,20 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     rsxadev->config.channel_mask = config->channel_mask;
 
     if ((config->sample_rate != 48000) && (config->sample_rate != 44100)) {
-        config->sample_rate = DEFAULT_RATE_HZ;
+        config->sample_rate = DEFAULT_SAMPLE_RATE_HZ;
     }
-    rsxadev->config.rate = config->sample_rate;
+    rsxadev->config.sample_rate = config->sample_rate;
 
     config->format = AUDIO_FORMAT_PCM_16_BIT;
     rsxadev->config.format = config->format;
 
-    rsxadev->config.period_size = 1024;
-    rsxadev->config.period_count = 4;
+    rsxadev->config.period_size = PERIOD_SIZE_IN_FRAMES;
 
     *stream_in = &in->stream;
 
     in->dev = rsxadev;
 
+    // Initialize the input stream.
     in->read_counter_frames = 0;
     in->output_standby = rsxadev->output_standby;
 
