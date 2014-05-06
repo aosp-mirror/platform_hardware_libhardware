@@ -588,7 +588,7 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
     common :{
         tag : HARDWARE_MODULE_TAG,
         version_major : 1,
-        version_minor : 0,
+        version_minor : 1,
         id : SENSORS_HARDWARE_MODULE_ID,
         name : "MultiHal Sensor Module",
         author : "Google, Inc",
@@ -609,7 +609,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
     sensors_poll_context_t *dev = new sensors_poll_context_t();
     memset(dev, 0, sizeof(sensors_poll_device_1_t));
     dev->proxy_device.common.tag = HARDWARE_DEVICE_TAG;
-    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_0;
+    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_1;
     dev->proxy_device.common.module = const_cast<hw_module_t*>(hw_module);
     dev->proxy_device.common.close = device__close;
     dev->proxy_device.activate = device__activate;
