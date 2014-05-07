@@ -159,6 +159,9 @@ typedef void (*listen_callback)(int status, int server_if);
 /** Callback invoked when the MTU for a given connection changes */
 typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 
+/** Callback invoked when a scan filter configuration command has completed */
+typedef void (*scan_filter_callback)(int action, int status);
+
 typedef struct {
     register_client_callback            register_client_cb;
     scan_result_callback                scan_result_cb;
@@ -179,6 +182,7 @@ typedef struct {
     read_remote_rssi_callback           read_remote_rssi_cb;
     listen_callback                     listen_cb;
     configure_mtu_callback              configure_mtu_cb;
+    scan_filter_callback                scan_filter_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -275,6 +279,17 @@ typedef struct {
 
     /** Request RSSI for a given remote device */
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
+
+    /** Enable or disable scan filtering */
+    bt_status_t (*scan_filter_enable)( int enable );
+
+    /** Configure a scan filter condition  */
+    bt_status_t (*scan_filter_add)(int type, int company_id, int company_mask,
+                                   int len, const bt_uuid_t *p_uuid, const bt_uuid_t *p_uuid_mask,
+                                   const bt_bdaddr_t *bd_addr, char addr_type, const char* p_value);
+
+    /** Clear all scan filter conditions */
+    bt_status_t (*scan_filter_clear)();
 
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
     int (*get_device_type)( const bt_bdaddr_t *bd_addr );
