@@ -129,7 +129,8 @@ typedef struct {
     bt_status_t (*unregister_server)(int server_if );
 
     /** Create a connection to a remote peripheral */
-    bt_status_t (*connect)(int server_if, const bt_bdaddr_t *bd_addr, bool is_direct );
+    bt_status_t (*connect)(int server_if, const bt_bdaddr_t *bd_addr,
+                            bool is_direct, int transport);
 
     /** Disconnect an established connection or cancel a pending one */
     bt_status_t (*disconnect)(int server_if, const bt_bdaddr_t *bd_addr,
@@ -168,6 +169,7 @@ typedef struct {
     /** Send a response to a read/write operation */
     bt_status_t (*send_response)(int conn_id, int trans_id,
                                  int status, btgatt_response_t *response);
+
 } btgatt_server_interface_t;
 
 __END_DECLS
