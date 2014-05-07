@@ -533,6 +533,27 @@ enum {
 #define SENSOR_TYPE_WAKE_UP_TILT_DETECTOR                      (41)
 #define SENSOR_STRING_TYPE_WAKE_UP_TILT_DETECTOR               "android.sensor.wake_up_tilt_detector"
 
+/*
+ * SENSOR_TYPE_WAKE_GESTURE
+ * trigger-mode: one-shot
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
+ *
+ * A sensor enabling waking up the device based on a device specific motion.
+ *
+ * When this sensor triggers, the device behaves as if the power button was
+ * pressed, turning the screen on. This behavior (turning on the screen when
+ * this sensor triggers) might be deactivated by the user in the device
+ * settings. Changes in settings do not impact the behavior of the sensor:
+ * only whether the framework turns the screen on when it triggers.
+ *
+ * The actual gesture to be detected is not specified, and can be chosen by
+ * the manufacturer of the device.
+ * This sensor must be low power, as it is likely to be activated 24/7.
+ * The only allowed value to return is 1.0.
+ */
+#define SENSOR_TYPE_WAKE_GESTURE                               (42)
+#define SENSOR_STRING_TYPE_WAKE_GESTURE                        "android.sensor.wake_gesture"
+
 /**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
