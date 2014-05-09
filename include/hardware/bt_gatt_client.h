@@ -195,7 +195,7 @@ typedef struct {
     bt_status_t (*unregister_client)(int client_if );
 
     /** Start or stop LE device scanning */
-    bt_status_t (*scan)( int client_if, bool start );
+    bt_status_t (*scan)( bool start );
 
     /** Create a connection to a remote LE or dual-mode device */
     bt_status_t (*connect)( int client_if, const bt_bdaddr_t *bd_addr,
@@ -303,6 +303,9 @@ typedef struct {
 
     /** Configure the MTU for a given connection */
     bt_status_t (*configure_mtu)(int conn_id, int mtu);
+
+    /** Sets the LE scan interval and window in units of N*0.625 msec */
+    bt_status_t (*set_scan_parameters)(int scan_interval, int scan_window);
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
