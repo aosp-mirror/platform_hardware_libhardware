@@ -152,7 +152,7 @@ typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
                                           int rssi, int status);
 
 /**
- * Callback indicationg the status of a listen() operation
+ * Callback indicating the status of a listen() operation
  */
 typedef void (*listen_callback)(int status, int server_if);
 
@@ -180,6 +180,19 @@ typedef void (*multi_adv_disable_callback)(int client_if, int status);
  * a further callback is received indicating the congestion status has been cleared.
  */
 typedef void (*congestion_callback)(int conn_id, bool congested);
+/** Callback invoked when batchscan storage config operation has completed */
+typedef void (*batchscan_cfg_storage_callback)(int client_if, int status);
+
+/** Callback invoked when batchscan enable / disable operation has completed */
+typedef void (*batchscan_enable_disable_callback)(int action, int client_if, int status);
+
+/** Callback invoked when batchscan reports are obtained */
+typedef void (*batchscan_reports_callback)(int client_if, int status, int report_format,
+                                           int num_records, int data_len, uint8_t* rep_data);
+
+/** Callback invoked when batchscan storage threshold limit is crossed */
+typedef void (*batchscan_threshold_callback)(int client_if);
+
 
 typedef struct {
     register_client_callback            register_client_cb;
@@ -207,6 +220,10 @@ typedef struct {
     multi_adv_data_callback             multi_adv_data_cb;
     multi_adv_disable_callback          multi_adv_disable_cb;
     congestion_callback                 congestion_cb;
+    batchscan_cfg_storage_callback      batchscan_cfg_storage_cb;
+    batchscan_enable_disable_callback   batchscan_enb_disable_cb;
+    batchscan_reports_callback          batchscan_reports_cb;
+    batchscan_threshold_callback        batchscan_threshold_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -341,12 +358,26 @@ typedef struct {
 
     /* Setup the data for the specified instance */
     bt_status_t (*multi_adv_set_inst_data)(int client_if, bool set_scan_rsp, bool include_name,
-                    bool include_txpower, int appearance, uint16_t manufacturer_len,
-                    char* manufacturer_data, uint16_t service_data_len, char* service_data,
-                    uint16_t service_uuid_len, char* service_uuid);
+                    bool incl_txpower, int appearance, uint16_t manufacturer_len,
+                    char* manufacturer_data, uint16_t service_data_len,
+                    char* service_data, uint16_t service_uuid_len, char* service_uuid);
 
     /* Disable the multi adv instance */
     bt_status_t (*multi_adv_disable)(int client_if);
+
+    /* Configure the batchscan storage */
+    bt_status_t (*batchscan_cfg_storage)(int client_if, int batch_scan_full_max,
+        int batch_scan_trunc_max, int batch_scan_notify_threshold);
+
+    /* Enable batchscan */
+    bt_status_t (*batchscan_enb_batch_scan)(int client_if, int scan_mode,
+        int scan_interval, int scan_window, int addr_type, int discard_rule);
+
+    /* Disable batchscan */
+    bt_status_t (*batchscan_dis_batch_scan)(int client_if);
+
+    /* Read out batchscan reports */
+    bt_status_t (*batchscan_read_reports)(int client_if, int scan_mode);
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
