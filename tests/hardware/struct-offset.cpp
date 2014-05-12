@@ -177,7 +177,10 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(gralloc_module_t, unlock, 140, 272);
     CHECK_MEMBER_AT(gralloc_module_t, perform, 144, 280);
     CHECK_MEMBER_AT(gralloc_module_t, lock_ycbcr, 148, 288);
-    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 152, 296);
+    CHECK_MEMBER_AT(gralloc_module_t, lockAsync, 152, 296);
+    CHECK_MEMBER_AT(gralloc_module_t, unlockAsync, 156, 304);
+    CHECK_MEMBER_AT(gralloc_module_t, lockAsync_ycbcr, 160, 312);
+    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 164, 320);
 
     CHECK_MEMBER_AT(alloc_device_t, common, 0, 0);
     CHECK_MEMBER_AT(alloc_device_t, alloc, 64, 120);
