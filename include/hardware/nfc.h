@@ -59,6 +59,12 @@ __BEGIN_DECLS
  *  nfc_nci_module_t should contain module-specific parameters
  */
 typedef struct nfc_nci_module_t {
+    /**
+     * Common methods of the NFC NCI module.  This *must* be the first member of
+     * nfc_nci_module_t as users of this structure will cast a hw_module_t to
+     * nfc_nci_module_t pointer in contexts where it's known the hw_module_t references a
+     * nfc_nci_module_t.
+     */
     struct hw_module_t common;
 } nfc_nci_module_t;
 
@@ -108,6 +114,12 @@ typedef void (nfc_stack_data_callback_t) (uint16_t data_len, uint8_t* p_data);
  * All methods in the NCI HAL are asynchronous.
  */
 typedef struct nfc_nci_device {
+    /**
+     * Common methods of the NFC NCI device.  This *must* be the first member of
+     * nfc_nci_device_t as users of this structure will cast a hw_device_t to
+     * nfc_nci_device_t pointer in contexts where it's known the hw_device_t references a
+     * nfc_nci_device_t.
+     */
     struct hw_device_t common;
     /*
      * (*open)() Opens the NFC controller device and performs initialization.
@@ -213,7 +225,7 @@ typedef struct nfc_module_t {
     /**
      * Common methods of the NFC NXP PN544 module.  This *must* be the first member of
      * nfc_module_t as users of this structure will cast a hw_module_t to
-     * nfc_module_t pointer in contexts where it's known the hw_module_t references an
+     * nfc_module_t pointer in contexts where it's known the hw_module_t references a
      * nfc_module_t.
      */
     struct hw_module_t common;
@@ -236,7 +248,7 @@ typedef struct {
     /**
      * Common methods of the NFC NXP PN544 device.  This *must* be the first member of
      * nfc_pn544_device_t as users of this structure will cast a hw_device_t to
-     * nfc_pn544_device_t pointer in contexts where it's known the hw_device_t references an
+     * nfc_pn544_device_t pointer in contexts where it's known the hw_device_t references a
      * nfc_pn544_device_t.
      */
     struct hw_device_t common;
