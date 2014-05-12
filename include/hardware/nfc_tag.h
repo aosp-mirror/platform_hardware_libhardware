@@ -32,10 +32,22 @@ __BEGIN_DECLS
 #define NFC_TAG_ID "tag"
 
 typedef struct nfc_tag_module_t {
+    /**
+     * Common methods of the NFC tag module.  This *must* be the first member of
+     * nfc_tag_module_t as users of this structure will cast a hw_module_t to
+     * nfc_tag_module_t pointer in contexts where it's known the hw_module_t references a
+     * nfc_tag_module_t.
+     */
     struct hw_module_t common;
 } nfc_tag_module_t;
 
 typedef struct nfc_tag_device {
+    /**
+     * Common methods of the NFC tag device.  This *must* be the first member of
+     * nfc_tag_device_t as users of this structure will cast a hw_device_t to
+     * nfc_tag_device_t pointer in contexts where it's known the hw_device_t references a
+     * nfc_tag_device_t.
+     */
     struct hw_device_t common;
 
     /**

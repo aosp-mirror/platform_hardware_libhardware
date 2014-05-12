@@ -423,6 +423,12 @@ typedef struct audio_policy_module {
 } audio_policy_module_t;
 
 struct audio_policy_device {
+    /**
+     * Common methods of the audio policy device.  This *must* be the first member of
+     * audio_policy_device as users of this structure will cast a hw_device_t to
+     * audio_policy_device pointer in contexts where it's known the hw_device_t references an
+     * audio_policy_device.
+     */
     struct hw_device_t common;
 
     int (*create_audio_policy)(const struct audio_policy_device *device,

@@ -260,6 +260,11 @@ typedef enum {
  */
 
 struct audio_stream_out {
+    /**
+     * Common methods of the audio stream out.  This *must* be the first member of audio_stream_out
+     * as users of this structure will cast a audio_stream to audio_stream_out pointer in contexts
+     * where it's known the audio_stream references an audio_stream_out.
+     */
     struct audio_stream common;
 
     /**
@@ -383,6 +388,11 @@ struct audio_stream_out {
 typedef struct audio_stream_out audio_stream_out_t;
 
 struct audio_stream_in {
+    /**
+     * Common methods of the audio stream in.  This *must* be the first member of audio_stream_in
+     * as users of this structure will cast a audio_stream to audio_stream_in pointer in contexts
+     * where it's known the audio_stream references an audio_stream_in.
+     */
     struct audio_stream common;
 
     /** set the input gain for the audio driver. This method is for
@@ -439,6 +449,11 @@ struct audio_module {
 };
 
 struct audio_hw_device {
+    /**
+     * Common methods of the audio device.  This *must* be the first member of audio_hw_device
+     * as users of this structure will cast a hw_device_t to audio_hw_device pointer in contexts
+     * where it's known the hw_device_t references an audio_hw_device.
+     */
     struct hw_device_t common;
 
     /**

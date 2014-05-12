@@ -32,10 +32,22 @@ typedef struct consumerir_freq_range {
 } consumerir_freq_range_t;
 
 typedef struct consumerir_module {
+    /**
+     * Common methods of the consumer IR module.  This *must* be the first member of
+     * consumerir_module as users of this structure will cast a hw_module_t to
+     * consumerir_module pointer in contexts where it's known the hw_module_t references a
+     * consumerir_module.
+     */
     struct hw_module_t common;
 } consumerir_module_t;
 
 typedef struct consumerir_device {
+    /**
+     * Common methods of the consumer IR device.  This *must* be the first member of
+     * consumerir_device as users of this structure will cast a hw_device_t to
+     * consumerir_device pointer in contexts where it's known the hw_device_t references a
+     * consumerir_device.
+     */
     struct hw_device_t common;
 
     /*

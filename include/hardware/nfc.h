@@ -210,6 +210,12 @@ static inline int nfc_nci_close(nfc_nci_device_t* dev) {
 #define NFC_PN544_CONTROLLER "pn544"
 
 typedef struct nfc_module_t {
+    /**
+     * Common methods of the NFC NXP PN544 module.  This *must* be the first member of
+     * nfc_module_t as users of this structure will cast a hw_module_t to
+     * nfc_module_t pointer in contexts where it's known the hw_module_t references an
+     * nfc_module_t.
+     */
     struct hw_module_t common;
 } nfc_module_t;
 
@@ -227,6 +233,12 @@ typedef enum {
 } nfc_pn544_linktype;
 
 typedef struct {
+    /**
+     * Common methods of the NFC NXP PN544 device.  This *must* be the first member of
+     * nfc_pn544_device_t as users of this structure will cast a hw_device_t to
+     * nfc_pn544_device_t pointer in contexts where it's known the hw_device_t references an
+     * nfc_pn544_device_t.
+     */
     struct hw_device_t common;
 
     /* The number of EEPROM registers to write */

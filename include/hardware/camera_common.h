@@ -254,6 +254,12 @@ typedef struct camera_module_callbacks {
 } camera_module_callbacks_t;
 
 typedef struct camera_module {
+    /**
+     * Common methods of the camera module.  This *must* be the first member of
+     * camera_module as users of this structure will cast a hw_module_t to
+     * camera_module pointer in contexts where it's known the hw_module_t references a
+     * camera_module.
+     */
     hw_module_t common;
 
     /**

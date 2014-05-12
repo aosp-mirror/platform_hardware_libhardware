@@ -83,6 +83,12 @@ enum {
 };
 
 struct keystore_module {
+    /**
+     * Common methods of the keystore module.  This *must* be the first member of
+     * keystore_module as users of this structure will cast a hw_module_t to
+     * keystore_module pointer in contexts where it's known the hw_module_t references a
+     * keystore_module.
+     */
     hw_module_t common;
 };
 
@@ -166,6 +172,12 @@ typedef struct {
  * The parameters that can be set for a given keymaster implementation.
  */
 struct keymaster_device {
+    /**
+     * Common methods of the keymaster device.  This *must* be the first member of
+     * keymaster_device as users of this structure will cast a hw_device_t to
+     * keymaster_device pointer in contexts where it's known the hw_device_t references a
+     * keymaster_device.
+     */
     struct hw_device_t common;
 
     /**
@@ -282,4 +294,3 @@ static inline int keymaster_close(keymaster_device_t* device)
 __END_DECLS
 
 #endif  // ANDROID_HARDWARE_KEYMASTER_H
-

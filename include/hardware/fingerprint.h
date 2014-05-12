@@ -69,6 +69,12 @@ typedef void (*fingerprint_notify_t)(fingerprint_msg_t msg);
 
 /* Synchronous operation */
 typedef struct fingerprint_device {
+    /**
+     * Common methods of the fingerprint device.  This *must* be the first member of
+     * fingerprint_device as users of this structure will cast a hw_device_t to
+     * fingerprint_device pointer in contexts where it's known the hw_device_t references a
+     * fingerprint_device.
+     */
     struct hw_device_t common;
 
     /*
@@ -121,6 +127,12 @@ typedef struct fingerprint_device {
 } fingerprint_device_t;
 
 typedef struct fingerprint_module {
+    /**
+     * Common methods of the fingerprint module.  This *must* be the first member of
+     * fingerprint_module as users of this structure will cast a hw_module_t to
+     * fingerprint_module pointer in contexts where it's known the hw_module_t references a
+     * fingerprint_module.
+     */
     struct hw_module_t common;
 } fingerprint_module_t;
 
