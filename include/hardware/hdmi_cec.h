@@ -155,7 +155,8 @@ enum abort_reason {
  */
 enum {
     HDMI_EVENT_CEC_MESSAGE = 1,
-    HDMI_EVENT_HOT_PLUG = 2
+    HDMI_EVENT_HOT_PLUG = 2,
+    HDMI_EVENT_TX_STATUS = 3,
 };
 
 /*
@@ -168,25 +169,74 @@ enum {
 };
 
 /*
+ * TX result type. Used when the event type is HDMI_EVENT_TX_STATUS.
+ */
+enum {
+    HDMI_TX_STATUS_SUCCESS = 0,
+    HDMI_TX_STATUS_TIMEDOUT = 1, /* failed on wait */
+    HDMI_TX_STATUS_NOCONN = 2    /* connection problem */
+};
+
+/*
+ * error code used for send_message.
+ */
+enum {
+    HDMI_RESULT_SUCCESS = 0,
+    HDMI_RESULT_NACK = 1,        /* not acknowledged */
+    HDMI_RESULT_BUSY = 2         /* bus is busy */
+};
+
+/*
+ * HDMI port type.
+ */
+typedef enum hdmi_port_type {
+    HDMI_INPUT = 0,
+    HDMI_OUTPUT = 1
+} hdmi_port_type_t;
+
+/*
+ * Flags used for set_option()
+ */
+enum {
+    /* When set to false, HAL does not wake up the system upon receiving
+     * <Image View On> or <Text View On>. Used when user changes the TV
+     * settings to disable the auto TV on functionality.
+     * True by default.
+     */
+    HDMI_OPTION_WAKEUP = 1,
+
+    /* When set to false, all the CEC commands are discarded. Used when
+     * user changes the TV settings to disable CEC functionality.
+     * True by default.
+     */
+    HDMI_OPTION_ENABLE_CEC = 2,
+
+    /* Setting this flag to false means Android system will stop handling
+     * CEC service and yield the control over to the microprocessor that is
+     * powered on through the standby mode. When set to true, the system
+     * will gain the control over, hence telling the microprocessor to stop
+     * handling the cec commands. This is called when system goes
+     * in and out of standby mode to notify the microprocessor that it should
+     * start/stop handling CEC commands on behalf of the system.
+     * False by default.
+     */
+    HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
+};
+
+/*
  * Maximum length in bytes of cec message body (exclude header block),
  * should not exceed 16 (spec CEC 6 Frame Description)
  */
 #define CEC_MESSAGE_BODY_MAX_LENGTH 16
 
 typedef struct cec_message {
-    /*
-     * logical address of sender
-     */
+    /* logical address of sender */
     cec_logical_address_t initiator;
 
-    /*
-     * logical address of receiver
-     */
+    /* logical address of receiver */
     cec_logical_address_t destination;
 
-    /*
-     * length in bytes of body, range [0, CEC_MESSAGE_BODY_MAX_LENGTH]
-     */
+    /* Length in bytes of body, range [0, CEC_MESSAGE_BODY_MAX_LENGTH] */
     size_t length;
     unsigned char body[CEC_MESSAGE_BODY_MAX_LENGTH];
 } cec_message_t;
@@ -196,7 +246,13 @@ typedef struct hotplug_event {
      * true if the cable is connected; otherwise false.
      */
     int connected;
+    int port;
 } hotplug_event_t;
+
+typedef struct tx_status_event {
+    int status;
+    int opcode;  /* CEC opcode */
+} tx_status_event_t;
 
 /*
  * HDMI event generated from HAL.
@@ -207,8 +263,20 @@ typedef struct hdmi_event {
     union {
         cec_message_t cec;
         hotplug_event_t hotplug;
+        tx_status_event_t tx_status;
     };
 } hdmi_event_t;
+
+/*
+ * HDMI port descriptor
+ */
+typedef struct hdmi_port_info {
+    hdmi_port_type_t type;
+    int port_num;
+    int cec_supported;
+    int arc_supported;
+    uint16_t physical_address;
+} hdmi_port_info_t;
 
 /*
  * Callback function type that will be called by HAL implementation.
@@ -237,12 +305,14 @@ typedef struct hdmi_cec_device {
     struct hw_device_t common;
 
     /*
-     * (*add_logical_address)() passes the logical address that will be used in this system.
+     * (*add_logical_address)() passes the logical address that will be used
+     * in this system.
      *
      * HAL may use it to configure the hardware so that the CEC commands addressed
-     * the given logical address can be filtered in. This method can be called as many times
-     * as necessary in order to support multiple logical devices. addr should be in the range
-     * of valid logical addresses for the call to succeed.
+     * the given logical address can be filtered in. This method can be called
+     * as many times as necessary in order to support multiple logical devices.
+     * addr should be in the range of valid logical addresses for the call
+     * to succeed.
      *
      * Returns 0 on success or -errno on error.
      */
@@ -251,8 +321,9 @@ typedef struct hdmi_cec_device {
     /*
      * (*clear_logical_address)() tells HAL to reset all the logical addresses.
      *
-     * It is used when the system doesn't need to process CEC command any more, hence to tell
-     * HAL to stop receiving commands from the CEC bus, and change the state back to the beginning.
+     * It is used when the system doesn't need to process CEC command any more,
+     * hence to tell HAL to stop receiving commands from the CEC bus, and change
+     * the state back to the beginning.
      */
     void (*clear_logical_address)(const struct hdmi_cec_device* dev);
 
@@ -270,12 +341,18 @@ typedef struct hdmi_cec_device {
     int (*get_physical_address)(const struct hdmi_cec_device* dev, uint16_t* addr);
 
     /*
-     * (*send_message)() transmits HDMI-CEC message to other HDMI device. The method should be
-     * designed to return in a certain amount of time not hanging forever, which can happen
-     * if CEC signal line is pulled low for some reason. HAL implementation should take
-     * the situation into account so as not to wait forever for the message to get sent out.
+     * (*send_message)() transmits HDMI-CEC message to other HDMI device.
      *
-     * Returns 0 on success or -errno on error.
+     * The method should be designed to return in a certain amount of time not
+     * hanging forever, which can happen if CEC signal line is pulled low for
+     * some reason. HAL implementation should take the situation into account
+     * so as not to wait forever for the message to get sent out.
+     *
+     * It should try retransmission at least once as specified in the standard,
+     * and later should report the transmission result via tx_status_event_t.
+     *
+     * Returns error code. See HDMI_RESULT_SUCCESS, HDMI_RESULT_NACK, and
+     * HDMI_RESULT_BUSY.
      */
     int (*send_message)(const struct hdmi_cec_device* dev, const cec_message_t*);
 
@@ -301,8 +378,39 @@ typedef struct hdmi_cec_device {
      */
     void (*get_vendor_id)(const struct hdmi_cec_device* dev, uint32_t* vendor_id);
 
+    /*
+     * (*get_port_info)() returns the hdmi port information of underlying hardware.
+     * info is the list of HDMI port information, and 'total' is the number of
+     * HDMI ports in the system.
+     */
+    void (*get_port_info)(const struct hdmi_cec_device* dev,
+            struct hdmi_port_info* list[], int* total);
+
+    /*
+     * (*set_option)() passes flags controlling the way HDMI-CEC service works down
+     * to HAL implementation. Those flags will be used in case the feature needs
+     * update in HAL itself, firmware or microcontroller.
+     */
+    void (*set_option)(const struct hdmi_cec_device* dev, int flag, int value);
+
+    /*
+     * (*set_audio_return_channel)() configures ARC circuit in the hardware logic
+     * to start or stop the feature. Flag can be either 1 to start the feature
+     * or 0 to stop it.
+     *
+     * Returns 0 on success or -errno on error.
+     */
+    void (*set_audio_return_channel)(const struct hdmi_cec_device* dev, int flag);
+
+    /*
+     * (*is_connected)() returns the connection status of the specified port.
+     * Returns HDMI_CONNECTED if a device is connected, otherwise HDMI_NOT_CONNECTED.
+     * The HAL should watch for +5V power signal to determine the status.
+     */
+    int (*is_connected)(const struct hdmi_cec_device* dev, int port);
+
     /* Reserved for future use to maximum 16 functions. Must be NULL. */
-    void* reserved[16 - 7];
+    void* reserved[16 - 11];
 } hdmi_cec_device_t;
 
 /** convenience API for opening and closing a device */
