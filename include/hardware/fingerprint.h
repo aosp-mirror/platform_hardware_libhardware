@@ -37,11 +37,24 @@ typedef enum fingerprint_error {
 typedef struct fingerprint_enroll {
     uint32_t id;
     /* samples_remaining goes from N (no data collected, but N scans needed)
-     * to 0 (no more data is needed to build a template)
-     * If HAL fails to decrement samples_remaining between calls the client
-     * will declare template collection a failure and should abort the operation
-     * by calling module->common.methods->close() */
-    uint32_t samples_remaining;
+     * to 0 (no more data is needed to build a template).
+     * The progress indication may be augmented by a bitmap encoded indication
+     * of finger area that needs to be presented by the user.
+     * Bit numbers mapped to physical location:
+     *
+     *        distal
+     *        +-+-+-+
+     *        |2|1|0|
+     *        |5|4|3|
+     * medial |8|7|6| lateral
+     *        |b|a|9|
+     *        |e|d|c|
+     *        +-+-+-+
+     *        proximal
+     *
+     */
+    uint16_t data_collected_bmp;
+    uint16_t samples_remaining;
 } fingerprint_enroll_t;
 
 typedef struct fingerprint_removed {
@@ -50,7 +63,6 @@ typedef struct fingerprint_removed {
 
 typedef struct fingerprint_scanned {
     uint32_t id; /* 0 is a special id and means no match */
-    uint32_t confidence; /* Goes form 0 (no match) to 0xffffFFFF (100% sure) */
 } fingerprint_scanned_t;
 
 typedef struct fingerprint_msg {
@@ -90,6 +102,18 @@ typedef struct fingerprint_device {
      *                    indicating the error condition.
      */
     int (*enroll)(struct fingerprint_device *dev, uint32_t timeout_sec);
+
+    /*
+     * Cancel fingerprint enroll request:
+     * Switches the HAL state machine back to accept a fingerprint scan mode.
+     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
+     *  fingerprint_msg.data.enroll.samples_remaining == 0)
+     * will indicate switch back to the scan mode.
+     *
+     * Function return: 0 if cancel request is accepted
+     *                 -1 otherwise.
+     */
+    int (*enroll_cancel)(struct fingerprint_device *dev);
 
     /*
      * Fingerprint remove request:
