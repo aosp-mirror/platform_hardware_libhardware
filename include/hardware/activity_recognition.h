@@ -44,19 +44,19 @@ __BEGIN_DECLS
  */
 
 /* Reserved. get_supported_activities_list() should not return this activity. */
-#define DETECTED_ACTIVITY_RESERVED          (0)
+#define ACTIVITY_RESERVED          (0)
 
-#define DETECTED_ACTIVITY_IN_VEHICLE        (1)
+#define ACTIVITY_IN_VEHICLE        (1)
 
-#define DETECTED_ACTIVITY_ON_BICYCLE        (2)
+#define ACTIVITY_ON_BICYCLE        (2)
 
-#define DETECTED_ACTIVITY_WALKING           (3)
+#define ACTIVITY_WALKING           (3)
 
-#define DETECTED_ACTIVITY_RUNNING           (4)
+#define ACTIVITY_RUNNING           (4)
 
-#define DETECTED_ACTIVITY_STILL             (5)
+#define ACTIVITY_STILL             (5)
 
-#define DETECTED_ACTIVITY_TILTING           (6)
+#define ACTIVITY_TILTING           (6)
 
 /* Values for activity_event.event_types. */
 enum {
@@ -70,7 +70,7 @@ enum {
      *
      * A flush complete event should have the following parameters set.
      * activity_event_t.event_type = ACTIVITY_EVENT_TYPE_FLUSH_COMPLETE
-     * activity_event_t.detected_activity = DETECTED_ACTIVITY_RESERVED
+     * activity_event_t.activity = ACTIVITY_RESERVED
      * activity_event_t.timestamp = 0
      * activity_event_t.reserved = 0
      * See (*flush)() for more details.
@@ -86,14 +86,14 @@ enum {
 
 /*
  * Each event is a separate activity with event_type indicating whether this activity has started
- * or ended. Eg event: (event_type="enter", detected_activity="ON_FOOT", timestamp)
+ * or ended. Eg event: (event_type="enter", activity="ON_FOOT", timestamp)
  */
 typedef struct activity_event {
     /* One of the ACTIVITY_EVENT_TYPE_* constants defined above. */
     uint32_t event_type;
 
-    /* Detected Activity. One of DETECTED_ACTIVITY_TYPE_* constants defined above. */
-    int32_t detected_activity;
+    /* One of ACTIVITY_* constants defined above. */
+    uint32_t activity;
 
     /* Time at which the transition/event has occurred in nanoseconds using elapsedRealTimeNano. */
     int64_t timestamp;
@@ -113,7 +113,7 @@ typedef struct activity_recognition_module {
 
     /*
      * List of all activities supported by this module. Each activity is represented as an integer.
-     * Each value in the list is one of the DETECTED_ACTIVITY_* constants defined above. Return
+     * Each value in the list is one of the ACTIVITY_* constants defined above. Return
      * value is the size of this list.
      */
     int (*get_supported_activities_list)(struct activity_recognition_module* module,
@@ -127,7 +127,7 @@ typedef struct activity_recognition_callback_procs {
     // Memory allocated for the events can be reused after this method returns.
     //    events - Array of activity_event_t s that are reported.
     //    count  - size of the array.
-    void (*activity_callback)(const struct activity_recognition_device* dev,
+    void (*activity_callback)(const struct activity_recognition_callback_procs* procs,
             const activity_event_t* events, int count);
 } activity_recognition_callback_procs_t;
 
@@ -148,27 +148,31 @@ typedef struct activity_recognition_device {
             const activity_recognition_callback_procs_t* callback);
 
     /*
-     * Activates and deactivates monitoring of activity transitions. Activities need not be reported
-     * as soon as they are detected. The detected activities are stored in a FIFO and reported in
-     * batches when the "max_batch_report_latency" expires or when the batch FIFO is full. The
-     * implementation should allow the AP to go into suspend mode while the activities are detected
-     * and stored in the batch FIFO. Whenever events need to be reported (like when the FIFO is full
-     * or when the max_batch_report_latency has expired for an activity, event pair), it should
-     * wake_up the AP so that no events are lost. Activities are stored as transitions and they are
-     * allowed to overlap with each other.
-     * detected_activity - The specific activity that needs to be monitored.
-     * event_type    - Specific transition of the activity that needs to be monitored.
-     * enabled       - Enable/Disable detection of an (detected_activity, event_type) pair. Each
-     *                 pair can be activated or deactivated independently of the other. The HAL
-     *                 implementation needs to keep track of which pairs are currently active
-     *                 and needs to detect only those activities.
-     * max_batch_report_latency - a transition can be delayed by at most
-     *                            “max_batch_report_latency” nanoseconds.
+     * Activates monitoring of activity transitions. Activities need not be reported as soon as they
+     * are detected. The detected activities are stored in a FIFO and reported in batches when the
+     * "max_batch_report_latency" expires or when the batch FIFO is full. The implementation should
+     * allow the AP to go into suspend mode while the activities are detected and stored in the
+     * batch FIFO. Whenever events need to be reported (like when the FIFO is full or when the
+     * max_batch_report_latency has expired for an activity, event pair), it should wake_up the AP
+     * so that no events are lost. Activities are stored as transitions and they are allowed to
+     * overlap with each other. Each (activity, event_type) pair can be activated or deactivated
+     * independently of the other. The HAL implementation needs to keep track of which pairs are
+     * currently active and needs to detect only those pairs.
+     *
+     * activity   - The specific activity that needs to be detected.
+     * event_type - Specific transition of the activity that needs to be detected.
+     * max_batch_report_latency_ns - a transition can be delayed by at most
+     *                               “max_batch_report_latency” nanoseconds.
      * Return 0 on success, negative errno code otherwise.
      */
-    int (*monitor_activity_event)(const struct activity_recognition_device* dev,
-            int32_t detected_activity, int32_t event_type, int64_t max_batch_report_latency_ns,
-            int32_t enabled);
+    int (*enable_activity_event)(const struct activity_recognition_device* dev,
+            uint32_t activity, uint32_t event_type, int64_t max_batch_report_latency_ns);
+
+    /*
+     * Disables detection of a specific (activity, event_type) pair.
+     */
+    int (*disable_activity_event)(const struct activity_recognition_device* dev,
+            uint32_t activity, uint32_t event_type);
 
     /*
      * Flush all the batch FIFOs. Report all the activities that were stored in the FIFO so far as
@@ -180,7 +184,7 @@ typedef struct activity_recognition_device {
     int (*flush)(const struct activity_recognition_device* dev);
 
     // Must be set to NULL.
-    void (*reserved_procs[4])(void);
+    void (*reserved_procs[16 - 4])(void);
 } activity_recognition_device_t;
 
 static inline int activity_recognition_open(const hw_module_t* module,
