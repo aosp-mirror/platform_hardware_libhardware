@@ -40,6 +40,13 @@
 
 #include <utils/String8.h>
 
+#define LOG_STREAMS_TO_FILES 0
+#if LOG_STREAMS_TO_FILES
+#include <fcntl.h>
+#include <stdio.h>
+#include <sys/stat.h>
+#endif // LOG_STREAMS_TO_FILES
+
 extern "C" {
 
 namespace android {
@@ -77,6 +84,15 @@ namespace android {
 #define ENABLE_LEGACY_INPUT_OPEN     1
 // Whether channel conversion (16-bit signed PCM mono->stereo, stereo->mono) is enabled.
 #define ENABLE_CHANNEL_CONVERSION    1
+#if LOG_STREAMS_TO_FILES
+// Folder to save stream log files to.
+#define LOG_STREAM_FOLDER "/data/misc/media"
+// Log filenames for input and output streams.
+#define LOG_STREAM_OUT_FILENAME LOG_STREAM_FOLDER "/r_submix_out.raw"
+#define LOG_STREAM_IN_FILENAME LOG_STREAM_FOLDER "/r_submix_in.raw"
+// File permissions for stream log files.
+#define LOG_STREAM_FILE_PERMISSIONS (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#endif // LOG_STREAMS_TO_FILES
 
 // Common limits macros.
 #ifndef min
@@ -144,6 +160,9 @@ struct submix_audio_device {
 struct submix_stream_out {
     struct audio_stream_out stream;
     struct submix_audio_device *dev;
+#if LOG_STREAMS_TO_FILES
+    int log_fd;
+#endif // LOG_STREAMS_TO_FILES
 };
 
 struct submix_stream_in {
@@ -160,6 +179,9 @@ struct submix_stream_in {
     // Number of references to this input stream.
     volatile int32_t ref_count;
 #endif // ENABLE_LEGACY_INPUT_OPEN
+#if LOG_STREAMS_TO_FILES
+    int log_fd;
+#endif // LOG_STREAMS_TO_FILES
 };
 
 // Determine whether the specified sample rate is supported by the submix module.
@@ -676,6 +698,10 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     written_frames = sink->write(buffer, frames);
 
+#if LOG_STREAMS_TO_FILES
+    if (out->log_fd >= 0) write(out->log_fd, buffer, written_frames * frame_size);
+#endif // LOG_STREAMS_TO_FILES
+
     if (written_frames < 0) {
         if (written_frames == (ssize_t)NEGOTIATE) {
             ALOGE("out_write() write to pipe returned NEGOTIATE");
@@ -948,6 +974,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 #endif // ENABLE_CHANNEL_CONVERSION
 
             if (frames_read > 0) {
+#if LOG_STREAMS_TO_FILES
+                if (in->log_fd >= 0) write(in->log_fd, buff, frames_read * frame_size);
+#endif // LOG_STREAMS_TO_FILES
+
                 remaining_frames -= frames_read;
                 buff += frames_read * frame_size;
                 SUBMIX_ALOGV("  in_read (att=%d) got %zd frames, remaining=%zu",
@@ -1086,6 +1116,13 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     ALOGV("adev_open_output_stream(): Initializing pipe");
     submix_audio_device_create_pipe(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
                                     DEFAULT_PIPE_PERIOD_COUNT, NULL, out);
+#if LOG_STREAMS_TO_FILES
+    out->log_fd = open(LOG_STREAM_OUT_FILENAME, O_CREAT | O_TRUNC | O_WRONLY,
+                       LOG_STREAM_FILE_PERMISSIONS);
+    ALOGE_IF(out->log_fd < 0, "adev_open_output_stream(): log file open failed %s",
+             strerror(errno));
+    ALOGV("adev_open_output_stream(): log_fd = %d", out->log_fd);
+#endif // LOG_STREAMS_TO_FILES
     // Return the output stream.
     *stream_out = &out->stream;
 
@@ -1098,6 +1135,9 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(stream);
     ALOGV("adev_close_output_stream()");
     submix_audio_device_destroy_pipe(audio_hw_device_get_submix_audio_device(dev), NULL, out);
+#if LOG_STREAMS_TO_FILES
+    if (out->log_fd >= 0) close(out->log_fd);
+#endif // LOG_STREAMS_TO_FILES
     free(out);
 }
 
@@ -1262,6 +1302,13 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     // Initialize the pipe.
     submix_audio_device_create_pipe(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
                                     DEFAULT_PIPE_PERIOD_COUNT, in, NULL);
+#if LOG_STREAMS_TO_FILES
+    in->log_fd = open(LOG_STREAM_IN_FILENAME, O_CREAT | O_TRUNC | O_WRONLY,
+                      LOG_STREAM_FILE_PERMISSIONS);
+    ALOGE_IF(in->log_fd < 0, "adev_open_input_stream(): log file open failed %s",
+             strerror(errno));
+    ALOGV("adev_open_input_stream(): log_fd = %d", in->log_fd);
+#endif // LOG_STREAMS_TO_FILES
     // Return the input stream.
     *stream_in = &in->stream;
 
@@ -1274,6 +1321,9 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
     ALOGV("adev_close_input_stream()");
     submix_audio_device_destroy_pipe(audio_hw_device_get_submix_audio_device(dev), in, NULL);
+#if LOG_STREAMS_TO_FILES
+    if (in->log_fd >= 0) close(in->log_fd);
+#endif // LOG_STREAMS_TO_FILES
 #if ENABLE_LEGACY_INPUT_OPEN
     if (in->ref_count == 0) free(in);
 #else
