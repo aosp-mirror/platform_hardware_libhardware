@@ -84,6 +84,8 @@ namespace android {
 #define ENABLE_LEGACY_INPUT_OPEN     1
 // Whether channel conversion (16-bit signed PCM mono->stereo, stereo->mono) is enabled.
 #define ENABLE_CHANNEL_CONVERSION    1
+// Whether resampling is enabled.
+#define ENABLE_RESAMPLING            1
 #if LOG_STREAMS_TO_FILES
 // Folder to save stream log files to.
 #define LOG_STREAM_FOLDER "/data/misc/media"
@@ -125,6 +127,11 @@ struct submix_config {
     // channel bitfields are not equivalent.
     audio_channel_mask_t input_channel_mask;
     audio_channel_mask_t output_channel_mask;
+#if ENABLE_RESAMPLING
+    // Input stream and output stream sample rates.
+    uint32_t input_sample_rate;
+    uint32_t output_sample_rate;
+#endif // ENABLE_RESAMPLING
     size_t pipe_frame_size;  // Number of bytes in each audio frame in the pipe.
     size_t buffer_size_frames; // Size of the audio pipe in frames.
     // Maximum number of frames buffered by the input and output streams.
@@ -146,6 +153,11 @@ struct submix_audio_device {
     // TV with Wifi Display capabilities), or to a wireless audio player.
     sp<MonoPipe> rsxSink;
     sp<MonoPipeReader> rsxSource;
+#if ENABLE_RESAMPLING
+    // Buffer used as temporary storage for resampled data prior to returning data to the output
+    // stream.
+    int16_t resampler_buffer[DEFAULT_PIPE_SIZE_IN_FRAMES];
+#endif // ENABLE_RESAMPLING
 
     // Pointers to the current input and output stream instances.  rsxSink and rsxSource are
     // destroyed if both and input and output streams are destroyed.
@@ -321,7 +333,12 @@ static bool audio_config_compare(const audio_config * const input_config,
         return false;
     }
 #endif // !ENABLE_CHANNEL_CONVERSION
+#if ENABLE_RESAMPLING
+    if (input_config->sample_rate != output_config->sample_rate &&
+        get_channel_count_from_mask(input_config->channel_mask) != 1) {
+#else
     if (input_config->sample_rate != output_config->sample_rate) {
+#endif // ENABLE_RESAMPLING
         ALOGE("audio_config_compare() sample rate mismatch %ul vs. %ul",
               input_config->sample_rate, output_config->sample_rate);
         return false;
@@ -352,10 +369,21 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
     if (in) {
         rsxadev->input = in;
         rsxadev->config.input_channel_mask = config->channel_mask;
+#if ENABLE_RESAMPLING
+        rsxadev->config.input_sample_rate = config->sample_rate;
+        // If the output isn't configured yet, set the output sample rate to the maximum supported
+        // sample rate such that the smallest possible input buffer is created.
+        if (!rsxadev->output) {
+            rsxadev->config.output_sample_rate = 48000;
+        }
+#endif // ENABLE_RESAMPLING
     }
     if (out) {
         rsxadev->output = out;
         rsxadev->config.output_channel_mask = config->channel_mask;
+#if ENABLE_RESAMPLING
+        rsxadev->config.output_sample_rate = config->sample_rate;
+#endif // ENABLE_RESAMPLING
     }
     // If a pipe isn't associated with the device, create one.
     if (rsxadev->rsxSink == NULL || rsxadev->rsxSource == NULL) {
@@ -507,18 +535,31 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
+#if ENABLE_RESAMPLING
+    const uint32_t out_rate = out->dev->config.output_sample_rate;
+#else
     const uint32_t out_rate = out->dev->config.common.sample_rate;
+#endif // ENABLE_RESAMPLING
     SUBMIX_ALOGV("out_get_sample_rate() returns %u", out_rate);
     return out_rate;
 }
 
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
+    struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
+#if ENABLE_RESAMPLING
+    // The sample rate of the stream can't be changed once it's set since this would change the
+    // output buffer size and hence break playback to the shared pipe.
+    if (rate != out->dev->config.output_sample_rate) {
+        ALOGE("out_set_sample_rate(rate=%u) resampling enabled can't change sample rate from "
+              "%u to %u", out->dev->config.output_sample_rate, rate);
+        return -ENOSYS;
+    }
+#endif // ENABLE_RESAMPLING
     if (!sample_rate_supported(rate)) {
         ALOGE("out_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
     }
-    struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
     SUBMIX_ALOGV("out_set_sample_rate(rate=%u)", rate);
     out->dev->config.common.sample_rate = rate;
     return 0;
@@ -628,7 +669,13 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     const struct submix_config * const config = &out->dev->config;
     const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
             &stream->common, config, config->buffer_size_frames);
+#if ENABLE_RESAMPLING
+    // Sample rate conversion occurs when data is read from the input so data in the buffer is
+    // at output_sample_rate Hz.
+    const uint32_t latency_ms = (buffer_size_frames * 1000) / config->output_sample_rate;
+#else
     const uint32_t latency_ms = (buffer_size_frames * 1000) / config->common.sample_rate;
+#endif // ENABLE_RESAMPLING
     SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u",
                  latency_ms, buffer_size_frames, config->common.sample_rate);
     return latency_ms;
@@ -728,7 +775,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         return 0;
     }
     const ssize_t written_bytes = written_frames * frame_size;
-    SUBMIX_ALOGV("out_write() wrote %zd bytes %zd frames)", written_bytes, written_frames);
+    SUBMIX_ALOGV("out_write() wrote %zd bytes %zd frames", written_bytes, written_frames);
     return written_bytes;
 }
 
@@ -767,13 +814,27 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
         const_cast<struct audio_stream*>(stream));
-    SUBMIX_ALOGV("in_get_sample_rate() returns %u", in->dev->config.common.sample_rate);
-    return in->dev->config.common.sample_rate;
+#if ENABLE_RESAMPLING
+    const uint32_t rate = in->dev->config.input_sample_rate;
+#else
+    const uint32_t rate = in->dev->config.common.sample_rate;
+#endif // ENABLE_RESAMPLING
+    SUBMIX_ALOGV("in_get_sample_rate() returns %u", rate);
+    return rate;
 }
 
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
+#if ENABLE_RESAMPLING
+    // The sample rate of the stream can't be changed once it's set since this would change the
+    // input buffer size and hence break recording from the shared pipe.
+    if (rate != in->dev->config.input_sample_rate) {
+        ALOGE("in_set_sample_rate(rate=%u) resampling enabled can't change sample rate from "
+              "%u to %u", in->dev->config.input_sample_rate, rate);
+        return -ENOSYS;
+    }
+#endif // ENABLE_RESAMPLING
     if (!sample_rate_supported(rate)) {
         ALOGE("in_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
@@ -788,8 +849,15 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
             const_cast<struct audio_stream*>(stream));
     const struct submix_config * const config = &in->dev->config;
-    const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
+    size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
         stream, config, config->buffer_period_size_frames);
+#if ENABLE_RESAMPLING
+    // Scale the size of the buffer based upon the maximum number of frames that could be returned
+    // given the ratio of output to input sample rate.
+    buffer_size_frames = (size_t)(((float)buffer_size_frames *
+                                   (float)config->input_sample_rate) /
+                                  (float)config->output_sample_rate);
+#endif // ENABLE_RESAMPLING
     const size_t buffer_size_bytes = buffer_size_frames * audio_stream_frame_size(stream);
     SUBMIX_ALOGV("in_get_buffer_size() returns %zu bytes, %zu frames", buffer_size_bytes,
                  buffer_size_frames);
@@ -871,7 +939,6 @@ static int in_set_gain(struct audio_stream_in *stream, float gain)
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                        size_t bytes)
 {
-    ssize_t frames_read = -1977;
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
     struct submix_audio_device * const rsxadev = in->dev;
     struct audio_config *format;
@@ -929,8 +996,37 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         }
 #endif // ENABLE_CHANNEL_CONVERSION
 
+#if ENABLE_RESAMPLING
+        const uint32_t input_sample_rate = in_get_sample_rate(&stream->common);
+        const uint32_t output_sample_rate = rsxadev->config.output_sample_rate;
+        const size_t resampler_buffer_size_frames =
+            sizeof(rsxadev->resampler_buffer) / sizeof(rsxadev->resampler_buffer[0]);
+        float resampler_ratio = 1.0f;
+        // Determine whether resampling is required.
+        if (input_sample_rate != output_sample_rate) {
+            resampler_ratio = (float)output_sample_rate / (float)input_sample_rate;
+            // Only support 16-bit PCM mono resampling.
+            // NOTE: Resampling is performed after the channel conversion step.
+            ALOG_ASSERT(rsxadev->config.common.format == AUDIO_FORMAT_PCM_16_BIT);
+            ALOG_ASSERT(get_channel_count_from_mask(rsxadev->config.input_channel_mask) == 1);
+        }
+#endif // ENABLE_RESAMPLING
+
         while ((remaining_frames > 0) && (attempts < MAX_READ_ATTEMPTS)) {
+            ssize_t frames_read = -1977;
             size_t read_frames = remaining_frames;
+#if ENABLE_RESAMPLING
+            char* const saved_buff = buff;
+            if (resampler_ratio != 1.0f) {
+                // Calculate the number of frames from the pipe that need to be read to generate
+                // the data for the input stream read.
+                const size_t frames_required_for_resampler = (size_t)(
+                    (float)read_frames * (float)resampler_ratio);
+                read_frames = min(frames_required_for_resampler, resampler_buffer_size_frames);
+                // Read into the resampler buffer.
+                buff = (char*)rsxadev->resampler_buffer;
+            }
+#endif // ENABLE_RESAMPLING
 #if ENABLE_CHANNEL_CONVERSION
             if (output_channels == 1 && input_channels == 2) {
                 // Need to read half the requested frames since the converted output
@@ -972,6 +1068,28 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                 }
             }
 #endif // ENABLE_CHANNEL_CONVERSION
+
+#if ENABLE_RESAMPLING
+            if (resampler_ratio != 1.0f) {
+                SUBMIX_ALOGV("in_read(): resampling %zd frames", frames_read);
+                const int16_t * const data = (int16_t*)buff;
+                int16_t * const resampled_buffer = (int16_t*)saved_buff;
+                // Resample with *no* filtering - if the data from the ouptut stream was really
+                // sampled at a different rate this will result in very nasty aliasing.
+                const float output_stream_frames = (float)frames_read;
+                size_t input_stream_frame = 0;
+                for (float output_stream_frame = 0.0f;
+                     output_stream_frame < output_stream_frames &&
+                     input_stream_frame < remaining_frames;
+                     output_stream_frame += resampler_ratio, input_stream_frame++) {
+                    resampled_buffer[input_stream_frame] = data[(size_t)output_stream_frame];
+                }
+                ALOG_ASSERT(input_stream_frame <= (ssize_t)resampler_buffer_size_frames);
+                SUBMIX_ALOGV("in_read(): resampler produced %zd frames", input_stream_frame);
+                frames_read = input_stream_frame;
+                buff = saved_buff;
+            }
+#endif // ENABLE_RESAMPLING
 
             if (frames_read > 0) {
 #if LOG_STREAMS_TO_FILES
