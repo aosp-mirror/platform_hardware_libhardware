@@ -162,18 +162,6 @@ typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 /** Callback invoked when a scan filter configuration command has completed */
 typedef void (*scan_filter_callback)(int action, int status);
 
-/** Callback invoked when multi-adv enable operation has completed */
-typedef void (*multi_adv_enable_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv param update operation has completed */
-typedef void (*multi_adv_update_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv instance data set operation has completed */
-typedef void (*multi_adv_data_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv disable operation has completed */
-typedef void (*multi_adv_disable_callback)(int client_if, int status);
-
 typedef struct {
     register_client_callback            register_client_cb;
     scan_result_callback                scan_result_cb;
@@ -195,10 +183,6 @@ typedef struct {
     listen_callback                     listen_cb;
     configure_mtu_callback              configure_mtu_cb;
     scan_filter_callback                scan_filter_cb;
-    multi_adv_enable_callback           multi_adv_enable_cb;
-    multi_adv_update_callback           multi_adv_update_cb;
-    multi_adv_data_callback             multi_adv_data_cb;
-    multi_adv_disable_callback          multi_adv_disable_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -311,7 +295,7 @@ typedef struct {
     int (*get_device_type)( const bt_bdaddr_t *bd_addr );
 
     /** Set the advertising data or scan response data */
-    bt_status_t (*set_adv_data)(int client_if, bool set_scan_rsp, bool include_name,
+    bt_status_t (*set_adv_data)(int server_if, bool set_scan_rsp, bool include_name,
                     bool include_txpower, int min_interval, int max_interval, int appearance,
                     uint16_t manufacturer_len, char* manufacturer_data,
                     uint16_t service_data_len, char* service_data,
@@ -322,23 +306,6 @@ typedef struct {
 
     /** Sets the LE scan interval and window in units of N*0.625 msec */
     bt_status_t (*set_scan_parameters)(int scan_interval, int scan_window);
-
-    /* Setup the parameters as per spec, user manual specified values and enable multi ADV */
-    bt_status_t (*multi_adv_enable)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power);
-
-    /* Update the parameters as per spec, user manual specified values and restart multi ADV */
-    bt_status_t (*multi_adv_update)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power);
-
-    /* Setup the data for the specified instance */
-    bt_status_t (*multi_adv_set_inst_data)(int client_if, bool set_scan_rsp, bool include_name,
-                    bool include_txpower, int appearance, uint16_t manufacturer_len,
-                    char* manufacturer_data, uint16_t service_data_len, char* service_data,
-                    uint16_t service_uuid_len, char* service_uuid);
-
-    /* Disable the multi adv instance */
-    bt_status_t (*multi_adv_disable)(int client_if);
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
