@@ -891,7 +891,12 @@
  * view it is receiving based on the crop region, the dimensions of the image
  * sensor, and the lens focal length.
  *
- * Since the crop region applies to all streams, which may have different aspect
+ * It is assumed that the cropping is applied after raw to other color space
+ * conversion. Raw streams (RAW16 and RAW_OPAQUE) don't have this conversion stage,
+ * and are not croppable. Therefore, the crop region must be ignored by the HAL
+ * for raw streams.
+ *
+ * Since the crop region applies to all non-raw streams, which may have different aspect
  * ratios than the crop region, the exact sensor region used for each stream may
  * be smaller than the crop region. Specifically, each stream should maintain
  * square pixels and its aspect ratio by minimally further cropping the defined
