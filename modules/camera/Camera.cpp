@@ -473,14 +473,14 @@ void Camera::dump(int fd)
     ATRACE_CALL();
     android::Mutex::Autolock al(mDeviceLock);
 
-    fdprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
+    dprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
 
     // TODO: dump all settings
-    fdprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
+    dprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
 
-    fdprintf(fd, "Number of streams: %d\n", mNumStreams);
+    dprintf(fd, "Number of streams: %d\n", mNumStreams);
     for (int i = 0; i < mNumStreams; i++) {
-        fdprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
+        dprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
         mStreams[i]->dump(fd);
     }
 }

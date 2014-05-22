@@ -225,18 +225,18 @@ void Stream::dump(int fd)
 {
     android::Mutex::Autolock al(mLock);
 
-    fdprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
-    fdprintf(fd, "Stream Type: %s (%d)\n", typeToString(mType), mType);
-    fdprintf(fd, "Width: %"PRIu32" Height: %"PRIu32"\n", mWidth, mHeight);
-    fdprintf(fd, "Stream Format: %s (%d)", formatToString(mFormat), mFormat);
+    dprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
+    dprintf(fd, "Stream Type: %s (%d)\n", typeToString(mType), mType);
+    dprintf(fd, "Width: %"PRIu32" Height: %"PRIu32"\n", mWidth, mHeight);
+    dprintf(fd, "Stream Format: %s (%d)", formatToString(mFormat), mFormat);
     // ToDo: prettyprint usage mask flags
-    fdprintf(fd, "Gralloc Usage Mask: %#"PRIx32"\n", mUsage);
-    fdprintf(fd, "Max Buffer Count: %"PRIu32"\n", mMaxBuffers);
-    fdprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
-    fdprintf(fd, "Number of Buffers: %"PRIu32"\n", mNumBuffers);
+    dprintf(fd, "Gralloc Usage Mask: %#"PRIx32"\n", mUsage);
+    dprintf(fd, "Max Buffer Count: %"PRIu32"\n", mMaxBuffers);
+    dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
+    dprintf(fd, "Number of Buffers: %"PRIu32"\n", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        fdprintf(fd, "Buffer %"PRIu32"/%"PRIu32": %p\n", i, mNumBuffers,
-                                                                mBuffers[i]);
+        dprintf(fd, "Buffer %"PRIu32"/%"PRIu32": %p\n", i, mNumBuffers,
+                mBuffers[i]);
     }
 }
 
