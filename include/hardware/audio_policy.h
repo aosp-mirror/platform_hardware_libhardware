@@ -248,9 +248,6 @@ struct audio_policy {
                                 const audio_offload_info_t *info);
 };
 
-/* audio hw module handle used by load_hw_module(), open_output_on_module()
- * and open_input_on_module() */
-typedef int audio_module_handle_t;
 
 struct audio_policy_service_ops {
     /*
