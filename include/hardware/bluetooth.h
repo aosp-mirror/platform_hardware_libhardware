@@ -324,6 +324,10 @@ typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
 /** TODO: Add callbacks for Link Up/Down and other generic
   *  notifications/callbacks */
 
+/** Wakelock callback */
+/* Called to take/release wakelock to allow timers to work (temporary kluge) */
+typedef void (*bt_wakelock_callback)(int acquire);
+
 /** Bluetooth DM callback structure. */
 typedef struct {
     /** set to sizeof(bt_callbacks_t) */
@@ -340,6 +344,7 @@ typedef struct {
     callback_thread_event thread_evt_cb;
     dut_mode_recv_callback dut_mode_recv_cb;
     le_test_mode_callback le_test_mode_cb;
+    bt_wakelock_callback bt_wakelock_cb;
 } bt_callbacks_t;
 
 /** NOTE: By default, no profiles are initialized at the time of init/enable.
