@@ -586,18 +586,53 @@ typedef struct hwc_composer_device_1 {
     int (*eventControl)(struct hwc_composer_device_1* dev, int disp,
             int event, int enabled);
 
-    /*
-     * blank(..., blank)
-     * Blanks or unblanks a display's screen.
-     *
-     * Turns the screen off when blank is nonzero, on when blank is zero.
-     * Multiple sequential calls with the same blank value must be supported.
-     * The screen state transition must be be complete when the function
-     * returns.
-     *
-     * returns 0 on success, negative on error.
-     */
-    int (*blank)(struct hwc_composer_device_1* dev, int disp, int blank);
+    union {
+        /*
+         * For HWC 1.3 and earlier, the blank() interface is used.
+         *
+         * blank(..., blank)
+         * Blanks or unblanks a display's screen.
+         *
+         * Turns the screen off when blank is nonzero, on when blank is zero.
+         * Multiple sequential calls with the same blank value must be
+         * supported.
+         * The screen state transition must be be complete when the function
+         * returns.
+         *
+         * returns 0 on success, negative on error.
+         */
+        int (*blank)(struct hwc_composer_device_1* dev, int disp, int blank);
+
+        /*
+         * For HWC 1.4 and above, setPowerMode() will be used in place of
+         * blank().
+         *
+         * setPowerMode(..., mode)
+         * Sets the display screen's power state.
+         *
+         * The expected functionality for the various modes is as follows:
+         * HWC_POWER_MODE_OFF    : Turn the display off.
+         * HWC_POWER_MODE_DOZE   : Turn on the display (if it was previously
+         *                         off) and put the display in a low power mode.
+         * HWC_POWER_MODE_NORMAL : Turn on the display (if it was previously
+         *                         off), and take it out of low power mode.
+         *
+         * The functionality is similar to the blank() command in previous
+         * versions of HWC, but with support for more power states.
+         *
+         * The display driver is expected to retain and restore the low power
+         * state of the display while entering and exiting from suspend.
+         *
+         * Multiple sequential calls with the same mode value must be supported.
+         *
+         * The screen state transition must be be complete when the function
+         * returns.
+         *
+         * returns 0 on success, negative on error.
+         */
+        int (*setPowerMode)(struct hwc_composer_device_1* dev, int disp,
+                int mode);
+    };
 
     /*
      * Used to retrieve information about the h/w composer
