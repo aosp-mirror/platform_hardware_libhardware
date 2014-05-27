@@ -126,6 +126,16 @@ typedef struct
    int manufacturer;
 } bt_remote_version_t;
 
+typedef struct
+{
+    uint8_t local_privacy_enabled;
+    uint8_t max_adv_instance;
+    uint8_t rpa_offload_supported;
+    uint8_t max_irk_list_size;
+    uint8_t max_adv_filter_supported;
+    uint8_t scan_result_storage_size;
+}bt_local_le_features_t;
+
 /* Bluetooth Adapter and Remote Device property types */
 typedef enum {
     /* Properties common to both adapter and remote device */
@@ -208,6 +218,13 @@ typedef enum {
 
     BT_PROPERTY_REMOTE_VERSION_INFO,
 
+    /**
+     * Description - Local LE features
+     * Access mode - GET.
+     * Data type   - bt_local_le_features_t.
+     */
+    BT_PROPERTY_LOCAL_LE_FEATURES,
+
     BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
@@ -218,6 +235,7 @@ typedef struct
     int len;
     void *val;
 } bt_property_t;
+
 
 /** Bluetooth Device Type */
 typedef enum {
