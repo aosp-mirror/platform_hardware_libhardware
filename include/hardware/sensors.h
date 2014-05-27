@@ -416,10 +416,17 @@ enum {
  * trigger-mode: on-change
  * wake-up sensor: no
  *
- *  A sensor of this type returns the current heart rate if activated.
- *  The value is returned as a float which represents the heart rate in beats
- *  per minute (BPM).
- *  When the sensor cannot measure the heart rate, the returned value must be 0.
+ *  A sensor of this type returns the current heart rate.
+ *  The events contain the current heart rate in beats per minute (BPM) and the
+ *  status of the sensor during the measurement. See heart_rate_event_t for more
+ *  details.
+ *
+ *  Because this sensor is on-change, events must be generated when and only
+ *  when heart_rate.bpm or heart_rate.status have changed since the last
+ *  event. The event should be generated no faster than every period_ns passed
+ *  to setDelay() or to batch(). See the definition of the on-change trigger
+ *  mode for more information.
+ *
  *  sensor_t.requiredPermission must be set to SENSOR_PERMISSION_BODY_SENSORS.
  */
 #define SENSOR_TYPE_HEART_RATE                      (21)
@@ -567,16 +574,14 @@ enum {
 /** Minimum magnetic field on Earth's surface */
 #define MAGNETIC_FIELD_EARTH_MIN    (30.0f)
 
-
 /**
- * status of orientation sensor
+ * Possible values of the status field of sensor events.
  */
-
+#define SENSOR_STATUS_NO_CONTACT        -1
 #define SENSOR_STATUS_UNRELIABLE        0
 #define SENSOR_STATUS_ACCURACY_LOW      1
 #define SENSOR_STATUS_ACCURACY_MEDIUM   2
 #define SENSOR_STATUS_ACCURACY_HIGH     3
-
 
 /**
  * sensor event data
@@ -625,6 +630,17 @@ typedef struct meta_data_event {
     int32_t what;
     int32_t sensor;
 } meta_data_event_t;
+
+/**
+ * Heart rate event data
+ */
+typedef struct {
+  // Heart rate in beats per minute.
+  // Set to 0 when status is SENSOR_STATUS_UNRELIABLE or ..._NO_CONTACT
+  float bpm;
+  // Status of the sensor for this reading. Set to one SENSOR_STATUS_...
+  int8_t status;
+} heart_rate_event_t;
 
 /**
  * Union of the various types of sensor data
@@ -683,8 +699,8 @@ typedef struct sensors_event_t {
             /* uncalibrated magnetometer values are in micro-Teslas */
             uncalibrated_event_t uncalibrated_magnetic;
 
-            /* heart rate in bpm */
-            float           heart_rate;
+            /* heart rate data containing value in bpm and status */
+            heart_rate_event_t heart_rate;
 
             /* this is a special event. see SENSOR_TYPE_META_DATA above.
              * sensors_meta_data_event_t events are all reported with a type of
