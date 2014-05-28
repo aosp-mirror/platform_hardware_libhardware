@@ -97,6 +97,9 @@ __BEGIN_DECLS
 /* A2DP sink address set by framework */
 #define AUDIO_PARAMETER_A2DP_SINK_ADDRESS "a2dp_sink_address"
 
+/* A2DP source address set by framework */
+#define AUDIO_PARAMETER_A2DP_SOURCE_ADDRESS "a2dp_source_address"
+
 /* Screen state */
 #define AUDIO_PARAMETER_KEY_SCREEN_STATE "screen_state"
 
