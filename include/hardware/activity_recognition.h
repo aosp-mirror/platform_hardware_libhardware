@@ -39,24 +39,39 @@ __BEGIN_DECLS
 #define ACTIVITY_RECOGNITION_HARDWARE_INTERFACE "activity_recognition_hw_if"
 
 /*
- * Define constants for various activity types. Multiple activities may be active at the same time
- * and sometimes none of these activities may be active.
+ * Define types for various activities. Multiple activities may be active at the same time and
+ * sometimes none of these activities may be active.
+ *
+ * Each activity has a corresponding type. Only activities that are defined here should use
+ * android.activity_recognition.* prefix. OEM defined activities should not use this prefix.
+ * Activity type of OEM-defined activities should start with the reverse domain name of the entity
+ * defining the activity.
+ *
+ * When android introduces a new activity type that can potentially replace an OEM-defined activity
+ * type, the OEM must use the official activity type on versions of the HAL that support this new
+ * official activity type.
+ *
+ * Example (made up): Suppose Google's Glass team wants to detect nodding activity.
+ *  - Such an activity is not officially supported in android L
+ *  - Glass devices launching on L can implement a custom activity with
+ *    type = "com.google.glass.nodding"
+ *  - In M android release, if android decides to define ACITIVITY_TYPE_NODDING, those types
+ *    should replace the Glass-team-specific types in all future launches.
+ *  - When launching glass on the M release, Google should now use the official activity type
+ *  - This way, other applications can use this activity.
  */
 
-/* Reserved. get_supported_activities_list() should not return this activity. */
-#define ACTIVITY_RESERVED          (0)
+#define ACTIVITY_TYPE_IN_VEHICLE       "android.activity_recognition.in_vehicle"
 
-#define ACTIVITY_IN_VEHICLE        (1)
+#define ACTIVITY_TYPE_ON_BICYCLE       "android.activity_recognition.on_bicycle"
 
-#define ACTIVITY_ON_BICYCLE        (2)
+#define ACTIVITY_TYPE_WALKING          "android.activity_recognition.walking"
 
-#define ACTIVITY_WALKING           (3)
+#define ACTIVITY_TYPE_RUNNING          "android.activity_recognition.running"
 
-#define ACTIVITY_RUNNING           (4)
+#define ACTIVITY_TYPE_STILL            "android.activity_recognition.still"
 
-#define ACTIVITY_STILL             (5)
-
-#define ACTIVITY_TILTING           (6)
+#define ACTIVITY_TYPE_TILTING          "android.activity_recognition.tilting"
 
 /* Values for activity_event.event_types. */
 enum {
@@ -69,19 +84,19 @@ enum {
      * return a flush_complete_event to indicate that the FIFO is empty.
      *
      * A flush complete event should have the following parameters set.
-     * activity_event_t.event_type = ACTIVITY_EVENT_TYPE_FLUSH_COMPLETE
-     * activity_event_t.activity = ACTIVITY_RESERVED
+     * activity_event_t.event_type = ACTIVITY_EVENT_FLUSH_COMPLETE
+     * activity_event_t.activity = 0
      * activity_event_t.timestamp = 0
      * activity_event_t.reserved = 0
      * See (*flush)() for more details.
      */
-    ACTIVITY_EVENT_TYPE_FLUSH_COMPLETE = 0,
+    ACTIVITY_EVENT_FLUSH_COMPLETE = 0,
 
     /* Signifies entering an activity. */
-    ACTIVITY_EVENT_TYPE_ENTER = 1,
+    ACTIVITY_EVENT_ENTER = 1,
 
     /* Signifies exiting an activity. */
-    ACTIVITY_EVENT_TYPE_EXIT  = 2
+    ACTIVITY_EVENT_EXIT  = 2
 };
 
 /*
@@ -89,10 +104,13 @@ enum {
  * or ended. Eg event: (event_type="enter", activity="ON_FOOT", timestamp)
  */
 typedef struct activity_event {
-    /* One of the ACTIVITY_EVENT_TYPE_* constants defined above. */
+    /* One of the ACTIVITY_EVENT_* constants defined above. */
     uint32_t event_type;
 
-    /* One of ACTIVITY_* constants defined above. */
+    /*
+     * Index of the activity in the list returned by get_supported_activities_list. If this event
+     * is a flush complete event, this should be set to zero.
+     */
     uint32_t activity;
 
     /* Time at which the transition/event has occurred in nanoseconds using elapsedRealTimeNano. */
@@ -112,12 +130,14 @@ typedef struct activity_recognition_module {
     hw_module_t common;
 
     /*
-     * List of all activities supported by this module. Each activity is represented as an integer.
-     * Each value in the list is one of the ACTIVITY_* constants defined above. Return
-     * value is the size of this list.
+     * List of all activities supported by this module including OEM defined activities. Each
+     * activity is represented using a string defined above. Each string should be null terminated.
+     * The index of the activity in this array is used as a "handle" for enabling/disabling and
+     * event delivery.
+     * Return value is the size of this list.
      */
     int (*get_supported_activities_list)(struct activity_recognition_module* module,
-            int** activity_list);
+            char const* const* *activity_list);
 } activity_recognition_module_t;
 
 struct activity_recognition_device;
@@ -159,26 +179,27 @@ typedef struct activity_recognition_device {
      * independently of the other. The HAL implementation needs to keep track of which pairs are
      * currently active and needs to detect only those pairs.
      *
-     * activity   - The specific activity that needs to be detected.
+     * activity_handle - Index of the specific activity that needs to be detected in the list
+     *                   returned by get_supported_activities_list.
      * event_type - Specific transition of the activity that needs to be detected.
      * max_batch_report_latency_ns - a transition can be delayed by at most
      *                               “max_batch_report_latency” nanoseconds.
      * Return 0 on success, negative errno code otherwise.
      */
     int (*enable_activity_event)(const struct activity_recognition_device* dev,
-            uint32_t activity, uint32_t event_type, int64_t max_batch_report_latency_ns);
+            uint32_t activity_handle, uint32_t event_type, int64_t max_batch_report_latency_ns);
 
     /*
      * Disables detection of a specific (activity, event_type) pair.
      */
     int (*disable_activity_event)(const struct activity_recognition_device* dev,
-            uint32_t activity, uint32_t event_type);
+            uint32_t activity_handle, uint32_t event_type);
 
     /*
      * Flush all the batch FIFOs. Report all the activities that were stored in the FIFO so far as
      * if max_batch_report_latency had expired. This shouldn't change the latency in any way. Add
      * a flush_complete_event to indicate the end of the FIFO after all events are delivered.
-     * See ACTIVITY_EVENT_TYPE_FLUSH_COMPLETE for more details.
+     * See ACTIVITY_EVENT_FLUSH_COMPLETE for more details.
      * Return 0 on success, negative errno code otherwise.
      */
     int (*flush)(const struct activity_recognition_device* dev);
