@@ -279,30 +279,26 @@
  *   for processing rate).
  *
  * - Limited-mode devices do not need to support most of the
- *   settings/result/static info metadata. Full-mode devices must support all
- *   metadata fields listed in TODO. Specifically, only the following settings
+ *   settings/result/static info metadata. Specifically, only the following settings
  *   are expected to be consumed or produced by a limited-mode HAL device:
  *
- *   android.control.aeAntibandingMode (controls)
- *   android.control.aeExposureCompensation (controls)
- *   android.control.aeLock (controls)
- *   android.control.aeMode (controls)
- *       [OFF means ON_FLASH_TORCH - TODO]
- *   android.control.aeRegions (controls)
- *   android.control.aeTargetFpsRange (controls)
- *   android.control.afMode (controls)
- *       [OFF means infinity focus]
- *   android.control.afRegions (controls)
- *   android.control.awbLock (controls)
- *   android.control.awbMode (controls)
- *       [OFF not supported]
- *   android.control.awbRegions (controls)
- *   android.control.captureIntent (controls)
- *   android.control.effectMode (controls)
- *   android.control.mode (controls)
- *       [OFF not supported]
- *   android.control.sceneMode (controls)
- *   android.control.videoStabilizationMode (controls)
+ *   android.control.aeAntibandingMode (controls and dynamic)
+ *   android.control.aeExposureCompensation (controls and dynamic)
+ *   android.control.aeLock (controls and dynamic)
+ *   android.control.aeMode (controls and dynamic)
+ *   android.control.aeRegions (controls and dynamic)
+ *   android.control.aeTargetFpsRange (controls and dynamic)
+ *   android.control.aePrecaptureTrigger (controls and dynamic)
+ *   android.control.afMode (controls and dynamic)
+ *   android.control.afRegions (controls and dynamic)
+ *   android.control.awbLock (controls and dynamic)
+ *   android.control.awbMode (controls and dynamic)
+ *   android.control.awbRegions (controls and dynamic)
+ *   android.control.captureIntent (controls and dynamic)
+ *   android.control.effectMode (controls and dynamic)
+ *   android.control.mode (controls and dynamic)
+ *   android.control.sceneMode (controls and dynamic)
+ *   android.control.videoStabilizationMode (controls and dynamic)
  *   android.control.aeAvailableAntibandingModes (static)
  *   android.control.aeAvailableModes (static)
  *   android.control.aeAvailableTargetFpsRanges (static)
@@ -315,63 +311,49 @@
  *   android.control.awbAvailableModes (static)
  *   android.control.maxRegions (static)
  *   android.control.sceneModeOverrides (static)
- *   android.control.aeRegions (dynamic)
  *   android.control.aeState (dynamic)
- *   android.control.afMode (dynamic)
- *   android.control.afRegions (dynamic)
  *   android.control.afState (dynamic)
- *   android.control.awbMode (dynamic)
- *   android.control.awbRegions (dynamic)
  *   android.control.awbState (dynamic)
- *   android.control.mode (dynamic)
  *
+ *   android.flash.mode (controls and dynamic)
  *   android.flash.info.available (static)
  *
  *   android.info.supportedHardwareLevel (static)
  *
- *   android.jpeg.gpsCoordinates (controls)
- *   android.jpeg.gpsProcessingMethod (controls)
- *   android.jpeg.gpsTimestamp (controls)
- *   android.jpeg.orientation (controls)
- *   android.jpeg.quality (controls)
- *   android.jpeg.thumbnailQuality (controls)
- *   android.jpeg.thumbnailSize (controls)
+ *   android.jpeg.gpsCoordinates (controls and dynamic)
+ *   android.jpeg.gpsProcessingMethod (controls and dynamic)
+ *   android.jpeg.gpsTimestamp (controls and dynamic)
+ *   android.jpeg.orientation (controls and dynamic)
+ *   android.jpeg.quality (controls and dynamic)
+ *   android.jpeg.thumbnailQuality (controls and dynamic)
+ *   android.jpeg.thumbnailSize (controls and dynamic)
  *   android.jpeg.availableThumbnailSizes (static)
  *   android.jpeg.maxSize (static)
- *   android.jpeg.gpsCoordinates (dynamic)
- *   android.jpeg.gpsProcessingMethod (dynamic)
- *   android.jpeg.gpsTimestamp (dynamic)
- *   android.jpeg.orientation (dynamic)
- *   android.jpeg.quality (dynamic)
- *   android.jpeg.size (dynamic)
- *   android.jpeg.thumbnailQuality (dynamic)
- *   android.jpeg.thumbnailSize (dynamic)
  *
  *   android.lens.info.minimumFocusDistance (static)
  *
- *   android.request.id (controls)
- *   android.request.id (dynamic)
+ *   android.request.id (controls and dynamic)
  *
- *   android.scaler.cropRegion (controls)
- *       [ignores (x,y), assumes center-zoom]
+ *   android.scaler.cropRegion (controls and dynamic)
  *   android.scaler.availableStreamConfigurations (static)
  *   android.scaler.availableMinFrameDurations (static)
  *   android.scaler.availableStallDurations (static)
  *   android.scaler.availableMaxDigitalZoom (static)
- *       [full resolution not supported]
  *   android.scaler.maxDigitalZoom (static)
- *   android.scaler.cropRegion (dynamic)
+ *   android.scaler.croppingType (static)
  *
  *   android.sensor.orientation (static)
  *   android.sensor.timestamp (dynamic)
  *
- *   android.statistics.faceDetectMode (controls)
+ *   android.statistics.faceDetectMode (controls and dynamic)
  *   android.statistics.info.availableFaceDetectModes (static)
- *   android.statistics.faceDetectMode (dynamic)
  *   android.statistics.faceIds (dynamic)
  *   android.statistics.faceLandmarks (dynamic)
  *   android.statistics.faceRectangles (dynamic)
  *   android.statistics.faceScores (dynamic)
+ *
+ *   android.sync.frameNumber (dynamic)
+ *   android.sync.maxLatency (static)
  *
  * - Captures in limited mode that include high-resolution (> 1080p) output
  *   buffers may block in process_capture_request() until all the output buffers
@@ -382,6 +364,14 @@
  *   process_capture_request() to block until after process_capture_result() for
  *   that request completes for high-resolution captures for limited-mode
  *   devices.
+ *
+ * - Full-mode devices must support below additional capabilities:
+ *   - 30fps at maximum resolution is preferred, more than 20fps is required.
+ *   - Per frame control (android.sync.maxLatency == PER_FRAME_CONTROL).
+ *   - Sensor manual control metadata. See MANUAL_SENSOR defined in
+ *     android.request.availableCapabilities.
+ *   - Post-processing manual control metadata. See MANUAL_POST_PROCESSING defined
+ *     in android.request.availableCapabilities.
  *
  */
 
