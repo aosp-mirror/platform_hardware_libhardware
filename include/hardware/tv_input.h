@@ -22,6 +22,7 @@
 #include <sys/types.h>
 
 #include <hardware/hardware.h>
+#include <system/audio.h>
 #include <system/window.h>
 
 __BEGIN_DECLS
@@ -86,7 +87,13 @@ typedef struct tv_input_device_info {
 
     /* TODO: Add capability if necessary. */
 
-    /* TODO: Audio info */
+    /*
+     * Audio info
+     *
+     * audio_type == AUDIO_DEVICE_NONE if this input has no audio.
+     */
+    audio_devices_t audio_type;
+    char audio_address[AUDIO_DEVICE_MAX_ADDRESS_LEN];
 } tv_input_device_info_t;
 
 typedef enum {
