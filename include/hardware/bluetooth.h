@@ -17,6 +17,7 @@
 #ifndef ANDROID_INCLUDE_BLUETOOTH_H
 #define ANDROID_INCLUDE_BLUETOOTH_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -360,6 +361,24 @@ typedef struct {
     le_test_mode_callback le_test_mode_cb;
 } bt_callbacks_t;
 
+typedef void (*alarm_cb)(void *data);
+typedef bool (*set_wake_alarm_callout)(uint64_t delay_millis, bool should_wake, alarm_cb cb, void *data);
+typedef int (*acquire_wake_lock_callout)(const char *lock_name);
+typedef int (*release_wake_lock_callout)(const char *lock_name);
+
+/** The set of functions required by bluedroid to set wake alarms and
+  * grab wake locks. This struct is passed into the stack through the
+  * |set_os_callouts| function on |bt_interface_t|.
+  */
+typedef struct {
+  /* set to sizeof(bt_os_callouts_t) */
+  size_t size;
+
+  set_wake_alarm_callout set_wake_alarm;
+  acquire_wake_lock_callout acquire_wake_lock;
+  release_wake_lock_callout release_wake_lock;
+} bt_os_callouts_t;
+
 /** NOTE: By default, no profiles are initialized at the time of init/enable.
  *  Whenever the application invokes the 'init' API of a profile, then one of
  *  the following shall occur:
@@ -471,6 +490,11 @@ typedef struct {
 
     /* enable or disable bluetooth HCI snoop log */
     int (*config_hci_snoop_log)(uint8_t enable);
+
+    /** Sets the OS call-out functions that bluedroid needs for alarms and wake locks.
+      * This should be called immediately after a successful |init|.
+      */
+    int (*set_os_callouts)(bt_os_callouts_t *callouts);
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
