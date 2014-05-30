@@ -45,6 +45,9 @@ LOCAL_C_INCLUDES += \
 LOCAL_CFLAGS += -Wall -Wextra
 
 LOCAL_MODULE:= camera2_test
+LOCAL_MODULE_STEM_32 := camera2_test
+LOCAL_MODULE_STEM_64 := camera2_test64
+LOCAL_MULTILIB := both
 LOCAL_MODULE_TAGS := tests
 
 include $(BUILD_NATIVE_TEST)
