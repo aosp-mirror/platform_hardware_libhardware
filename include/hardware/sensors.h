@@ -522,11 +522,11 @@ enum {
  * A sensor of this type generates an event each time a tilt event is detected. A tilt event
  * should be generated if the direction of the 2-seconds window average gravity changed by at least
  * 35 degrees since the activation or the last trigger of the sensor.
- *     initial_estimated_gravity = average of accelerometer measurements over the first
+ *     reference_estimated_gravity = average of accelerometer measurements over the first
  *                                 1 second after activation or the estimated gravity at the last
  *                                 trigger.
  *     current_estimated_gravity = average of accelerometer measurements over the last 2 seconds.
- *     trigger when angle (initial_estimated_gravity, current_estimated_gravity) > 35 degrees
+ *     trigger when angle (reference_estimated_gravity, current_estimated_gravity) > 35 degrees
  *
  * Large accelerations without a change in phone orientation should not trigger a tilt event.
  * For example, a sharp turn or strong acceleration while driving a car should not trigger a tilt
