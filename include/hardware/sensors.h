@@ -100,8 +100,23 @@ enum {
     /*
      * Whether this sensor wakes up the AP from suspend mode when data is available.
      */
-    SENSOR_FLAG_WAKE_UP = 1U << 0
+    SENSOR_FLAG_WAKE_UP = 1U << 0,
+    /*
+     * Reporting modes for various sensors. Each sensor will have exactly one of these modes set.
+     * The least significant 2nd, 3rd and 4th bits are used to represent four possible reporting
+     * modes.
+     */
+    SENSOR_FLAG_CONTINUOUS_MODE        = 0,    // 0000
+    SENSOR_FLAG_ON_CHANGE_MODE         = 0x2,  // 0010
+    SENSOR_FLAG_ONE_SHOT_MODE          = 0x4,  // 0100
+    SENSOR_FLAG_SPECIAL_REPORTING_MODE = 0x6   // 0110
 };
+
+/*
+ * Mask and shift for reporting mode sensor flags defined above.
+ */
+#define REPORTING_MODE_MASK              (0xE)
+#define REPORTING_MODE_SHIFT             (1)
 
 /*
  * Sensor type
@@ -158,7 +173,7 @@ enum {
 
 /*
  * SENSOR_TYPE_META_DATA
- * trigger-mode: n/a
+ * reporting-mode: n/a
  * wake-up sensor: n/a
  *
  * NO SENSOR OF THAT TYPE MUST BE RETURNED (*get_sensors_list)()
@@ -191,7 +206,7 @@ enum {
 
 /*
  * SENSOR_TYPE_ACCELEROMETER
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  All values are in SI units (m/s^2) and measure the acceleration of the
@@ -203,7 +218,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GEOMAGNETIC_FIELD
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  All values are in micro-Tesla (uT) and measure the geomagnetic
@@ -216,7 +231,7 @@ enum {
 
 /*
  * SENSOR_TYPE_ORIENTATION
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  * All values are angles in degrees.
@@ -229,7 +244,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GYROSCOPE
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  All values are in radians/second and measure the rate of rotation
@@ -240,7 +255,7 @@ enum {
 
 /*
  * SENSOR_TYPE_LIGHT
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: no
  *
  * The light sensor value is returned in SI lux units.
@@ -250,7 +265,7 @@ enum {
 
 /*
  * SENSOR_TYPE_PRESSURE
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  * The pressure sensor return the athmospheric pressure in hectopascal (hPa)
@@ -264,7 +279,7 @@ enum {
 
 /*
  * SENSOR_TYPE_PROXIMITY
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * The value corresponds to the distance to the nearest object in centimeters.
@@ -274,7 +289,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GRAVITY
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  * A gravity output indicates the direction of and magnitude of gravity in
@@ -285,7 +300,7 @@ enum {
 
 /*
  * SENSOR_TYPE_LINEAR_ACCELERATION
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  * Indicates the linear acceleration of the device in device coordinates,
@@ -297,7 +312,7 @@ enum {
 
 /*
  * SENSOR_TYPE_ROTATION_VECTOR
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  * The rotation vector symbolizes the orientation of the device relative to the
@@ -308,7 +323,7 @@ enum {
 
 /*
  * SENSOR_TYPE_RELATIVE_HUMIDITY
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: no
  *
  * A relative humidity sensor measures relative ambient air humidity and
@@ -319,7 +334,7 @@ enum {
 
 /*
  * SENSOR_TYPE_AMBIENT_TEMPERATURE
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: no
  *
  * The ambient (room) temperature in degree Celsius.
@@ -329,7 +344,7 @@ enum {
 
 /*
  * SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_MAGNETIC_FIELD, but the hard iron calibration is
@@ -340,7 +355,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GAME_ROTATION_VECTOR
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but not using the geomagnetic
@@ -351,7 +366,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GYROSCOPE_UNCALIBRATED
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  All values are in radians/second and measure the rate of rotation
@@ -362,7 +377,7 @@ enum {
 
 /*
  * SENSOR_TYPE_SIGNIFICANT_MOTION
- * trigger-mode: one-shot
+ * reporting-mode: one-shot
  * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type triggers an event each time significant motion
@@ -375,7 +390,7 @@ enum {
 
 /*
  * SENSOR_TYPE_STEP_DETECTOR
- * trigger-mode: special
+ * reporting-mode: special
  * wake-up sensor: no
  *
  * A sensor of this type triggers an event each time a step is taken
@@ -389,7 +404,7 @@ enum {
 
 /*
  * SENSOR_TYPE_STEP_COUNTER
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: no
  *
  * A sensor of this type returns the number of steps taken by the user since
@@ -402,7 +417,7 @@ enum {
 
 /*
  * SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR
- * trigger-mode: continuous
+ * reporting-mode: continuous
  * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but using a magnetometer instead
@@ -413,7 +428,7 @@ enum {
 
 /*
  * SENSOR_TYPE_HEART_RATE
- * trigger-mode: on-change
+ * reporting-mode: on-change
  * wake-up sensor: no
  *
  *  A sensor of this type returns the current heart rate.
@@ -424,7 +439,7 @@ enum {
  *  Because this sensor is on-change, events must be generated when and only
  *  when heart_rate.bpm or heart_rate.status have changed since the last
  *  event. The event should be generated no faster than every period_ns passed
- *  to setDelay() or to batch(). See the definition of the on-change trigger
+ *  to setDelay() or to batch(). See the definition of the on-change reporting
  *  mode for more information.
  *
  *  sensor_t.requiredPermission must be set to SENSOR_PERMISSION_BODY_SENSORS.
@@ -516,7 +531,7 @@ enum {
 
 /*
  * SENSOR_TYPE_WAKE_UP_TILT_DETECTOR
- * trigger-mode: special (setDelay has no impact)
+ * reporting-mode: special (setDelay has no impact)
  * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type generates an event each time a tilt event is detected. A tilt event
@@ -543,7 +558,7 @@ enum {
 
 /*
  * SENSOR_TYPE_WAKE_GESTURE
- * trigger-mode: one-shot
+ * reporting-mode: one-shot
  * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor enabling waking up the device based on a device specific motion.
@@ -781,7 +796,7 @@ struct sensor_t {
     /* rough estimate of this sensor's power consumption in mA */
     float           power;
 
-    /* this value depends on the trigger mode:
+    /* this value depends on the reporting mode:
      *
      *   continuous: minimum sample period allowed in microseconds
      *   on-change : 0
@@ -827,9 +842,12 @@ struct sensor_t {
      * lower frequencies are requested through batch()/setDelay() the events will be generated
      * at this frequency instead. It can be used by the framework or applications to estimate
      * when the batch FIFO may be full.
-     * NOTE: period_ns is in nanoseconds where as maxDelay/minDelay are in microseconds.
-     *     continuous: maximum sampling period allowed in microseconds.
-     *     on-change, one-shot, special : -1
+     *
+     * NOTE: 1) period_ns is in nanoseconds where as maxDelay/minDelay are in microseconds.
+     *              continuous: maximum sampling period allowed in microseconds.
+     *              on-change, one-shot, special : 0
+     *   2) maxDelay should always fit within a 32 bit signed integer. It is declared as 64 bit
+     *      on 64 bit architectures only for binary compatibility reasons.
      * Availability: SENSORS_DEVICE_API_VERSION_1_3
      */
     #ifdef __LP64__
@@ -838,7 +856,10 @@ struct sensor_t {
        int32_t maxDelay;
     #endif
 
-    /* Flags for sensor. See SENSOR_FLAG_* above. */
+    /* Flags for sensor. See SENSOR_FLAG_* above. Only the least significant 32 bits are used here.
+     * It is declared as 64 bit on 64 bit architectures only for binary compatibility reasons.
+     * Availability: SENSORS_DEVICE_API_VERSION_1_3
+     */
     #ifdef __LP64__
        uint64_t flags;
     #else
@@ -918,7 +939,9 @@ typedef struct sensors_poll_device_1 {
     /*
      * Flush adds a META_DATA_FLUSH_COMPLETE event (sensors_event_meta_data_t)
      * to the end of the "batch mode" FIFO for the specified sensor and flushes
-     * the FIFO.
+     * the FIFO. If the FIFO is empty or if the sensor doesn't support batching (FIFO size zero),
+     * it should return SUCCESS along with a trivial META_DATA_FLUSH_COMPLETE event added to the
+     * event stream. This applies to all sensors other than ONE_SHOT sensors.
      */
     int (*flush)(struct sensors_poll_device_1* dev, int handle);
 
