@@ -21,6 +21,7 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <pthread.h>
+#include <sys/socket.h>
 
 #include <hardware/hardware.h>
 
@@ -134,6 +135,12 @@ typedef uint16_t AGpsSetIDType;
 #define AGPS_SETID_TYPE_NONE    0
 #define AGPS_SETID_TYPE_IMSI    1
 #define AGPS_SETID_TYPE_MSISDN  2
+
+typedef uint16_t ApnIpType;
+#define APN_IP_INVALID          0
+#define APN_IP_IPV4             1
+#define APN_IP_IPV6             2
+#define APN_IP_IPV4V6           3
 
 /**
  * String length constants
@@ -481,13 +488,45 @@ typedef struct {
 
 /** Represents the status of AGPS. */
 typedef struct {
-    /** set to sizeof(AGpsStatus) */
+    /** set to sizeof(AGpsStatus_v1) */
+    size_t          size;
+
+    AGpsType        type;
+    AGpsStatusValue status;
+} AGpsStatus_v1;
+
+/** Represents the status of AGPS augmented with a IPv4 address field. */
+typedef struct {
+    /** set to sizeof(AGpsStatus_v2) */
     size_t          size;
 
     AGpsType        type;
     AGpsStatusValue status;
     uint32_t        ipaddr;
-} AGpsStatus;
+} AGpsStatus_v2;
+
+/* Represents the status of AGPS augmented to support IPv4 and IPv6. */
+typedef struct {
+    /** set to sizeof(AGpsStatus_v3) */
+    size_t                  size;
+
+    AGpsType                type;
+    AGpsStatusValue         status;
+
+    /**
+     * Must be set to a valid IPv4 address if the field 'addr' contains an IPv4
+     * address, or set to INADDR_NONE otherwise.
+     */
+    uint32_t                ipaddr;
+
+    /**
+     * Must contain the IPv4 (AF_INET) or IPv6 (AF_INET6) address to report.
+     * Any other value of addr.ss_family will be rejected.
+     * */
+    struct sockaddr_storage addr;
+} AGpsStatus_v3;
+
+typedef AGpsStatus_v3     AGpsStatus;
 
 /** Callback with AGPS status information.
  *  Can only be called from a thread created by create_thread_cb.
@@ -503,7 +542,7 @@ typedef struct {
 
 /** Extended interface for AGPS support. */
 typedef struct {
-    /** set to sizeof(AGpsInterface) */
+    /** set to sizeof(AGpsInterface_v1) */
     size_t          size;
 
     /**
@@ -528,7 +567,50 @@ typedef struct {
      * Sets the hostname and port for the AGPS server.
      */
     int  (*set_server)( AGpsType type, const char* hostname, int port );
-} AGpsInterface;
+} AGpsInterface_v1;
+
+/**
+ * Extended interface for AGPS support, it is augmented to enable to pass
+ * extra APN data.
+ */
+typedef struct {
+    /** set to sizeof(AGpsInterface_v2) */
+    size_t size;
+
+    /**
+     * Opens the AGPS interface and provides the callback routines to the
+     * implementation of this interface.
+     */
+    void (*init)(AGpsCallbacks* callbacks);
+    /**
+     * Deprecated.
+     * If the HAL supports AGpsInterface_v2 this API will not be used, see
+     * data_conn_open_with_apn_ip_type for more information.
+     */
+    int (*data_conn_open)(const char* apn);
+    /**
+     * Notifies that the AGPS data connection has been closed.
+     */
+    int (*data_conn_closed)();
+    /**
+     * Notifies that a data connection is not available for AGPS.
+     */
+    int (*data_conn_failed)();
+    /**
+     * Sets the hostname and port for the AGPS server.
+     */
+    int (*set_server)(AGpsType type, const char* hostname, int port);
+
+    /**
+     * Notifies that a data connection is available and sets the name of the
+     * APN, and its IP type, to be used for SUPL connections.
+     */
+    int (*data_conn_open_with_apn_ip_type)(
+            const char* apn,
+            ApnIpType apnIpType);
+} AGpsInterface_v2;
+
+typedef AGpsInterface_v2    AGpsInterface;
 
 /** Error codes associated with certificate operations */
 #define AGPS_CERTIFICATE_OPERATION_SUCCESS               0
