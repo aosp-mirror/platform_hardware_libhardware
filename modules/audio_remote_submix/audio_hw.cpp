@@ -388,8 +388,17 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
     // If a pipe isn't associated with the device, create one.
     if (rsxadev->rsxSink == NULL || rsxadev->rsxSource == NULL) {
         struct submix_config * const device_config = &rsxadev->config;
-        const NBAIO_Format format = Format_from_SR_C(config->sample_rate,
-                 get_channel_count_from_mask(config->channel_mask), config->format);
+        const uint32_t channel_count = get_channel_count_from_mask(config->channel_mask);
+#if ENABLE_CHANNEL_CONVERSION
+        // If channel conversion is enabled, allocate enough space for the maximum number of
+        // possible channels stored in the pipe for the situation when the number of channels in
+        // the output stream don't match the number in the input stream.
+        const uint32_t pipe_channel_count = max(channel_count, 2);
+#else
+        const uint32_t pipe_channel_count = channel_count;
+#endif // ENABLE_CHANNEL_CONVERSION
+        const NBAIO_Format format = Format_from_SR_C(config->sample_rate, pipe_channel_count,
+            config->format);
         const NBAIO_Format offers[1] = {format};
         size_t numCounterOffers = 0;
         // Create a MonoPipe with optional blocking set to true.
@@ -417,6 +426,11 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
                 buffer_period_count;
         if (in) device_config->pipe_frame_size = audio_stream_frame_size(&in->stream.common);
         if (out) device_config->pipe_frame_size = audio_stream_frame_size(&out->stream.common);
+#if ENABLE_CHANNEL_CONVERSION
+        // Calculate the pipe frame size based upon the number of channels.
+        device_config->pipe_frame_size = (device_config->pipe_frame_size * pipe_channel_count) /
+                channel_count;
+#endif // ENABLE_CHANNEL_CONVERSION
         SUBMIX_ALOGV("submix_audio_device_create_pipe(): pipe frame size %zd, pipe size %zd, "
                      "period size %zd", device_config->pipe_frame_size,
                      device_config->buffer_size_frames, device_config->buffer_period_size_frames);
@@ -669,15 +683,10 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     const struct submix_config * const config = &out->dev->config;
     const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
             &stream->common, config, config->buffer_size_frames);
-#if ENABLE_RESAMPLING
-    // Sample rate conversion occurs when data is read from the input so data in the buffer is
-    // at output_sample_rate Hz.
-    const uint32_t latency_ms = (buffer_size_frames * 1000) / config->output_sample_rate;
-#else
-    const uint32_t latency_ms = (buffer_size_frames * 1000) / config->common.sample_rate;
-#endif // ENABLE_RESAMPLING
+    const uint32_t sample_rate = out_get_sample_rate(&stream->common);
+    const uint32_t latency_ms = (buffer_size_frames * 1000) / sample_rate;
     SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u",
-                 latency_ms, buffer_size_frames, config->common.sample_rate);
+                 latency_ms, buffer_size_frames, sample_rate);
     return latency_ms;
 }
 
@@ -1114,7 +1123,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
     if (remaining_frames > 0) {
         const size_t remaining_bytes = remaining_frames * frame_size;
-        SUBMIX_ALOGV("  remaining_frames = %zu", remaining_frames);
+        SUBMIX_ALOGV("  clearing remaining_frames = %zu", remaining_frames);
         memset(((char*)buffer)+ bytes - remaining_bytes, 0, remaining_bytes);
     }
 
@@ -1186,6 +1195,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     struct submix_audio_device * const rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGV("adev_open_output_stream()");
     struct submix_stream_out *out;
+    bool force_pipe_creation = false;
     (void)handle;
     (void)devices;
     (void)flags;
@@ -1221,9 +1231,16 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
-    // If the sink has been shutdown, delete the pipe so that it's recreated.
+#if ENABLE_RESAMPLING
+    // Recreate the pipe with the correct sample rate so that MonoPipe.write() rate limits
+    // writes correctly.
+    force_pipe_creation = rsxadev->config.common.sample_rate != config->sample_rate;
+#endif // ENABLE_RESAMPLING
+
+    // If the sink has been shutdown or pipe recreation is forced (see above), delete the pipe so
+    // that it's recreated.
     pthread_mutex_lock(&rsxadev->lock);
-    if (rsxadev->rsxSink != NULL && rsxadev->rsxSink->isShutdown()) {
+    if ((rsxadev->rsxSink != NULL && rsxadev->rsxSink->isShutdown()) || force_pipe_creation) {
         submix_audio_device_release_pipe(rsxadev);
     }
     pthread_mutex_unlock(&rsxadev->lock);
@@ -1347,7 +1364,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
         const size_t frame_size_in_bytes = get_channel_count_from_mask(config->channel_mask) *
                 audio_bytes_per_sample(config->format);
         const size_t buffer_size = buffer_period_size_frames * frame_size_in_bytes;
-        SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
+        SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
                  buffer_size, buffer_period_size_frames);
         return buffer_size;
     }
