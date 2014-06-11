@@ -1128,7 +1128,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         num_read_buff_bytes = (num_device_channels * num_read_buff_bytes) / num_req_channels;
     }
 
-    if (cached_output_hardware_config.format == PCM_FORMAT_S24_3LE) {
+    if (cached_input_hardware_config.format == PCM_FORMAT_S24_3LE) {
         num_read_buff_bytes = (3 * num_read_buff_bytes) / 2;
     }
 
@@ -1148,7 +1148,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
          * Do any conversions necessary to send the data in the format specified to/by the HAL
          * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
          */
-        if (cached_output_hardware_config.format == PCM_FORMAT_S24_3LE) {
+        if (cached_input_hardware_config.format == PCM_FORMAT_S24_3LE) {
             if (num_device_channels != num_req_channels) {
                 out_buff = read_buff;
             }
@@ -1197,6 +1197,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
           config->sample_rate, config->channel_mask, config->format);
 
     struct stream_in *in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
+    int ret = 0;
+
     if (in == NULL)
         return -ENOMEM;
 
@@ -1220,10 +1222,13 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->dev = (struct audio_device *)dev;
 
-    if (output_hardware_config_is_cached) {
-        config->sample_rate = cached_output_hardware_config.rate;
+    if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO)
+        ret = -EINVAL;
 
-        config->format = alsa_to_fw_format_id(cached_output_hardware_config.format);
+    if (input_hardware_config_is_cached) {
+        config->sample_rate = cached_input_hardware_config.rate;
+
+        config->format = alsa_to_fw_format_id(cached_input_hardware_config.format);
         if (config->format != AUDIO_FORMAT_PCM_16_BIT) {
             // Always report PCM16 for now. AudioPolicyManagerBase/AudioFlinger dont' understand
             // formats with more other format, so we won't get chosen (say with a 24bit DAC).
@@ -1231,20 +1236,20 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
             config->format = AUDIO_FORMAT_PCM_16_BIT;
         }
 
-        config->channel_mask = audio_channel_out_mask_from_count(
-                cached_output_hardware_config.channels);
-        if (config->channel_mask != AUDIO_CHANNEL_OUT_STEREO) {
+        config->channel_mask = audio_channel_in_mask_from_count(
+                cached_input_hardware_config.channels);
+        if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO) {
             // Always report STEREO for now.  AudioPolicyManagerBase/AudioFlinger dont' understand
             // formats with more channels, so we won't get chosen (say with a 4-channel DAC).
             //TODO(pmclean) remove this when the above restriction is removed.
-            config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
+            config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
         }
     } else {
         cached_input_hardware_config = default_alsa_in_config;
 
-        config->format = out_get_format(&in->stream.common);
-        config->channel_mask = out_get_channels(&in->stream.common);
-        config->sample_rate = out_get_sample_rate(&in->stream.common);
+        config->format = in_get_format(&in->stream.common);
+        config->channel_mask = in_get_channels(&in->stream.common);
+        config->sample_rate = in_get_sample_rate(&in->stream.common);
     }
 
     in->standby = true;
@@ -1254,7 +1259,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     *stream_in = &in->stream;
 
-    return 0;
+    return ret;
 }
 
 static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_stream_in *stream)
