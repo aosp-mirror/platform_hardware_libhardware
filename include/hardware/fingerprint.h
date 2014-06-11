@@ -22,17 +22,27 @@
 
 typedef enum fingerprint_msg_type {
     FINGERPRINT_ERROR = -1,
-    FINGERPRINT_SCANNED = 1,
-    FINGERPRINT_TEMPLATE_ENROLLING = 2,
+    FINGERPRINT_ACQUIRED = 1,
+    FINGERPRINT_PROCESSED = 2,
+    FINGERPRINT_TEMPLATE_ENROLLING = 3,
     FINGERPRINT_TEMPLATE_REMOVED = 4
 } fingerprint_msg_type_t;
 
 typedef enum fingerprint_error {
     FINGERPRINT_ERROR_HW_UNAVAILABLE = 1,
-    FINGERPRINT_ERROR_BAD_CAPTURE = 2,
+    FINGERPRINT_ERROR_UNABLE_TO_PROCESS = 2,
     FINGERPRINT_ERROR_TIMEOUT = 3,
     FINGERPRINT_ERROR_NO_SPACE = 4  /* No space available to store a template */
 } fingerprint_error_t;
+
+typedef enum fingerprint_scan_info {
+    FINGERPRINT_SCAN_GOOD = 0,
+    FINGERPRINT_SCAN_PARTIAL = 1,
+    FINGERPRINT_SCAN_INSUFFICIENT = 2,
+    FINGERPRINT_SCAN_IMAGER_DIRTY = 4,
+    FINGERPRINT_SCAN_TOO_SLOW = 8,
+    FINGERPRINT_SCAN_TOO_FAST = 16
+} fingerprint_scan_info_t;
 
 typedef struct fingerprint_enroll {
     uint32_t id;
@@ -61,9 +71,13 @@ typedef struct fingerprint_removed {
     uint32_t id;
 } fingerprint_removed_t;
 
-typedef struct fingerprint_scanned {
+typedef struct fingerprint_acquired {
+    fingerprint_scan_info_t scan_info; /* information about the image */
+} fingerprint_acquired_t;
+
+typedef struct fingerprint_processed {
     uint32_t id; /* 0 is a special id and means no match */
-} fingerprint_scanned_t;
+} fingerprint_processed_t;
 
 typedef struct fingerprint_msg {
     fingerprint_msg_type_t type;
@@ -72,7 +86,8 @@ typedef struct fingerprint_msg {
         fingerprint_error_t error;
         fingerprint_enroll_t enroll;
         fingerprint_removed_t removed;
-        fingerprint_scanned_t scan;
+        fingerprint_acquired_t acquired;
+        fingerprint_processed_t processed;
     } data;
 } fingerprint_msg_t;
 
@@ -82,10 +97,10 @@ typedef void (*fingerprint_notify_t)(fingerprint_msg_t msg);
 /* Synchronous operation */
 typedef struct fingerprint_device {
     /**
-     * Common methods of the fingerprint device.  This *must* be the first member of
-     * fingerprint_device as users of this structure will cast a hw_device_t to
-     * fingerprint_device pointer in contexts where it's known the hw_device_t references a
-     * fingerprint_device.
+     * Common methods of the fingerprint device. This *must* be the first member
+     * of fingerprint_device as users of this structure will cast a hw_device_t
+     * to fingerprint_device pointer in contexts where it's known
+     * the hw_device_t references a fingerprint_device.
      */
     struct hw_device_t common;
 
@@ -152,10 +167,10 @@ typedef struct fingerprint_device {
 
 typedef struct fingerprint_module {
     /**
-     * Common methods of the fingerprint module.  This *must* be the first member of
-     * fingerprint_module as users of this structure will cast a hw_module_t to
-     * fingerprint_module pointer in contexts where it's known the hw_module_t references a
-     * fingerprint_module.
+     * Common methods of the fingerprint module. This *must* be the first member
+     * of fingerprint_module as users of this structure will cast a hw_module_t
+     * to fingerprint_module pointer in contexts where it's known
+     * the hw_module_t references a fingerprint_module.
      */
     struct hw_module_t common;
 } fingerprint_module_t;
