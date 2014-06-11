@@ -299,10 +299,11 @@ void sensors_poll_context_t::copy_event_remap_handle(sensors_event_t* dest, sens
 int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
     ALOGV("poll");
     int empties = 0;
-    int queueCount = (int)this->queues.size();
+    int queueCount = 0;
     int eventsRead = 0;
 
     pthread_mutex_lock(&queue_mutex);
+    queueCount = (int)this->queues.size();
     while (eventsRead == 0) {
         while (empties < queueCount && eventsRead < maxReads) {
             SensorEventQueue* queue = this->queues.at(this->nextReadIndex);
@@ -311,7 +312,13 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
                 empties++;
             } else {
                 empties = 0;
-                this->copy_event_remap_handle(&data[eventsRead++], event, nextReadIndex);
+                this->copy_event_remap_handle(&data[eventsRead], event, nextReadIndex);
+                if (data[eventsRead].sensor == -1) {
+                    // Bad handle, do not pass corrupted event upstream !
+                    ALOGW("Dropping bad local handle event packet on the floor");
+                } else {
+                    eventsRead++;
+                }
                 queue->dequeue();
             }
             this->nextReadIndex = (this->nextReadIndex + 1) % queueCount;
