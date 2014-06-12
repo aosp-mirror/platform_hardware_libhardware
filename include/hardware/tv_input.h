@@ -62,7 +62,7 @@ typedef struct tv_input_module {
 
 /*****************************************************************************/
 
-typedef enum tv_input_type {
+enum {
     /* HDMI */
     TV_INPUT_TYPE_HDMI = 1,
 
@@ -71,7 +71,8 @@ typedef enum tv_input_type {
 
     /* Passthrough */
     TV_INPUT_TYPE_PASSTHROUGH = 3,
-} tv_input_type_t;
+};
+typedef uint32_t tv_input_type_t;
 
 typedef struct tv_input_device_info {
     /* Device ID */
@@ -80,10 +81,16 @@ typedef struct tv_input_device_info {
     /* Type of physical TV input. */
     tv_input_type_t type;
 
-    /*
-     * TODO: A union of type specific information. For example, HDMI port
-     * identifier that HDMI hardware understands.
-     */
+    union {
+        struct {
+            /* HDMI port ID number */
+            uint32_t port_id;
+        } hdmi;
+
+        /* TODO: add other type specific information. */
+
+        int32_t type_info_reserved[16];
+    };
 
     /* TODO: Add capability if necessary. */
 
@@ -93,10 +100,12 @@ typedef struct tv_input_device_info {
      * audio_type == AUDIO_DEVICE_NONE if this input has no audio.
      */
     audio_devices_t audio_type;
-    char audio_address[AUDIO_DEVICE_MAX_ADDRESS_LEN];
+    const char* audio_address;
+
+    int32_t reserved[16];
 } tv_input_device_info_t;
 
-typedef enum {
+enum {
     /*
      * Hardware notifies the framework that a device is available.
      */
@@ -121,7 +130,8 @@ typedef enum {
      * canceled the request. Client can assume ownership of the buffer again.
      */
     TV_INPUT_EVENT_CAPTURE_FAILED = 5,
-} tv_input_event_type_t;
+};
+typedef uint32_t tv_input_event_type_t;
 
 typedef struct tv_input_capture_result {
     /* Device ID */
@@ -179,10 +189,11 @@ typedef struct tv_input_callback_ops {
             tv_input_event_t* event, void* data);
 } tv_input_callback_ops_t;
 
-typedef enum {
+enum {
     TV_STREAM_TYPE_INDEPENDENT_VIDEO_SOURCE = 1,
     TV_STREAM_TYPE_BUFFER_PRODUCER = 2,
-} tv_stream_type_t;
+};
+typedef uint32_t tv_stream_type_t;
 
 typedef struct tv_stream_config {
     /*
