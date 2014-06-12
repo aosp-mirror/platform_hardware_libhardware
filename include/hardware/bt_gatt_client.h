@@ -160,7 +160,15 @@ typedef void (*listen_callback)(int status, int server_if);
 typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 
 /** Callback invoked when a scan filter configuration command has completed */
-typedef void (*scan_filter_callback)(int action, int status);
+typedef void (*scan_filter_cfg_callback)(int action, int client_if, int status, int filt_type,
+                                         int avbl_space);
+
+/** Callback invoked when scan param has been added, cleared, or deleted */
+typedef void (*scan_filter_param_callback)(int action, int client_if, int status,
+                                         int avbl_space);
+
+/** Callback invoked when a scan filter configuration command has completed */
+typedef void (*scan_filter_status_callback)(int enable, int client_if, int status);
 
 /** Callback invoked when multi-adv enable operation has completed */
 typedef void (*multi_adv_enable_callback)(int client_if, int status);
@@ -214,7 +222,9 @@ typedef struct {
     read_remote_rssi_callback           read_remote_rssi_cb;
     listen_callback                     listen_cb;
     configure_mtu_callback              configure_mtu_cb;
-    scan_filter_callback                scan_filter_cb;
+    scan_filter_cfg_callback            scan_filter_cfg_cb;
+    scan_filter_param_callback          scan_filter_param_cb;
+    scan_filter_status_callback         scan_filter_status_cb;
     multi_adv_enable_callback           multi_adv_enable_cb;
     multi_adv_update_callback           multi_adv_update_cb;
     multi_adv_data_callback             multi_adv_data_cb;
@@ -321,16 +331,26 @@ typedef struct {
     /** Request RSSI for a given remote device */
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
 
-    /** Enable or disable scan filtering */
-    bt_status_t (*scan_filter_enable)( int enable );
+    /** Setup scan filter params */
+    bt_status_t (*scan_filter_param_setup)(int client_if, int action, int filt_index, int feat_seln,
+                                      int list_logic_type, int filt_logic_type, int rssi_high_thres,
+                                      int rssi_low_thres, int dely_mode, int found_timeout,
+                                      int lost_timeout, int found_timeout_cnt);
+
 
     /** Configure a scan filter condition  */
-    bt_status_t (*scan_filter_add)(int type, int company_id, int company_mask,
-                                   int len, const bt_uuid_t *p_uuid, const bt_uuid_t *p_uuid_mask,
-                                   const bt_bdaddr_t *bd_addr, char addr_type, const char* p_value);
+    bt_status_t (*scan_filter_add_remove)(int client_if, int action, int filt_type,
+                                   int filt_index, int company_id,
+                                   int company_id_mask, const bt_uuid_t *p_uuid,
+                                   const bt_uuid_t *p_uuid_mask, const bt_bdaddr_t *bd_addr,
+                                   char addr_type, int data_len, char* p_data, int mask_len,
+                                   char* p_mask);
 
-    /** Clear all scan filter conditions */
-    bt_status_t (*scan_filter_clear)();
+    /** Clear all scan filter conditions for specific filter index*/
+    bt_status_t (*scan_filter_clear)(int client_if, int filt_index);
+
+    /** Enable / disable scan filter feature*/
+    bt_status_t (*scan_filter_enable)(int client_if, bool enable);
 
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
     int (*get_device_type)( const bt_bdaddr_t *bd_addr );
