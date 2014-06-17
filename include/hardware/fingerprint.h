@@ -35,14 +35,14 @@ typedef enum fingerprint_error {
     FINGERPRINT_ERROR_NO_SPACE = 4  /* No space available to store a template */
 } fingerprint_error_t;
 
-typedef enum fingerprint_scan_info {
-    FINGERPRINT_SCAN_GOOD = 0,
-    FINGERPRINT_SCAN_PARTIAL = 1,
-    FINGERPRINT_SCAN_INSUFFICIENT = 2,
-    FINGERPRINT_SCAN_IMAGER_DIRTY = 4,
-    FINGERPRINT_SCAN_TOO_SLOW = 8,
-    FINGERPRINT_SCAN_TOO_FAST = 16
-} fingerprint_scan_info_t;
+typedef enum fingerprint_acquired_info {
+    FINGERPRINT_ACQUIRED_GOOD = 0,
+    FINGERPRINT_ACQUIRED_PARTIAL = 1,
+    FINGERPRINT_ACQUIRED_INSUFFICIENT = 2,
+    FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 4,
+    FINGERPRINT_ACQUIRED_TOO_SLOW = 8,
+    FINGERPRINT_ACQUIRED_TOO_FAST = 16
+} fingerprint_acquired_info_t;
 
 typedef struct fingerprint_enroll {
     uint32_t id;
@@ -72,7 +72,7 @@ typedef struct fingerprint_removed {
 } fingerprint_removed_t;
 
 typedef struct fingerprint_acquired {
-    fingerprint_scan_info_t scan_info; /* information about the image */
+    fingerprint_acquired_info_t acquired_info; /* information about the image */
 } fingerprint_acquired_t;
 
 typedef struct fingerprint_processed {
