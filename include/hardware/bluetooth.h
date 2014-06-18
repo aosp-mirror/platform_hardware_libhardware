@@ -465,6 +465,13 @@ typedef struct {
     /** Cancel Bond */
     int (*cancel_bond)(const bt_bdaddr_t *bd_addr);
 
+    /**
+     * Get the connection status for a given remote device.
+     * return value of 0 means the device is not connected,
+     * non-zero return status indicates an active connection.
+     */
+    int (*get_connection_state)(const bt_bdaddr_t *bd_addr);
+
     /** BT Legacy PinKey Reply */
     /** If accept==FALSE, then pin_len and pin_code shall be 0x0 */
     int (*pin_reply)(const bt_bdaddr_t *bd_addr, uint8_t accept,
