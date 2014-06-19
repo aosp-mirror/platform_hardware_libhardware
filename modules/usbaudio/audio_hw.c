@@ -383,6 +383,24 @@ static void log_pcm_params(struct pcm_params * alsa_hw_params) {
 }
 
 /*
+ * Returns the supplied value rounded up to the next even multiple of 16
+ */
+static unsigned int round_to_16_mult(unsigned int size) {
+    return (size + 15) & 0xFFFFFFF0;
+}
+
+/*TODO(pmclean) - Evaluate if this value should/can be retrieved from a device-specific property */
+#define MIN_BUFF_TIME   5   /* milliseconds */
+
+/*
+ * Returns the system defined minimum period size based on the supplied sample rate
+ */
+static unsigned int calc_min_period_size(unsigned int sample_rate) {
+    unsigned int period_size = (sample_rate * MIN_BUFF_TIME) / 1000;
+    return round_to_16_mult(period_size);
+}
+
+/*
  * Reads and decodes configuration info from the specified ALSA card/device
  */
 static int read_alsa_device_config(int card, int device, int io_type, struct pcm_config * config)
@@ -405,7 +423,14 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
 
     config->channels = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
     config->rate = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
-    config->period_size = pcm_params_get_max(alsa_hw_params, PCM_PARAM_PERIODS);
+    config->period_size = pcm_params_get_min(alsa_hw_params, PCM_PARAM_BUFFER_SIZE);
+    /* round this up to a multiple of 16 */
+    config->period_size = round_to_16_mult(config->period_size);
+    /* make sure it is above a minimum value to minimize jitter */
+    unsigned int min_period_size = calc_min_period_size(config->rate);
+    if (config->period_size < min_period_size) {
+        config->period_size = min_period_size;
+    }
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
     unsigned int bits_per_sample = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
