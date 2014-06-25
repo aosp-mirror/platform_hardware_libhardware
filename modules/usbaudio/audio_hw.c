@@ -28,9 +28,11 @@
 #include <cutils/str_parms.h>
 #include <cutils/properties.h>
 
-#include <hardware/hardware.h>
-#include <system/audio.h>
 #include <hardware/audio.h>
+#include <hardware/audio_alsaops.h>
+#include <hardware/hardware.h>
+
+#include <system/audio.h>
 
 #include <tinyalsa/asoundlib.h>
 
@@ -141,68 +143,8 @@ static bool input_hardware_config_is_cached = false;
  * Utility
  */
 /*
- * Translates from ALSA format ID to ANDROID_AUDIO_CORE format ID
- * (see master/system/core/include/core/audio.h)
- * TODO(pmclean) Replace with audio_format_from_pcm_format() (in hardware/audio_alsaops.h).
- *   post-integration.
- */
-static audio_format_t alsa_to_fw_format_id(int alsa_fmt_id)
-{
-    switch (alsa_fmt_id) {
-    case PCM_FORMAT_S8:
-        return AUDIO_FORMAT_PCM_8_BIT;
-
-    case PCM_FORMAT_S24_3LE:
-        //TODO(pmclean) make sure this is the 'right' sort of 24-bit
-        return AUDIO_FORMAT_PCM_8_24_BIT;
-
-    case PCM_FORMAT_S32_LE:
-    case PCM_FORMAT_S24_LE:
-        return AUDIO_FORMAT_PCM_32_BIT;
-    }
-
-    return AUDIO_FORMAT_PCM_16_BIT;
-}
-
-/*
  * Data Conversions
  */
-/*
- * Convert a buffer of PCM16LE samples to packed (3-byte) PCM24LE samples.
- *   in_buff points to the buffer of PCM16 samples
- *   num_in_samples size of input buffer in SAMPLES
- *   out_buff points to the buffer to receive converted PCM24 LE samples.
- * returns
- *   the number of BYTES of output data.
- * We are doing this since we *always* present to The Framework as A PCM16LE device, but need to
- * support PCM24_3LE (24-bit, packed).
- * NOTE:
- *   We're just filling the low-order byte of the PCM24LE samples with 0.
- *   This conversion is safe to do in-place (in_buff == out_buff).
- * TODO(pmclean, hung) Move this to a utilities module.
- */
-static size_t convert_16_to_24_3(const short * in_buff, size_t num_in_samples, unsigned char * out_buff) {
-    /*
-     * Move from back to front so that the conversion can be done in-place
-     * i.e. in_buff == out_buff
-     */
-    int in_buff_size_in_bytes = num_in_samples * 2;
-    /* we need 3 bytes in the output for every 2 bytes in the input */
-    int out_buff_size_in_bytes = ((3 * in_buff_size_in_bytes) / 2);
-    unsigned char* dst_ptr = out_buff + out_buff_size_in_bytes - 1;
-    size_t src_smpl_index;
-    const unsigned char* src_ptr = ((const unsigned char *)in_buff) + in_buff_size_in_bytes - 1;
-    for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
-        *dst_ptr-- = *src_ptr--; /* hi-byte */
-        *dst_ptr-- = *src_ptr--; /* low-byte */
-        /*TODO(pmclean) - we might want to consider dithering the lowest byte. */
-        *dst_ptr-- = 0;          /* zero-byte */
-    }
-
-    /* return number of *bytes* generated */
-    return out_buff_size_in_bytes;
-}
-
 /*
  * Convert a buffer of packed (3-byte) PCM24LE samples to PCM16LE samples.
  *   in_buff points to the buffer of PCM24LE samples
@@ -215,9 +157,11 @@ static size_t convert_16_to_24_3(const short * in_buff, size_t num_in_samples, u
  * NOTE:
  *   We're just filling the low-order byte of the PCM24LE samples with 0.
  *   This conversion is safe to do in-place (in_buff == out_buff).
- * TODO(pmclean, hung) Move this to a utilities module.
+ * TODO Move this to a utilities module.
  */
-static size_t convert_24_3_to_16(const unsigned char * in_buff, size_t num_in_samples, short * out_buff) {
+static size_t convert_24_3_to_16(const unsigned char * in_buff, size_t num_in_samples,
+                                 short * out_buff)
+{
     /*
      * Move from front to back so that the conversion can be done in-place
      * i.e. in_buff == out_buff
@@ -251,11 +195,12 @@ static size_t convert_24_3_to_16(const unsigned char * in_buff, size_t num_in_sa
  *   This conversion is safe to do in-place (in_buff == out_buff)
  * We are doing this since we *always* present to The Framework as STEREO device, but need to
  * support 4-channel devices.
- * TODO(pmclean, hung) Move this to a utilities module.
+ * TODO Move this to a utilities module.
  */
 static size_t expand_channels_16(const short* in_buff, int in_buff_chans,
                                  short* out_buff, int out_buff_chans,
-                                 size_t num_in_samples) {
+                                 size_t num_in_samples)
+{
     /*
      * Move from back to front so that the conversion can be done in-place
      * i.e. in_buff == out_buff
@@ -269,10 +214,10 @@ static size_t expand_channels_16(const short* in_buff, int in_buff_chans,
     int num_zero_chans = out_buff_chans - in_buff_chans;
     for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
         int dst_offset;
-        for(dst_offset = 0; dst_offset < num_zero_chans; dst_offset++) {
+        for (dst_offset = 0; dst_offset < num_zero_chans; dst_offset++) {
             *dst_ptr-- = 0;
         }
-        for(; dst_offset < out_buff_chans; dst_offset++) {
+        for (; dst_offset < out_buff_chans; dst_offset++) {
             *dst_ptr-- = *src_ptr--;
         }
     }
@@ -296,11 +241,12 @@ static size_t expand_channels_16(const short* in_buff, int in_buff_chans,
  *   This conversion is safe to do in-place (in_buff == out_buff)
  * We are doing this since we *always* present to The Framework as STEREO device, but need to
  * support 4-channel devices.
- * TODO(pmclean, hung) Move this to a utilities module.
+ * TODO Move this to a utilities module.
  */
 static size_t contract_channels_16(short* in_buff, int in_buff_chans,
                                    short* out_buff, int out_buff_chans,
-                                   size_t num_in_samples) {
+                                   size_t num_in_samples)
+{
     /*
      * Move from front to back so that the conversion can be done in-place
      * i.e. in_buff == out_buff
@@ -315,7 +261,7 @@ static size_t contract_channels_16(short* in_buff, int in_buff_chans,
     size_t src_index;
     for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
         int dst_offset;
-        for(dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
+        for (dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
             *dst_ptr++ = *src_ptr++;
         }
         src_ptr += num_skip_samples;
@@ -328,19 +274,292 @@ static size_t contract_channels_16(short* in_buff, int in_buff_chans,
 /*
  * ALSA Utilities
  */
+/*TODO This table and the function that uses it should be moved to a utilities module (probably) */
 /*
- * gets the ALSA bit-format flag from a bits-per-sample value.
- * TODO(pmclean, hung) Move this to a utilities module.
+ * Maps bit-positions in a pcm_mask to the corresponding AUDIO_ format string.
  */
-static int bits_to_alsa_format(unsigned int bits_per_sample, int default_format)
+static const char * const format_string_map[] = {
+    "AUDIO_FORMAT_PCM_8_BIT",           /* 00 - SNDRV_PCM_FORMAT_S8 */
+    "AUDIO_FORMAT_PCM_8_BIT",           /* 01 - SNDRV_PCM_FORMAT_U8 */
+    "AUDIO_FORMAT_PCM_16_BIT",          /* 02 - SNDRV_PCM_FORMAT_S16_LE */
+    NULL,                               /* 03 - SNDRV_PCM_FORMAT_S16_BE */
+    NULL,                               /* 04 - SNDRV_PCM_FORMAT_U16_LE */
+    NULL,                               /* 05 - SNDRV_PCM_FORMAT_U16_BE */
+    "AUDIO_FORMAT_PCM_24_BIT_PACKED",   /* 06 - SNDRV_PCM_FORMAT_S24_LE */
+    NULL,                               /* 07 - SNDRV_PCM_FORMAT_S24_BE */
+    NULL,                               /* 08 - SNDRV_PCM_FORMAT_U24_LE */
+    NULL,                               /* 09 - SNDRV_PCM_FORMAT_U24_BE */
+    "AUDIO_FORMAT_PCM_32_BIT",          /* 10 - SNDRV_PCM_FORMAT_S32_LE */
+    NULL,                               /* 11 - SNDRV_PCM_FORMAT_S32_BE */
+    NULL,                               /* 12 - SNDRV_PCM_FORMAT_U32_LE */
+    NULL,                               /* 13 - SNDRV_PCM_FORMAT_U32_BE */
+    "AUDIO_FORMAT_PCM_FLOAT",           /* 14 - SNDRV_PCM_FORMAT_FLOAT_LE */
+    NULL,                               /* 15 - SNDRV_PCM_FORMAT_FLOAT_BE */
+    NULL,                               /* 16 - SNDRV_PCM_FORMAT_FLOAT64_LE */
+    NULL,                               /* 17 - SNDRV_PCM_FORMAT_FLOAT64_BE */
+    NULL,                               /* 18 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE */
+    NULL,                               /* 19 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE */
+    NULL,                               /* 20 - SNDRV_PCM_FORMAT_MU_LAW */
+    NULL,                               /* 21 - SNDRV_PCM_FORMAT_A_LAW */
+    NULL,                               /* 22 - SNDRV_PCM_FORMAT_IMA_ADPCM */
+    NULL,                               /* 23 - SNDRV_PCM_FORMAT_MPEG */
+    NULL,                               /* 24 - SNDRV_PCM_FORMAT_GSM */
+    NULL, NULL, NULL, NULL, NULL, NULL, /* 25 -> 30 (not assigned) */
+    NULL,                               /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
+    "AUDIO_FORMAT_PCM_24_BIT_PACKED",   /* 32 - SNDRV_PCM_FORMAT_S24_3LE */ /* ??? */
+    NULL,                               /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
+    NULL,                               /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
+    NULL,                               /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
+    NULL,                               /* 36 - SNDRV_PCM_FORMAT_S20_3LE */
+    NULL,                               /* 37 - SNDRV_PCM_FORMAT_S20_3BE */
+    NULL,                               /* 38 - SNDRV_PCM_FORMAT_U20_3LE */
+    NULL,                               /* 39 - SNDRV_PCM_FORMAT_U20_3BE */
+    NULL,                               /* 40 - SNDRV_PCM_FORMAT_S18_3LE */
+    NULL,                               /* 41 - SNDRV_PCM_FORMAT_S18_3BE */
+    NULL,                               /* 42 - SNDRV_PCM_FORMAT_U18_3LE */
+    NULL,                               /* 43 - SNDRV_PCM_FORMAT_U18_3BE */
+    NULL,                               /* 44 - SNDRV_PCM_FORMAT_G723_24 */
+    NULL,                               /* 45 - SNDRV_PCM_FORMAT_G723_24_1B */
+    NULL,                               /* 46 - SNDRV_PCM_FORMAT_G723_40 */
+    NULL,                               /* 47 - SNDRV_PCM_FORMAT_G723_40_1B */
+    NULL,                               /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
+    NULL                                /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
+};
+
+/*
+ * Generate string containing a bar ("|") delimited list of AUDIO_ formats specified in
+ * the mask parameter.
+ *
+ */
+static char* get_format_str_for_mask(struct pcm_mask* mask)
 {
-    enum pcm_format format;
-    for (format = PCM_FORMAT_S16_LE; format < PCM_FORMAT_MAX; format++) {
-        if (pcm_format_to_bits(format) == bits_per_sample) {
-            return format;
+    char buffer[256];
+    int buffer_size = sizeof(buffer) / sizeof(buffer[0]);
+    buffer[0] = '\0';
+
+    int num_slots = sizeof(mask->bits) / sizeof(mask->bits[0]);
+    int bits_per_slot = sizeof(mask->bits[0]) * 8;
+
+    const char* format_str = NULL;
+    int table_size = sizeof(format_string_map)/sizeof(format_string_map[0]);
+
+    int slot_index, bit_index, table_index;
+    table_index = 0;
+    int num_written = 0;
+    for (slot_index = 0; slot_index < num_slots; slot_index++) {
+        unsigned bit_mask = 1;
+        for (bit_index = 0; bit_index < bits_per_slot; bit_index++) {
+            if ((mask->bits[slot_index] & bit_mask) != 0) {
+                format_str = table_index < table_size
+                                ? format_string_map[table_index]
+                                : NULL;
+                if (format_str != NULL) {
+                    if (num_written != 0) {
+                        num_written += snprintf(buffer + num_written,
+                                                buffer_size - num_written, "|");
+                    }
+                    num_written += snprintf(buffer + num_written, buffer_size - num_written,
+                                            "%s", format_str);
+                }
+            }
+            bit_mask <<= 1;
+            table_index++;
         }
     }
-    return default_format;
+
+    return strdup(buffer);
+}
+
+/*
+ * Maps from bit position in pcm_mask to AUDIO_ format constants.
+ */
+static int const format_value_map[] = {
+    AUDIO_FORMAT_PCM_8_BIT,           /* 00 - SNDRV_PCM_FORMAT_S8 */
+    AUDIO_FORMAT_PCM_8_BIT,           /* 01 - SNDRV_PCM_FORMAT_U8 */
+    AUDIO_FORMAT_PCM_16_BIT,          /* 02 - SNDRV_PCM_FORMAT_S16_LE */
+    AUDIO_FORMAT_INVALID,             /* 03 - SNDRV_PCM_FORMAT_S16_BE */
+    AUDIO_FORMAT_INVALID,             /* 04 - SNDRV_PCM_FORMAT_U16_LE */
+    AUDIO_FORMAT_INVALID,             /* 05 - SNDRV_PCM_FORMAT_U16_BE */
+    AUDIO_FORMAT_PCM_24_BIT_PACKED,   /* 06 - SNDRV_PCM_FORMAT_S24_LE */
+    AUDIO_FORMAT_INVALID,             /* 07 - SNDRV_PCM_FORMAT_S24_BE */
+    AUDIO_FORMAT_INVALID,             /* 08 - SNDRV_PCM_FORMAT_U24_LE */
+    AUDIO_FORMAT_INVALID,             /* 09 - SNDRV_PCM_FORMAT_U24_BE */
+    AUDIO_FORMAT_PCM_32_BIT,          /* 10 - SNDRV_PCM_FORMAT_S32_LE */
+    AUDIO_FORMAT_INVALID,             /* 11 - SNDRV_PCM_FORMAT_S32_BE */
+    AUDIO_FORMAT_INVALID,             /* 12 - SNDRV_PCM_FORMAT_U32_LE */
+    AUDIO_FORMAT_INVALID,             /* 13 - SNDRV_PCM_FORMAT_U32_BE */
+    AUDIO_FORMAT_PCM_FLOAT,           /* 14 - SNDRV_PCM_FORMAT_FLOAT_LE */
+    AUDIO_FORMAT_INVALID,             /* 15 - SNDRV_PCM_FORMAT_FLOAT_BE */
+    AUDIO_FORMAT_INVALID,             /* 16 - SNDRV_PCM_FORMAT_FLOAT64_LE */
+    AUDIO_FORMAT_INVALID,             /* 17 - SNDRV_PCM_FORMAT_FLOAT64_BE */
+    AUDIO_FORMAT_INVALID,             /* 18 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE */
+    AUDIO_FORMAT_INVALID,             /* 19 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE */
+    AUDIO_FORMAT_INVALID,             /* 20 - SNDRV_PCM_FORMAT_MU_LAW */
+    AUDIO_FORMAT_INVALID,             /* 21 - SNDRV_PCM_FORMAT_A_LAW */
+    AUDIO_FORMAT_INVALID,             /* 22 - SNDRV_PCM_FORMAT_IMA_ADPCM */
+    AUDIO_FORMAT_INVALID,             /* 23 - SNDRV_PCM_FORMAT_MPEG */
+    AUDIO_FORMAT_INVALID,             /* 24 - SNDRV_PCM_FORMAT_GSM */
+    AUDIO_FORMAT_INVALID,             /* 25 -> 30 (not assigned) */
+    AUDIO_FORMAT_INVALID,
+    AUDIO_FORMAT_INVALID,
+    AUDIO_FORMAT_INVALID,
+    AUDIO_FORMAT_INVALID,
+    AUDIO_FORMAT_INVALID,
+    AUDIO_FORMAT_INVALID,             /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
+    AUDIO_FORMAT_PCM_24_BIT_PACKED,   /* 32 - SNDRV_PCM_FORMAT_S24_3LE */ /* ??? */
+    AUDIO_FORMAT_INVALID,             /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
+    AUDIO_FORMAT_INVALID,             /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
+    AUDIO_FORMAT_INVALID,             /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
+    AUDIO_FORMAT_INVALID,             /* 36 - SNDRV_PCM_FORMAT_S20_3LE */
+    AUDIO_FORMAT_INVALID,             /* 37 - SNDRV_PCM_FORMAT_S20_3BE */
+    AUDIO_FORMAT_INVALID,             /* 38 - SNDRV_PCM_FORMAT_U20_3LE */
+    AUDIO_FORMAT_INVALID,             /* 39 - SNDRV_PCM_FORMAT_U20_3BE */
+    AUDIO_FORMAT_INVALID,             /* 40 - SNDRV_PCM_FORMAT_S18_3LE */
+    AUDIO_FORMAT_INVALID,             /* 41 - SNDRV_PCM_FORMAT_S18_3BE */
+    AUDIO_FORMAT_INVALID,             /* 42 - SNDRV_PCM_FORMAT_U18_3LE */
+    AUDIO_FORMAT_INVALID,             /* 43 - SNDRV_PCM_FORMAT_U18_3BE */
+    AUDIO_FORMAT_INVALID,             /* 44 - SNDRV_PCM_FORMAT_G723_24 */
+    AUDIO_FORMAT_INVALID,             /* 45 - SNDRV_PCM_FORMAT_G723_24_1B */
+    AUDIO_FORMAT_INVALID,             /* 46 - SNDRV_PCM_FORMAT_G723_40 */
+    AUDIO_FORMAT_INVALID,             /* 47 - SNDRV_PCM_FORMAT_G723_40_1B */
+    AUDIO_FORMAT_INVALID,             /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
+    AUDIO_FORMAT_INVALID              /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
+};
+
+static int get_format_for_mask(struct pcm_mask* mask)
+{
+    int num_slots = sizeof(mask->bits)/ sizeof(mask->bits[0]);
+    int bits_per_slot = sizeof(mask->bits[0]) * 8;
+
+    int table_size = sizeof(format_value_map) / sizeof(format_value_map[0]);
+
+    int slot_index, bit_index, table_index;
+    table_index = 0;
+    int num_written = 0;
+    for (slot_index = 0; slot_index < num_slots; slot_index++) {
+        unsigned bit_mask = 1;
+        for (bit_index = 0; bit_index < bits_per_slot; bit_index++) {
+            if ((mask->bits[slot_index] & bit_mask) != 0) {
+                /* just return the first one */
+                return table_index < table_size
+                           ? format_value_map[table_index]
+                           : AUDIO_FORMAT_INVALID;
+            }
+            bit_mask <<= 1;
+            table_index++;
+        }
+    }
+
+    return AUDIO_FORMAT_INVALID;
+}
+
+/*
+ * Maps from bit position in pcm_mask to AUDIO_ format constants.
+ */
+static int const pcm_format_value_map[] = {
+    PCM_FORMAT_S8,          /* 00 - SNDRV_PCM_FORMAT_S8 */
+    0,                      /* 01 - SNDRV_PCM_FORMAT_U8 */
+    PCM_FORMAT_S16_LE,      /* 02 - SNDRV_PCM_FORMAT_S16_LE */
+    0,                      /* 03 - SNDRV_PCM_FORMAT_S16_BE */
+    0,                      /* 04 - SNDRV_PCM_FORMAT_U16_LE */
+    0,                      /* 05 - SNDRV_PCM_FORMAT_U16_BE */
+    PCM_FORMAT_S24_3LE,     /* 06 - SNDRV_PCM_FORMAT_S24_LE */
+    0,                      /* 07 - SNDRV_PCM_FORMAT_S24_BE */
+    0,                      /* 08 - SNDRV_PCM_FORMAT_U24_LE */
+    0,                      /* 09 - SNDRV_PCM_FORMAT_U24_BE */
+    PCM_FORMAT_S32_LE,      /* 10 - SNDRV_PCM_FORMAT_S32_LE */
+    0,                      /* 11 - SNDRV_PCM_FORMAT_S32_BE */
+    0,                      /* 12 - SNDRV_PCM_FORMAT_U32_LE */
+    0,                      /* 13 - SNDRV_PCM_FORMAT_U32_BE */
+    0,                      /* 14 - SNDRV_PCM_FORMAT_FLOAT_LE */
+    0,                      /* 15 - SNDRV_PCM_FORMAT_FLOAT_BE */
+    0,                      /* 16 - SNDRV_PCM_FORMAT_FLOAT64_LE */
+    0,                      /* 17 - SNDRV_PCM_FORMAT_FLOAT64_BE */
+    0,                      /* 18 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE */
+    0,                      /* 19 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE */
+    0,                      /* 20 - SNDRV_PCM_FORMAT_MU_LAW */
+    0,                      /* 21 - SNDRV_PCM_FORMAT_A_LAW */
+    0,                      /* 22 - SNDRV_PCM_FORMAT_IMA_ADPCM */
+    0,                      /* 23 - SNDRV_PCM_FORMAT_MPEG */
+    0,                      /* 24 - SNDRV_PCM_FORMAT_GSM */
+    0,                      /* 25 -> 30 (not assigned) */
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,                      /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
+    PCM_FORMAT_S24_3LE,     /* 32 - SNDRV_PCM_FORMAT_S24_3LE */ /* ??? */
+    0,                      /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
+    0,                      /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
+    0,                      /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
+    0,                      /* 36 - SNDRV_PCM_FORMAT_S20_3LE */
+    0,                      /* 37 - SNDRV_PCM_FORMAT_S20_3BE */
+    0,                      /* 38 - SNDRV_PCM_FORMAT_U20_3LE */
+    0,                      /* 39 - SNDRV_PCM_FORMAT_U20_3BE */
+    0,                      /* 40 - SNDRV_PCM_FORMAT_S18_3LE */
+    0,                      /* 41 - SNDRV_PCM_FORMAT_S18_3BE */
+    0,                      /* 42 - SNDRV_PCM_FORMAT_U18_3LE */
+    0,                      /* 43 - SNDRV_PCM_FORMAT_U18_3BE */
+    0,                      /* 44 - SNDRV_PCM_FORMAT_G723_24 */
+    0,                      /* 45 - SNDRV_PCM_FORMAT_G723_24_1B */
+    0,                      /* 46 - SNDRV_PCM_FORMAT_G723_40 */
+    0,                      /* 47 - SNDRV_PCM_FORMAT_G723_40_1B */
+    0,                      /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
+    0                       /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
+};
+
+static int get_pcm_format_for_mask(struct pcm_mask* mask) {
+    int num_slots = sizeof(mask->bits)/ sizeof(mask->bits[0]);
+    int bits_per_slot = sizeof(mask->bits[0]) * 8;
+
+    int table_size = sizeof(pcm_format_value_map) / sizeof(pcm_format_value_map[0]);
+
+    int slot_index, bit_index, table_index;
+    table_index = 0;
+    int num_written = 0;
+    for (slot_index = 0; slot_index < num_slots; slot_index++) {
+        unsigned bit_mask = 1;
+        for (bit_index = 0; bit_index < bits_per_slot; bit_index++) {
+            if ((mask->bits[slot_index] & bit_mask) != 0) {
+                /* just return the first one */
+                return table_index < table_size
+                           ? pcm_format_value_map[table_index]
+                           : AUDIO_FORMAT_INVALID;
+            }
+            bit_mask <<= 1;
+            table_index++;
+        }
+    }
+
+    return 0; // is this right?
+}
+
+static void log_pcm_mask(const char* mask_name, struct pcm_mask* mask) {
+    char buff[512];
+    char bit_buff[32];
+    int buffSize = sizeof(buff)/sizeof(buff[0]);
+
+    buff[0] = '\0';
+
+    int num_slots = sizeof(mask->bits) / sizeof(mask->bits[0]);
+    int bits_per_slot = sizeof(mask->bits[0]) * 8;
+
+    int slot_index, bit_index;
+    strcat(buff, "[");
+    for (slot_index = 0; slot_index < num_slots; slot_index++) {
+        unsigned bit_mask = 1;
+        for (bit_index = 0; bit_index < bits_per_slot; bit_index++) {
+            strcat(buff, (mask->bits[slot_index] & bit_mask) != 0 ? "1" : "0");
+            bit_mask <<= 1;
+        }
+        if (slot_index < num_slots - 1) {
+            strcat(buff, ",");
+        }
+    }
+    strcat(buff, "]");
+
+    ALOGV("usb:audio_hw - %s mask:%s", mask_name, buff);
 }
 
 static void log_pcm_params(struct pcm_params * alsa_hw_params) {
@@ -350,6 +569,8 @@ static void log_pcm_params(struct pcm_params * alsa_hw_params) {
     ALOGV("usb:audio_hw - PCM_PARAM_FRAME_BITS min:%u, max:%u",
           pcm_params_get_min(alsa_hw_params, PCM_PARAM_FRAME_BITS),
           pcm_params_get_max(alsa_hw_params, PCM_PARAM_FRAME_BITS));
+    log_pcm_mask("PCM_PARAM_FORMAT", pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
+    log_pcm_mask("PCM_PARAM_SUBFORMAT", pcm_params_get_mask(alsa_hw_params, PCM_PARAM_SUBFORMAT));
     ALOGV("usb:audio_hw - PCM_PARAM_CHANNELS min:%u, max:%u",
           pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS),
           pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS));
@@ -389,7 +610,7 @@ static unsigned int round_to_16_mult(unsigned int size) {
     return (size + 15) & 0xFFFFFFF0;
 }
 
-/*TODO(pmclean) - Evaluate if this value should/can be retrieved from a device-specific property */
+/*TODO - Evaluate if this value should/can be retrieved from a device-specific property */
 #define MIN_BUFF_TIME   5   /* milliseconds */
 
 /*
@@ -433,9 +654,7 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
     }
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
-    unsigned int bits_per_sample = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-    config->format = bits_to_alsa_format(bits_per_sample, PCM_FORMAT_S16_LE);
-
+    config->format = get_pcm_format_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
     return 0;
 }
 
@@ -466,21 +685,19 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 static uint32_t out_get_channels(const struct audio_stream *stream)
 {
     // Always Stero for now. We will do *some* conversions in this HAL.
-    // TODO(pmclean) When AudioPolicyManager & AudioFlinger supports arbitrary channels
-    // rewrite this to return the ACTUAL channel format
+    /* TODO When AudioPolicyManager & AudioFlinger supports arbitrary channels
+       rewrite this to return the ACTUAL channel format */
     return AUDIO_CHANNEL_OUT_STEREO;
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
 {
-    // Always return 16-bit PCM. We will do *some* conversions in this HAL.
-    // TODO(pmclean) When AudioPolicyManager & AudioFlinger supports arbitrary PCM formats
-    // rewrite this to return the ACTUAL data format
-    return AUDIO_FORMAT_PCM_16_BIT;
+    return audio_format_from_pcm_format(cached_output_hardware_config.format);
 }
 
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
+    cached_output_hardware_config.format = pcm_format_from_audio_format(format);
     return 0;
 }
 
@@ -548,8 +765,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     return ret_value;
 }
 
-//TODO(pmclean) it seems like both out_get_parameters() and in_get_parameters()
-// could be written in terms of a get_device_parameters(io_type)
+/*TODO it seems like both out_get_parameters() and in_get_parameters()
+  could be written in terms of a get_device_parameters(io_type) */
 
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
 {
@@ -591,6 +808,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     // supported channel counts
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
         // Similarly for output channels count
+        /* TODO - This is wrong, we need format strings, not numbers (another CL) */
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
         num_written = snprintf(buffer, buffer_size, "%u", min);
@@ -602,15 +820,10 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 
     // supported sample formats
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-        // Similarly for output channels count
-        //TODO(pmclean): this is wrong.
-        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
-        }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
+        char * format_params =
+            get_format_str_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, format_params);
+        free(format_params);
     }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
 
     result_str = str_parms_to_str(result);
@@ -619,6 +832,8 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     str_parms_destroy(query);
     str_parms_destroy(result);
 
+    ALOGV("usb:audio_hw::out out_get_parameters() = %s", result_str);
+
     return result_str;
 }
 
@@ -626,10 +841,10 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
     struct stream_out *out = (struct stream_out *) stream;
 
-    //TODO(pmclean): Do we need a term here for the USB latency
-    // (as reported in the USB descriptors)?
+    /*TODO Do we need a term here for the USB latency (as reported in the USB descriptors)? */
     uint32_t latency = (cached_output_hardware_config.period_size
-            * cached_output_hardware_config.period_count * 1000) / out_get_sample_rate(&stream->common);
+                    * cached_output_hardware_config.period_count * 1000)
+                    / out_get_sample_rate(&stream->common);
     return latency;
 }
 
@@ -648,6 +863,7 @@ static int start_output_stream(struct stream_out *out)
           adev->out_card, adev->out_device);
 
     out->pcm = pcm_open(adev->out_card, adev->out_device, PCM_OUT, &cached_output_hardware_config);
+
     if (out->pcm == NULL) {
         return -ENOMEM;
     }
@@ -682,8 +898,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     // * 3/2 for 16bit -> 24 bit conversion
     size_t required_conversion_buffer_size = (bytes * 3 * 2) / 2;
     if (required_conversion_buffer_size > out->conversion_buffer_size) {
-        //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
-        // (and do these conversions themselves)
+        /* TODO Remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
+           (and do these conversions themselves) */
         out->conversion_buffer_size = required_conversion_buffer_size;
         out->conversion_buffer = realloc(out->conversion_buffer, out->conversion_buffer_size);
     }
@@ -702,28 +918,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
                                    out->conversion_buffer, num_device_channels,
                                    num_write_buff_bytes / sizeof(short));
         write_buff = out->conversion_buffer;
-    }
-
-    /*
-     *  16 vs 24-bit logic here
-     */
-    switch (cached_output_hardware_config.format) {
-    case PCM_FORMAT_S16_LE:
-        // the output format is the same as the input format, so just write it out
-        break;
-
-    case PCM_FORMAT_S24_3LE:
-        // 16-bit LE2 - 24-bit LE3
-        num_write_buff_bytes = convert_16_to_24_3(write_buff,
-                                                  num_write_buff_bytes / sizeof(short),
-                                                  out->conversion_buffer);
-        write_buff = out->conversion_buffer;
-        break;
-
-    default:
-        // hmmmmm.....
-        ALOGV("usb:Unknown Format!!!");
-        break;
     }
 
     if (write_buff != NULL && num_write_buff_bytes != 0) {
@@ -808,20 +1002,14 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     if (output_hardware_config_is_cached) {
         config->sample_rate = cached_output_hardware_config.rate;
 
-        config->format = alsa_to_fw_format_id(cached_output_hardware_config.format);
-        if (config->format != AUDIO_FORMAT_PCM_16_BIT) {
-            // Always report PCM16 for now. AudioPolicyManagerBase/AudioFlinger dont' understand
-            // formats with more other format, so we won't get chosen (say with a 24bit DAC).
-            //TODO(pmclean) remove this when the above restriction is removed.
-            config->format = AUDIO_FORMAT_PCM_16_BIT;
-        }
+        config->format = audio_format_from_pcm_format(cached_output_hardware_config.format);
 
         config->channel_mask =
                 audio_channel_out_mask_from_count(cached_output_hardware_config.channels);
         if (config->channel_mask != AUDIO_CHANNEL_OUT_STEREO) {
             // Always report STEREO for now.  AudioPolicyManagerBase/AudioFlinger dont' understand
             // formats with more channels, so we won't get chosen (say with a 4-channel DAC).
-            //TODO(pmclean) remove this when the above restriction is removed.
+            /*TODO remove this when the above restriction is removed. */
             config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
         }
     } else {
@@ -852,8 +1040,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     ALOGV("usb:audio_hw::out adev_close_output_stream()");
     struct stream_out *out = (struct stream_out *)stream;
 
-    //TODO(pmclean) why are we doing this when stream get's freed at the end
-    // because it closes the pcm device
+    // Close the pcm device
     out_standby(&stream->common);
 
     free(out->conversion_buffer);
@@ -925,7 +1112,6 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
     ALOGV("usb: in_get_buffer_size() = %zu",
           cached_input_hardware_config.period_size * audio_stream_frame_size(stream));
     return cached_input_hardware_config.period_size * audio_stream_frame_size(stream);
-
 }
 
 static uint32_t in_get_channels(const struct audio_stream *stream)
@@ -936,8 +1122,7 @@ static uint32_t in_get_channels(const struct audio_stream *stream)
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
-    // just report 16-bit, pcm for now.
-    return AUDIO_FORMAT_PCM_16_BIT;
+    return audio_format_from_pcm_format(cached_input_hardware_config.format);
 }
 
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
@@ -1011,8 +1196,8 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     return ret_value;
 }
 
-//TODO(pmclean) it seems like both out_get_parameters() and in_get_parameters()
-// could be written in terms of a get_device_parameters(io_type)
+/*TODO it seems like both out_get_parameters() and in_get_parameters()
+   could be written in terms of a get_device_parameters(io_type) */
 
 static char * in_get_parameters(const struct audio_stream *stream, const char *keys) {
     ALOGV("usb:audio_hw::in in_get_parameters() keys:%s", keys);
@@ -1054,6 +1239,7 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
     // supported channel counts
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
         // Similarly for output channels count
+        // TODO This is wrong, we need format strings, not numbers (another CL)
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
         num_written = snprintf(buffer, buffer_size, "%u", min);
@@ -1065,7 +1251,8 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
 
     // supported sample formats
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-        //TODO(pmclean): this is wrong.
+        /*TODO This is wrong.  It needs to return AUDIO_ format constants (as strings)
+          as in audio_policy.conf */
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
         num_written = snprintf(buffer, buffer_size, "%u", min);
@@ -1122,7 +1309,7 @@ static int start_input_stream(struct stream_in *in) {
     return 0;
 }
 
-//TODO(pmclean) mutex stuff here (see out_write)
+/* TODO mutex stuff here (see out_write) */
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t bytes)
 {
     size_t num_read_buff_bytes = 0;
@@ -1130,8 +1317,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     void * out_buff = buffer;
 
     struct stream_in * in = (struct stream_in *) stream;
-
-    ALOGV("usb: in_read(%d)", bytes);
 
     pthread_mutex_lock(&in->dev->lock);
     pthread_mutex_lock(&in->lock);
@@ -1160,8 +1345,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     // Setup/Realloc the conversion buffer (if necessary).
     if (num_read_buff_bytes != bytes) {
         if (num_read_buff_bytes > in->conversion_buffer_size) {
-            //TODO(pmclean) - remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
-            // (and do these conversions themselves)
+            /*TODO Remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
+              (and do these conversions themselves) */
             in->conversion_buffer_size = num_read_buff_bytes;
             in->conversion_buffer = realloc(in->conversion_buffer, in->conversion_buffer_size);
         }
@@ -1253,11 +1438,11 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     if (input_hardware_config_is_cached) {
         config->sample_rate = cached_input_hardware_config.rate;
 
-        config->format = alsa_to_fw_format_id(cached_input_hardware_config.format);
+        config->format = audio_format_from_pcm_format(cached_input_hardware_config.format);
         if (config->format != AUDIO_FORMAT_PCM_16_BIT) {
             // Always report PCM16 for now. AudioPolicyManagerBase/AudioFlinger dont' understand
             // formats with more other format, so we won't get chosen (say with a 24bit DAC).
-            //TODO(pmclean) remove this when the above restriction is removed.
+            /* TODO Remove this when the above restriction is removed. */
             config->format = AUDIO_FORMAT_PCM_16_BIT;
         }
 
@@ -1266,7 +1451,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO) {
             // Always report STEREO for now.  AudioPolicyManagerBase/AudioFlinger dont' understand
             // formats with more channels, so we won't get chosen (say with a 4-channel DAC).
-            //TODO(pmclean) remove this when the above restriction is removed.
+            /* TODO Remove this when the above restriction is removed. */
             config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
         }
     } else {
@@ -1291,8 +1476,7 @@ static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_st
 {
     struct stream_in *in = (struct stream_in *)stream;
 
-    //TODO(pmclean) why are we doing this when stream get's freed at the end
-    // because it closes the pcm device
+    // Close the pcm device
     in_standby(&stream->common);
 
     free(in->conversion_buffer);
