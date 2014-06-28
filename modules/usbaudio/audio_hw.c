@@ -1188,14 +1188,14 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
             /* Num Channels conversion */
             if (num_device_channels < num_req_channels) {
                 num_read_buff_bytes =
-                    contract_channels_16(read_buff, num_device_channels,
-                                         out_buff, num_req_channels,
-                                         num_read_buff_bytes / sizeof(short));
-            } else {
-                num_read_buff_bytes =
                     expand_channels_16(read_buff, num_device_channels,
                                        out_buff, num_req_channels,
                                        num_read_buff_bytes / sizeof(short));
+            } else {
+                num_read_buff_bytes =
+                    contract_channels_16(read_buff, num_device_channels,
+                                         out_buff, num_req_channels,
+                                         num_read_buff_bytes / sizeof(short));
             }
         }
     }
