@@ -1123,11 +1123,13 @@
  *        a request at some future point.
  *
  *   For ZSL use case, the pixel format for bidirectional stream will be
- *   HAL_PIXEL_FORMAT_RAW_OPAQUE if it is listed in
- *   android.scaler.availableInputOutputFormatsMap.  A configuration stream list
- *   that has BIDIRECTIONAL stream used as input, will usually also have a
- *   distinct OUTPUT stream to get the reprocessing data. For example, for the
- *   ZSL use case, the stream list might be configured with the following:
+ *   HAL_PIXEL_FORMAT_RAW_OPAQUE or HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED if it
+ *   is listed in android.scaler.availableInputOutputFormatsMap. When
+ *   HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED is used, the gralloc
+ *   usage flags for the consumer endpoint will be set to GRALLOC_USAGE_HW_CAMERA_ZSL.
+ *   A configuration stream list that has BIDIRECTIONAL stream used as input, will
+ *   usually also have a distinct OUTPUT stream to get the reprocessing data. For example,
+ *   for the ZSL use case, the stream list might be configured with the following:
  *
  *     - A HAL_PIXEL_FORMAT_RAW_OPAQUE bidirectional stream is used
  *       as input.
@@ -1950,7 +1952,8 @@ typedef struct camera3_capture_result {
      * less than the buffer count in the capture request, at least one more call
      * to process_capture_result with the same frame_number must be made, to
      * return the remaining output buffers to the framework. This may only be
-     * zero if the structure includes valid result metadata.
+     * zero if the structure includes valid result metadata or an input buffer
+     * is returned in this result.
      */
     uint32_t num_output_buffers;
 
