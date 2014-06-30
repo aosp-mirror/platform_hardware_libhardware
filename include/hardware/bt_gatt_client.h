@@ -170,6 +170,10 @@ typedef void (*scan_filter_param_callback)(int action, int client_if, int status
 /** Callback invoked when a scan filter configuration command has completed */
 typedef void (*scan_filter_status_callback)(int enable, int client_if, int status);
 
+/** Track ADV VSE callback invoked when tracked device is found or lost */
+typedef void (*track_adv_event_callback)(int client_if, int filt_index, int addr_type,
+                                             bt_bdaddr_t* bda, int adv_state);
+
 /** Callback invoked when multi-adv enable operation has completed */
 typedef void (*multi_adv_enable_callback)(int client_if, int status);
 
@@ -234,6 +238,7 @@ typedef struct {
     batchscan_enable_disable_callback   batchscan_enb_disable_cb;
     batchscan_reports_callback          batchscan_reports_cb;
     batchscan_threshold_callback        batchscan_threshold_cb;
+    track_adv_event_callback            track_adv_event_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
