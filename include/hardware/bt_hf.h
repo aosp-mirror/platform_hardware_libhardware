@@ -57,6 +57,14 @@ typedef enum
     BTHF_NREC_START
 } bthf_nrec_t;
 
+/* WBS codec setting */
+typedef enum
+{
+   BTHF_WBS_NONE,
+   BTHF_WBS_NO,
+   BTHF_WBS_YES
+}bthf_wbs_config_t;
+
 /* CHLD - Call held handling */
 typedef enum
 {
@@ -109,6 +117,11 @@ typedef void (* bthf_dtmf_cmd_callback)(char tone, bt_bdaddr_t *bd_addr);
  */
 typedef void (* bthf_nrec_cmd_callback)(bthf_nrec_t nrec, bt_bdaddr_t *bd_addr);
 
+/** Callback for AT+BCS and event from BAC
+ *  WBS enable, WBS disable
+ */
+typedef void (* bthf_wbs_callback)(bthf_wbs_config_t wbs, bt_bdaddr_t *bd_addr);
+
 /** Callback for call hold handling (AT+CHLD)
  *  value will contain the call hold command (0, 1, 2, 3)
  */
@@ -152,6 +165,7 @@ typedef struct {
     bthf_dial_call_cmd_callback     dial_call_cmd_cb;
     bthf_dtmf_cmd_callback          dtmf_cmd_cb;
     bthf_nrec_cmd_callback          nrec_cmd_cb;
+    bthf_wbs_callback               wbs_cb;
     bthf_chld_cmd_callback          chld_cmd_cb;
     bthf_cnum_cmd_callback          cnum_cmd_cb;
     bthf_cind_cmd_callback          cind_cmd_cb;
@@ -277,6 +291,9 @@ typedef struct {
 
     /** Closes the interface. */
     void  (*cleanup)( void );
+
+    /** configureation for the SCO codec */
+    bt_status_t (*configure_wbs)( bt_bdaddr_t *bd_addr ,bthf_wbs_config_t config );
 } bthf_interface_t;
 
 __END_DECLS
