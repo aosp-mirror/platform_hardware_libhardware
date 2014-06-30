@@ -77,6 +77,16 @@ enum {
      * by SurfaceFlinger (just as if compositionType was set to HWC_OVERLAY).
      */
     HWC_SKIP_LAYER = 0x00000001,
+
+    /*
+     * HWC_IS_CURSOR_LAYER is set by surfaceflinger to indicate that this
+     * layer is being used as a cursor on this particular display, and that
+     * surfaceflinger can potentially perform asynchronous position updates for
+     * this layer. If a call to prepare() returns HWC_CURSOR_OVERLAY for the
+     * composition type of this layer, then the hwcomposer will allow async
+     * position updates to this layer via setCursorPositionAsync().
+     */
+    HWC_IS_CURSOR_LAYER = 0x00000002
 };
 
 /*
@@ -100,8 +110,13 @@ enum {
     /* this layer's contents are taken from a sideband buffer stream.
      * Added in HWC_DEVICE_API_VERSION_1_4. */
     HWC_SIDEBAND = 4,
-};
 
+    /* this layer's composition will be handled by hwcomposer by dedicated
+       cursor overlay hardware. hwcomposer will also all async position updates
+       of this layer outside of the normal prepare()/set() loop. Added in
+       HWC_DEVICE_API_VERSION_1_4. */
+    HWC_CURSOR_OVERLAY =  5
+ };
 /*
  * hwc_layer_t::blending values
  */
