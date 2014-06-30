@@ -49,4 +49,4 @@ include $(BUILD_SHARED_LIBRARY)
 
 endif # USE_SENSOR_MULTI_HAL
 
-include $(call all-subdir-makefiles)
+include $(call all-makefiles-under, $(LOCAL_PATH))
