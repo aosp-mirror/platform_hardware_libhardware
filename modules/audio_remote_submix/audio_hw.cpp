@@ -307,26 +307,14 @@ static struct submix_audio_device * audio_hw_device_get_submix_audio_device(
         offsetof(struct submix_audio_device, device));
 }
 
-// Get the number of channels referenced by the specified channel_mask.  The channel_mask can
-// reference either input or output channels.
-uint32_t get_channel_count_from_mask(const audio_channel_mask_t channel_mask) {
-    if (audio_is_input_channel(channel_mask)) {
-        return popcount(channel_mask & AUDIO_CHANNEL_IN_ALL);
-    } else if (audio_is_output_channel(channel_mask)) {
-        return popcount(channel_mask & AUDIO_CHANNEL_OUT_ALL);
-    }
-    ALOGE("get_channel_count(): No channels specified in channel mask %x", channel_mask);
-    return 0;
-}
-
 // Compare an audio_config with input channel mask and an audio_config with output channel mask
 // returning false if they do *not* match, true otherwise.
 static bool audio_config_compare(const audio_config * const input_config,
         const audio_config * const output_config)
 {
 #if !ENABLE_CHANNEL_CONVERSION
-    const uint32_t input_channels = get_channel_count_from_mask(input_config->channel_mask);
-    const uint32_t output_channels = get_channel_count_from_mask(output_config->channel_mask);
+    const uint32_t input_channels = audio_channel_count_from_in_mask(input_config->channel_mask);
+    const uint32_t output_channels = audio_channel_count_from_out_mask(output_config->channel_mask);
     if (input_channels != output_channels) {
         ALOGE("audio_config_compare() channel count mismatch input=%d vs. output=%d",
               input_channels, output_channels);
@@ -335,7 +323,7 @@ static bool audio_config_compare(const audio_config * const input_config,
 #endif // !ENABLE_CHANNEL_CONVERSION
 #if ENABLE_RESAMPLING
     if (input_config->sample_rate != output_config->sample_rate &&
-        get_channel_count_from_mask(input_config->channel_mask) != 1) {
+            audio_channel_count_from_in_mask(input_config->channel_mask) != 1) {
 #else
     if (input_config->sample_rate != output_config->sample_rate) {
 #endif // ENABLE_RESAMPLING
@@ -388,7 +376,11 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
     // If a pipe isn't associated with the device, create one.
     if (rsxadev->rsxSink == NULL || rsxadev->rsxSource == NULL) {
         struct submix_config * const device_config = &rsxadev->config;
-        const uint32_t channel_count = get_channel_count_from_mask(config->channel_mask);
+        uint32_t channel_count;
+        if (out)
+            channel_count = audio_channel_count_from_out_mask(config->channel_mask);
+        else
+            channel_count = audio_channel_count_from_in_mask(config->channel_mask);
 #if ENABLE_CHANNEL_CONVERSION
         // If channel conversion is enabled, allocate enough space for the maximum number of
         // possible channels stored in the pipe for the situation when the number of channels in
@@ -991,9 +983,9 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         char* buff = (char*)buffer;
 #if ENABLE_CHANNEL_CONVERSION
         // Determine whether channel conversion is required.
-        const uint32_t input_channels = get_channel_count_from_mask(
+        const uint32_t input_channels = audio_channel_count_from_in_mask(
             rsxadev->config.input_channel_mask);
-        const uint32_t output_channels = get_channel_count_from_mask(
+        const uint32_t output_channels = audio_channel_count_from_out_mask(
             rsxadev->config.output_channel_mask);
         if (input_channels != output_channels) {
             SUBMIX_ALOGV("in_read(): %d output channels will be converted to %d "
@@ -1017,7 +1009,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             // Only support 16-bit PCM mono resampling.
             // NOTE: Resampling is performed after the channel conversion step.
             ALOG_ASSERT(rsxadev->config.common.format == AUDIO_FORMAT_PCM_16_BIT);
-            ALOG_ASSERT(get_channel_count_from_mask(rsxadev->config.input_channel_mask) == 1);
+            ALOG_ASSERT(audio_channel_count_from_in_mask(rsxadev->config.input_channel_mask) == 1);
         }
 #endif // ENABLE_RESAMPLING
 
@@ -1361,7 +1353,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
         const size_t buffer_period_size_frames =
             audio_hw_device_get_submix_audio_device(const_cast<struct audio_hw_device*>(dev))->
                 config.buffer_period_size_frames;
-        const size_t frame_size_in_bytes = get_channel_count_from_mask(config->channel_mask) *
+        const size_t frame_size_in_bytes = audio_channel_count_from_in_mask(config->channel_mask) *
                 audio_bytes_per_sample(config->format);
         const size_t buffer_size = buffer_period_size_frames * frame_size_in_bytes;
         SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
