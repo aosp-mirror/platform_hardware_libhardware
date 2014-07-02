@@ -679,7 +679,8 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
-    return cached_output_hardware_config.period_size * audio_stream_frame_size(stream);
+    return cached_output_hardware_config.period_size *
+                audio_stream_out_frame_size((const struct audio_stream_out *)stream);
 }
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
@@ -933,7 +934,7 @@ err:
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&out->dev->lock);
     if (ret != 0) {
-        usleep(bytes * 1000000 / audio_stream_frame_size(&stream->common) /
+        usleep(bytes * 1000000 / audio_stream_out_frame_size(stream) /
                out_get_sample_rate(&stream->common));
     }
 
@@ -1109,9 +1110,10 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
-    ALOGV("usb: in_get_buffer_size() = %zu",
-          cached_input_hardware_config.period_size * audio_stream_frame_size(stream));
-    return cached_input_hardware_config.period_size * audio_stream_frame_size(stream);
+    size_t buffer_size = cached_input_hardware_config.period_size *
+                            audio_stream_in_frame_size((const struct audio_stream_in *)stream);
+    ALOGV("usb: in_get_buffer_size() = %zu", buffer_size);
+    return buffer_size;
 }
 
 static uint32_t in_get_channels(const struct audio_stream *stream)

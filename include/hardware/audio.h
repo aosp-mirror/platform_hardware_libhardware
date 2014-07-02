@@ -428,7 +428,10 @@ typedef struct audio_stream_in audio_stream_in_t;
 
 /**
  * return the frame size (number of bytes per sample).
+ *
+ * Deprecated: use audio_stream_out_frame_size() or audio_stream_in_frame_size() instead.
  */
+__attribute__((__deprecated__))
 static inline size_t audio_stream_frame_size(const struct audio_stream *s)
 {
     size_t chan_samp_sz;
@@ -442,6 +445,37 @@ static inline size_t audio_stream_frame_size(const struct audio_stream *s)
     return sizeof(int8_t);
 }
 
+/**
+ * return the frame size (number of bytes per sample) of an output stream.
+ */
+static inline size_t audio_stream_out_frame_size(const struct audio_stream_out *s)
+{
+    size_t chan_samp_sz;
+    audio_format_t format = s->common.get_format(&s->common);
+
+    if (audio_is_linear_pcm(format)) {
+        chan_samp_sz = audio_bytes_per_sample(format);
+        return audio_channel_count_from_out_mask(s->common.get_channels(&s->common)) * chan_samp_sz;
+    }
+
+    return sizeof(int8_t);
+}
+
+/**
+ * return the frame size (number of bytes per sample) of an input stream.
+ */
+static inline size_t audio_stream_in_frame_size(const struct audio_stream_in *s)
+{
+    size_t chan_samp_sz;
+    audio_format_t format = s->common.get_format(&s->common);
+
+    if (audio_is_linear_pcm(format)) {
+        chan_samp_sz = audio_bytes_per_sample(format);
+        return audio_channel_count_from_in_mask(s->common.get_channels(&s->common)) * chan_samp_sz;
+    }
+
+    return sizeof(int8_t);
+}
 
 /**********************************************************************/
 
