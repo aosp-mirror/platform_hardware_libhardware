@@ -156,7 +156,6 @@ enum abort_reason {
 enum {
     HDMI_EVENT_CEC_MESSAGE = 1,
     HDMI_EVENT_HOT_PLUG = 2,
-    HDMI_EVENT_TX_STATUS = 3,
 };
 
 /*
@@ -169,21 +168,13 @@ enum {
 };
 
 /*
- * TX result type. Used when the event type is HDMI_EVENT_TX_STATUS.
- */
-enum {
-    HDMI_TX_STATUS_SUCCESS = 0,
-    HDMI_TX_STATUS_TIMEDOUT = 1, /* failed on wait */
-    HDMI_TX_STATUS_NOCONN = 2    /* connection problem */
-};
-
-/*
  * error code used for send_message.
  */
 enum {
     HDMI_RESULT_SUCCESS = 0,
     HDMI_RESULT_NACK = 1,        /* not acknowledged */
-    HDMI_RESULT_BUSY = 2         /* bus is busy */
+    HDMI_RESULT_BUSY = 2,        /* bus is busy */
+    HDMI_RESULT_FAIL = 3,
 };
 
 /*
@@ -263,7 +254,6 @@ typedef struct hdmi_event {
     union {
         cec_message_t cec;
         hotplug_event_t hotplug;
-        tx_status_event_t tx_status;
     };
 } hdmi_event_t;
 
@@ -348,8 +338,7 @@ typedef struct hdmi_cec_device {
      * some reason. HAL implementation should take the situation into account
      * so as not to wait forever for the message to get sent out.
      *
-     * It should try retransmission at least once as specified in the standard,
-     * and later should report the transmission result via tx_status_event_t.
+     * It should try retransmission at least once as specified in the standard.
      *
      * Returns error code. See HDMI_RESULT_SUCCESS, HDMI_RESULT_NACK, and
      * HDMI_RESULT_BUSY.
