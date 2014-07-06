@@ -416,8 +416,8 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
         device_config->buffer_size_frames = sink->maxFrames();
         device_config->buffer_period_size_frames = device_config->buffer_size_frames /
                 buffer_period_count;
-        if (in) device_config->pipe_frame_size = audio_stream_frame_size(&in->stream.common);
-        if (out) device_config->pipe_frame_size = audio_stream_frame_size(&out->stream.common);
+        if (in) device_config->pipe_frame_size = audio_stream_in_frame_size(&in->stream);
+        if (out) device_config->pipe_frame_size = audio_stream_out_frame_size(&out->stream);
 #if ENABLE_CHANNEL_CONVERSION
         // Calculate the pipe frame size based upon the number of channels.
         device_config->pipe_frame_size = (device_config->pipe_frame_size * pipe_channel_count) /
@@ -527,9 +527,9 @@ static bool submix_open_validate(const struct submix_audio_device * const rsxade
 // Calculate the maximum size of the pipe buffer in frames for the specified stream.
 static size_t calculate_stream_pipe_size_in_frames(const struct audio_stream *stream,
                                                    const struct submix_config *config,
-                                                   const size_t pipe_frames)
+                                                   const size_t pipe_frames,
+                                                   const size_t stream_frame_size)
 {
-    const size_t stream_frame_size = audio_stream_frame_size(stream);
     const size_t pipe_frame_size = config->pipe_frame_size;
     const size_t max_frame_size = max(stream_frame_size, pipe_frame_size);
     return (pipe_frames * config->pipe_frame_size) / max_frame_size;
@@ -557,7 +557,7 @@ static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
     // The sample rate of the stream can't be changed once it's set since this would change the
     // output buffer size and hence break playback to the shared pipe.
     if (rate != out->dev->config.output_sample_rate) {
-        ALOGE("out_set_sample_rate(rate=%u) resampling enabled can't change sample rate from "
+        ALOGE("out_set_sample_rate() resampling enabled can't change sample rate from "
               "%u to %u", out->dev->config.output_sample_rate, rate);
         return -ENOSYS;
     }
@@ -576,9 +576,11 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
     const struct submix_config * const config = &out->dev->config;
+    const size_t stream_frame_size =
+                            audio_stream_out_frame_size((const struct audio_stream_out *)stream);
     const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
-        stream, config, config->buffer_period_size_frames);
-    const size_t buffer_size_bytes = buffer_size_frames * audio_stream_frame_size(stream);
+        stream, config, config->buffer_period_size_frames, stream_frame_size);
+    const size_t buffer_size_bytes = buffer_size_frames * stream_frame_size;
     SUBMIX_ALOGV("out_get_buffer_size() returns %zu bytes, %zu frames",
                  buffer_size_bytes, buffer_size_frames);
     return buffer_size_bytes;
@@ -673,8 +675,10 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
     const struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(
             const_cast<struct audio_stream_out *>(stream));
     const struct submix_config * const config = &out->dev->config;
+    const size_t stream_frame_size =
+                            audio_stream_out_frame_size(stream);
     const size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
-            &stream->common, config, config->buffer_size_frames);
+            &stream->common, config, config->buffer_size_frames, stream_frame_size);
     const uint32_t sample_rate = out_get_sample_rate(&stream->common);
     const uint32_t latency_ms = (buffer_size_frames * 1000) / sample_rate;
     SUBMIX_ALOGV("out_get_latency() returns %u ms, size in frames %zu, sample rate %u",
@@ -696,7 +700,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 {
     SUBMIX_ALOGV("out_write(bytes=%zd)", bytes);
     ssize_t written_frames = 0;
-    const size_t frame_size = audio_stream_frame_size(&stream->common);
+    const size_t frame_size = audio_stream_out_frame_size(stream);
     struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(stream);
     struct submix_audio_device * const rsxadev = out->dev;
     const size_t frames = bytes / frame_size;
@@ -831,7 +835,7 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
     // The sample rate of the stream can't be changed once it's set since this would change the
     // input buffer size and hence break recording from the shared pipe.
     if (rate != in->dev->config.input_sample_rate) {
-        ALOGE("in_set_sample_rate(rate=%u) resampling enabled can't change sample rate from "
+        ALOGE("in_set_sample_rate() resampling enabled can't change sample rate from "
               "%u to %u", in->dev->config.input_sample_rate, rate);
         return -ENOSYS;
     }
@@ -850,8 +854,10 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
             const_cast<struct audio_stream*>(stream));
     const struct submix_config * const config = &in->dev->config;
+    const size_t stream_frame_size =
+                            audio_stream_in_frame_size((const struct audio_stream_in *)stream);
     size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
-        stream, config, config->buffer_period_size_frames);
+        stream, config, config->buffer_period_size_frames, stream_frame_size);
 #if ENABLE_RESAMPLING
     // Scale the size of the buffer based upon the maximum number of frames that could be returned
     // given the ratio of output to input sample rate.
@@ -859,7 +865,7 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
                                    (float)config->input_sample_rate) /
                                   (float)config->output_sample_rate);
 #endif // ENABLE_RESAMPLING
-    const size_t buffer_size_bytes = buffer_size_frames * audio_stream_frame_size(stream);
+    const size_t buffer_size_bytes = buffer_size_frames * stream_frame_size;
     SUBMIX_ALOGV("in_get_buffer_size() returns %zu bytes, %zu frames", buffer_size_bytes,
                  buffer_size_frames);
     return buffer_size_bytes;
@@ -943,7 +949,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
     struct submix_audio_device * const rsxadev = in->dev;
     struct audio_config *format;
-    const size_t frame_size = audio_stream_frame_size(&stream->common);
+    const size_t frame_size = audio_stream_in_frame_size(stream);
     const size_t frames_to_read = bytes / frame_size;
 
     SUBMIX_ALOGV("in_read bytes=%zu", bytes);
