@@ -98,12 +98,9 @@ struct sound_trigger_hw_device {
      */
     int (*start_recognition)(const struct sound_trigger_hw_device *dev,
                              sound_model_handle_t sound_model_handle,
-                             audio_io_handle_t capture_handle,
-                             audio_devices_t capture_device,
+                             const struct sound_trigger_recognition_config *config,
                              recognition_callback_t callback,
-                             void *cookie,
-                             unsigned int data_size,
-                             char *data);
+                             void *cookie);
 
     /* Stop recognition on a given model.
      * The implementation does not have to call the callback when stopped via this method.

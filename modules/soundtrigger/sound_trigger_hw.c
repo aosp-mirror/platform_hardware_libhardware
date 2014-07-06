@@ -81,8 +81,9 @@ static void *callback_thread_loop(void *context)
         event->key_phrase_in_capture = false;
         event->num_phrases = 1;
         event->phrase_extras[0].recognition_modes = RECOGNITION_MODE_VOICE_TRIGGER;
-        event->phrase_extras[0].num_users = 1;
-        event->phrase_extras[0].confidence_levels[0] = 100;
+        event->phrase_extras[0].num_levels = 1;
+        event->phrase_extras[0].levels[0].level = 100;
+        event->phrase_extras[0].levels[0].user_id = 0;
         event->common.data_offset = sizeof(struct sound_trigger_phrase_recognition_event);
         event->common.data_size = 1;
         data[event->common.data_offset] = 8;
@@ -183,12 +184,9 @@ exit:
 
 static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
                                    sound_model_handle_t sound_model_handle,
-                                   audio_io_handle_t capture_handle __unused,
-                                   audio_devices_t capture_device __unused,
+                                   const struct sound_trigger_recognition_config *config,
                                    recognition_callback_t callback,
-                                   void *cookie,
-                                   unsigned int data_size,
-                                   char *data)
+                                   void *cookie)
 {
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     int status = 0;
@@ -202,13 +200,10 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
         status = -ENOSYS;
         goto exit;
     }
-    if (data_size != 0 && data == NULL) {
-        status = -EINVAL;
-        goto exit;
-    }
-    if (data_size != 0) {
+    if (config->data_size != 0) {
+        char *data = (char *)config + config->data_offset;
         ALOGI("%s data size %d data %d - %d", __func__,
-              data_size, data[0], data[data_size - 1]);
+              config->data_size, data[0], data[config->data_size - 1]);
     }
 
     stdev->recognition_callback = callback;
