@@ -102,8 +102,7 @@ struct stream_out {
 
 /*
  * Output Configuration Cache
- * FIXME(pmclean) This is not reentrant. Should probably be moved into the stream structure
- * but that will involve changes in The Framework.
+ * FIXME(pmclean) This is not reentrant. Should probably be moved into the stream structure.
  */
 static struct pcm_config cached_output_hardware_config;
 static bool output_hardware_config_is_cached = false;
@@ -118,6 +117,11 @@ struct stream_in {
     struct audio_device *dev;
 
     struct audio_config hal_pcm_config;
+
+    /* this is the format the framework thinks it's using. We may need to convert from the actual
+     * (24-bit, 32-bit?) format to this theoretical (framework, probably 16-bit)
+     * format in in_read() */
+    enum pcm_format input_framework_format;
 
 //    struct resampler_itfe *resampler;
 //    struct resampler_buffer_provider buf_provider;
@@ -155,7 +159,6 @@ static bool input_hardware_config_is_cached = false;
  * We are doing this since we *always* present to The Framework as A PCM16LE device, but need to
  * support PCM24_3LE (24-bit, packed).
  * NOTE:
- *   We're just filling the low-order byte of the PCM24LE samples with 0.
  *   This conversion is safe to do in-place (in_buff == out_buff).
  * TODO Move this to a utilities module.
  */
@@ -174,6 +177,37 @@ static size_t convert_24_3_to_16(const unsigned char * in_buff, size_t num_in_sa
         src_ptr++;               /* lowest-(skip)-byte */
         *dst_ptr++ = *src_ptr++; /* low-byte */
         *dst_ptr++ = *src_ptr++; /* high-byte */
+    }
+
+    /* return number of *bytes* generated: */
+    return num_in_samples * 2;
+}
+
+/*
+ * Convert a buffer of packed (3-byte) PCM32 samples to PCM16LE samples.
+ *   in_buff points to the buffer of PCM32 samples
+ *   num_in_samples size of input buffer in SAMPLES
+ *   out_buff points to the buffer to receive converted PCM16LE LE samples.
+ * returns
+ *   the number of BYTES of output data.
+ * We are doing this since we *always* present to The Framework as A PCM16LE device, but need to
+ * support PCM_FORMAT_S32_LE (32-bit).
+ * NOTE:
+ *   This conversion is safe to do in-place (in_buff == out_buff).
+ * TODO Move this to a utilities module.
+ */
+static size_t convert_32_to_16(const int32_t * in_buff, size_t num_in_samples, short * out_buff)
+{
+    /*
+     * Move from front to back so that the conversion can be done in-place
+     * i.e. in_buff == out_buff
+     */
+
+    short * dst_ptr = out_buff;
+    const int32_t* src_ptr = in_buff;
+    size_t src_smpl_index;
+    for (src_smpl_index = 0; src_smpl_index < num_in_samples; src_smpl_index++) {
+        *dst_ptr++ = *src_ptr++ >> 16;
     }
 
     /* return number of *bytes* generated: */
@@ -373,14 +407,14 @@ static char* get_format_str_for_mask(struct pcm_mask* mask)
 /*
  * Maps from bit position in pcm_mask to AUDIO_ format constants.
  */
-static int const format_value_map[] = {
+static audio_format_t const format_value_map[] = {
     AUDIO_FORMAT_PCM_8_BIT,           /* 00 - SNDRV_PCM_FORMAT_S8 */
     AUDIO_FORMAT_PCM_8_BIT,           /* 01 - SNDRV_PCM_FORMAT_U8 */
     AUDIO_FORMAT_PCM_16_BIT,          /* 02 - SNDRV_PCM_FORMAT_S16_LE */
     AUDIO_FORMAT_INVALID,             /* 03 - SNDRV_PCM_FORMAT_S16_BE */
     AUDIO_FORMAT_INVALID,             /* 04 - SNDRV_PCM_FORMAT_U16_LE */
     AUDIO_FORMAT_INVALID,             /* 05 - SNDRV_PCM_FORMAT_U16_BE */
-    AUDIO_FORMAT_PCM_24_BIT_PACKED,   /* 06 - SNDRV_PCM_FORMAT_S24_LE */
+    AUDIO_FORMAT_INVALID,             /* 06 - SNDRV_PCM_FORMAT_S24_LE */
     AUDIO_FORMAT_INVALID,             /* 07 - SNDRV_PCM_FORMAT_S24_BE */
     AUDIO_FORMAT_INVALID,             /* 08 - SNDRV_PCM_FORMAT_U24_LE */
     AUDIO_FORMAT_INVALID,             /* 09 - SNDRV_PCM_FORMAT_U24_BE */
@@ -406,7 +440,7 @@ static int const format_value_map[] = {
     AUDIO_FORMAT_INVALID,
     AUDIO_FORMAT_INVALID,
     AUDIO_FORMAT_INVALID,             /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
-    AUDIO_FORMAT_PCM_24_BIT_PACKED,   /* 32 - SNDRV_PCM_FORMAT_S24_3LE */ /* ??? */
+    AUDIO_FORMAT_PCM_24_BIT_PACKED,   /* 32 - SNDRV_PCM_FORMAT_S24_3LE */
     AUDIO_FORMAT_INVALID,             /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
     AUDIO_FORMAT_INVALID,             /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
     AUDIO_FORMAT_INVALID,             /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
@@ -425,6 +459,13 @@ static int const format_value_map[] = {
     AUDIO_FORMAT_INVALID,             /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
     AUDIO_FORMAT_INVALID              /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
 };
+
+/*
+ * Returns true if mask indicates support for PCM_16.
+ */
+static bool mask_has_pcm_16(struct pcm_mask* mask) {
+    return (mask->bits[0] & 0x0004) != 0;
+}
 
 static int get_format_for_mask(struct pcm_mask* mask)
 {
@@ -1124,7 +1165,12 @@ static uint32_t in_get_channels(const struct audio_stream *stream)
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
-    return audio_format_from_pcm_format(cached_input_hardware_config.format);
+    const struct stream_in * in_stream = (const struct stream_in *)stream;
+
+    ALOGV("in_get_format() = %d -> %d", in_stream->input_framework_format,
+          audio_format_from_pcm_format(in_stream->input_framework_format));
+    /* return audio_format_from_pcm_format(cached_input_hardware_config.format); */
+    return audio_format_from_pcm_format(in_stream->input_framework_format);
 }
 
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
@@ -1253,15 +1299,17 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
 
     // supported sample formats
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-        /*TODO This is wrong.  It needs to return AUDIO_ format constants (as strings)
-          as in audio_policy.conf */
-        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_SAMPLE_BITS);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
+        struct pcm_mask * format_mask = pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT);
+        char * format_params = get_format_str_for_mask(format_mask);
+        if (!mask_has_pcm_16(format_mask)) {
+            /* For now, always support PCM_16 and convert locally if necessary */
+            char buff[256];
+            snprintf(buff, sizeof(buff), "AUDIO_FORMAT_PCM_16_BIT|%s", format_params);
+            free(format_params);
+            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buff);
+        } else {
+            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, format_params);
         }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buffer);
     }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
 
     result_str = str_parms_to_str(result);
@@ -1269,6 +1317,8 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
     // done with these...
     str_parms_destroy(query);
     str_parms_destroy(result);
+
+    ALOGV("usb:audio_hw::in in_get_parameters() = %s", result_str);
 
     return result_str;
 }
@@ -1340,8 +1390,13 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         num_read_buff_bytes = (num_device_channels * num_read_buff_bytes) / num_req_channels;
     }
 
+    /* Assume (for now) that in->input_framework_format == PCM_FORMAT_S16_LE */
     if (cached_input_hardware_config.format == PCM_FORMAT_S24_3LE) {
+        /* 24-bit USB device */
         num_read_buff_bytes = (3 * num_read_buff_bytes) / 2;
+    } else if (cached_input_hardware_config.format == PCM_FORMAT_S32_LE) {
+        /* 32-bit USB device */
+        num_read_buff_bytes = num_read_buff_bytes * 2;
     }
 
     // Setup/Realloc the conversion buffer (if necessary).
@@ -1360,14 +1415,22 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
          * Do any conversions necessary to send the data in the format specified to/by the HAL
          * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
          */
-        if (cached_input_hardware_config.format == PCM_FORMAT_S24_3LE) {
+        if (cached_input_hardware_config.format != PCM_FORMAT_S16_LE) {
+            // we need to convert
             if (num_device_channels != num_req_channels) {
                 out_buff = read_buff;
             }
 
-            /* Bit Format Conversion */
-            num_read_buff_bytes =
-                convert_24_3_to_16(read_buff, num_read_buff_bytes / 3, out_buff);
+            if (cached_input_hardware_config.format == PCM_FORMAT_S24_3LE) {
+                num_read_buff_bytes =
+                    convert_24_3_to_16(read_buff, num_read_buff_bytes / 3, out_buff);
+            } else if (cached_input_hardware_config.format == PCM_FORMAT_S32_LE) {
+                num_read_buff_bytes =
+                    convert_32_to_16(read_buff, num_read_buff_bytes / 4, out_buff);
+            }
+            else {
+                goto err;
+            }
         }
 
         if (num_device_channels != num_req_channels) {
@@ -1432,36 +1495,50 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
+    in->input_framework_format = PCM_FORMAT_S16_LE;
+
     in->dev = (struct audio_device *)dev;
 
-    if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO)
-        ret = -EINVAL;
-
-    if (input_hardware_config_is_cached) {
-        config->sample_rate = cached_input_hardware_config.rate;
-
-        config->format = audio_format_from_pcm_format(cached_input_hardware_config.format);
-        if (config->format != AUDIO_FORMAT_PCM_16_BIT) {
-            // Always report PCM16 for now. AudioPolicyManagerBase/AudioFlinger dont' understand
-            // formats with more other format, so we won't get chosen (say with a 24bit DAC).
-            /* TODO Remove this when the above restriction is removed. */
-            config->format = AUDIO_FORMAT_PCM_16_BIT;
-        }
-
-        config->channel_mask = audio_channel_in_mask_from_count(
-                cached_input_hardware_config.channels);
-        if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO) {
-            // Always report STEREO for now.  AudioPolicyManagerBase/AudioFlinger dont' understand
-            // formats with more channels, so we won't get chosen (say with a 4-channel DAC).
-            /* TODO Remove this when the above restriction is removed. */
-            config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
-        }
-    } else {
+    if (!input_hardware_config_is_cached) {
+        // just return defaults until we can actually query the device.
         cached_input_hardware_config = default_alsa_in_config;
+    }
 
-        config->format = in_get_format(&in->stream.common);
-        config->channel_mask = in_get_channels(&in->stream.common);
-        config->sample_rate = in_get_sample_rate(&in->stream.common);
+    /* Rate */
+    /* TODO Check that the requested rate is valid for the connected device */
+    if (config->sample_rate == 0) {
+        config->sample_rate = cached_input_hardware_config.rate;
+    } else {
+        cached_input_hardware_config.rate = config->sample_rate;
+    }
+
+    /* Format */
+    /* until the framework supports format conversion, just take what it asks for
+     * i.e. AUDIO_FORMAT_PCM_16_BIT */
+    /* config->format = audio_format_from_pcm_format(cached_input_hardware_config.format); */
+    if (config->format == AUDIO_FORMAT_DEFAULT) {
+        /* just return AUDIO_FORMAT_PCM_16_BIT until the framework supports other input
+         * formats */
+        config->format = AUDIO_FORMAT_PCM_16_BIT;
+    } else if (config->format == AUDIO_FORMAT_PCM_16_BIT) {
+        /* Always accept AUDIO_FORMAT_PCM_16_BIT until the framework supports other input
+         * formats */
+    } else {
+        /* When the framework support other formats, validate here */
+        config->format = AUDIO_FORMAT_PCM_16_BIT;
+        ret = -EINVAL;
+    }
+
+    /* don't change the cached_input_hardware_config, we will open it as what it is and
+     * convert as necessary */
+    if (config->channel_mask == AUDIO_CHANNEL_NONE) {
+        /* just return AUDIO_CHANNEL_IN_STEREO until the framework supports other input
+         * formats */
+        config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
+    } else if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO) {
+        /* allow only stereo capture for now */
+        config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
+        ret = -EINVAL;
     }
 
     in->standby = true;
