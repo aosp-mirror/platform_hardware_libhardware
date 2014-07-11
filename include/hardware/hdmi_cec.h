@@ -237,7 +237,7 @@ typedef struct hotplug_event {
      * true if the cable is connected; otherwise false.
      */
     int connected;
-    int port;
+    int port_id;
 } hotplug_event_t;
 
 typedef struct tx_status_event {
@@ -262,7 +262,8 @@ typedef struct hdmi_event {
  */
 typedef struct hdmi_port_info {
     hdmi_port_type_t type;
-    int port_num;
+    // Port ID should start from 1 which corresponds to HDMI "port 1".
+    int port_id;
     int cec_supported;
     int arc_supported;
     uint16_t physical_address;
@@ -396,7 +397,7 @@ typedef struct hdmi_cec_device {
      * Returns HDMI_CONNECTED if a device is connected, otherwise HDMI_NOT_CONNECTED.
      * The HAL should watch for +5V power signal to determine the status.
      */
-    int (*is_connected)(const struct hdmi_cec_device* dev, int port);
+    int (*is_connected)(const struct hdmi_cec_device* dev, int port_id);
 
     /* Reserved for future use to maximum 16 functions. Must be NULL. */
     void* reserved[16 - 11];
