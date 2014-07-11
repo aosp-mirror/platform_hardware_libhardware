@@ -16,6 +16,7 @@
 
 #define LOG_TAG "usb_audio_hw"
 /*#define LOG_NDEBUG 0*/
+/*#define LOG_PCM_PARAMS 0*/
 
 #include <errno.h>
 #include <inttypes.h>
@@ -35,6 +36,8 @@
 #include <system/audio.h>
 
 #include <tinyalsa/asoundlib.h>
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
 /* This is the default configuration to hand to The Framework on the initial
  * adev_open_output_stream(). Actual device attributes will be used on the subsequent
@@ -69,18 +72,22 @@ struct pcm_config default_alsa_in_config = {
     .stop_threshold = (IN_PERIOD_SIZE * IN_PERIOD_COUNT),
 };
 
+struct audio_device_profile {
+    int card;
+    int device;
+    int direction; /* PCM_OUT or PCM_IN */
+};
+
 struct audio_device {
     struct audio_hw_device hw_device;
 
     pthread_mutex_t lock; /* see note below on mutex acquisition order */
 
     /* output */
-    int out_card;
-    int out_device;
+    struct audio_device_profile out_profile;
 
     /* input */
-    int in_card;
-    int in_device;
+    struct audio_device_profile in_profile;
 
     bool standby;
 };
@@ -93,6 +100,7 @@ struct stream_out {
     bool standby;
 
     struct audio_device *dev;           /* hardware information */
+    struct audio_device_profile * profile;
 
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
@@ -115,6 +123,8 @@ struct stream_in {
     bool standby;
 
     struct audio_device *dev;
+
+    struct audio_device_profile * profile;
 
     struct audio_config hal_pcm_config;
 
@@ -566,7 +576,7 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
                 /* just return the first one */
                 return table_index < table_size
                            ? pcm_format_value_map[table_index]
-                           : AUDIO_FORMAT_INVALID;
+                           : (int)AUDIO_FORMAT_INVALID;
             }
             bit_mask <<= 1;
             table_index++;
@@ -576,6 +586,54 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
     return 0; // is this right?
 }
 
+static bool test_out_sample_rate(struct audio_device_profile* dev_profile, unsigned rate) {
+    struct pcm_config local_config = cached_output_hardware_config;
+    local_config.rate = rate;
+
+    bool works = false; /* let's be pessimistic */
+    struct pcm * pcm =
+        pcm_open(dev_profile->card, dev_profile->device, dev_profile->direction, &local_config);
+
+    if (pcm != NULL) {
+        works = pcm_is_ready(pcm);
+        pcm_close(pcm);
+    }
+
+    return works;
+}
+
+/* sort these highest -> lowest */
+static const unsigned std_sample_rates[] =
+    {48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000};
+
+static char* enum_std_sample_rates(struct audio_device_profile* dev_profile,
+                                   unsigned min, unsigned max)
+{
+    char buffer[128];
+    buffer[0] = '\0';
+    int buffSize = ARRAY_SIZE(buffer);
+
+    char numBuffer[32];
+
+    int numEntries = 0;
+    unsigned index;
+    for(index = 0; index < ARRAY_SIZE(std_sample_rates); index++) {
+        if (std_sample_rates[index] >= min && std_sample_rates[index] <= max &&
+            test_out_sample_rate(dev_profile, std_sample_rates[index])) {
+            if (numEntries++ != 0) {
+                strncat(buffer, "|", buffSize);
+            }
+            snprintf(numBuffer, sizeof(numBuffer), "%u", std_sample_rates[index]);
+            strncat(buffer, numBuffer, buffSize);
+        }
+    }
+
+    return strdup(buffer);
+}
+
+/*
+ * Logging
+ */
 static void log_pcm_mask(const char* mask_name, struct pcm_mask* mask) {
     char buff[512];
     char bit_buff[32];
@@ -665,15 +723,18 @@ static unsigned int calc_min_period_size(unsigned int sample_rate) {
 /*
  * Reads and decodes configuration info from the specified ALSA card/device
  */
-static int read_alsa_device_config(int card, int device, int io_type, struct pcm_config * config)
+static int read_alsa_device_config(struct audio_device_profile * dev_profile,
+                                   struct pcm_config * config)
 {
-    ALOGV("usb:audio_hw - read_alsa_device_config(c:%d d:%d t:0x%X)",card, device, io_type);
+    ALOGV("usb:audio_hw - read_alsa_device_config(c:%d d:%d t:0x%X)",
+          dev_profile->card, dev_profile->device, dev_profile->direction);
 
-    if (card < 0 || device < 0) {
+    if (dev_profile->card < 0 || dev_profile->device < 0) {
         return -EINVAL;
     }
 
-    struct pcm_params * alsa_hw_params = pcm_params_get(card, device, io_type);
+    struct pcm_params * alsa_hw_params =
+        pcm_params_get(dev_profile->card, dev_profile->device, dev_profile->direction);
     if (alsa_hw_params == NULL) {
         return -EINVAL;
     }
@@ -681,7 +742,9 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
     /*
      * This Logging will be useful when testing new USB devices.
      */
-    /* log_pcm_params(alsa_hw_params); */
+#ifdef LOG_PCM_PARAMS
+    log_pcm_params(alsa_hw_params);
+#endif
 
     config->channels = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
     config->rate = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
@@ -696,6 +759,9 @@ static int read_alsa_device_config(int card, int device, int io_type, struct pcm
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
     config->format = get_pcm_format_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
+
+    pcm_params_free(alsa_hw_params);
+
     return 0;
 }
 
@@ -772,7 +838,6 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     ALOGV("usb:audio_hw::out out_set_parameters() keys:%s", kvpairs);
 
     struct stream_out *out = (struct stream_out *)stream;
-    struct audio_device *adev = out->dev;
     struct str_parms *parms;
     char value[32];
     int param_val;
@@ -780,45 +845,41 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int ret_value = 0;
 
     parms = str_parms_create_str(kvpairs);
-    pthread_mutex_lock(&adev->lock);
+    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&out->lock);
 
     bool recache_device_params = false;
     param_val = str_parms_get_str(parms, "card", value, sizeof(value));
     if (param_val >= 0) {
-        adev->out_card = atoi(value);
+        out->profile->card = atoi(value);
         recache_device_params = true;
     }
 
     param_val = str_parms_get_str(parms, "device", value, sizeof(value));
     if (param_val >= 0) {
-        adev->out_device = atoi(value);
+        out->profile->device = atoi(value);
         recache_device_params = true;
     }
 
-    if (recache_device_params && adev->out_card >= 0 && adev->out_device >= 0) {
-        ret_value = read_alsa_device_config(adev->out_card, adev->out_device, PCM_OUT,
-                                            &cached_output_hardware_config);
+    if (recache_device_params && out->profile->card >= 0 && out->profile->device >= 0) {
+        ret_value = read_alsa_device_config(out->profile, &cached_output_hardware_config);
         output_hardware_config_is_cached = (ret_value == 0);
     }
 
-    pthread_mutex_unlock(&adev->lock);
+    pthread_mutex_unlock(&out->lock);
+    pthread_mutex_unlock(&out->dev->lock);
     str_parms_destroy(parms);
 
     return ret_value;
 }
 
-/*TODO it seems like both out_get_parameters() and in_get_parameters()
-  could be written in terms of a get_device_parameters(io_type) */
-
-static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
+static char * device_get_parameters(struct audio_device_profile * dev_profile, const char *keys)
 {
-    ALOGV("usb:audio_hw::out out_get_parameters() keys:%s", keys);
+    ALOGV("usb:audio_hw::device_get_parameters() keys:%s", keys);
 
-    struct stream_out *out = (struct stream_out *) stream;
-    struct audio_device *adev = out->dev;
-
-    if (adev->out_card < 0 || adev->out_device < 0)
+    if (dev_profile->card < 0 || dev_profile->device < 0) {
         return strdup("");
+    }
 
     unsigned min, max;
 
@@ -830,43 +891,43 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     int buffer_size = sizeof(buffer) / sizeof(buffer[0]);
     char* result_str = NULL;
 
-    struct pcm_params * alsa_hw_params = pcm_params_get(adev->out_card, adev->out_device, PCM_OUT);
+    struct pcm_params * alsa_hw_params =
+        pcm_params_get(dev_profile->card, dev_profile->device, dev_profile->direction);
 
     // These keys are from hardware/libhardware/include/audio.h
     // supported sample rates
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES)) {
-        // pcm_hw_params doesn't have a list of supported samples rates, just a min and a max, so
-        // if they are different, return a list containing those two values, otherwise just the one.
         min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
         max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
-        }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES,
-                          buffer);
+
+        char* rates_list = enum_std_sample_rates(dev_profile, min, max);
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES, rates_list);
+        free(rates_list);
     }  // AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES
 
     // supported channel counts
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
-        // Similarly for output channels count
-        /* TODO - This is wrong, we need format strings, not numbers (another CL) */
-        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
-        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
-        }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_CHANNELS, buffer);
+        // TODO remove this hack when it is superceeded by proper multi-channel support
+        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_CHANNELS,
+                          dev_profile->direction == PCM_OUT
+                                          ? "AUDIO_CHANNEL_OUT_STEREO"
+                                          : "AUDIO_CHANNEL_IN_STEREO");
     }  // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
 
     // supported sample formats
     if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-        char * format_params =
-            get_format_str_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, format_params);
-        free(format_params);
+        // TODO remove this hack when we have support for input in non PCM16 formats
+        if (dev_profile->direction == PCM_IN) {
+            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, "AUDIO_FORMAT_PCM_16_BIT");
+        } else {
+            struct pcm_mask * format_mask = pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT);
+            char * format_params = get_format_str_for_mask(format_mask);
+            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, format_params);
+            free(format_params);
+        }
     }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
+
+    pcm_params_free(alsa_hw_params);
 
     result_str = str_parms_to_str(result);
 
@@ -874,14 +935,30 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
     str_parms_destroy(query);
     str_parms_destroy(result);
 
-    ALOGV("usb:audio_hw::out out_get_parameters() = %s", result_str);
+    ALOGV("usb:audio_hw::device_get_parameters = %s", result_str);
 
     return result_str;
 }
 
+static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
+{
+    ALOGV("usb:audio_hw::out out_get_parameters() keys:%s", keys);
+
+    struct stream_out *out = (struct stream_out *) stream;
+    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&out->lock);
+
+    char * params_str =  device_get_parameters(out->profile, keys);
+
+    pthread_mutex_unlock(&out->lock);
+    pthread_mutex_unlock(&out->dev->lock);
+
+    return params_str;
+}
+
 static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
-    struct stream_out *out = (struct stream_out *) stream;
+    // struct stream_out *out = (struct stream_out *) stream;
 
     /*TODO Do we need a term here for the USB latency (as reported in the USB descriptors)? */
     uint32_t latency = (cached_output_hardware_config.period_size
@@ -898,13 +975,13 @@ static int out_set_volume(struct audio_stream_out *stream, float left, float rig
 /* must be called with hw device and output stream mutexes locked */
 static int start_output_stream(struct stream_out *out)
 {
-    struct audio_device *adev = out->dev;
     int return_val = 0;
 
     ALOGV("usb:audio_hw::out start_output_stream(card:%d device:%d)",
-          adev->out_card, adev->out_device);
+          out->profile->card, out->profile->device);
 
-    out->pcm = pcm_open(adev->out_card, adev->out_device, PCM_OUT, &cached_output_hardware_config);
+    out->pcm = pcm_open(out->profile->card, out->profile->device, PCM_OUT,
+                        &cached_output_hardware_config);
 
     if (out->pcm == NULL) {
         return -ENOMEM;
@@ -1040,6 +1117,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
     out->dev = adev;
+
+    out->profile = &(adev->out_profile);
+    out->profile->direction = PCM_OUT;
 
     if (output_hardware_config_is_cached) {
         config->sample_rate = cached_output_hardware_config.rate;
@@ -1207,7 +1287,6 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     ALOGV("usb: audio_hw::in in_set_parameters() keys:%s", kvpairs);
 
     struct stream_in *in = (struct stream_in *)stream;
-    struct audio_device *adev = in->dev;
     struct str_parms *parms;
     char value[32];
     int param_val;
@@ -1215,112 +1294,49 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int ret_value = 0;
 
     parms = str_parms_create_str(kvpairs);
-    pthread_mutex_lock(&adev->lock);
+    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->lock);
 
     bool recache_device_params = false;
 
     // Card/Device
     param_val = str_parms_get_str(parms, "card", value, sizeof(value));
     if (param_val >= 0) {
-        adev->in_card = atoi(value);
+        in->profile->card = atoi(value);
         recache_device_params = true;
     }
 
     param_val = str_parms_get_str(parms, "device", value, sizeof(value));
     if (param_val >= 0) {
-        adev->in_device = atoi(value);
+        in->profile->device = atoi(value);
         recache_device_params = true;
     }
 
-    if (recache_device_params && adev->in_card >= 0 && adev->in_device >= 0) {
-        ret_value = read_alsa_device_config(adev->in_card, adev->in_device,
-                                            PCM_IN, &(cached_input_hardware_config));
+    if (recache_device_params && in->profile->card >= 0 && in->profile->device >= 0) {
+        ret_value = read_alsa_device_config(in->profile, &cached_input_hardware_config);
         input_hardware_config_is_cached = (ret_value == 0);
     }
 
-    pthread_mutex_unlock(&adev->lock);
+    pthread_mutex_unlock(&in->lock);
+    pthread_mutex_unlock(&in->dev->lock);
     str_parms_destroy(parms);
 
     return ret_value;
 }
 
-/*TODO it seems like both out_get_parameters() and in_get_parameters()
-   could be written in terms of a get_device_parameters(io_type) */
-
 static char * in_get_parameters(const struct audio_stream *stream, const char *keys) {
     ALOGV("usb:audio_hw::in in_get_parameters() keys:%s", keys);
 
     struct stream_in *in = (struct stream_in *)stream;
-    struct audio_device *adev = in->dev;
+    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->lock);
 
-    if (adev->in_card < 0 || adev->in_device < 0)
-        return strdup("");
+    char * params_str  = device_get_parameters(in->profile, keys);
 
-    struct pcm_params * alsa_hw_params = pcm_params_get(adev->in_card, adev->in_device, PCM_IN);
-    if (alsa_hw_params == NULL)
-        return strdup("");
+    pthread_mutex_unlock(&in->lock);
+    pthread_mutex_unlock(&in->dev->lock);
 
-    struct str_parms *query = str_parms_create_str(keys);
-    struct str_parms *result = str_parms_create();
-
-    int num_written = 0;
-    char buffer[256];
-    int buffer_size = sizeof(buffer) / sizeof(buffer[0]);
-    char* result_str = NULL;
-
-    unsigned min, max;
-
-    // These keys are from hardware/libhardware/include/audio.h
-    // supported sample rates
-    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES)) {
-        // pcm_hw_params doesn't have a list of supported samples rates, just a min and a max, so
-        // if they are different, return a list containing those two values, otherwise just the one.
-        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_RATE);
-        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_RATE);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
-        }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SAMPLING_RATE, buffer);
-    }  // AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES
-
-    // supported channel counts
-    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_CHANNELS)) {
-        // Similarly for output channels count
-        // TODO This is wrong, we need format strings, not numbers (another CL)
-        min = pcm_params_get_min(alsa_hw_params, PCM_PARAM_CHANNELS);
-        max = pcm_params_get_max(alsa_hw_params, PCM_PARAM_CHANNELS);
-        num_written = snprintf(buffer, buffer_size, "%u", min);
-        if (min != max) {
-            snprintf(buffer + num_written, buffer_size - num_written, "|%u", max);
-        }
-        str_parms_add_str(result, AUDIO_PARAMETER_STREAM_CHANNELS, buffer);
-    }  // AUDIO_PARAMETER_STREAM_SUP_CHANNELS
-
-    // supported sample formats
-    if (str_parms_has_key(query, AUDIO_PARAMETER_STREAM_SUP_FORMATS)) {
-        struct pcm_mask * format_mask = pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT);
-        char * format_params = get_format_str_for_mask(format_mask);
-        if (!mask_has_pcm_16(format_mask)) {
-            /* For now, always support PCM_16 and convert locally if necessary */
-            char buff[256];
-            snprintf(buff, sizeof(buff), "AUDIO_FORMAT_PCM_16_BIT|%s", format_params);
-            free(format_params);
-            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, buff);
-        } else {
-            str_parms_add_str(result, AUDIO_PARAMETER_STREAM_SUP_FORMATS, format_params);
-        }
-    }  // AUDIO_PARAMETER_STREAM_SUP_FORMATS
-
-    result_str = str_parms_to_str(result);
-
-    // done with these...
-    str_parms_destroy(query);
-    str_parms_destroy(result);
-
-    ALOGV("usb:audio_hw::in in_get_parameters() = %s", result_str);
-
-    return result_str;
+    return params_str;
 }
 
 static int in_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
@@ -1340,13 +1356,13 @@ static int in_set_gain(struct audio_stream_in *stream, float gain)
 
 /* must be called with hw device and output stream mutexes locked */
 static int start_input_stream(struct stream_in *in) {
-    struct audio_device *adev = in->dev;
     int return_val = 0;
 
     ALOGV("usb:audio_hw::start_input_stream(card:%d device:%d)",
-          adev->in_card, adev->in_device);
+          in->profile->card, in->profile->device);
 
-    in->pcm = pcm_open(adev->in_card, adev->in_device, PCM_IN, &cached_input_hardware_config);
+    in->pcm = pcm_open(in->profile->card, in->profile->device, PCM_IN,
+                       &cached_input_hardware_config);
     if (in->pcm == NULL) {
         ALOGE("usb:audio_hw pcm_open() in->pcm == NULL");
         return -ENOMEM;
@@ -1498,6 +1514,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->input_framework_format = PCM_FORMAT_S16_LE;
 
     in->dev = (struct audio_device *)dev;
+
+    in->profile = &(in->dev->in_profile);
+    in->profile->direction = PCM_IN;
 
     if (!input_hardware_config_is_cached) {
         // just return defaults until we can actually query the device.
