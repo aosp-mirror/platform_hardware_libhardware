@@ -140,7 +140,7 @@ void render() {
 int main(int argc, char **argv) {
 	EGLDisplay display;
 	EGLSurface surface;
-	int w, h, count;
+	int w, h, count = 0;
 
 	if (argc > 1)
 		count = atoi(argv[1]);
