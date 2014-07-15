@@ -231,7 +231,7 @@ static size_t convert_32_to_16(const int32_t * in_buff, size_t num_in_samples, s
  *   in_buff_channels Specifies the number of channels in the input buffer.
  *   out_buff points to the buffer to receive converted PCM16 samples.
  *   out_buff_channels Specifies the number of channels in the output buffer.
- *   num_in_bytes size of input buffer in BYTES
+ *   num_in_samples size of input buffer in SAMPLES
  * returns
  *   the number of BYTES of output data.
  * NOTE
@@ -241,18 +241,16 @@ static size_t convert_32_to_16(const int32_t * in_buff, size_t num_in_samples, s
  * support 4-channel devices.
  * TODO Move this to a utilities module.
  */
-static size_t expand_channels_16(const int16_t* in_buff, int in_buff_chans,
-                                 int16_t* out_buff, int out_buff_chans,
-                                 size_t num_in_bytes)
+static size_t expand_channels_16(const short* in_buff, int in_buff_chans,
+                                 short* out_buff, int out_buff_chans,
+                                 size_t num_in_samples)
 {
     /*
      * Move from back to front so that the conversion can be done in-place
      * i.e. in_buff == out_buff
      * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
      */
-    size_t num_in_samples = num_in_bytes / sizeof(int16_t);
-
-    size_t num_out_samples = (num_in_samples * out_buff_chans) / in_buff_chans;
+    int num_out_samples = (num_in_samples * out_buff_chans)/in_buff_chans;
 
     short* dst_ptr = out_buff + num_out_samples - 1;
     size_t src_index;
@@ -269,7 +267,7 @@ static size_t expand_channels_16(const int16_t* in_buff, int in_buff_chans,
     }
 
     /* return number of *bytes* generated */
-    return num_out_samples * sizeof(int16_t);
+    return num_out_samples * sizeof(short);
 }
 
 /*
@@ -279,7 +277,7 @@ static size_t expand_channels_16(const int16_t* in_buff, int in_buff_chans,
  *   in_buff_channels Specifies the number of channels in the input buffer.
  *   out_buff points to the buffer to receive converted PCM16 samples.
  *   out_buff_channels Specifies the number of channels in the output buffer.
- *   num_in_bytes size of input buffer in BYTES
+ *   num_in_samples size of input buffer in SAMPLES
  * returns
  *   the number of BYTES of output data.
  * NOTE
@@ -289,26 +287,24 @@ static size_t expand_channels_16(const int16_t* in_buff, int in_buff_chans,
  * support 4-channel devices.
  * TODO Move this to a utilities module.
  */
-static size_t contract_channels_16(const int16_t* in_buff, size_t in_buff_chans,
-                                   int16_t* out_buff, size_t out_buff_chans,
-                                   size_t num_in_bytes)
+static size_t contract_channels_16(short* in_buff, int in_buff_chans,
+                                   short* out_buff, int out_buff_chans,
+                                   size_t num_in_samples)
 {
     /*
      * Move from front to back so that the conversion can be done in-place
      * i.e. in_buff == out_buff
      * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
      */
-    size_t num_in_samples = num_in_bytes / sizeof(int16_t);
+    int num_out_samples = (num_in_samples * out_buff_chans)/in_buff_chans;
 
-    size_t num_out_samples = (num_in_samples * out_buff_chans) / in_buff_chans;
+    int num_skip_samples = in_buff_chans - out_buff_chans;
 
-    size_t num_skip_samples = in_buff_chans - out_buff_chans;
-
-    int16_t* dst_ptr = out_buff;
-    const int16_t* src_ptr = in_buff;
+    short* dst_ptr = out_buff;
+    short* src_ptr = in_buff;
     size_t src_index;
     for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
-        size_t dst_offset;
+        int dst_offset;
         for (dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
             *dst_ptr++ = *src_ptr++;
         }
@@ -316,169 +312,7 @@ static size_t contract_channels_16(const int16_t* in_buff, size_t in_buff_chans,
     }
 
     /* return number of *bytes* generated */
-    return num_out_samples * sizeof(int16_t);
-}
-
-/*
- * Convert a buffer of N-channel, interleaved PCM32 samples to M-channel PCM32 channels
- * (where N < M).
- *   in_buff points to the buffer of PCM32 samples
- *   in_buff_channels Specifies the number of channels in the input buffer.
- *   out_buff points to the buffer to receive converted PCM32 samples.
- *   out_buff_channels Specifies the number of channels in the output buffer.
- *   num_in_bytes size of input buffer in BYTES
- * returns
- *   the number of BYTES of output data.
- * NOTE
- *   channels > N are filled with silence.
- *   This conversion is safe to do in-place (in_buff == out_buff)
- * We are doing this since we *always* present to The Framework as STEREO device, but need to
- * support 4-channel devices.
- * TODO Move this to a utilities module.
- */
-static size_t expand_channels_32(const int32_t* in_buff, size_t in_buff_chans,
-                                 int32_t* out_buff, size_t out_buff_chans,
-                                 size_t num_in_bytes)
-{
-    /*
-     * Move from back to front so that the conversion can be done in-place
-     * i.e. in_buff == out_buff
-     * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
-     */
-    size_t num_in_samples = num_in_bytes / sizeof(int32_t);
-
-    size_t num_out_samples = (num_in_samples * out_buff_chans) / in_buff_chans;
-
-    int32_t* dst_ptr = out_buff + num_out_samples - 1;
-    const int32_t* src_ptr = in_buff + num_in_samples - 1;
-    size_t num_zero_chans = out_buff_chans - in_buff_chans;
-    size_t src_index;
-    for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
-        size_t dst_offset;
-        for (dst_offset = 0; dst_offset < num_zero_chans; dst_offset++) {
-            *dst_ptr-- = 0;
-        }
-        for (; dst_offset < out_buff_chans; dst_offset++) {
-            *dst_ptr-- = *src_ptr--;
-        }
-    }
-
-    /* return number of *bytes* generated */
-    return num_out_samples * sizeof(int32_t);
-}
-
-/*
- * Convert a buffer of N-channel, interleaved PCM32 samples to M-channel PCM16 channels
- * (where N > M).
- *   in_buff points to the buffer of PCM32 samples
- *   in_buff_channels Specifies the number of channels in the input buffer.
- *   out_buff points to the buffer to receive converted PCM16 samples.
- *   out_buff_channels Specifies the number of channels in the output buffer.
- *   num_in_bytes size of input buffer in BYTES
- * returns
- *   the number of BYTES of output data.
- * NOTE
- *   channels > N are thrown away.
- *   This conversion is safe to do in-place (in_buff == out_buff)
- * We are doing this since we *always* present to The Framework as STEREO device, but need to
- * support 4-channel devices.
- * TODO Move this to a utilities module.
- */
-static size_t contract_channels_32(const int32_t* in_buff, size_t in_buff_chans,
-                                   int32_t* out_buff, size_t out_buff_chans,
-                                   size_t num_in_bytes)
-{
-    /*
-     * Move from front to back so that the conversion can be done in-place
-     * i.e. in_buff == out_buff
-     * NOTE: num_in_samples * out_buff_channels must be an even multiple of in_buff_chans
-     */
-    size_t num_in_samples = num_in_bytes / sizeof(int32_t);
-
-    size_t num_out_samples = (num_in_samples * out_buff_chans) / in_buff_chans;
-
-    size_t num_skip_samples = in_buff_chans - out_buff_chans;
-
-    int32_t* dst_ptr = out_buff;
-    const int32_t* src_ptr = in_buff;
-    size_t src_index;
-    for (src_index = 0; src_index < num_in_samples; src_index += in_buff_chans) {
-        size_t dst_offset;
-        for (dst_offset = 0; dst_offset < out_buff_chans; dst_offset++) {
-            *dst_ptr++ = *src_ptr++;
-        }
-        src_ptr += num_skip_samples;
-    }
-
-    /* return number of *bytes* generated */
-    return num_out_samples * sizeof(int32_t);
-}
-
-static size_t contract_channels(const void* in_buff, size_t in_buff_chans,
-                                void* out_buff, size_t out_buff_chans,
-                                unsigned sample_size_in_bytes, size_t num_in_bytes)
-{
-    switch (sample_size_in_bytes) {
-    case 2:
-        return contract_channels_16((const int16_t*)in_buff, in_buff_chans,
-                                    (int16_t*)out_buff, out_buff_chans,
-                                    num_in_bytes);
-
-    /* TODO - do this conversion when we have a device to test it with */
-    case 3:
-        ALOGE("24-bit channel contraction not supported.");
-        return 0;
-
-    case 4:
-        return contract_channels_32((const int32_t*)in_buff, in_buff_chans,
-                                    (int32_t*)out_buff, out_buff_chans,
-                                    num_in_bytes);
-
-    default:
-        return 0;
-    }
-}
-
-static size_t expand_channels(const void* in_buff, size_t in_buff_chans,
-                                void* out_buff, size_t out_buff_chans,
-                                unsigned sample_size_in_bytes, size_t num_in_bytes)
-{
-    switch (sample_size_in_bytes) {
-    case 2:
-        return expand_channels_16((const int16_t*)in_buff, in_buff_chans,
-                                  (int16_t*)out_buff, out_buff_chans,
-                                  num_in_bytes);
-
-    /* TODO - do this conversion when we have a device to test it with */
-    case 3:
-        ALOGE("24-bit channel expansion not supported.");
-        return 0;
-
-    case 4:
-        return expand_channels_32((const int32_t*)in_buff, in_buff_chans,
-                                  (int32_t*)out_buff, out_buff_chans,
-                                  num_in_bytes);
-
-    default:
-        return 0;
-    }
-}
-
-static size_t adjust_channels(const void* in_buff, size_t in_buff_chans,
-                              void* out_buff, size_t out_buff_chans,
-                              unsigned sample_size_in_bytes, size_t num_in_bytes)
-{
-    if (out_buff_chans > in_buff_chans) {
-        return expand_channels(in_buff, in_buff_chans, out_buff,  out_buff_chans,
-                               sample_size_in_bytes, num_in_bytes);
-    } else if (out_buff_chans < in_buff_chans) {
-        return contract_channels(in_buff, in_buff_chans, out_buff,  out_buff_chans,
-                                 sample_size_in_bytes, num_in_bytes);
-    } else if (in_buff != out_buff) {
-        memcpy(out_buff, in_buff, num_in_bytes);
-    }
-
-    return num_in_bytes;
+    return num_out_samples * sizeof(short);
 }
 
 /*
@@ -643,7 +477,7 @@ static bool mask_has_pcm_16(struct pcm_mask* mask) {
     return (mask->bits[0] & 0x0004) != 0;
 }
 
-static audio_format_t get_format_for_mask(struct pcm_mask* mask)
+static int get_format_for_mask(struct pcm_mask* mask)
 {
     int num_slots = sizeof(mask->bits)/ sizeof(mask->bits[0]);
     int bits_per_slot = sizeof(mask->bits[0]) * 8;
@@ -726,10 +560,6 @@ static int const pcm_format_value_map[] = {
     0                       /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
 };
 
-/*
- * Scans the provided format mask and returns the first non-8 bit sample
- * format supported by the devices.
- */
 static int get_pcm_format_for_mask(struct pcm_mask* mask) {
     int num_slots = sizeof(mask->bits)/ sizeof(mask->bits[0]);
     int bits_per_slot = sizeof(mask->bits[0]) * 8;
@@ -739,21 +569,21 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
     int slot_index, bit_index, table_index;
     table_index = 0;
     int num_written = 0;
-    for (slot_index = 0; slot_index < num_slots && table_index < table_size; slot_index++) {
+    for (slot_index = 0; slot_index < num_slots; slot_index++) {
         unsigned bit_mask = 1;
-        for (bit_index = 0; bit_index < bits_per_slot  && table_index < table_size; bit_index++) {
+        for (bit_index = 0; bit_index < bits_per_slot; bit_index++) {
             if ((mask->bits[slot_index] & bit_mask) != 0) {
-                if (table_index != 0) { /* Don't pick 8-bit */
-                    /* just return the first one */
-                    return pcm_format_value_map[table_index];
-                }
+                /* just return the first one */
+                return table_index < table_size
+                           ? pcm_format_value_map[table_index]
+                           : (int)AUDIO_FORMAT_INVALID;
             }
             bit_mask <<= 1;
             table_index++;
         }
     }
 
-    return -1; /* error */
+    return 0; // is this right?
 }
 
 static bool test_out_sample_rate(struct audio_device_profile* dev_profile, unsigned rate) {
@@ -909,8 +739,6 @@ static int read_alsa_device_config(struct audio_device_profile * dev_profile,
         return -EINVAL;
     }
 
-    int ret = 0;
-
     /*
      * This Logging will be useful when testing new USB devices.
      */
@@ -930,15 +758,11 @@ static int read_alsa_device_config(struct audio_device_profile * dev_profile,
     }
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
-    int format = get_pcm_format_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
-    if (format == -1) {
-        ret = -EINVAL;
-    } else {
-        config->format = format;
-    }
+    config->format = get_pcm_format_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
 
     pcm_params_free(alsa_hw_params);
-    return ret;
+
+    return 0;
 }
 
 /*
@@ -1208,12 +1032,10 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     int num_device_channels = cached_output_hardware_config.channels;
     int num_req_channels = 2; /* always, for now */
     if (num_device_channels != num_req_channels) {
-        audio_format_t audio_format = out_get_format(&(out->stream.common));
-        unsigned sample_size_in_bytes = audio_bytes_per_sample(audio_format);
         num_write_buff_bytes =
-             adjust_channels(write_buff, num_req_channels,
-                             out->conversion_buffer, num_device_channels,
-                             sample_size_in_bytes, num_write_buff_bytes);
+                expand_channels_16(write_buff, num_req_channels,
+                                   out->conversion_buffer, num_device_channels,
+                                   num_write_buff_bytes / sizeof(short));
         write_buff = out->conversion_buffer;
     }
 
@@ -1630,14 +1452,16 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         if (num_device_channels != num_req_channels) {
             out_buff = buffer;
             /* Num Channels conversion */
-            if (num_device_channels != num_req_channels) {
-                audio_format_t audio_format = in_get_format(&(in->stream.common));
-                unsigned sample_size_in_bytes = audio_bytes_per_sample(audio_format);
-
+            if (num_device_channels < num_req_channels) {
                 num_read_buff_bytes =
-                    adjust_channels(read_buff, num_device_channels,
-                                    out_buff, num_req_channels,
-                                    sample_size_in_bytes, num_read_buff_bytes);
+                    expand_channels_16(read_buff, num_device_channels,
+                                       out_buff, num_req_channels,
+                                       num_read_buff_bytes / sizeof(short));
+            } else {
+                num_read_buff_bytes =
+                    contract_channels_16(read_buff, num_device_channels,
+                                         out_buff, num_req_channels,
+                                         num_read_buff_bytes / sizeof(short));
             }
         }
     }
