@@ -579,7 +579,8 @@ struct audio_hw_device {
                              audio_io_handle_t handle,
                              audio_devices_t devices,
                              struct audio_config *config,
-                             struct audio_stream_in **stream_in);
+                             struct audio_stream_in **stream_in,
+                             audio_input_flags_t flags);
 
     void (*close_input_stream)(struct audio_hw_device *dev,
                                struct audio_stream_in *stream_in);
