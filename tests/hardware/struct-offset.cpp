@@ -167,7 +167,9 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(hwc_composer_device_1_t, dump, 88, 168);
     CHECK_MEMBER_AT(hwc_composer_device_1_t, getDisplayConfigs, 92, 176);
     CHECK_MEMBER_AT(hwc_composer_device_1_t, getDisplayAttributes, 96, 184);
-    CHECK_MEMBER_AT(hwc_composer_device_1_t, reserved_proc, 100, 192);
+    CHECK_MEMBER_AT(hwc_composer_device_1_t, getActiveConfig, 100, 192);
+    CHECK_MEMBER_AT(hwc_composer_device_1_t, setActiveConfig, 104, 200);
+    CHECK_MEMBER_AT(hwc_composer_device_1_t, reserved_proc, 108, 208);
 
     //Types defined in gralloc.h
     CHECK_MEMBER_AT(gralloc_module_t, common, 0, 0);
