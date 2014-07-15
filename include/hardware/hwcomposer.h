@@ -678,16 +678,24 @@ typedef struct hwc_composer_device_1 {
      * total number of configurations available for the display is returned in
      * *numConfigs. If *numConfigs is zero on entry, then configs may be NULL.
      *
-     * HWC_DEVICE_API_VERSION_1_1 does not provide a way to choose a config.
-     * For displays that support multiple configurations, the h/w composer
-     * implementation should choose one and report it as the first config in
-     * the list. Reporting the not-chosen configs is not required.
+     * Hardware composers implementing HWC_DEVICE_API_VERSION_1_3 or prior
+     * shall choose one configuration to activate and report it as the first
+     * entry in the returned list. Reporting the inactive configurations is not
+     * required.
      *
-     * Returns 0 on success or -errno on error. If disp is a hotpluggable
-     * display type and no display is connected, an error should be returned.
+     * HWC_DEVICE_API_VERSION_1_4 and later provide configuration management
+     * through SurfaceFlinger, and hardware composers implementing these APIs
+     * must also provide getActiveConfig and setActiveConfig. Hardware composers
+     * implementing these API versions may choose not to activate any
+     * configuration, leaving configuration selection to higher levels of the
+     * framework.
+     *
+     * Returns 0 on success or a negative error code on error. If disp is a
+     * hotpluggable display type and no display is connected, an error shall be
+     * returned.
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
-     * It should be NULL for previous versions.
+     * It shall be NULL for previous versions.
      */
     int (*getDisplayConfigs)(struct hwc_composer_device_1* dev, int disp,
             uint32_t* configs, size_t* numConfigs);
@@ -704,19 +712,54 @@ typedef struct hwc_composer_device_1 {
      * array will have one less value than the attributes array.
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_1 and later.
-     * It should be NULL for previous versions.
+     * It shall be NULL for previous versions.
      *
      * If disp is a hotpluggable display type and no display is connected,
      * or if config is not a valid configuration for the display, a negative
-     * value should be returned.
+     * error code shall be returned.
      */
     int (*getDisplayAttributes)(struct hwc_composer_device_1* dev, int disp,
             uint32_t config, const uint32_t* attributes, int32_t* values);
 
     /*
+     * (*getActiveConfig)() returns the index of the configuration that is
+     * currently active on the connected display. The index is relative to
+     * the list of configuration handles returned by getDisplayConfigs. If there
+     * is no active configuration, -1 shall be returned.
+     *
+     * Returns the configuration index on success or -1 on error.
+     *
+     * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_4 and later.
+     * It shall be NULL for previous versions.
+     */
+    int (*getActiveConfig)(struct hwc_composer_device_1* dev, int disp);
+
+    /*
+     * (*setActiveConfig)() instructs the hardware composer to switch to the
+     * display configuration at the given index in the list of configuration
+     * handles returned by getDisplayConfigs.
+     *
+     * If this function returns without error, any subsequent calls to
+     * getActiveConfig shall return the index set by this function until one
+     * of the following occurs:
+     *   1) Another successful call of this function
+     *   2) The display is disconnected
+     *
+     * Returns 0 on success or a negative error code on error. If disp is a
+     * hotpluggable display type and no display is connected, or if index is
+     * outside of the range of hardware configurations returned by
+     * getDisplayConfigs, an error shall be returned.
+     *
+     * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_4 and later.
+     * It shall be NULL for previous versions.
+     */
+    int (*setActiveConfig)(struct hwc_composer_device_1* dev, int disp,
+            int index);
+
+    /*
      * Reserved for future use. Must be NULL.
      */
-    void* reserved_proc[4];
+    void* reserved_proc[2];
 
 } hwc_composer_device_1_t;
 
