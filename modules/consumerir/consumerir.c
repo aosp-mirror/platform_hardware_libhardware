@@ -32,8 +32,8 @@ static const consumerir_freq_range_t consumerir_freqs[] = {
     {.min = 56000, .max = 56000},
 };
 
-static int consumerir_transmit(struct consumerir_device *dev,
-   int carrier_freq, int pattern[], int pattern_len)
+static int consumerir_transmit(struct consumerir_device *dev __unused,
+   int carrier_freq, const int pattern[], int pattern_len)
 {
     int total_time = 0;
     long i;
@@ -48,12 +48,12 @@ static int consumerir_transmit(struct consumerir_device *dev,
     return 0;
 }
 
-static int consumerir_get_num_carrier_freqs(struct consumerir_device *dev)
+static int consumerir_get_num_carrier_freqs(struct consumerir_device *dev __unused)
 {
     return ARRAY_SIZE(consumerir_freqs);
 }
 
-static int consumerir_get_carrier_freqs(struct consumerir_device *dev,
+static int consumerir_get_carrier_freqs(struct consumerir_device *dev __unused,
     size_t len, consumerir_freq_range_t *ranges)
 {
     size_t to_copy = ARRAY_SIZE(consumerir_freqs);
