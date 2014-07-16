@@ -671,59 +671,59 @@ static audio_format_t get_format_for_mask(struct pcm_mask* mask)
 }
 
 /*
- * Maps from bit position in pcm_mask to AUDIO_ format constants.
+ * Maps from bit position in pcm_mask to PCM_ format constants.
  */
-static int const pcm_format_value_map[] = {
+static int8_t const pcm_format_value_map[] = {
     PCM_FORMAT_S8,          /* 00 - SNDRV_PCM_FORMAT_S8 */
-    0,                      /* 01 - SNDRV_PCM_FORMAT_U8 */
+    PCM_FORMAT_INVALID,     /* 01 - SNDRV_PCM_FORMAT_U8 */
     PCM_FORMAT_S16_LE,      /* 02 - SNDRV_PCM_FORMAT_S16_LE */
-    0,                      /* 03 - SNDRV_PCM_FORMAT_S16_BE */
-    0,                      /* 04 - SNDRV_PCM_FORMAT_U16_LE */
-    0,                      /* 05 - SNDRV_PCM_FORMAT_U16_BE */
+    PCM_FORMAT_INVALID,     /* 03 - SNDRV_PCM_FORMAT_S16_BE */
+    PCM_FORMAT_INVALID,     /* 04 - SNDRV_PCM_FORMAT_U16_LE */
+    PCM_FORMAT_INVALID,     /* 05 - SNDRV_PCM_FORMAT_U16_BE */
     PCM_FORMAT_S24_3LE,     /* 06 - SNDRV_PCM_FORMAT_S24_LE */
-    0,                      /* 07 - SNDRV_PCM_FORMAT_S24_BE */
-    0,                      /* 08 - SNDRV_PCM_FORMAT_U24_LE */
-    0,                      /* 09 - SNDRV_PCM_FORMAT_U24_BE */
+    PCM_FORMAT_INVALID,     /* 07 - SNDRV_PCM_FORMAT_S24_BE */
+    PCM_FORMAT_INVALID,     /* 08 - SNDRV_PCM_FORMAT_U24_LE */
+    PCM_FORMAT_INVALID,     /* 09 - SNDRV_PCM_FORMAT_U24_BE */
     PCM_FORMAT_S32_LE,      /* 10 - SNDRV_PCM_FORMAT_S32_LE */
-    0,                      /* 11 - SNDRV_PCM_FORMAT_S32_BE */
-    0,                      /* 12 - SNDRV_PCM_FORMAT_U32_LE */
-    0,                      /* 13 - SNDRV_PCM_FORMAT_U32_BE */
-    0,                      /* 14 - SNDRV_PCM_FORMAT_FLOAT_LE */
-    0,                      /* 15 - SNDRV_PCM_FORMAT_FLOAT_BE */
-    0,                      /* 16 - SNDRV_PCM_FORMAT_FLOAT64_LE */
-    0,                      /* 17 - SNDRV_PCM_FORMAT_FLOAT64_BE */
-    0,                      /* 18 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE */
-    0,                      /* 19 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE */
-    0,                      /* 20 - SNDRV_PCM_FORMAT_MU_LAW */
-    0,                      /* 21 - SNDRV_PCM_FORMAT_A_LAW */
-    0,                      /* 22 - SNDRV_PCM_FORMAT_IMA_ADPCM */
-    0,                      /* 23 - SNDRV_PCM_FORMAT_MPEG */
-    0,                      /* 24 - SNDRV_PCM_FORMAT_GSM */
-    0,                      /* 25 -> 30 (not assigned) */
-    0,
-    0,
-    0,
-    0,
-    0,
-    0,                      /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
+    PCM_FORMAT_INVALID,     /* 11 - SNDRV_PCM_FORMAT_S32_BE */
+    PCM_FORMAT_INVALID,     /* 12 - SNDRV_PCM_FORMAT_U32_LE */
+    PCM_FORMAT_INVALID,     /* 13 - SNDRV_PCM_FORMAT_U32_BE */
+    PCM_FORMAT_INVALID,     /* 14 - SNDRV_PCM_FORMAT_FLOAT_LE */
+    PCM_FORMAT_INVALID,     /* 15 - SNDRV_PCM_FORMAT_FLOAT_BE */
+    PCM_FORMAT_INVALID,     /* 16 - SNDRV_PCM_FORMAT_FLOAT64_LE */
+    PCM_FORMAT_INVALID,     /* 17 - SNDRV_PCM_FORMAT_FLOAT64_BE */
+    PCM_FORMAT_INVALID,     /* 18 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_LE */
+    PCM_FORMAT_INVALID,     /* 19 - SNDRV_PCM_FORMAT_IEC958_SUBFRAME_BE */
+    PCM_FORMAT_INVALID,     /* 20 - SNDRV_PCM_FORMAT_MU_LAW */
+    PCM_FORMAT_INVALID,     /* 21 - SNDRV_PCM_FORMAT_A_LAW */
+    PCM_FORMAT_INVALID,     /* 22 - SNDRV_PCM_FORMAT_IMA_ADPCM */
+    PCM_FORMAT_INVALID,     /* 23 - SNDRV_PCM_FORMAT_MPEG */
+    PCM_FORMAT_INVALID,     /* 24 - SNDRV_PCM_FORMAT_GSM */
+    PCM_FORMAT_INVALID,     /* 25 -> 30 (not assigned) */
+    PCM_FORMAT_INVALID,
+    PCM_FORMAT_INVALID,
+    PCM_FORMAT_INVALID,
+    PCM_FORMAT_INVALID,
+    PCM_FORMAT_INVALID,
+    PCM_FORMAT_INVALID,     /* 31 - SNDRV_PCM_FORMAT_SPECIAL */
     PCM_FORMAT_S24_3LE,     /* 32 - SNDRV_PCM_FORMAT_S24_3LE */ /* ??? */
-    0,                      /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
-    0,                      /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
-    0,                      /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
-    0,                      /* 36 - SNDRV_PCM_FORMAT_S20_3LE */
-    0,                      /* 37 - SNDRV_PCM_FORMAT_S20_3BE */
-    0,                      /* 38 - SNDRV_PCM_FORMAT_U20_3LE */
-    0,                      /* 39 - SNDRV_PCM_FORMAT_U20_3BE */
-    0,                      /* 40 - SNDRV_PCM_FORMAT_S18_3LE */
-    0,                      /* 41 - SNDRV_PCM_FORMAT_S18_3BE */
-    0,                      /* 42 - SNDRV_PCM_FORMAT_U18_3LE */
-    0,                      /* 43 - SNDRV_PCM_FORMAT_U18_3BE */
-    0,                      /* 44 - SNDRV_PCM_FORMAT_G723_24 */
-    0,                      /* 45 - SNDRV_PCM_FORMAT_G723_24_1B */
-    0,                      /* 46 - SNDRV_PCM_FORMAT_G723_40 */
-    0,                      /* 47 - SNDRV_PCM_FORMAT_G723_40_1B */
-    0,                      /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
-    0                       /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
+    PCM_FORMAT_INVALID,     /* 33 - SNDRV_PCM_FORMAT_S24_3BE */
+    PCM_FORMAT_INVALID,     /* 34 - SNDRV_PCM_FORMAT_U24_3LE */
+    PCM_FORMAT_INVALID,     /* 35 - SNDRV_PCM_FORMAT_U24_3BE */
+    PCM_FORMAT_INVALID,     /* 36 - SNDRV_PCM_FORMAT_S20_3LE */
+    PCM_FORMAT_INVALID,     /* 37 - SNDRV_PCM_FORMAT_S20_3BE */
+    PCM_FORMAT_INVALID,     /* 38 - SNDRV_PCM_FORMAT_U20_3LE */
+    PCM_FORMAT_INVALID,     /* 39 - SNDRV_PCM_FORMAT_U20_3BE */
+    PCM_FORMAT_INVALID,     /* 40 - SNDRV_PCM_FORMAT_S18_3LE */
+    PCM_FORMAT_INVALID,     /* 41 - SNDRV_PCM_FORMAT_S18_3BE */
+    PCM_FORMAT_INVALID,     /* 42 - SNDRV_PCM_FORMAT_U18_3LE */
+    PCM_FORMAT_INVALID,     /* 43 - SNDRV_PCM_FORMAT_U18_3BE */
+    PCM_FORMAT_INVALID,     /* 44 - SNDRV_PCM_FORMAT_G723_24 */
+    PCM_FORMAT_INVALID,     /* 45 - SNDRV_PCM_FORMAT_G723_24_1B */
+    PCM_FORMAT_INVALID,     /* 46 - SNDRV_PCM_FORMAT_G723_40 */
+    PCM_FORMAT_INVALID,     /* 47 - SNDRV_PCM_FORMAT_G723_40_1B */
+    PCM_FORMAT_INVALID,     /* 48 - SNDRV_PCM_FORMAT_DSD_U8 */
+    PCM_FORMAT_INVALID      /* 49 - SNDRV_PCM_FORMAT_DSD_U16_LE */
 };
 
 /*
@@ -734,7 +734,7 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
     int num_slots = sizeof(mask->bits)/ sizeof(mask->bits[0]);
     int bits_per_slot = sizeof(mask->bits[0]) * 8;
 
-    int table_size = sizeof(pcm_format_value_map) / sizeof(pcm_format_value_map[0]);
+    int table_size = ARRAY_SIZE(pcm_format_value_map);
 
     int slot_index, bit_index, table_index;
     table_index = 0;
@@ -743,9 +743,10 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
         unsigned bit_mask = 1;
         for (bit_index = 0; bit_index < bits_per_slot  && table_index < table_size; bit_index++) {
             if ((mask->bits[slot_index] & bit_mask) != 0) {
+                /* TODO - we don't want a low-level function to be making this decision */
                 if (table_index != 0) { /* Don't pick 8-bit */
                     /* just return the first one */
-                    return pcm_format_value_map[table_index];
+                    return (int)pcm_format_value_map[table_index];
                 }
             }
             bit_mask <<= 1;
@@ -753,7 +754,7 @@ static int get_pcm_format_for_mask(struct pcm_mask* mask) {
         }
     }
 
-    return -1; /* error */
+    return PCM_FORMAT_INVALID;
 }
 
 static bool test_out_sample_rate(struct audio_device_profile* dev_profile, unsigned rate) {
@@ -931,7 +932,7 @@ static int read_alsa_device_config(struct audio_device_profile * dev_profile,
     config->period_count = pcm_params_get_min(alsa_hw_params, PCM_PARAM_PERIODS);
 
     int format = get_pcm_format_for_mask(pcm_params_get_mask(alsa_hw_params, PCM_PARAM_FORMAT));
-    if (format == -1) {
+    if (format == PCM_FORMAT_INVALID) {
         ret = -EINVAL;
     } else {
         config->format = format;
