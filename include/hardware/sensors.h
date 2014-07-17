@@ -577,6 +577,31 @@ enum {
 #define SENSOR_TYPE_WAKE_GESTURE                               (42)
 #define SENSOR_STRING_TYPE_WAKE_GESTURE                        "android.sensor.wake_gesture"
 
+/*
+ * SENSOR_TYPE_GLANCE_GESTURE
+ * reporting-mode: one-shot
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
+ *
+ * A sensor enabling briefly turning the screen on to enable the user to
+ * glance content on screen based on a specific motion.  The device should
+ * turn the screen off after a few moments.
+ *
+ * When this sensor triggers, the device turns the screen on momentarily
+ * to allow the user to glance notifications or other content while the
+ * device remains locked in a non-interactive state (dozing). This behavior
+ * (briefly turning on the screen when this sensor triggers) might be deactivated
+ * by the user in the device settings. Changes in settings do not impact the
+ * behavior of the sensor: only whether the framework briefly turns the screen on
+ * when it triggers.
+ *
+ * The actual gesture to be detected is not specified, and can be chosen by
+ * the manufacturer of the device.
+ * This sensor must be low power, as it is likely to be activated 24/7.
+ * The only allowed value to return is 1.0.
+ */
+#define SENSOR_TYPE_GLANCE_GESTURE                             (43)
+#define SENSOR_STRING_TYPE_GLANCE_GESTURE                      "android.sensor.glance_gesture"
+
 /**
  * SENSOR_TYPE_PICK_UP_GESTURE
  * reporting-mode: one-shot
