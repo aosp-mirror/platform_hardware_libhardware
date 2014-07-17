@@ -224,14 +224,30 @@ typedef uint16_t GpsClockFlags;
 #define GPS_CLOCK_HAS_LEAP_SECOND               (1<<0)
 /** A valid 'time uncertainty' is stored in the data structure. */
 #define GPS_CLOCK_HAS_TIME_UNCERTAINTY          (1<<1)
+/** A valid 'full bias' is stored in the data structure. */
+#define GPS_CLOCK_HAS_FULL_BIAS                 (1<<2)
 /** A valid 'bias' is stored in the data structure. */
-#define GPS_CLOCK_HAS_BIAS                      (1<<2)
+#define GPS_CLOCK_HAS_BIAS                      (1<<3)
 /** A valid 'bias uncertainty' is stored in the data structure. */
-#define GPS_CLOCK_HAS_BIAS_UNCERTAINTY          (1<<3)
+#define GPS_CLOCK_HAS_BIAS_UNCERTAINTY          (1<<4)
 /** A valid 'drift' is stored in the data structure. */
-#define GPS_CLOCK_HAS_DRIFT                     (1<<4)
+#define GPS_CLOCK_HAS_DRIFT                     (1<<5)
 /** A valid 'drift uncertainty' is stored in the data structure. */
-#define GPS_CLOCK_HAS_DRIFT_UNCERTAINTY         (1<<5)
+#define GPS_CLOCK_HAS_DRIFT_UNCERTAINTY         (1<<6)
+
+/**
+ * Enumeration of the available values for the GPS Clock type.
+ */
+typedef uint8_t GpsClockType;
+/** The type is not available ot it is unknown. */
+#define GPS_CLOCK_TYPE_UNKNOWN                  0
+/** The source of the time value reported by GPS clock is the local hardware clock. */
+#define GPS_CLOCK_TYPE_LOCAL_HW_TIME            1
+/**
+ * The source of the time value reported by GPS clock is the GPS time derived from satellites
+ * (epoch = Jan 6, 1980)
+ */
+#define GPS_CLOCK_TYPE_GPS_TIME                 2
 
 /**
  * Flags to indicate what fields in GpsMeasurement are valid.
@@ -275,7 +291,7 @@ typedef uint32_t GpsMeasurementFlags;
 #define GPS_MEASUREMENT_HAS_USED_IN_FIX                       (1<<17)
 
 /**
- * Flags that indicate the available values for the GPS Measurement's loss of lock.
+ * Enumeration of the available values for the GPS Measurement's loss of lock.
  */
 typedef uint8_t GpsLossOfLock;
 /** The indicator is not available or it is unknown. */
@@ -286,7 +302,7 @@ typedef uint8_t GpsLossOfLock;
 #define GPS_LOSS_OF_LOCK_CYCLE_SLIP                         2
 
 /**
- * Flags that indicate the available values for the GPS Measurement's multipath indicator.
+ * Enumeration of available values for the GPS Measurement's multipath indicator.
  */
 typedef uint8_t GpsMultipathIndicator;
 /** The indicator is not available or unknown. */
@@ -297,7 +313,26 @@ typedef uint8_t GpsMultipathIndicator;
 #define GPS_MULTIPATH_INDICATOR_NOT_USED                2
 
 /**
- * Flags to indicate the available GPS Natigation message types.
+ * Flags indicating the GPS measurement state.
+ */
+typedef uint16_t GpsMeasurementState;
+#define GPS_MEASUREMENT_STATE_UNKNOWN                   0
+#define GPS_MEASUREMENT_STATE_CODE_LOCK             (1<<0)
+#define GPS_MEASUREMENT_STATE_BIT_SYNC              (1<<1)
+#define GPS_MEASUREMENT_STATE_SUBFRAME_SYNC         (1<<2)
+#define GPS_MEASUREMENT_STATE_TOW_DECODED           (1<<3)
+
+/**
+ * Flags indicating the Accumulated Delta Range's states.
+ */
+typedef uint16_t GpsAccumulatedDeltaRangeState;
+#define GPS_ADR_STATE_UNKNOWN                       0
+#define GPS_ADR_STATE_VALID                     (1<<0)
+#define GPS_ADR_STATE_RESET                     (1<<1)
+#define GPS_ADR_STATE_CYCLE_SLIP                (1<<2)
+
+/**
+ * Enumeration of available values to indicate the available GPS Natigation message types.
  */
 typedef uint8_t GpsNavigationMessageType;
 /** The message type is unknown. */
@@ -1210,19 +1245,34 @@ typedef struct {
 
     /**
      * Leap second data.
+     * The sign of the value is defined by the following equation:
+     *      utc_time_ns = time_ns + (full_bias_ns + bias_ns) - leap_second * 1,000,000,000
+     *
      * If the data is available 'flags' must contain GPS_CLOCK_HAS_LEAP_SECOND.
      */
     int16_t leap_second;
 
     /**
-     * The receiver's GPS time since 0000Z, January 6, 1980 in nanoseconds.
-     * It is referenced using the uncorrected receiver's clock ('bias_ns' included).
-     * The current precision allows a range that spans approximately to the end of the year 2272.
+     * Indicates the type of time reported by the 'time_ns' field.
+     * This is a Mandatory field.
+     */
+    GpsClockType type;
+
+    /**
+     * The GPS receiver internal clock value. This can be either the local hardware clock value
+     * (GPS_CLOCK_TYPE_LOCAL_HW_TIME), or the current GPS time derived inside GPS receiver
+     * (GPS_CLOCK_TYPE_GPS_TIME). The field 'type' defines the time reported.
      *
-     * Sub-nanosecond accuracy can be provided for each individual measurement using the field
-     * GpsMeasurement::time_offset_ns.
+     * For local hardware clock, this value is expected to be monotonically increasing during
+     * the reporting session. The real GPS time can be derived by compensating the 'full bias'
+     * (when it is available) from this value.
      *
+     * For GPS time, this value is expected to be the best estimation of current GPS time that GPS
+     * receiver can achieve. Set the 'time uncertainty' appropriately when GPS time is specified.
+     *
+     * Sub-nanosecond accuracy can be provided by means of the 'bias' field.
      * The value contains the 'time uncertainty' in it.
+     *
      * This is a Mandatory field.
      */
     int64_t time_ns;
@@ -1231,16 +1281,31 @@ typedef struct {
      * 1-Sigma uncertainty associated with the clock's time in nanoseconds.
      * The uncertainty is represented as an absolute (single sided) value.
      *
+     * This value should be set if GPS_CLOCK_TYPE_GPS_TIME is set.
      * If the data is available 'flags' must contain GPS_CLOCK_HAS_TIME_UNCERTAINTY.
      */
     double time_uncertainty_ns;
 
     /**
-     * The clock's bias in nanoseconds.
-     * The sign of the value is defined by the following equation:
-     *    true time = time - bias.
+     * The difference between hardware clock ('time' field) inside GPS receiver and the true GPS
+     * time since 0000Z, January 6, 1980, in nanoseconds.
+     * This value is used if and only if GPS_CLOCK_TYPE_LOCAL_HW_TIME is set, and GPS receiver
+     * has solved the clock for GPS time.
+     * The caller is responsible for using the 'bias uncertainty' field for quality check.
      *
+     * The sign of the value is defined by the following equation:
+     *      true time (GPS time) = time_ns + (full_bias_ns + bias_ns)
+     *
+     * This value contains the 'bias uncertainty' in it.
+     * If the data is available 'flags' must contain GPS_CLOCK_HAS_FULL_BIAS.
+
+     */
+    int64_t full_bias_ns;
+
+    /**
+     * Sub-nanosecond bias.
      * The value contains the 'bias uncertainty' in it.
+     *
      * If the data is available 'flags' must contain GPS_CLOCK_HAS_BIAS.
      */
     double bias_ns;
@@ -1288,21 +1353,36 @@ typedef struct {
     int8_t prn;
 
     /**
-     * Local hardware time offset at which the measurement was taken in nanoseconds.
-     * The reference receiver's time is specified by GpsData::clock.
+     * Time offset at which the measurement was taken in nanoseconds.
+     * The reference receiver's time is specified by GpsData::clock::time_ns and should be
+     * interpreted in the same way as indicated by GpsClock::type.
+     *
      * The sign of time_offset_ns is given by the following equation:
      *      measurement time = GpsClock::time_ns + time_offset_ns
      *
      * It provides an individual time-stamp for the measurement, and allows sub-nanosecond accuracy.
      * This is a Mandatory value.
      */
-    int64_t time_offset_ns;
+    double time_offset_ns;
 
     /**
-     * Received GPS Time-of-Week in nanoseconds.
-     * The value is relative to the beginning of the current GPS week.
+     * Per satellite sync state. It represents the current sync state for the associated satellite.
+     * Based on the sync state, the 'received GPS tow' field should be interpreted accordingly.
      *
      * This is a Mandatory value.
+     */
+    GpsMeasurementState state;
+
+    /**
+     * Received GPS Time-of-Week at the measurement time, in nanoseconds.
+     * The value is relative to the beginning of the current GPS week.
+     *
+     * Given the sync state of GPS receiver, per each satellite, valid range for this field can be:
+     *      Searching           : [ 0       ]   : GPS_MEASUREMENT_STATE_UNKNOWN
+     *      Ranging code lock   : [ 0   1ms ]   : GPS_MEASUREMENT_STATE_CODE_LOCK is set
+     *      Bit sync            : [ 0  20ms ]   : GPS_MEASUREMENT_STATE_BIT_SYNC is set
+     *      Subframe sync       : [ 0   6ms ]   : GPS_MEASUREMENT_STATE_SUBFRAME_SYNC is set
+     *      TOW decoded         : [ 0 1week ]   : GPS_MEASUREMENT_STATE_TOW_DECODED is set
      */
     int64_t received_gps_tow_ns;
 
@@ -1324,7 +1404,7 @@ typedef struct {
      *
      * This is a Mandatory value.
      */
-    double pseudorange_rate_mpersec;
+    double pseudorange_rate_mps;
 
     /**
      * 1-Sigma uncertainty of the pseudurange rate in m/s.
@@ -1332,19 +1412,25 @@ typedef struct {
      *
      * This is a Mandatory value.
      */
-    double pseudorange_rate_uncertainty_mpersec;
+    double pseudorange_rate_uncertainty_mps;
+
+    /**
+     * Accumulated delta range's state. It indicates whether ADR is reset or there is a cycle slip
+     * (indicating loss of lock).
+     *
+     * This is a Mandatory value.
+     */
+    GpsAccumulatedDeltaRangeState accumulated_delta_range_state;
 
     /**
      * Accumulated delta range since the last channel reset in meters.
-     *
-     * This is a Mandatory value.
+     * The data is available if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
      */
     double accumulated_delta_range_m;
 
     /**
      * 1-Sigma uncertainty of the accumulated delta range in meters.
-     *
-     * This is a Mandatory value.
+     * The data is available if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
      */
     double accumulated_delta_range_uncertainty_m;
 
@@ -1429,10 +1515,10 @@ typedef struct {
     int16_t bit_number;
 
     /**
-     * The elapsed time since the last received bit in nanoseconds, in the range [0, 20,000,000]
+     * The elapsed time since the last received bit in milliseconds, in the range [0, 20]
      * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_TIME_FROM_LAST_BIT.
      */
-    int64_t time_from_last_bit_ns;
+    int16_t time_from_last_bit_ms;
 
     /**
      * Doppler shift in Hz.
@@ -1582,8 +1668,9 @@ typedef struct {
 
     /**
      * Message identifier.
-     * It provides an index so the complete Navigation Message can be assembled.
-     * i.e. for L1 C/A the message id corresponds to the frame id of the navigation message.
+     * It provides an index so the complete Navigation Message can be assembled. i.e. fo L1 C/A
+     * subframe 4 and 5, this value corresponds to the 'frame id' of the navigation message.
+     * Subframe 1, 2, 3 does not contain a 'frame id' and this value can be set to -1.
      */
     int16_t message_id;
 
