@@ -578,6 +578,18 @@ enum {
 #define SENSOR_STRING_TYPE_WAKE_GESTURE                        "android.sensor.wake_gesture"
 
 /**
+ * SENSOR_TYPE_PICK_UP_GESTURE
+ * reporting-mode: one-shot
+ * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
+ *
+ * A sensor of this type triggers when the device is picked up regardless of wherever is was
+ * before (desk, pocket, bag). The only allowed return value is 1.0.
+ * This sensor de-activates itself immediately after it triggers.
+ */
+#define SENSOR_TYPE_PICK_UP_GESTURE                            (43)
+#define SENSOR_STRING_TYPE_PICK_UP_GESTURE                     "android.sensor.pick_up_gesture"
+
+/**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
  */
@@ -948,7 +960,6 @@ typedef struct sensors_poll_device_1 {
     void (*reserved_procs[8])(void);
 
 } sensors_poll_device_1_t;
-
 
 
 /** convenience API for opening and closing a device */
