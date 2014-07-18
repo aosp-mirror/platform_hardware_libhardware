@@ -21,8 +21,9 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := \
 	audio_hw.c
 LOCAL_C_INCLUDES += \
-	external/tinyalsa/include
-LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa
+	external/tinyalsa/include \
+	$(call include-path-for, audio-utils)
+LOCAL_SHARED_LIBRARIES := liblog libcutils libtinyalsa libaudioutils
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wno-unused-parameter
 
