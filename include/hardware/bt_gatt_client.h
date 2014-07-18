@@ -370,6 +370,10 @@ typedef struct {
     /** Configure the MTU for a given connection */
     bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
+    /** Request a connection parameter update */
+    bt_status_t (*conn_parameter_update)(const bt_bdaddr_t *bd_addr, int min_interval,
+                    int max_interval, int latency, int timeout);
+
     /** Sets the LE scan interval and window in units of N*0.625 msec */
     bt_status_t (*set_scan_parameters)(int scan_interval, int scan_window);
 
