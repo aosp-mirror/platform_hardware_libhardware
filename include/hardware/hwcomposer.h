@@ -619,12 +619,8 @@ typedef struct hwc_composer_device_1 {
          * setPowerMode(..., mode)
          * Sets the display screen's power state.
          *
-         * The expected functionality for the various modes is as follows:
-         * HWC_POWER_MODE_OFF    : Turn the display off.
-         * HWC_POWER_MODE_DOZE   : Turn on the display (if it was previously
-         *                         off) and put the display in a low power mode.
-         * HWC_POWER_MODE_NORMAL : Turn on the display (if it was previously
-         *                         off), and take it out of low power mode.
+         * Refer to the documentation of the HWC_POWER_MODE_* constants
+         * for information about each power mode.
          *
          * The functionality is similar to the blank() command in previous
          * versions of HWC, but with support for more power states.
