@@ -63,14 +63,19 @@ typedef struct tv_input_module {
 /*****************************************************************************/
 
 enum {
-    /* HDMI */
-    TV_INPUT_TYPE_HDMI = 1,
-
-    /* Built-in tuners. */
-    TV_INPUT_TYPE_BUILT_IN_TUNER = 2,
-
-    /* Passthrough */
-    TV_INPUT_TYPE_PASSTHROUGH = 3,
+    /* Generic hardware. */
+    TV_INPUT_TYPE_OTHER_HARDWARE = 1,
+    /* Tuner. (e.g. built-in terrestrial tuner) */
+    TV_INPUT_TYPE_TUNER = 2,
+    TV_INPUT_TYPE_COMPOSITE = 3,
+    TV_INPUT_TYPE_SVIDEO = 4,
+    TV_INPUT_TYPE_SCART = 5,
+    TV_INPUT_TYPE_COMPONENT = 6,
+    TV_INPUT_TYPE_VGA = 7,
+    TV_INPUT_TYPE_DVI = 8,
+    /* Physical HDMI port. (e.g. HDMI 1) */
+    TV_INPUT_TYPE_HDMI = 9,
+    TV_INPUT_TYPE_DISPLAY_PORT = 10,
 };
 typedef uint32_t tv_input_type_t;
 
