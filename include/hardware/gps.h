@@ -1387,6 +1387,11 @@ typedef struct {
     int64_t received_gps_tow_ns;
 
     /**
+     * 1-Sigma uncertainty of the Received GPS Time-of-Week in nanoseconds.
+     */
+    int64_t received_gps_tow_uncertainty_ns;
+
+    /**
      * Carrier-to-noise density in dB-Hz, in the range [0, 63].
      * It contains the measured C/N0 value for the signal at the antenna input.
      *
