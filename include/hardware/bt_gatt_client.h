@@ -170,10 +170,6 @@ typedef void (*scan_filter_param_callback)(int action, int client_if, int status
 /** Callback invoked when a scan filter configuration command has completed */
 typedef void (*scan_filter_status_callback)(int enable, int client_if, int status);
 
-/** Track ADV VSE callback invoked when tracked device is found or lost */
-typedef void (*track_adv_event_callback)(int client_if, int filt_index, int addr_type,
-                                             bt_bdaddr_t* bda, int adv_state);
-
 /** Callback invoked when multi-adv enable operation has completed */
 typedef void (*multi_adv_enable_callback)(int client_if, int status);
 
@@ -205,6 +201,9 @@ typedef void (*batchscan_reports_callback)(int client_if, int status, int report
 /** Callback invoked when batchscan storage threshold limit is crossed */
 typedef void (*batchscan_threshold_callback)(int client_if);
 
+/** Track ADV VSE callback invoked when tracked device is found or lost */
+typedef void (*track_adv_event_callback)(int client_if, int filt_index, int addr_type,
+                                             bt_bdaddr_t* bda, int adv_state);
 
 typedef struct {
     register_client_callback            register_client_cb;

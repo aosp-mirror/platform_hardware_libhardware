@@ -98,6 +98,15 @@ typedef struct {
     uint8_t pin[16];
 } __attribute__((packed))bt_pin_code_t;
 
+typedef struct {
+    uint8_t status;
+    uint8_t ctrl_state;     /* stack reported state */
+    uint64_t tx_time;       /* in ms */
+    uint64_t rx_time;       /* in ms */
+    uint64_t idle_time;     /* in ms */
+    uint64_t energy_used;   /* a product of mA, V and ms */
+} __attribute__((packed))bt_activity_energy_info;
+
 /** Bluetooth Adapter Discovery state */
 typedef enum {
     BT_DISCOVERY_STOPPED,
@@ -140,6 +149,7 @@ typedef struct
     uint8_t max_irk_list_size;
     uint8_t max_adv_filter_supported;
     uint8_t scan_result_storage_size;
+    uint8_t activity_energy_info_supported;
 }bt_local_le_features_t;
 
 /* Bluetooth Adapter and Remote Device property types */
@@ -345,6 +355,15 @@ typedef void (*dut_mode_recv_callback)(uint16_t opcode, uint8_t *buf, uint8_t le
 * This callback shall be invoked whenever the le_tx_test, le_rx_test or le_test_end is invoked
 * The num_packets is valid only for le_test_end command */
 typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
+
+/** Callback invoked when energy details are obtained */
+/* Ctrl_state-Current controller state-Active-1,scan-2,or idle-3 state as defined by HCI spec.
+ * If the ctrl_state value is 0, it means the API call failed
+ * Time values-In milliseconds as returned by the controller
+ * Energy used-Value as returned by the controller
+ * Status-Provides the status of the read_energy_info API call */
+typedef void (*energy_info_callback)(bt_activity_energy_info *energy_info);
+
 /** TODO: Add callbacks for Link Up/Down and other generic
   *  notifications/callbacks */
 
@@ -364,6 +383,7 @@ typedef struct {
     callback_thread_event thread_evt_cb;
     dut_mode_recv_callback dut_mode_recv_cb;
     le_test_mode_callback le_test_mode_cb;
+    energy_info_callback energy_info_cb;
 } bt_callbacks_t;
 
 typedef void (*alarm_cb)(void *data);
@@ -507,6 +527,11 @@ typedef struct {
       * This should be called immediately after a successful |init|.
       */
     int (*set_os_callouts)(bt_os_callouts_t *callouts);
+
+    /** Read Energy info details - return value indicates BT_STATUS_SUCCESS or BT_STATUS_NOT_READY
+      * Success indicates that the VSC command was sent to controller
+      */
+    int (*read_energy_info)();
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
