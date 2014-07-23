@@ -611,7 +611,7 @@ enum {
  * before (desk, pocket, bag). The only allowed return value is 1.0.
  * This sensor de-activates itself immediately after it triggers.
  */
-#define SENSOR_TYPE_PICK_UP_GESTURE                            (43)
+#define SENSOR_TYPE_PICK_UP_GESTURE                            (44)
 #define SENSOR_STRING_TYPE_PICK_UP_GESTURE                     "android.sensor.pick_up_gesture"
 
 /**
