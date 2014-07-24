@@ -124,6 +124,9 @@ enum {
      */
     GRALLOC_USAGE_PROTECTED             = 0x00004000,
 
+    /* buffer may be used as a cursor */
+    GRALLOC_USAGE_CURSOR                = 0x00008000,
+
     /* implementation-specific private usage flags */
     GRALLOC_USAGE_PRIVATE_0             = 0x10000000,
     GRALLOC_USAGE_PRIVATE_1             = 0x20000000,
