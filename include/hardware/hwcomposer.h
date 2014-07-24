@@ -141,6 +141,13 @@ typedef struct hwc_layer_1 {
      *   as a solid color since the platform is not currently able to composite
      *   sideband layers with the GPU. This may be improved in future
      *   versions of the platform.
+     *
+     *
+     * HWC_CURSOR_OVERLAY
+     *   Set by the HWC implementation during (*prepare)(), this value
+     *   indicates the layer's composition will now be handled by the HWC.
+     *   Additionally, the client can now asynchronously update the on-screen
+     *   position of this layer using the setCursorPositionAsync() api.
      */
     int32_t compositionType;
 
@@ -505,11 +512,12 @@ typedef struct hwc_composer_device_1 {
      * (*prepare)() can be called more than once, the last call prevails.
      *
      * The HWC responds by setting the compositionType field in each layer to
-     * either HWC_FRAMEBUFFER or HWC_OVERLAY. In the former case, the
-     * composition for the layer is handled by SurfaceFlinger with OpenGL ES,
-     * in the later case, the HWC will have to handle the layer's composition.
-     * compositionType and hints are preserved between (*prepare)() calles
-     * unless the HWC_GEOMETRY_CHANGED flag is set.
+     * either HWC_FRAMEBUFFER, HWC_OVERLAY, or HWC_CURSOR_OVERLAY. For the
+     * HWC_FRAMEBUFFER type, composition for the layer is handled by
+     * SurfaceFlinger with OpenGL ES. For the latter two overlay types,
+     * the HWC will have to handle the layer's composition. compositionType
+     * and hints are preserved between (*prepare)() calles unless the
+     * HWC_GEOMETRY_CHANGED flag is set.
      *
      * (*prepare)() is called with HWC_GEOMETRY_CHANGED to indicate that the
      * list's geometry has changed, that is, when more than just the buffer's
@@ -751,11 +759,37 @@ typedef struct hwc_composer_device_1 {
      */
     int (*setActiveConfig)(struct hwc_composer_device_1* dev, int disp,
             int index);
+    /*
+     * Asynchronously update the location of the cursor layer.
+     *
+     * Within the standard prepare()/set() composition loop, the client
+     * (surfaceflinger) can request that a given layer uses dedicated cursor
+     * composition hardware by specifiying the HWC_IS_CURSOR_LAYER flag. Only
+     * one layer per display can have this flag set. If the layer is suitable
+     * for the platform's cursor hardware, hwcomposer will return from prepare()
+     * a composition type of HWC_CURSOR_OVERLAY for that layer. This indicates
+     * not only that the client is not responsible for compositing that layer,
+     * but also that the client can continue to update the position of that layer
+     * after a call to set(). This can reduce the visible latency of mouse
+     * movement to visible, on-screen cursor updates. Calls to
+     * setCursorPositionAsync() may be made from a different thread doing the
+     * prepare()/set() composition loop, but care must be taken to not interleave
+     * calls of setCursorPositionAsync() between calls of set()/prepare().
+     *
+     * Notes:
+     * - Only one layer per display can be specified as a cursor layer with
+     *   HWC_IS_CURSOR_LAYER.
+     * - hwcomposer will only return one layer per display as HWC_CURSOR_OVERLAY
+     * - This returns 0 on success or -errno on error.
+     * - This field is optional for HWC_DEVICE_API_VERSION_1_4 and later. It
+     *   should be null for previous versions.
+     */
+    int (*setCursorPositionAsync)(struct hwc_composer_device_1 *dev, int disp, int x_pos, int y_pos);
 
     /*
      * Reserved for future use. Must be NULL.
      */
-    void* reserved_proc[2];
+    void* reserved_proc[1];
 
 } hwc_composer_device_1_t;
 
