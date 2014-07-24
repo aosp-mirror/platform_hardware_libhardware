@@ -268,8 +268,29 @@ typedef struct camera_module {
     /**
      * Common methods of the camera module.  This *must* be the first member of
      * camera_module as users of this structure will cast a hw_module_t to
-     * camera_module pointer in contexts where it's known the hw_module_t references a
-     * camera_module.
+     * camera_module pointer in contexts where it's known the hw_module_t
+     * references a camera_module.
+     *
+     * The return values for common.methods->open for camera_module are:
+     *
+     * 0:           On a successful open of the camera device.
+     *
+     * -ENODEV:     The camera device cannot be opened due to an internal
+     *              error.
+     *
+     * -EINVAL:     The input arguments are invalid, i.e. the id is invalid,
+     *              and/or the module is invalid.
+     *
+     * -EBUSY:      The camera device was already opened for this camera id
+     *              (by using this method or open_legacy),
+     *              regardless of the device HAL version it was opened as.
+     *
+     * -EUSERS:     The maximal number of camera devices that can be
+     *              opened concurrently were opened already, either by
+     *              this method or the open_legacy method.
+     *
+     * All other return values from common.methods->open will be treated as
+     * -ENODEV.
      */
     hw_module_t common;
 
@@ -293,6 +314,15 @@ typedef struct camera_module {
      * Return the static camera information for a given camera device. This
      * information may not change for a camera device.
      *
+     * Return values:
+     *
+     * 0:           On a successful operation
+     *
+     * -ENODEV:     The information cannot be provided due to an internal
+     *              error.
+     *
+     * -EINVAL:     The input arguments are invalid, i.e. the id is invalid,
+     *              and/or the module is invalid.
      */
     int (*get_camera_info)(int camera_id, struct camera_info *info);
 
@@ -315,6 +345,15 @@ typedef struct camera_module {
      *
      *    Valid to be called by the framework.
      *
+     * Return values:
+     *
+     * 0:           On a successful operation
+     *
+     * -ENODEV:     The operation cannot be completed due to an internal
+     *              error.
+     *
+     * -EINVAL:     The input arguments are invalid, i.e. the callbacks are
+     *              null
      */
     int (*set_callbacks)(const camera_module_callbacks_t *callbacks);
 
