@@ -94,6 +94,12 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_VALUE_TTY_HCO "tty_hco"
 #define AUDIO_PARAMETER_VALUE_TTY_FULL "tty_full"
 
+/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off
+   Strings must be in sync with CallFeaturesSetting.java */
+#define AUDIO_PARAMETER_KEY_HAC "HACSetting"
+#define AUDIO_PARAMETER_VALUE_HAC_ON "ON"
+#define AUDIO_PARAMETER_VALUE_HAC_OFF "OFF"
+
 /* A2DP sink address set by framework */
 #define AUDIO_PARAMETER_A2DP_SINK_ADDRESS "a2dp_sink_address"
 
