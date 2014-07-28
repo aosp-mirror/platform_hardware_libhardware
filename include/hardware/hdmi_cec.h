@@ -339,7 +339,7 @@ typedef struct hdmi_cec_device {
      * some reason. HAL implementation should take the situation into account
      * so as not to wait forever for the message to get sent out.
      *
-     * It should not try retransmission because it's handled by upper layer.
+     * It should try retransmission at least once as specified in the standard.
      *
      * Returns error code. See HDMI_RESULT_SUCCESS, HDMI_RESULT_NACK, and
      * HDMI_RESULT_BUSY.
