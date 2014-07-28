@@ -218,7 +218,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_devices_t devices,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
-                                   struct audio_stream_out **stream_out)
+                                   struct audio_stream_out **stream_out,
+                                   const char *address __unused)
 {
     struct stub_audio_device *ladev = (struct stub_audio_device *)dev;
     struct stub_stream_out *out;
@@ -328,7 +329,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   audio_devices_t devices,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in,
-                                  audio_input_flags_t flags __unused)
+                                  audio_input_flags_t flags __unused,
+                                  const char *address __unused,
+                                  audio_source_t source __unused)
 {
     struct stub_audio_device *ladev = (struct stub_audio_device *)dev;
     struct stub_stream_in *in;

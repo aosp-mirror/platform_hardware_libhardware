@@ -110,12 +110,12 @@ __BEGIN_DECLS
  *  audio stream parameters
  */
 
-#define AUDIO_PARAMETER_STREAM_ROUTING "routing"            // audio_devices_t
-#define AUDIO_PARAMETER_STREAM_FORMAT "format"              // audio_format_t
-#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"          // audio_channel_mask_t
-#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"    // size_t
-#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"  // audio_source_t
-#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" // uint32_t
+#define AUDIO_PARAMETER_STREAM_ROUTING "routing"             /* audio_devices_t */
+#define AUDIO_PARAMETER_STREAM_FORMAT "format"               /* audio_format_t */
+#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"           /* audio_channel_mask_t */
+#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"     /* size_t */
+#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"   /* audio_source_t */
+#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" /* uint32_t */
 
 /* Query supported formats. The response is a '|' separated list of strings from
  * audio_format_t enum e.g: "sup_formats=AUDIO_FORMAT_PCM_16_BIT" */
@@ -145,18 +145,6 @@ __BEGIN_DECLS
 #define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
 
 /**************************************/
-
-/* common audio stream configuration parameters
- * You should memset() the entire structure to zero before use to
- * ensure forward compatibility
- */
-struct audio_config {
-    uint32_t sample_rate;
-    audio_channel_mask_t channel_mask;
-    audio_format_t  format;
-    audio_offload_info_t offload_info;
-};
-typedef struct audio_config audio_config_t;
 
 /* common audio stream parameters and operations */
 struct audio_stream {
@@ -563,13 +551,21 @@ struct audio_hw_device {
     size_t (*get_input_buffer_size)(const struct audio_hw_device *dev,
                                     const struct audio_config *config);
 
-    /** This method creates and opens the audio hardware output stream */
+    /** This method creates and opens the audio hardware output stream.
+     * The "address" parameter qualifies the "devices" audio device type if needed.
+     * The format format depends on the device type:
+     * - Bluetooth devices use the MAC address of the device in the form "00:11:22:AA:BB:CC"
+     * - USB devices use the ALSA card and device numbers in the form  "card=X;device=Y"
+     * - Other devices may use a number or any other string.
+     */
+
     int (*open_output_stream)(struct audio_hw_device *dev,
                               audio_io_handle_t handle,
                               audio_devices_t devices,
                               audio_output_flags_t flags,
                               struct audio_config *config,
-                              struct audio_stream_out **stream_out);
+                              struct audio_stream_out **stream_out,
+                              const char *address);
 
     void (*close_output_stream)(struct audio_hw_device *dev,
                                 struct audio_stream_out* stream_out);
@@ -580,7 +576,9 @@ struct audio_hw_device {
                              audio_devices_t devices,
                              struct audio_config *config,
                              struct audio_stream_in **stream_in,
-                             audio_input_flags_t flags);
+                             audio_input_flags_t flags,
+                             const char *address,
+                             audio_source_t source);
 
     void (*close_input_stream)(struct audio_hw_device *dev,
                                struct audio_stream_in *stream_in);
