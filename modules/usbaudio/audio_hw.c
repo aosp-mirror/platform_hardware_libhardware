@@ -38,6 +38,17 @@
 
 #include <audio_utils/channels.h>
 
+/* FOR TESTING:
+ * Set k_force_channels to force the number of channels to present to AudioFlinger.
+ *   0 disables (this is default: present the device channels to AudioFlinger).
+ *   2 forces to legacy stereo mode.
+ *
+ * Others values can be tried (up to 8).
+ * TODO: AudioFlinger cannot support more than 8 active output channels
+ * at this time, so limiting logic needs to be put here or communicated from above.
+ */
+static const unsigned k_force_channels = 0;
+
 #include "alsa_device_profile.h"
 #include "alsa_device_proxy.h"
 #include "logging.h"
@@ -69,6 +80,11 @@ struct stream_out {
     alsa_device_profile * profile;
     alsa_device_proxy proxy;            /* state of the stream */
 
+    unsigned hal_channel_count;         /* channel count exposed to AudioFlinger.
+                                         * This may differ from the device channel count when
+                                         * the device is not compatible with AudioFlinger
+                                         * capabilities, e.g. exposes too many channels or
+                                         * too few channels. */
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
                                          * there was a previous conversion */
@@ -243,18 +259,8 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 
 static uint32_t out_get_channels(const struct audio_stream *stream)
 {
-    /*
-     * alsa_device_profile * profile = ((struct stream_out*)stream)->profile;
-     * unsigned channel_count = profile_get_channel_count(profile);
-     * uint32_t channel_mask = audio_channel_out_mask_from_count(channel_count);
-     * ALOGV("out_get_channels() = 0x%X count:%d", channel_mask, channel_count);
-     * return channel_mask;
-     */
-
-    /* Always Stereo for now. We will do *some* conversions in this HAL.
-     * TODO When AudioPolicyManager & AudioFlinger supports arbitrary channels
-     * rewrite this to return the ACTUAL channel format */
-    return AUDIO_CHANNEL_OUT_STEREO;
+    const struct stream_out *out = (const struct stream_out*)stream;
+    return audio_channel_out_mask_from_count(out->hal_channel_count);
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
@@ -387,39 +393,27 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
         out->standby = false;
     }
 
-    alsa_device_profile* profile = out->profile;
     alsa_device_proxy* proxy = &out->proxy;
-
-    /*
-     *  Setup conversion buffer
-     * compute maximum potential buffer size.
-     * * 2 for stereo -> quad conversion
-     * * 3/2 for 16bit -> 24 bit conversion
-     */
-    size_t required_conversion_buffer_size = (bytes * 3 * 2) / 2;
-    if (required_conversion_buffer_size > out->conversion_buffer_size) {
-        /* TODO Remove this when AudioPolicyManger/AudioFlinger support arbitrary formats
-           (and do these conversions themselves) */
-        out->conversion_buffer_size = required_conversion_buffer_size;
-        out->conversion_buffer = realloc(out->conversion_buffer, out->conversion_buffer_size);
-    }
-
     const void * write_buff = buffer;
     int num_write_buff_bytes = bytes;
-
-    /*
-     * Num Channels conversion
-     */
-    int num_device_channels = proxy_get_channel_count(proxy);
-    int num_req_channels = 2; /* always for now */
-
+    const int num_device_channels = proxy_get_channel_count(proxy); /* what we told alsa */
+    const int num_req_channels = out->hal_channel_count; /* what we told AudioFlinger */
     if (num_device_channels != num_req_channels) {
-        audio_format_t audio_format = out_get_format(&(out->stream.common));
-        unsigned sample_size_in_bytes = audio_bytes_per_sample(audio_format);
+        /* allocate buffer */
+        const size_t required_conversion_buffer_size =
+                 bytes * num_device_channels / num_req_channels;
+        if (required_conversion_buffer_size > out->conversion_buffer_size) {
+            out->conversion_buffer_size = required_conversion_buffer_size;
+            out->conversion_buffer = realloc(out->conversion_buffer,
+                                             out->conversion_buffer_size);
+        }
+        /* convert data */
+        const audio_format_t audio_format = out_get_format(&(out->stream.common));
+        const unsigned sample_size_in_bytes = audio_bytes_per_sample(audio_format);
         num_write_buff_bytes =
-             adjust_channels(write_buff, num_req_channels,
-                             out->conversion_buffer, num_device_channels,
-                             sample_size_in_bytes, num_write_buff_bytes);
+                adjust_channels(write_buff, num_req_channels,
+                                out->conversion_buffer, num_device_channels,
+                                sample_size_in_bytes, num_write_buff_bytes);
         write_buff = out->conversion_buffer;
     }
 
@@ -542,33 +536,18 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     }
 
     /* Channels */
-    if (config->channel_mask == AUDIO_CHANNEL_NONE) {
-        /* This will be needed when the framework supports non-stereo output */
-        /* config->channel_mask =
-         *        audio_channel_out_mask_from_count(profile_get_default_channel_count(out->profile));
-         */
-        proxy_config.channels = profile_get_default_channel_count(out->profile);
-        config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
-    } else {
-        /* This will be needed when the framework supports non-stereo output */
-        /*
-         * unsigned channel_count = audio_channel_count_from_out_mask(config->channel_mask);
-         * if (profile_is_channel_count_valid(out->profile, channel_count)) {
-         *     proxy_set_channel_count(out->proxy, channel_count);
-         * } else {
-         *     config->channel_mask =
-         *             audio_channel_out_mask_from_count(proxy_get_channel_count(out->proxy));
-         *     ret = -EINVAL;
-         * }
-         */
-        if (config->channel_mask != AUDIO_CHANNEL_OUT_STEREO) {
-            proxy_config.channels = profile_get_default_channel_count(out->profile);
-            config->channel_mask = AUDIO_CHANNEL_OUT_STEREO;
-            ret = -EINVAL;
-        }  else {
-            proxy_config.channels = profile_get_default_channel_count(out->profile);
-        }
+    unsigned proposed_channel_count = profile_get_default_channel_count(out->profile);
+    if (k_force_channels) {
+        proposed_channel_count = k_force_channels;
+    } else if (config->channel_mask != AUDIO_CHANNEL_NONE) {
+        proposed_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
     }
+    /* we can expose any channel count mask, and emulate internally. */
+    config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
+    out->hal_channel_count = proposed_channel_count;
+    /* no validity checks are needed as proxy_prepare() forces channel_count to be valid.
+     * and we emulate any channel count discrepancies in out_write(). */
+    proxy_config.channels = proposed_channel_count;
 
     proxy_prepare(&out->proxy, out->profile, &proxy_config);
 
