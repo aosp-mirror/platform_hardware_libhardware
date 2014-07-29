@@ -205,13 +205,39 @@ enum {
 #define SENSOR_TYPE_META_DATA                        (0)
 
 /*
+  * Wake up sensors.
+  * Each sensor may have either or both a wake-up and a non-wake variant.
+  * When registered in batch mode, wake-up sensors will wake up the AP when
+  * their FIFOs are full or when the batch timeout expires. A separate FIFO has
+  * to be maintained for wake up sensors and non wake up sensors. The non wake-up
+  * sensors need to overwrite their FIFOs when they are full till the AP wakes up
+  * and the wake-up sensors will wake-up the AP when their FIFOs are full or when
+  * the batch timeout expires without losing events. Wake-up and non wake-up variants
+  * of each sensor can be activated at different rates independently of each other.
+  *
+  * Note: Proximity sensor and significant motion sensor which were defined in previous
+  * releases are also wake-up sensors and should be treated as such. Wake-up one-shot
+  * sensors like SIGNIFICANT_MOTION cannot be batched, hence the text about batch above
+  * doesn't apply to them. See the definitions of SENSOR_TYPE_PROXIMITY and
+  * SENSOR_TYPE_SIGNIFICANT_MOTION for more info.
+  *
+  * Set SENSOR_FLAG_WAKE_UP flag for all wake-up sensors.
+  *
+  * For example, A device can have two sensors both of SENSOR_TYPE_ACCELEROMETER and
+  * one of them can be a wake_up sensor (with SENSOR_FLAG_WAKE_UP flag set) and the other
+  * can be a regular non wake_up sensor. Both of these sensors must be activated/deactivated
+  * independently of the other.
+  */
+
+/*
  * SENSOR_TYPE_ACCELEROMETER
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  All values are in SI units (m/s^2) and measure the acceleration of the
  *  device minus the force of gravity.
  *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_ACCELEROMETER                    (1)
 #define SENSOR_STRING_TYPE_ACCELEROMETER             "android.sensor.accelerometer"
@@ -219,11 +245,12 @@ enum {
 /*
  * SENSOR_TYPE_GEOMAGNETIC_FIELD
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  All values are in micro-Tesla (uT) and measure the geomagnetic
  *  field in the X, Y and Z axis.
  *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GEOMAGNETIC_FIELD                (2)
 #define SENSOR_TYPE_MAGNETIC_FIELD  SENSOR_TYPE_GEOMAGNETIC_FIELD
@@ -232,12 +259,14 @@ enum {
 /*
  * SENSOR_TYPE_ORIENTATION
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  * All values are angles in degrees.
  *
  * Orientation sensors return sensor events for all 3 axes at a constant
  * rate defined by setDelay().
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_ORIENTATION                      (3)
 #define SENSOR_STRING_TYPE_ORIENTATION               "android.sensor.orientation"
@@ -245,10 +274,12 @@ enum {
 /*
  * SENSOR_TYPE_GYROSCOPE
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  All values are in radians/second and measure the rate of rotation
  *  around the X, Y and Z axis.
+ *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GYROSCOPE                        (4)
 #define SENSOR_STRING_TYPE_GYROSCOPE                 "android.sensor.gyroscope"
@@ -256,9 +287,10 @@ enum {
 /*
  * SENSOR_TYPE_LIGHT
  * reporting-mode: on-change
- * wake-up sensor: no
  *
  * The light sensor value is returned in SI lux units.
+ *
+ * Both wake-up and non wake-up versions are useful.
  */
 #define SENSOR_TYPE_LIGHT                            (5)
 #define SENSOR_STRING_TYPE_LIGHT                     "android.sensor.light"
@@ -266,9 +298,11 @@ enum {
 /*
  * SENSOR_TYPE_PRESSURE
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  * The pressure sensor return the athmospheric pressure in hectopascal (hPa)
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_PRESSURE                         (6)
 #define SENSOR_STRING_TYPE_PRESSURE                  "android.sensor.pressure"
@@ -280,8 +314,11 @@ enum {
 /*
  * SENSOR_TYPE_PROXIMITY
  * reporting-mode: on-change
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
+ * The proximity sensor which turns the screen off and back on during calls is the
+ * wake-up proximity sensor. Implement wake-up proximity sensor before implementing
+ * a non wake-up proximity sensor. For the wake-up proximity sensor set the flag
+ * SENSOR_FLAG_WAKE_UP.
  * The value corresponds to the distance to the nearest object in centimeters.
  */
 #define SENSOR_TYPE_PROXIMITY                        (8)
@@ -290,10 +327,12 @@ enum {
 /*
  * SENSOR_TYPE_GRAVITY
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  * A gravity output indicates the direction of and magnitude of gravity in
  * the devices's coordinates.
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GRAVITY                          (9)
 #define SENSOR_STRING_TYPE_GRAVITY                   "android.sensor.gravity"
@@ -301,10 +340,12 @@ enum {
 /*
  * SENSOR_TYPE_LINEAR_ACCELERATION
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  * Indicates the linear acceleration of the device in device coordinates,
  * not including gravity.
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_LINEAR_ACCELERATION             (10)
 #define SENSOR_STRING_TYPE_LINEAR_ACCELERATION      "android.sensor.linear_acceleration"
@@ -313,10 +354,12 @@ enum {
 /*
  * SENSOR_TYPE_ROTATION_VECTOR
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  * The rotation vector symbolizes the orientation of the device relative to the
  * East-North-Up coordinates frame.
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_ROTATION_VECTOR                 (11)
 #define SENSOR_STRING_TYPE_ROTATION_VECTOR          "android.sensor.rotation_vector"
@@ -324,10 +367,11 @@ enum {
 /*
  * SENSOR_TYPE_RELATIVE_HUMIDITY
  * reporting-mode: on-change
- * wake-up sensor: no
  *
  * A relative humidity sensor measures relative ambient air humidity and
  * returns a value in percent.
+ *
+ * Both wake-up and non wake-up versions are useful.
  */
 #define SENSOR_TYPE_RELATIVE_HUMIDITY               (12)
 #define SENSOR_STRING_TYPE_RELATIVE_HUMIDITY        "android.sensor.relative_humidity"
@@ -335,9 +379,10 @@ enum {
 /*
  * SENSOR_TYPE_AMBIENT_TEMPERATURE
  * reporting-mode: on-change
- * wake-up sensor: no
  *
  * The ambient (room) temperature in degree Celsius.
+ *
+ * Both wake-up and non wake-up versions are useful.
  */
 #define SENSOR_TYPE_AMBIENT_TEMPERATURE             (13)
 #define SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE      "android.sensor.ambient_temperature"
@@ -345,10 +390,12 @@ enum {
 /*
  * SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_MAGNETIC_FIELD, but the hard iron calibration is
  *  reported separately instead of being included in the measurement.
+ *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_MAGNETIC_FIELD_UNCALIBRATED     (14)
 #define SENSOR_STRING_TYPE_MAGNETIC_FIELD_UNCALIBRATED "android.sensor.magnetic_field_uncalibrated"
@@ -356,10 +403,12 @@ enum {
 /*
  * SENSOR_TYPE_GAME_ROTATION_VECTOR
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but not using the geomagnetic
  *  field.
+ *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GAME_ROTATION_VECTOR            (15)
 #define SENSOR_STRING_TYPE_GAME_ROTATION_VECTOR     "android.sensor.game_rotation_vector"
@@ -367,10 +416,12 @@ enum {
 /*
  * SENSOR_TYPE_GYROSCOPE_UNCALIBRATED
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  All values are in radians/second and measure the rate of rotation
  *  around the X, Y and Z axis.
+ *
+ *  Implement the non-wake-up version of this sensor and implement the wake-up
+ *  version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GYROSCOPE_UNCALIBRATED          (16)
 #define SENSOR_STRING_TYPE_GYROSCOPE_UNCALIBRATED   "android.sensor.gyroscope_uncalibrated"
@@ -378,10 +429,12 @@ enum {
 /*
  * SENSOR_TYPE_SIGNIFICANT_MOTION
  * reporting-mode: one-shot
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type triggers an event each time significant motion
  * is detected and automatically disables itself.
+ * For Significant Motion sensor to be useful, it must be defined as a
+ * wake-up sensor. (set SENSOR_FLAG_WAKE_UP). Implement the wake-up significant motion
+ * sensor. A non wake-up version is not useful.
  * The only allowed value to return is 1.0.
  */
 
@@ -391,11 +444,12 @@ enum {
 /*
  * SENSOR_TYPE_STEP_DETECTOR
  * reporting-mode: special
- * wake-up sensor: no
  *
  * A sensor of this type triggers an event each time a step is taken
  * by the user. The only allowed value to return is 1.0 and an event
  * is generated for each step.
+ *
+ * Both wake-up and non wake-up versions are useful.
  */
 
 #define SENSOR_TYPE_STEP_DETECTOR                   (18)
@@ -405,11 +459,13 @@ enum {
 /*
  * SENSOR_TYPE_STEP_COUNTER
  * reporting-mode: on-change
- * wake-up sensor: no
  *
  * A sensor of this type returns the number of steps taken by the user since
  * the last reboot while activated. The value is returned as a uint64_t and is
  * reset to zero only on a system / android reboot.
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 
 #define SENSOR_TYPE_STEP_COUNTER                    (19)
@@ -418,10 +474,12 @@ enum {
 /*
  * SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR
  * reporting-mode: continuous
- * wake-up sensor: no
  *
  *  Similar to SENSOR_TYPE_ROTATION_VECTOR, but using a magnetometer instead
  *  of using a gyroscope.
+ *
+ * Implement the non-wake-up version of this sensor and implement the wake-up
+ * version if the system possesses a wake up fifo.
  */
 #define SENSOR_TYPE_GEOMAGNETIC_ROTATION_VECTOR     (20)
 #define SENSOR_STRING_TYPE_GEOMAGNETIC_ROTATION_VECTOR "android.sensor.geomagnetic_rotation_vector"
@@ -429,7 +487,6 @@ enum {
 /*
  * SENSOR_TYPE_HEART_RATE
  * reporting-mode: on-change
- * wake-up sensor: no
  *
  *  A sensor of this type returns the current heart rate.
  *  The events contain the current heart rate in beats per minute (BPM) and the
@@ -443,96 +500,15 @@ enum {
  *  mode for more information.
  *
  *  sensor_t.requiredPermission must be set to SENSOR_PERMISSION_BODY_SENSORS.
+ *
+ *  Both wake-up and non wake-up versions are useful.
  */
 #define SENSOR_TYPE_HEART_RATE                      (21)
 #define SENSOR_STRING_TYPE_HEART_RATE               "android.sensor.heart_rate"
 
 /*
- * SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR
- * Same as proximity_sensor but does not wake up the AP from suspend mode.
- * wake-up sensor: no
- */
-#define SENSOR_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR           (22)
-#define SENSOR_STRING_TYPE_NON_WAKE_UP_PROXIMITY_SENSOR    "android.sensor.non_wake_up_proximity_sensor"
-
-/*
- * The sensors below are wake_up variants of the base sensor types defined
- * above. When registered in batch mode, these sensors will wake up the AP when
- * their FIFOs are full or when the batch timeout expires. A separate FIFO has
- * to be maintained for wake up sensors and non wake up sensors. The non wake-up
- * sensors need to overwrite their FIFOs when they are full till the AP wakes up
- * and the wake-up sensors will wake-up the AP when their FIFOs are full or when
- * the batch timeout expires without losing events.
- * Note: Sensors of type SENSOR_TYPE_PROXIMITY are also wake up sensors and
- * should be treated as such. Wake-up one-shot sensors like SIGNIFICANT_MOTION
- * cannot be batched, hence the text about batch above doesn't apply to them.
- *
- * Define these sensors only if:
- * 1) batching is supported.
- * 2) wake-up and non wake-up variants of each sensor can be activated at
- *    different rates.
- *
- * wake-up sensor: yes
- * Set SENSOR_FLAG_WAKE_UP flag for all these sensors.
- */
-#define SENSOR_TYPE_WAKE_UP_ACCELEROMETER                      (23)
-#define SENSOR_STRING_TYPE_WAKE_UP_ACCELEROMETER               "android.sensor.wake_up_accelerometer"
-
-#define SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD                     (24)
-#define SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD              "android.sensor.wake_up_magnetic_field"
-
-#define SENSOR_TYPE_WAKE_UP_ORIENTATION                        (25)
-#define SENSOR_STRING_TYPE_WAKE_UP_ORIENTATION                 "android.sensor.wake_up_orientation"
-
-#define SENSOR_TYPE_WAKE_UP_GYROSCOPE                          (26)
-#define SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE                   "android.sensor.wake_up_gyroscope"
-
-#define SENSOR_TYPE_WAKE_UP_LIGHT                              (27)
-#define SENSOR_STRING_TYPE_WAKE_UP_LIGHT                       "android.sensor.wake_up_light"
-
-#define SENSOR_TYPE_WAKE_UP_PRESSURE                           (28)
-#define SENSOR_STRING_TYPE_WAKE_UP_PRESSURE                    "android.sensor.wake_up_pressure"
-
-#define SENSOR_TYPE_WAKE_UP_GRAVITY                            (29)
-#define SENSOR_STRING_TYPE_WAKE_UP_GRAVITY                     "android.sensor.wake_up_gravity"
-
-#define SENSOR_TYPE_WAKE_UP_LINEAR_ACCELERATION                (30)
-#define SENSOR_STRING_TYPE_WAKE_UP_LINEAR_ACCELERATION         "android.sensor.wake_up_linear_acceleration"
-
-#define SENSOR_TYPE_WAKE_UP_ROTATION_VECTOR                    (31)
-#define SENSOR_STRING_TYPE_WAKE_UP_ROTATION_VECTOR             "android.sensor.wake_up_rotation_vector"
-
-#define SENSOR_TYPE_WAKE_UP_RELATIVE_HUMIDITY                  (32)
-#define SENSOR_STRING_TYPE_WAKE_UP_RELATIVE_HUMIDITY           "android.sensor.wake_up_relative_humidity"
-
-#define SENSOR_TYPE_WAKE_UP_AMBIENT_TEMPERATURE                (33)
-#define SENSOR_STRING_TYPE_WAKE_UP_AMBIENT_TEMPERATURE         "android.sensor.wake_up_ambient_temperature"
-
-#define SENSOR_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED        (34)
-#define SENSOR_STRING_TYPE_WAKE_UP_MAGNETIC_FIELD_UNCALIBRATED "android.sensor.wake_up_magnetic_field_uncalibrated"
-
-#define SENSOR_TYPE_WAKE_UP_GAME_ROTATION_VECTOR               (35)
-#define SENSOR_STRING_TYPE_WAKE_UP_GAME_ROTATION_VECTOR        "android.sensor.wake_up_game_rotation_vector"
-
-#define SENSOR_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED             (36)
-#define SENSOR_STRING_TYPE_WAKE_UP_GYROSCOPE_UNCALIBRATED      "android.sensor.wake_up_gyroscope_uncalibrated"
-
-#define SENSOR_TYPE_WAKE_UP_STEP_DETECTOR                      (37)
-#define SENSOR_STRING_TYPE_WAKE_UP_STEP_DETECTOR               "android.sensor.wake_up_step_detector"
-
-#define SENSOR_TYPE_WAKE_UP_STEP_COUNTER                       (38)
-#define SENSOR_STRING_TYPE_WAKE_UP_STEP_COUNTER                "android.sensor.wake_up_step_counter"
-
-#define SENSOR_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR        (39)
-#define SENSOR_STRING_TYPE_WAKE_UP_GEOMAGNETIC_ROTATION_VECTOR "android.sensor.wake_up_geomagnetic_rotation_vector"
-
-#define SENSOR_TYPE_WAKE_UP_HEART_RATE                         (40)
-#define SENSOR_STRING_TYPE_WAKE_UP_HEART_RATE                  "android.sensor.wake_up_heart_rate"
-
-/*
  * SENSOR_TYPE_WAKE_UP_TILT_DETECTOR
  * reporting-mode: special (setDelay has no impact)
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type generates an event each time a tilt event is detected. A tilt event
  * should be generated if the direction of the 2-seconds window average gravity changed by at least
@@ -552,14 +528,15 @@ enum {
  * sensor that should allow the AP to go into suspend mode. Do not emulate this sensor in the HAL.
  * Like other wake up sensors, the driver is expected to a hold a wake_lock with a timeout of 200 ms
  * while reporting this event. The only allowed return value is 1.0.
+ *
+ * Implement only the wake-up version of this sensor.
  */
-#define SENSOR_TYPE_WAKE_UP_TILT_DETECTOR                      (41)
-#define SENSOR_STRING_TYPE_WAKE_UP_TILT_DETECTOR               "android.sensor.wake_up_tilt_detector"
+#define SENSOR_TYPE_TILT_DETECTOR                      (22)
+#define SENSOR_STRING_TYPE_TILT_DETECTOR               "android.sensor.tilt_detector"
 
 /*
  * SENSOR_TYPE_WAKE_GESTURE
  * reporting-mode: one-shot
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor enabling waking up the device based on a device specific motion.
  *
@@ -573,14 +550,15 @@ enum {
  * the manufacturer of the device.
  * This sensor must be low power, as it is likely to be activated 24/7.
  * The only allowed value to return is 1.0.
+ *
+ * Implement only the wake-up version of this sensor.
  */
-#define SENSOR_TYPE_WAKE_GESTURE                               (42)
+#define SENSOR_TYPE_WAKE_GESTURE                               (23)
 #define SENSOR_STRING_TYPE_WAKE_GESTURE                        "android.sensor.wake_gesture"
 
 /*
  * SENSOR_TYPE_GLANCE_GESTURE
  * reporting-mode: one-shot
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor enabling briefly turning the screen on to enable the user to
  * glance content on screen based on a specific motion.  The device should
@@ -598,20 +576,23 @@ enum {
  * the manufacturer of the device.
  * This sensor must be low power, as it is likely to be activated 24/7.
  * The only allowed value to return is 1.0.
+ *
+ * Implement only the wake-up version of this sensor.
  */
-#define SENSOR_TYPE_GLANCE_GESTURE                             (43)
+#define SENSOR_TYPE_GLANCE_GESTURE                             (24)
 #define SENSOR_STRING_TYPE_GLANCE_GESTURE                      "android.sensor.glance_gesture"
 
 /**
  * SENSOR_TYPE_PICK_UP_GESTURE
  * reporting-mode: one-shot
- * wake-up sensor: yes (set SENSOR_FLAG_WAKE_UP flag)
  *
  * A sensor of this type triggers when the device is picked up regardless of wherever is was
  * before (desk, pocket, bag). The only allowed return value is 1.0.
  * This sensor de-activates itself immediately after it triggers.
+ *
+ * Implement only the wake-up version of this sensor.
  */
-#define SENSOR_TYPE_PICK_UP_GESTURE                            (44)
+#define SENSOR_TYPE_PICK_UP_GESTURE                            (25)
 #define SENSOR_STRING_TYPE_PICK_UP_GESTURE                     "android.sensor.pick_up_gesture"
 
 /**
