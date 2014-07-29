@@ -31,8 +31,6 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
-/*#define ENABLE_MULTI_CHANNEL 1*/
-
 /*TODO - Evaluate if this value should/can be retrieved from a device-specific property */
 #define BUFF_DURATION_MS   5
 
@@ -423,59 +421,56 @@ char * profile_get_format_strs(alsa_device_profile* profile)
 
 char * profile_get_channel_count_strs(alsa_device_profile* profile)
 {
-#ifndef ENABLE_MULTI_CHANNEL
-    /* TODO remove this hack when it is superceeded by proper multi-channel support */
-    return strdup(
-            profile->direction == PCM_OUT ?
-                    "AUDIO_CHANNEL_OUT_STEREO" : "AUDIO_CHANNEL_IN_STEREO");
-#else
-    /*
-     * Maps from a channel-count (the table index), to a corresponding AUDIO_CHANNEL_OUT_ string.
-     * (see audio_channel_out_mask_from_count() in audio.h.
-     */
     static const char * const out_chans_strs[] = {
-        /* 0 */"AUDIO_CHANNEL_NONE",
+        /* 0 */"AUDIO_CHANNEL_NONE", /* will never be taken as this is a terminator */
         /* 1 */"AUDIO_CHANNEL_OUT_MONO",
         /* 2 */"AUDIO_CHANNEL_OUT_STEREO",
-        /* 3 */"AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_FRONT_CENTER",
+        /* 3 */ /* "AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_FRONT_CENTER" */ NULL,
         /* 4 */"AUDIO_CHANNEL_OUT_QUAD",
-        /* 5 */"AUDIO_CHANNEL_OUT_QUAD|AUDIO_CHANNEL_OUT_FRONT_CENTER",
+        /* 5 */ /* "AUDIO_CHANNEL_OUT_QUAD|AUDIO_CHANNEL_OUT_FRONT_CENTER" */ NULL,
         /* 6 */"AUDIO_CHANNEL_OUT_5POINT1",
-        /* 7 */"AUDIO_CHANNEL_OUT_5POINT1|AUDIO_CHANNEL_OUT_BACK_CENTER",
-        /* 8 */"AUDIO_CHANNEL_OUT_7POINT1"
+        /* 7 */ /* "AUDIO_CHANNEL_OUT_5POINT1|AUDIO_CHANNEL_OUT_BACK_CENTER" */ NULL,
+        /* 8 */"AUDIO_CHANNEL_OUT_7POINT1",
+        /* channel counts greater than this not considered */
     };
 
-    /*
-     * Maps from a channel-count (the table index), to a corresponding AUDIO_CHANNEL_IN_ string.
-     * (see audio_channel_in_mask_from_count() in audio.h.
-     */
-    static const char * const in_chans_strs[] =
-    {
-        /* 0 */"AUDIO_CHANNEL_NONE",
+    static const char * const in_chans_strs[] = {
+        /* 0 */"AUDIO_CHANNEL_NONE", /* will never be taken as this is a terminator */
         /* 1 */"AUDIO_CHANNEL_IN_MONO",
         /* 2 */"AUDIO_CHANNEL_IN_STEREO",
-        /* 3 */"",
-        /* 4 */
-        "AUDIO_CHANNEL_IN_LEFT|AUDIO_CHANNEL_IN_RIGHT|AUDIO_CHANNEL_IN_FRONT|AUDIO_CHANNEL_IN_BACK"
+        /* channel counts greater than this not considered */
     };
 
-    char buffer[256];
-    buffer[0] = '\0';
-    int buffSize = ARRAY_SIZE(buffer);
+    const bool isOutProfile = profile->direction == PCM_OUT;
+    const char * const * const names_array = isOutProfile ? out_chans_strs : in_chans_strs;
+    const size_t names_size = isOutProfile ? ARRAY_SIZE(out_chans_strs)
+            : ARRAY_SIZE(in_chans_strs);
 
-    int numEntries = 0;
-    unsigned index = 0;
-    for (index = 0; profile->channel_counts[index] != 0; index++) {
-        if (numEntries++ != 0) {
-            strncat(buffer, "|", buffSize);
-        }
-        if (profile->direction == PCM_OUT) {
-            strncat(buffer, out_chans_strs[profile->channel_counts[index]], buffSize);
-        } else {
-            strncat(buffer, in_chans_strs[profile->channel_counts[index]], buffSize);
+    char buffer[256]; /* caution, may need to be expanded */
+    buffer[0] = '\0';
+    const int buffer_size = ARRAY_SIZE(buffer);
+    int num_entries = 0;
+    bool stereo_allowed = false;
+    unsigned index;
+    unsigned channel_count;
+
+    for (index = 0; (channel_count = profile->channel_counts[index]) != 0; index++) {
+        stereo_allowed = stereo_allowed || channel_count == 2;
+        if (channel_count < names_size && names_array[channel_count] != NULL) {
+            if (num_entries++ != 0) {
+                strncat(buffer, "|", buffer_size);
+            }
+            strncat(buffer, names_array[channel_count], buffer_size);
         }
     }
-
+    /* emulated modes:
+     * always expose stereo as we can emulate it for PCM_OUT
+     */
+    if (!stereo_allowed && isOutProfile) {
+        if (num_entries++ != 0) {
+            strncat(buffer, "|", buffer_size);
+        }
+        strncat(buffer, names_array[2], buffer_size); /* stereo */
+    }
     return strdup(buffer);
-#endif
 }
