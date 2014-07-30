@@ -148,7 +148,8 @@ typedef struct
     uint8_t rpa_offload_supported;
     uint8_t max_irk_list_size;
     uint8_t max_adv_filter_supported;
-    uint8_t scan_result_storage_size;
+    uint8_t scan_result_storage_size_lobyte;
+    uint8_t scan_result_storage_size_hibyte;
     uint8_t activity_energy_info_supported;
 }bt_local_le_features_t;
 
