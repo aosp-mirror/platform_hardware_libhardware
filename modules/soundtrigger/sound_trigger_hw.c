@@ -38,6 +38,7 @@ static const struct sound_trigger_properties hw_properties = {
         false, // capture_transition
         0, // max_buffer_ms
         false, // concurrent_capture
+        false, // trigger_in_event
         0 // power_consumption_mw
 };
 
@@ -51,7 +52,6 @@ struct stub_sound_trigger_device {
     pthread_t callback_thread;
     pthread_mutex_t lock;
     pthread_cond_t  cond;
-
 };
 
 
@@ -78,9 +78,9 @@ static void *callback_thread_loop(void *context)
         event->common.status = RECOGNITION_STATUS_SUCCESS;
         event->common.type = SOUND_MODEL_TYPE_KEYPHRASE;
         event->common.model = stdev->model_handle;
-        event->key_phrase_in_capture = false;
         event->num_phrases = 1;
         event->phrase_extras[0].recognition_modes = RECOGNITION_MODE_VOICE_TRIGGER;
+        event->phrase_extras[0].confidence_level = 100;
         event->phrase_extras[0].num_levels = 1;
         event->phrase_extras[0].levels[0].level = 100;
         event->phrase_extras[0].levels[0].user_id = 0;
