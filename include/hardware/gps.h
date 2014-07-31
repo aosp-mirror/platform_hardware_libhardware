@@ -110,6 +110,10 @@ typedef uint16_t GpsLocationFlags;
 #define GPS_CAPABILITY_ON_DEMAND_TIME   0x0000010
 /** GPS supports Geofencing  */
 #define GPS_CAPABILITY_GEOFENCING       0x0000020
+/** GPS supports Measurements */
+#define GPS_CAPABILITY_MEASUREMENTS     0x0000040
+/** GPS supports Navigation Messages */
+#define GPS_CAPABILITY_NAV_MESSAGES     0x0000080
 
 /** Flags used to specify which aiding data to delete
     when calling delete_aiding_data(). */
@@ -1690,7 +1694,7 @@ typedef struct {
     /**
      * The length of the data (in bytes) contained in the current message.
      * If this value is different from zero, 'data' must point to an array of the same size.
-     * i.e. for L1 C/A the size of the sub-frame will be 40 bytes (10 words).
+     * e.g. for L1 C/A the size of the sub-frame will be 40 bytes (10 words, 30 bits/word).
      *
      * This is a Mandatory value.
      */
@@ -1699,6 +1703,9 @@ typedef struct {
     /**
      * The data of the reported GPS message.
      * The bytes (or words) specified using big endian format (MSB first).
+     *
+     * For L1 C/A, each subframe contains 10 30-bit GPS words. Each GPS word (30 bits) should be
+     * fitted into the last 30 bits in a 4-byte word (skip B31 and B32), with MSB first.
      */
     uint8_t* data;
 
