@@ -112,6 +112,7 @@ __BEGIN_DECLS
 /* Bluetooth SCO wideband */
 #define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
 
+
 /**
  *  audio stream parameters
  */
@@ -132,6 +133,11 @@ __BEGIN_DECLS
 /* Query supported sampling rates. The response is a '|' separated list of integer values e.g:
  * "sup_sampling_rates=44100|48000" */
 #define AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES "sup_sampling_rates"
+
+/* Get the HW synchronization source used for an output stream.
+ * Return a valid source (positive integer) or AUDIO_HW_SYNC_INVALID if an error occurs
+ * or no HW sync source is used. */
+#define AUDIO_PARAMETER_STREAM_HW_AV_SYNC "hw_av_sync"
 
 /**
  * audio codec parameters
