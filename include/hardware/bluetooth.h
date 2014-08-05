@@ -480,7 +480,7 @@ typedef struct {
     int (*cancel_discovery)(void);
 
     /** Create Bluetooth Bonding */
-    int (*create_bond)(const bt_bdaddr_t *bd_addr);
+    int (*create_bond)(const bt_bdaddr_t *bd_addr, int transport);
 
     /** Remove Bond */
     int (*remove_bond)(const bt_bdaddr_t *bd_addr);
