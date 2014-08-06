@@ -313,28 +313,38 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int param_val;
     int routing = 0;
     int ret_value = 0;
+    int card = -1;
+    int device = -1;
 
     struct str_parms * parms = str_parms_create_str(kvpairs);
     pthread_mutex_lock(&out->dev->lock);
     pthread_mutex_lock(&out->lock);
 
-    bool recache_device_params = false;
     param_val = str_parms_get_str(parms, "card", value, sizeof(value));
-    if (param_val >= 0) {
-        out->profile->card = atoi(value);
-        recache_device_params = true;
-    }
+    if (param_val >= 0)
+        card = atoi(value);
 
     param_val = str_parms_get_str(parms, "device", value, sizeof(value));
-    if (param_val >= 0) {
-        out->profile->device = atoi(value);
-        recache_device_params = true;
-    }
+    if (param_val >= 0)
+        device = atoi(value);
 
-    if (recache_device_params && out->profile->card >= 0 && out->profile->device >= 0) {
-        ret_value = profile_read_device_info(out->profile) ? 0 : -EINVAL;
+    if ((card >= 0) && (card != out->profile->card) &&
+            (device >= 0) && (device != out->profile->device)) {
+        /* cannot read pcm device info if playback is active */
+        if (!out->standby)
+            ret_value = -ENOSYS;
+        else {
+            int saved_card = out->profile->card;
+            int saved_device = out->profile->device;
+            out->profile->card = card;
+            out->profile->device = device;
+            ret_value = profile_read_device_info(out->profile) ? 0 : -EINVAL;
+            if (ret_value != 0) {
+                out->profile->card = saved_card;
+                out->profile->device = saved_device;
+            }
+        }
     }
-
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&out->dev->lock);
     str_parms_destroy(parms);
@@ -383,15 +393,16 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
 
     pthread_mutex_lock(&out->dev->lock);
     pthread_mutex_lock(&out->lock);
-    pthread_mutex_unlock(&out->dev->lock);
-
     if (out->standby) {
         ret = start_output_stream(out);
         if (ret != 0) {
+            pthread_mutex_unlock(&out->dev->lock);
             goto err;
         }
         out->standby = false;
     }
+    pthread_mutex_unlock(&out->dev->lock);
+
 
     alsa_device_proxy* proxy = &out->proxy;
     const void * write_buff = buffer;
@@ -687,29 +698,39 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int param_val;
     int routing = 0;
     int ret_value = 0;
+    int card = -1;
+    int device = -1;
 
     struct str_parms * parms = str_parms_create_str(kvpairs);
 
     pthread_mutex_lock(&in->dev->lock);
     pthread_mutex_lock(&in->lock);
 
-    bool recache_device_params = false;
-
     /* Card/Device */
     param_val = str_parms_get_str(parms, "card", value, sizeof(value));
-    if (param_val >= 0) {
-        in->profile->card = atoi(value);
-        recache_device_params = true;
-    }
+    if (param_val >= 0)
+        card = atoi(value);
 
     param_val = str_parms_get_str(parms, "device", value, sizeof(value));
-    if (param_val >= 0) {
-        in->profile->device = atoi(value);
-        recache_device_params = true;
-    }
+    if (param_val >= 0)
+        device = atoi(value);
 
-    if (recache_device_params && in->profile->card >= 0 && in->profile->device >= 0) {
-        ret_value = profile_read_device_info(in->profile) ? 0 : -EINVAL;
+    if ((card >= 0) && (card != in->profile->card) &&
+            (device >= 0) && (device != in->profile->device)) {
+        /* cannot read pcm device info if playback is active */
+        if (!in->standby)
+            ret_value = -ENOSYS;
+        else {
+            int saved_card = in->profile->card;
+            int saved_device = in->profile->device;
+            in->profile->card = card;
+            in->profile->device = device;
+            ret_value = profile_read_device_info(in->profile) ? 0 : -EINVAL;
+            if (ret_value != 0) {
+                in->profile->card = saved_card;
+                in->profile->device = saved_device;
+            }
+        }
      }
 
     pthread_mutex_unlock(&in->lock);
@@ -770,14 +791,15 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
     pthread_mutex_lock(&in->dev->lock);
     pthread_mutex_lock(&in->lock);
-    pthread_mutex_unlock(&in->dev->lock);
-
     if (in->standby) {
         if (start_input_stream(in) != 0) {
+            pthread_mutex_unlock(&in->dev->lock);
             goto err;
         }
         in->standby = false;
     }
+    pthread_mutex_unlock(&in->dev->lock);
+
 
     alsa_device_profile * profile = in->profile;
 
