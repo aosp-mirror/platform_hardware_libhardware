@@ -311,7 +311,8 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
  *   $ setenv CAMERA2_TEST_VARIABLE_BURST_DUMP_FRAMES 1
  *   $ /data/nativetest/camera2_test/camera2_test --gtest_filter="*VariableBurst"
  */
-TEST_F(CameraBurstTest, VariableBurst) {
+// Disable this test for now, as we need cleanup the usage of the deprecated tag quite a bit.
+TEST_F(CameraBurstTest, DISABLED_VariableBurst) {
 
     TEST_EXTENSION_FORKING_INIT;
 
