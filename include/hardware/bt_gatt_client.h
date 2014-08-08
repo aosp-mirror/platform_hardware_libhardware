@@ -378,17 +378,17 @@ typedef struct {
 
     /* Setup the parameters as per spec, user manual specified values and enable multi ADV */
     bt_status_t (*multi_adv_enable)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power);
+                 int chnl_map, int tx_power, int timeout_s);
 
     /* Update the parameters as per spec, user manual specified values and restart multi ADV */
     bt_status_t (*multi_adv_update)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power);
+                 int chnl_map, int tx_power, int timeout_s);
 
     /* Setup the data for the specified instance */
     bt_status_t (*multi_adv_set_inst_data)(int client_if, bool set_scan_rsp, bool include_name,
-                    bool incl_txpower, int appearance, uint16_t manufacturer_len,
-                    char* manufacturer_data, uint16_t service_data_len,
-                    char* service_data, uint16_t service_uuid_len, char* service_uuid);
+                    bool incl_txpower, int appearance, int manufacturer_len,
+                    char* manufacturer_data, int service_data_len,
+                    char* service_data, int service_uuid_len, char* service_uuid);
 
     /* Disable the multi adv instance */
     bt_status_t (*multi_adv_disable)(int client_if);
