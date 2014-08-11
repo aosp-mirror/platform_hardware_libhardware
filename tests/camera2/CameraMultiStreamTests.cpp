@@ -208,7 +208,7 @@ public:
         void SetUp() {
             ASSERT_EQ(OK,
                 mDevice->createStream(mNativeWindow,
-                    mWidth, mHeight, mFormat, /*size (for jpegs)*/0,
+                    mWidth, mHeight, mFormat,
                     &mStreamId));
 
             ASSERT_NE(-1, mStreamId);
