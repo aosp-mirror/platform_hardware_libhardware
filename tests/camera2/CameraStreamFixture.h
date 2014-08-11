@@ -173,7 +173,7 @@ protected:
 
         ASSERT_EQ(OK,
             device->createStream(mNativeWindow,
-                mWidth, mHeight, format, /*size (for jpegs)*/0,
+                mWidth, mHeight, format,
                 &mStreamId));
 
         ASSERT_NE(-1, mStreamId);
