@@ -48,7 +48,7 @@ void proxy_prepare(alsa_device_proxy * proxy, alsa_device_profile* profile,
 
     proxy->profile = profile;
 
-#if LOG_PCM_PARAMS
+#ifdef LOG_PCM_PARAMS
     log_pcm_config(config, "proxy_setup()");
 #endif
 
