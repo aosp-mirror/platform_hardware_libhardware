@@ -714,8 +714,7 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     if (param_val >= 0)
         device = atoi(value);
 
-    if ((card >= 0) && (card != in->profile->card) &&
-            (device >= 0) && (device != in->profile->device)) {
+    if (card >= 0 && device >= 0) {
         /* cannot read pcm device info if playback is active */
         if (!in->standby)
             ret_value = -ENOSYS;
