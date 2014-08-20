@@ -27,20 +27,6 @@
 #define DEFAULT_PERIOD_SIZE     1024
 #define DEFAULT_PERIOD_COUNT    2
 
-//void proxy_init(alsa_device_proxy * proxy)
-//{
-//    proxy->profile = NULL;
-//
-//    proxy->alsa_config.format = DEFAULT_SAMPLE_FORMAT;
-//    proxy->alsa_config.rate = DEFAULT_SAMPLE_RATE;
-//    proxy->alsa_config.channels = DEFAULT_CHANNEL_COUNT;
-//
-//    proxy->alsa_config.period_size = DEFAULT_PERIOD_SIZE;
-//    proxy->alsa_config.period_count = DEFAULT_PERIOD_COUNT;
-//
-//    proxy->pcm = NULL;
-//}
-
 void proxy_prepare(alsa_device_proxy * proxy, alsa_device_profile* profile,
                    struct pcm_config * config)
 {
@@ -79,7 +65,6 @@ void proxy_prepare(alsa_device_proxy * proxy, alsa_device_profile* profile,
 int proxy_open(alsa_device_proxy * proxy)
 {
     alsa_device_profile* profile = proxy->profile;
-
     ALOGV("proxy_open(card:%d device:%d %s)", profile->card, profile->device,
           profile->direction == PCM_OUT ? "PCM_OUT" : "PCM_IN");
 
@@ -103,8 +88,12 @@ int proxy_open(alsa_device_proxy * proxy)
 
 void proxy_close(alsa_device_proxy * proxy)
 {
-    pcm_close(proxy->pcm);
-    proxy->pcm = NULL;
+    ALOGV("proxy_close() [pcm:%p]", proxy->pcm);
+
+    if (proxy->pcm != NULL) {
+        pcm_close(proxy->pcm);
+        proxy->pcm = NULL;
+    }
 }
 
 /*
