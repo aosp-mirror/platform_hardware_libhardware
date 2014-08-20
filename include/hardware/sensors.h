@@ -160,7 +160,7 @@ enum {
  *    SENSOR_TYPE_ON_HEAD_DETECTOR and STRING_SENSOR_TYPE_ON_HEAD_DETECTOR,
  *    those types should replace the Glass-team-specific types in all future
  *    launches.
- *  - When launching glass on the L release, Google should now use the official
+ *  - When launching Glass on the L release, Google should now use the official
  *    type (SENSOR_TYPE_ON_HEAD_DETECTOR) and stringType.
  *  - This way, all applications can now use this sensor.
  */
@@ -660,6 +660,9 @@ typedef struct {
   };
 } uncalibrated_event_t;
 
+/**
+ * Meta data event data
+ */
 typedef struct meta_data_event {
     int32_t what;
     int32_t sensor;
@@ -673,6 +676,9 @@ typedef struct {
   // Set to 0 when status is SENSOR_STATUS_UNRELIABLE or ..._NO_CONTACT
   float bpm;
   // Status of the sensor for this reading. Set to one SENSOR_STATUS_...
+  // Note that this value should only be set for sensors that explicitly define
+  // the meaning of this field. This field is not piped through the framework
+  // for other sensors.
   int8_t status;
 } heart_rate_event_t;
 
@@ -899,15 +905,15 @@ struct sensor_t {
 struct sensors_poll_device_t {
     struct hw_device_t common;
     int (*activate)(struct sensors_poll_device_t *dev,
-            int handle, int enabled);
+            int sensor_handle, int enabled);
     int (*setDelay)(struct sensors_poll_device_t *dev,
-            int handle, int64_t ns);
+            int sensor_handle, int64_t sampling_period_ns);
     int (*poll)(struct sensors_poll_device_t *dev,
             sensors_event_t* data, int count);
 };
 
 /*
- * struct sensors_poll_device_1 is used with SENSORS_DEVICE_API_VERSION_1_0
+ * struct sensors_poll_device_1 is used in HAL versions >= SENSORS_DEVICE_API_VERSION_1_0
  */
 typedef struct sensors_poll_device_1 {
     union {
@@ -921,21 +927,22 @@ typedef struct sensors_poll_device_1 {
 
             /* Activate/de-activate one sensor. Return 0 on success, negative
              *
-             * handle is the handle of the sensor to change.
+             * sensor_handle is the handle of the sensor to change.
              * enabled set to 1 to enable, or 0 to disable the sensor.
              *
              * Return 0 on success, negative errno code otherwise.
              */
             int (*activate)(struct sensors_poll_device_t *dev,
-                    int handle, int enabled);
+                    int sensor_handle, int enabled);
 
             /**
-             * Set the events's period in nanoseconds for a given sensor. If
-             * period_ns > max_delay it will be truncated to max_delay and if
-             * period_ns < min_delay it will be replaced by min_delay.
+             * Set the events's period in nanoseconds for a given sensor.
+             * If sampling_period_ns > max_delay it will be truncated to
+             * max_delay and if sampling_period_ns < min_delay it will be
+             * replaced by min_delay.
              */
             int (*setDelay)(struct sensors_poll_device_t *dev,
-                    int handle, int64_t period_ns);
+                    int sensor_handle, int64_t sampling_period_ns);
 
             /**
              * Returns an array of sensor data.
@@ -947,21 +954,30 @@ typedef struct sensors_poll_device_1 {
 
 
     /*
-     * Enables batch mode for the given sensor and sets the delay between events.
+     * Sets a sensor’s parameters, including sampling frequency and maximum
+     * report latency. This function can be called while the sensor is
+     * activated, in which case it must not cause any sensor measurements to
+     * be lost: transitioning from one sampling rate to the other cannot cause
+     * lost events, nor can transitioning from a high maximum report latency to
+     * a low maximum report latency.
      * See the Batching sensor results page for details:
      * http://source.android.com/devices/sensors/batching.html
      */
     int (*batch)(struct sensors_poll_device_1* dev,
-            int handle, int flags, int64_t period_ns, int64_t timeout);
+            int sensor_handle, int flags, int64_t sampling_period_ns,
+            int64_t max_report_latency_ns);
 
     /*
      * Flush adds a META_DATA_FLUSH_COMPLETE event (sensors_event_meta_data_t)
      * to the end of the "batch mode" FIFO for the specified sensor and flushes
-     * the FIFO. If the FIFO is empty or if the sensor doesn't support batching (FIFO size zero),
+     * the FIFO.
+     * If the FIFO is empty or if the sensor doesn't support batching (FIFO size zero),
      * it should return SUCCESS along with a trivial META_DATA_FLUSH_COMPLETE event added to the
-     * event stream. This applies to all sensors other than ONE_SHOT sensors.
+     * event stream. This applies to all sensors other than one-shot sensors.
+     * If the sensor is a one-shot sensor, flush must return -EINVAL and not generate
+     * any flush complete metadata.
      */
-    int (*flush)(struct sensors_poll_device_1* dev, int handle);
+    int (*flush)(struct sensors_poll_device_1* dev, int sensor_handle);
 
     void (*reserved_procs[8])(void);
 
