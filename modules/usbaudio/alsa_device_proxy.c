@@ -66,6 +66,13 @@ void proxy_prepare(alsa_device_proxy * proxy, alsa_device_profile* profile,
     proxy->alsa_config.period_size =
             profile_get_period_size(proxy->profile, proxy->alsa_config.rate);
 
+    // Hack for USB accessory audio.
+    // Here we set the correct value for period_count if tinyalsa fails to get it from the
+    // f_audio_source driver.
+    if (proxy->alsa_config.period_count == 0) {
+        proxy->alsa_config.period_count = 4;
+    }
+
     proxy->pcm = NULL;
 }
 
