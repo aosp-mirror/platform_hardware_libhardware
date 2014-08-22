@@ -976,6 +976,8 @@ typedef struct sensors_poll_device_1 {
      * event stream. This applies to all sensors other than one-shot sensors.
      * If the sensor is a one-shot sensor, flush must return -EINVAL and not generate
      * any flush complete metadata.
+     * If the sensor is not active at the time flush() is called, flush() should return
+     * -EINVAL.
      */
     int (*flush)(struct sensors_poll_device_1* dev, int sensor_handle);
 
