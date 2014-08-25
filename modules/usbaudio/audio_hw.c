@@ -271,7 +271,6 @@ static audio_format_t out_get_format(const struct audio_stream *stream)
      */
     alsa_device_proxy * proxy = &((struct stream_out*)stream)->proxy;
     audio_format_t format = audio_format_from_pcm_format(proxy_get_format(proxy));
-    ALOGV("out_get_format() = %d", format);
     return format;
 }
 
