@@ -394,7 +394,12 @@ typedef uint8_t GpsNavigationMessageType;
 /**
  * Name of the GPS navigation message interface.
  */
- #define GPS_NAVIGATION_MESSAGE_INTERFACE     "gps_navigation_message"
+#define GPS_NAVIGATION_MESSAGE_INTERFACE     "gps_navigation_message"
+
+/**
+ * Name of the GNSS/GPS configuration interface.
+ */
+#define GNSS_CONFIGURATION_INTERFACE     "gnss_configuration"
 
 
 /** Represents a location. */
@@ -1521,7 +1526,7 @@ typedef struct {
      * The number of GPS bits transmitted since Sat-Sun midnight (GPS week).
      * If the data is available, 'flags' must contain GPS_MEASUREMENT_HAS_BIT_NUMBER.
      */
-    int16_t bit_number;
+    int32_t bit_number;
 
     /**
      * The elapsed time since the last received bit in milliseconds, in the range [0, 20]
@@ -1759,6 +1764,29 @@ typedef struct {
     void (*close) ();
 
 } GpsNavigationMessageInterface;
+
+/**
+ * Interface for passing GNSS configuration contents from platform to HAL.
+ */
+typedef struct {
+    /** Set to sizeof(GnssConfigurationInterface) */
+    size_t size;
+
+    /**
+     * Deliver GNSS configuration contents to HAL.
+     * Parameters:
+     *     config_data - a pointer to a char array which holds what usually is expected from
+                         file(/etc/gps.conf), i.e., a sequence of UTF8 strings separated by '\n'.
+     *     length - total number of UTF8 characters in configuraiton data.
+     *
+     * IMPORTANT:
+     *      GPS HAL should expect this function can be called multiple times. And it may be
+     *      called even when GpsLocationProvider is already constructed and enabled. GPS HAL
+     *      should maintain the existing requests for various callback regardless the change
+     *      in configuration data.
+     */
+    void (*configuration_update) (const char* config_data, int32_t length);
+} GnssConfigurationInterface;
 
 __END_DECLS
 
