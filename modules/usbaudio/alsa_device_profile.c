@@ -92,6 +92,14 @@ bool profile_is_valid(alsa_device_profile* profile) {
     return profile->is_valid;
 }
 
+bool profile_is_cached_for(alsa_device_profile* profile, int card, int device) {
+    return card == profile->card && device == profile->device;
+}
+
+void profile_decache(alsa_device_profile* profile) {
+    profile->card = profile->device = -1;
+}
+
 /*
  * Returns the supplied value rounded up to the next even multiple of 16
  */
