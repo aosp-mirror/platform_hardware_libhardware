@@ -61,6 +61,8 @@ typedef struct  {
 void profile_init(alsa_device_profile* profile, int direction);
 bool profile_is_initialized(alsa_device_profile* profile);
 bool profile_is_valid(alsa_device_profile* profile);
+bool profile_is_cached_for(alsa_device_profile* profile, int card, int device);
+void profile_decache(alsa_device_profile* profile);
 
 bool profile_read_device_info(alsa_device_profile* profile);
 
