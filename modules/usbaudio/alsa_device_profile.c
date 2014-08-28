@@ -267,19 +267,28 @@ static unsigned profile_enum_sample_formats(alsa_device_profile* profile, struct
 
 static unsigned profile_enum_channel_counts(alsa_device_profile* profile, unsigned min, unsigned max)
 {
-    static const unsigned std_channel_counts[] = {8, 4, 2, 1};
+    // TODO: Don't return MONO even if the device supports it. This causes problems
+    // in AudioPolicyManager. Revisit.
+    static const unsigned std_out_channel_counts[] = {8, 4, 2/*, 1*/};
+    static const unsigned std_in_channel_counts[] = {8, 4, 2, 1};
+
+    unsigned * channel_counts =
+        profile->direction == PCM_OUT ? std_out_channel_counts : std_in_channel_counts;
+    unsigned num_channel_counts =
+        profile->direction == PCM_OUT
+            ? ARRAY_SIZE(std_out_channel_counts) : ARRAY_SIZE(std_in_channel_counts);
 
     unsigned num_counts = 0;
     unsigned index;
     /* TODO write a profile_test_channel_count() */
     /* Ensure there is at least one invalid channel count to terminate the channel counts array */
-    for (index = 0; index < ARRAY_SIZE(std_channel_counts) &&
+    for (index = 0; index < num_channel_counts &&
                     num_counts < ARRAY_SIZE(profile->channel_counts) - 1;
          index++) {
         /* TODO Do we want a channel counts test? */
-        if (std_channel_counts[index] >= min && std_channel_counts[index] <= max /* &&
-         profile_test_channel_count(profile, std_channel_counts[index])*/) {
-            profile->channel_counts[num_counts++] = std_channel_counts[index];
+        if (channel_counts[index] >= min && channel_counts[index] <= max /* &&
+            profile_test_channel_count(profile, channel_counts[index])*/) {
+            profile->channel_counts[num_counts++] = channel_counts[index];
         }
     }
 
