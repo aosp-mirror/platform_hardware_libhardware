@@ -495,9 +495,11 @@ enum {
  *
  *  Because this sensor is on-change, events must be generated when and only
  *  when heart_rate.bpm or heart_rate.status have changed since the last
- *  event. The event should be generated no faster than every period_ns passed
- *  to setDelay() or to batch(). See the definition of the on-change reporting
- *  mode for more information.
+ *  event. In particular, upon the first activation, unless the device is known
+ *  to not be on the body, the status field of the first event must be set to
+ *  SENSOR_STATUS_UNRELIABLE. The event should be generated no faster than every
+ *  period_ns passed to setDelay() or to batch().
+ *  See the definition of the on-change reporting mode for more information.
  *
  *  sensor_t.requiredPermission must be set to SENSOR_PERMISSION_BODY_SENSORS.
  *
