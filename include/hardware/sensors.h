@@ -98,7 +98,12 @@ enum {
  */
 enum {
     /*
-     * Whether this sensor wakes up the AP from suspend mode when data is available.
+     * Whether this sensor wakes up the AP from suspend mode when data is available.  Whenever
+     * sensor events are delivered from a wake_up sensor, the driver needs to hold a wake_lock till
+     * the events are read by the SensorService i.e till sensors_poll_device_t.poll() is called the
+     * next time. Once poll is called again it means events have been read by the SensorService, the
+     * driver can safely release the wake_lock. SensorService will continue to hold a wake_lock till
+     * the app actually reads the events.
      */
     SENSOR_FLAG_WAKE_UP = 1U << 0,
     /*
@@ -863,15 +868,15 @@ struct sensor_t {
      */
     const char*    requiredPermission;
 
-    /* This value is defined only for continuous mode sensors. It is the delay between two
-     * sensor events corresponding to the lowest frequency that this sensor supports. When
-     * lower frequencies are requested through batch()/setDelay() the events will be generated
-     * at this frequency instead. It can be used by the framework or applications to estimate
-     * when the batch FIFO may be full.
+    /* This value is defined only for continuous mode and on-change sensors. It is the delay between
+     * two sensor events corresponding to the lowest frequency that this sensor supports. When lower
+     * frequencies are requested through batch()/setDelay() the events will be generated at this
+     * frequency instead. It can be used by the framework or applications to estimate when the batch
+     * FIFO may be full.
      *
      * NOTE: 1) period_ns is in nanoseconds where as maxDelay/minDelay are in microseconds.
-     *              continuous: maximum sampling period allowed in microseconds.
-     *              on-change, one-shot, special : 0
+     *              continuous, on-change: maximum sampling period allowed in microseconds.
+     *              one-shot, special : 0
      *   2) maxDelay should always fit within a 32 bit signed integer. It is declared as 64 bit
      *      on 64 bit architectures only for binary compatibility reasons.
      * Availability: SENSORS_DEVICE_API_VERSION_1_3
