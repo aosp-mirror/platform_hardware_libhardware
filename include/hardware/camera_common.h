@@ -114,8 +114,9 @@ __BEGIN_DECLS
 #define CAMERA_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
 #define CAMERA_DEVICE_API_VERSION_3_2 HARDWARE_DEVICE_API_VERSION(3, 2)
 
-// Device version 2.x is outdated; device version 3.x is experimental
-#define CAMERA_DEVICE_API_VERSION_CURRENT CAMERA_DEVICE_API_VERSION_1_0
+// Device version 3.2 is current, older HAL camera device versions are not
+// recommended for new devices.
+#define CAMERA_DEVICE_API_VERSION_CURRENT CAMERA_DEVICE_API_VERSION_3_2
 
 /**
  * Defined in /system/media/camera/include/system/camera_metadata.h
