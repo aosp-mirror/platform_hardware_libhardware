@@ -23,9 +23,10 @@
 /**
  * Camera device HAL 3.2 [ CAMERA_DEVICE_API_VERSION_3_2 ]
  *
- * EXPERIMENTAL.
+ * This is the current recommended version of the camera device HAL.
  *
- * Supports the android.hardware.Camera API.
+ * Supports the android.hardware.Camera API, and as of v3.2, the
+ * android.hardware.camera2 API in LIMITED or FULL modes.
  *
  * Camera devices that support this version of the HAL must return
  * CAMERA_DEVICE_API_VERSION_3_2 in camera_device_t.common.version and in
