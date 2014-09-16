@@ -66,6 +66,8 @@ struct audio_device {
     /* input */
     alsa_device_profile in_profile;
 
+    bool mic_muted;
+
     bool standby;
 };
 
@@ -869,6 +871,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
                                     sample_size_in_bytes, num_read_buff_bytes);
             }
         }
+
+        /* no need to acquire in->dev->lock to read mic_muted here as we don't change its state */
+        if (num_read_buff_bytes > 0 && in->dev->mic_muted)
+            memset(buffer, 0, num_read_buff_bytes);
     }
 
 err:
@@ -1061,6 +1067,10 @@ static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
 
 static int adev_set_mic_mute(struct audio_hw_device *dev, bool state)
 {
+    struct audio_device * adev = (struct audio_device *)dev;
+    pthread_mutex_lock(&adev->lock);
+    adev->mic_muted = state;
+    pthread_mutex_unlock(&adev->lock);
     return -ENOSYS;
 }
 
