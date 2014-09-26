@@ -19,7 +19,6 @@ LOCAL_SHARED_LIBRARIES := \
 	liblog \
 	libutils \
 	libcutils \
-	libstlport \
 	libhardware \
 	libcamera_metadata \
 	libcameraservice \
@@ -29,14 +28,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libui \
 	libdl
 
-LOCAL_STATIC_LIBRARIES := \
-	libgtest
-
 LOCAL_C_INCLUDES += \
-	bionic \
-	bionic/libstdc++/include \
-	external/gtest/include \
-	external/stlport/stlport \
 	system/media/camera/include \
 	frameworks/av/include/ \
 	frameworks/av/services/camera/libcameraservice \
