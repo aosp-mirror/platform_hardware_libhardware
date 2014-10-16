@@ -95,6 +95,8 @@ namespace android {
 // File permissions for stream log files.
 #define LOG_STREAM_FILE_PERMISSIONS (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 #endif // LOG_STREAMS_TO_FILES
+// limit for number of read error log entries to avoid spamming the logs
+#define MAX_READ_ERROR_LOGS 5
 
 // Common limits macros.
 #ifndef min
@@ -194,6 +196,8 @@ struct submix_stream_in {
 #if LOG_STREAMS_TO_FILES
     int log_fd;
 #endif // LOG_STREAMS_TO_FILES
+
+    volatile int16_t read_error_count;
 };
 
 // Determine whether the specified sample rate is supported by the submix module.
@@ -350,7 +354,7 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
                                             struct submix_stream_out * const out)
 {
     ALOG_ASSERT(in || out);
-    ALOGV("submix_audio_device_create_pipe()");
+    ALOGD("submix_audio_device_create_pipe()");
     pthread_mutex_lock(&rsxadev->lock);
     // Save a reference to the specified input or output stream and the associated channel
     // mask.
@@ -435,7 +439,7 @@ static void submix_audio_device_create_pipe(struct submix_audio_device * const r
 // before they shutdown.
 static void submix_audio_device_release_pipe(struct submix_audio_device * const rsxadev)
 {
-    ALOGV("submix_audio_device_release_pipe()");
+    ALOGD("submix_audio_device_release_pipe()");
     rsxadev->rsxSink.clear();
     rsxadev->rsxSource.clear();
 }
@@ -463,9 +467,9 @@ static void submix_audio_device_destroy_pipe(struct submix_audio_device * const 
 #endif // ENABLE_LEGACY_INPUT_OPEN
     }
     if (out != NULL) rsxadev->output = NULL;
-    if (rsxadev->input != NULL && rsxadev->output != NULL) {
+    if (rsxadev->input == NULL && rsxadev->output == NULL) {
         submix_audio_device_release_pipe(rsxadev);
-        ALOGV("submix_audio_device_destroy_pipe(): pipe destroyed");
+        ALOGD("submix_audio_device_destroy_pipe(): pipe destroyed");
     }
     pthread_mutex_unlock(&rsxadev->lock);
 }
@@ -655,7 +659,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
                 return 0;
             }
 
-            ALOGI("out_set_parameters(): shutdown");
+            ALOGD("out_set_parameters(): shutting down MonoPipe sink");
             sink->shutdown(true);
         } // done using the sink
         pthread_mutex_unlock(&rsxadev->lock);
@@ -975,7 +979,9 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         // about to read from audio source
         sp<MonoPipeReader> source = rsxadev->rsxSource;
         if (source == NULL) {
-            ALOGE("no audio pipe yet we're trying to read!");
+            in->read_error_count++;// ok if it rolls over
+            ALOGE_IF(in->read_error_count < MAX_READ_ERROR_LOGS,
+                    "no audio pipe yet we're trying to read! (not all errors will be logged)");
             pthread_mutex_unlock(&rsxadev->lock);
             usleep(frames_to_read * 1000000 / in_get_sample_rate(&stream->common));
             memset(buffer, 0, bytes);
@@ -1192,7 +1198,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    const char *address __unused)
 {
     struct submix_audio_device * const rsxadev = audio_hw_device_get_submix_audio_device(dev);
-    ALOGV("adev_open_output_stream()");
+    ALOGD("adev_open_output_stream()");
     struct submix_stream_out *out;
     bool force_pipe_creation = false;
     (void)handle;
@@ -1247,7 +1253,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     // Store a pointer to the device from the output stream.
     out->dev = rsxadev;
     // Initialize the pipe.
-    ALOGV("adev_open_output_stream(): Initializing pipe");
+    ALOGV("adev_open_output_stream(): about to create pipe");
     submix_audio_device_create_pipe(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
                                     DEFAULT_PIPE_PERIOD_COUNT, NULL, out);
 #if LOG_STREAMS_TO_FILES
@@ -1267,7 +1273,7 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
                                      struct audio_stream_out *stream)
 {
     struct submix_stream_out * const out = audio_stream_out_get_submix_stream_out(stream);
-    ALOGV("adev_close_output_stream()");
+    ALOGD("adev_close_output_stream()");
     submix_audio_device_destroy_pipe(audio_hw_device_get_submix_audio_device(dev), NULL, out);
 #if LOG_STREAMS_TO_FILES
     if (out->log_fd >= 0) close(out->log_fd);
@@ -1381,7 +1387,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 {
     struct submix_audio_device *rsxadev = audio_hw_device_get_submix_audio_device(dev);
     struct submix_stream_in *in;
-    ALOGI("adev_open_input_stream()");
+    ALOGD("adev_open_input_stream()");
     (void)handle;
     (void)devices;
 
@@ -1402,7 +1408,17 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         sp<MonoPipe> sink = rsxadev->rsxSink;
         ALOG_ASSERT(sink != NULL);
         // If the sink has been shutdown, delete the pipe.
-        if (sink->isShutdown()) submix_audio_device_release_pipe(rsxadev);
+        if (sink != NULL) {
+            if (sink->isShutdown()) {
+                ALOGD(" Non-NULL shut down sink when opening input stream, releasing, refcount=%d",
+                        in->ref_count);
+                submix_audio_device_release_pipe(rsxadev);
+            } else {
+                ALOGD(" Non-NULL sink when opening input stream, refcount=%d", in->ref_count);
+            }
+        } else {
+            ALOGE("NULL sink when opening input stream, refcount=%d", in->ref_count);
+        }
     }
     pthread_mutex_unlock(&rsxadev->lock);
 #else
@@ -1436,7 +1452,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->read_counter_frames = 0;
     in->output_standby = rsxadev->output_standby;
     in->dev = rsxadev;
+    in->read_error_count = 0;
     // Initialize the pipe.
+    ALOGV("adev_open_input_stream(): about to create pipe");
     submix_audio_device_create_pipe(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
                                     DEFAULT_PIPE_PERIOD_COUNT, in, NULL);
 #if LOG_STREAMS_TO_FILES
@@ -1456,7 +1474,7 @@ static void adev_close_input_stream(struct audio_hw_device *dev,
                                     struct audio_stream_in *stream)
 {
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
-    ALOGV("adev_close_input_stream()");
+    ALOGD("adev_close_input_stream()");
     submix_audio_device_destroy_pipe(audio_hw_device_get_submix_audio_device(dev), in, NULL);
 #if LOG_STREAMS_TO_FILES
     if (in->log_fd >= 0) close(in->log_fd);
