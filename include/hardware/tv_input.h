@@ -110,29 +110,78 @@ typedef struct tv_input_device_info {
     int32_t reserved[16];
 } tv_input_device_info_t;
 
+/* See tv_input_event_t for more details. */
 enum {
     /*
      * Hardware notifies the framework that a device is available.
+     *
+     * Note that DEVICE_AVAILABLE and DEVICE_UNAVAILABLE events do not represent
+     * hotplug events (i.e. plugging cable into or out of the physical port).
+     * These events notify the framework whether the port is available or not.
+     * For a concrete example, when a user plugs in or pulls out the HDMI cable
+     * from a HDMI port, it does not generate DEVICE_AVAILABLE and/or
+     * DEVICE_UNAVAILABLE events. However, if a user inserts a pluggable USB
+     * tuner into the Android device, it will generate a DEVICE_AVAILABLE event
+     * and when the port is removed, it should generate a DEVICE_UNAVAILABLE
+     * event.
+     *
+     * For hotplug events, please see STREAM_CONFIGURATION_CHANGED for more
+     * details.
+     *
+     * HAL implementation should register devices by using this event when the
+     * device boots up. The framework will recognize device reported via this
+     * event only. In addition, the implementation could use this event to
+     * notify the framework that a removable TV input device (such as USB tuner
+     * as stated in the example above) is attached.
      */
     TV_INPUT_EVENT_DEVICE_AVAILABLE = 1,
     /*
      * Hardware notifies the framework that a device is unavailable.
+     *
+     * HAL implementation should generate this event when a device registered
+     * by TV_INPUT_EVENT_DEVICE_AVAILABLE is no longer available. For example,
+     * the event can indicate that a USB tuner is plugged out from the Android
+     * device.
+     *
+     * Note that this event is not for indicating cable plugged out of the port;
+     * for that purpose, the implementation should use
+     * STREAM_CONFIGURATION_CHANGED event. This event represents the port itself
+     * being no longer available.
      */
     TV_INPUT_EVENT_DEVICE_UNAVAILABLE = 2,
     /*
      * Stream configurations are changed. Client should regard all open streams
      * at the specific device are closed, and should call
      * get_stream_configurations() again, opening some of them if necessary.
+     *
+     * HAL implementation should generate this event when the available stream
+     * configurations change for any reason. A typical use case of this event
+     * would be to notify the framework that the input signal has changed
+     * resolution, or that the cable is plugged out so that the number of
+     * available streams is 0.
+     *
+     * The implementation may use this event to indicate hotplug status of the
+     * port. the framework regards input devices with no available streams as
+     * disconnected, so the implementation can generate this event with no
+     * available streams to indicate that this device is disconnected, and vice
+     * versa.
      */
     TV_INPUT_EVENT_STREAM_CONFIGURATIONS_CHANGED = 3,
     /*
      * Hardware is done with capture request with the buffer. Client can assume
      * ownership of the buffer again.
+     *
+     * HAL implementation should generate this event after request_capture() if
+     * it succeeded. The event shall have the buffer with the captured image.
      */
     TV_INPUT_EVENT_CAPTURE_SUCCEEDED = 4,
     /*
      * Hardware met a failure while processing a capture request or client
      * canceled the request. Client can assume ownership of the buffer again.
+     *
+     * The event is similar to TV_INPUT_EVENT_CAPTURE_SUCCEEDED, but HAL
+     * implementation generates this event upon a failure to process
+     * request_capture(), or a request cancellation.
      */
     TV_INPUT_EVENT_CAPTURE_FAILED = 5,
 };
