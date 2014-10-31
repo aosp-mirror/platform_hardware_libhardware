@@ -311,8 +311,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
  *   $ setenv CAMERA2_TEST_VARIABLE_BURST_DUMP_FRAMES 1
  *   $ /data/nativetest/camera2_test/camera2_test --gtest_filter="*VariableBurst"
  */
-// Disable this test for now, as we need cleanup the usage of the deprecated tag quite a bit.
-TEST_F(CameraBurstTest, DISABLED_VariableBurst) {
+TEST_F(CameraBurstTest, VariableBurst) {
 
     TEST_EXTENSION_FORKING_INIT;
 
@@ -413,34 +412,38 @@ TEST_F(CameraBurstTest, DISABLED_VariableBurst) {
     dout << std::endl;
 
     {
-        camera_metadata_ro_entry availableProcessedSizes =
-                GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
+        if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+            camera_metadata_ro_entry availableProcessedSizes =
+                    GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
 
-        camera_metadata_ro_entry availableProcessedMinFrameDurations =
-                GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS);
+            camera_metadata_ro_entry availableProcessedMinFrameDurations =
+                    GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS);
 
-        EXPECT_EQ(availableProcessedSizes.count,
-                availableProcessedMinFrameDurations.count * 2) <<
-                "The number of minimum frame durations doesn't match the number of "
-                "available sizes. Using fallback values";
+            EXPECT_EQ(availableProcessedSizes.count,
+                    availableProcessedMinFrameDurations.count * 2) <<
+                    "The number of minimum frame durations doesn't match the number of "
+                    "available sizes. Using fallback values";
 
-        if (availableProcessedSizes.count ==
-                availableProcessedMinFrameDurations.count * 2) {
-            bool gotSize = false;
-            for (size_t i = 0; i < availableProcessedSizes.count; i += 2) {
-                if (availableProcessedSizes.data.i32[i] == mWidth &&
-                        availableProcessedSizes.data.i32[i+1] == mHeight) {
-                    gotSize = true;
-                    minDuration = availableProcessedMinFrameDurations.data.i64[i/2];
+            if (availableProcessedSizes.count ==
+                    availableProcessedMinFrameDurations.count * 2) {
+                bool gotSize = false;
+                for (size_t i = 0; i < availableProcessedSizes.count; i += 2) {
+                    if (availableProcessedSizes.data.i32[i] == mWidth &&
+                            availableProcessedSizes.data.i32[i+1] == mHeight) {
+                        gotSize = true;
+                        minDuration = availableProcessedMinFrameDurations.data.i64[i/2];
+                    }
                 }
+                EXPECT_TRUE(gotSize) << "Can't find stream size in list of "
+                        "available sizes: " << mWidth << ", " << mHeight;
             }
-            EXPECT_TRUE(gotSize) << "Can't find stream size in list of "
-                    "available sizes: " << mWidth << ", " << mHeight;
+            if (minDuration == 0) {
+                minDuration = 1 * SEC / 30; // Fall back to 30 fps as minimum duration
+            }
+        } else {
+            minDuration = getMinFrameDurationFor(
+                    HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, mWidth, mHeight);
         }
-        if (minDuration == 0) {
-            minDuration = 1 * SEC / 30; // Fall back to 30 fps as minimum duration
-        }
-
         ASSERT_LT(0, minDuration);
 
         camera_metadata_ro_entry maxFrameDuration =
