@@ -472,19 +472,42 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
 
     TEST_EXTENSION_FORKING_INIT;
 
-    camera_metadata_ro_entry availableProcessedSizes =
-        GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
-    ASSERT_EQ(0u, availableProcessedSizes.count % 2);
-    ASSERT_GE(availableProcessedSizes.count, 2u);
-    camera_metadata_ro_entry availableProcessedMinFrameDurations =
-        GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS);
-    EXPECT_EQ(availableProcessedSizes.count,
-        availableProcessedMinFrameDurations.count * 2);
+    const int32_t* implDefData;
+    size_t implDefCount;
+    const int32_t* jpegData;
+    size_t jpegCount;
+    if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+        camera_metadata_ro_entry availableProcessedSizes =
+            GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
+        ASSERT_EQ(0u, availableProcessedSizes.count % 2);
+        ASSERT_GE(availableProcessedSizes.count, 2u);
+        camera_metadata_ro_entry availableProcessedMinFrameDurations =
+            GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS);
+        EXPECT_EQ(availableProcessedSizes.count,
+            availableProcessedMinFrameDurations.count * 2);
 
-    camera_metadata_ro_entry availableJpegSizes =
-        GetStaticEntry(ANDROID_SCALER_AVAILABLE_JPEG_SIZES);
-    ASSERT_EQ(0u, availableJpegSizes.count % 2);
-    ASSERT_GE(availableJpegSizes.count, 2u);
+        camera_metadata_ro_entry availableJpegSizes =
+            GetStaticEntry(ANDROID_SCALER_AVAILABLE_JPEG_SIZES);
+        ASSERT_EQ(0u, availableJpegSizes.count % 2);
+        ASSERT_GE(availableJpegSizes.count, 2u);
+        implDefData = availableProcessedSizes.data.i32;
+        implDefCount = availableProcessedSizes.count;
+        jpegData = availableJpegSizes.data.i32;
+        jpegCount = availableJpegSizes.count;
+    } else {
+        const int32_t *implDefResolutions;
+        size_t   implDefResolutionsCount;
+
+        getResolutionList(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, &implDefData, &implDefCount);
+        ASSERT_NE(0u, implDefCount)
+            << "Missing implementation defined sizes";
+        ASSERT_EQ(0u, implDefCount % 2);
+        ASSERT_GE(implDefCount, 2u);
+
+        getResolutionList(HAL_PIXEL_FORMAT_BLOB, &jpegData, &jpegCount);
+        ASSERT_EQ(0u, jpegCount % 2);
+        ASSERT_GE(jpegCount, 2u);
+    }
 
     camera_metadata_ro_entry hardwareLevel =
         GetStaticEntry(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL);
@@ -504,23 +527,25 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
     }
 
     // Find the right sizes for preview, metering, and capture streams
-    // assumes at least 2 entries in availableProcessedSizes.
     int64_t minFrameDuration = DEFAULT_FRAME_DURATION;
     Size processedMinSize, processedMaxSize, jpegMaxSize;
-    const int32_t* data = availableProcessedSizes.data.i32;
-    size_t count = availableProcessedSizes.count;
 
     int32_t minIdx, maxIdx;
-    GetMinSize(data, count, &processedMinSize, &minIdx);
-    GetMaxSize(data, count, &processedMaxSize, &maxIdx);
+    GetMinSize(implDefData, implDefCount, &processedMinSize, &minIdx);
+    GetMaxSize(implDefData, implDefCount, &processedMaxSize, &maxIdx);
     ALOGV("Found processed max size: %dx%d, min size = %dx%d",
             processedMaxSize.width, processedMaxSize.height,
             processedMinSize.width, processedMinSize.height);
 
-    if (availableProcessedSizes.count ==
-        availableProcessedMinFrameDurations.count * 2) {
+    if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+        camera_metadata_ro_entry availableProcessedMinFrameDurations =
+            GetStaticEntry(ANDROID_SCALER_AVAILABLE_PROCESSED_MIN_DURATIONS);
         minFrameDuration =
             availableProcessedMinFrameDurations.data.i64[maxIdx / 2];
+    } else {
+        minFrameDuration = getMinFrameDurationFor(
+                HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
+                processedMaxSize.width, processedMaxSize.height);
     }
 
     EXPECT_GT(minFrameDuration, 0);
@@ -531,9 +556,7 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
 
     ALOGV("targeted minimal frame duration is: %"PRId64"ns", minFrameDuration);
 
-    data = &(availableJpegSizes.data.i32[0]);
-    count = availableJpegSizes.count;
-    GetMaxSize(data, count, &jpegMaxSize, &maxIdx);
+    GetMaxSize(jpegData, jpegCount, &jpegMaxSize, &maxIdx);
     ALOGV("Found Jpeg size max idx = %d", maxIdx);
 
     // Max Jpeg size should be available in processed sizes. Use it for
@@ -627,7 +650,7 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
     // purely by analog gain if possible.
     Vector<int32_t> sensitivities;
     Vector<int64_t> exposures;
-    count = (maxAnalogSensitivity - minSensitivity + 99) / 100;
+    size_t count = (maxAnalogSensitivity - minSensitivity + 99) / 100;
     sensitivities.push_back(minSensitivity);
     for (size_t i = 1; i < count; i++) {
         sensitivities.push_back(minSensitivity + i * 100);
