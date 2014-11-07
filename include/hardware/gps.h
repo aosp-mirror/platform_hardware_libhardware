@@ -318,6 +318,12 @@ typedef uint8_t GpsMultipathIndicator;
 
 /**
  * Flags indicating the GPS measurement state.
+ * The expected behavior here is for GPS HAL to set all the flags that applies. For
+ * example, if the state for a satellite is only C/A code locked and bit synchronized,
+ * and there is still millisecond ambiguity, the state should be set as:
+ * GPS_MEASUREMENT_STATE_CODE_LOCK|GPS_MEASUREMENT_STATE_BIT_SYNC|GPS_MEASUREMENT_STATE_MSEC_AMBIGUOUS
+ * If GPS is still searching for a satellite, the corresponding state should be set to
+ * GPS_MEASUREMENT_STATE_UNKNOWN(0).
  */
 typedef uint16_t GpsMeasurementState;
 #define GPS_MEASUREMENT_STATE_UNKNOWN                   0
@@ -325,6 +331,7 @@ typedef uint16_t GpsMeasurementState;
 #define GPS_MEASUREMENT_STATE_BIT_SYNC              (1<<1)
 #define GPS_MEASUREMENT_STATE_SUBFRAME_SYNC         (1<<2)
 #define GPS_MEASUREMENT_STATE_TOW_DECODED           (1<<3)
+#define GPS_MEASUREMENT_STATE_MSEC_AMBIGUOUS        (1<<4)
 
 /**
  * Flags indicating the Accumulated Delta Range's states.
@@ -336,7 +343,7 @@ typedef uint16_t GpsAccumulatedDeltaRangeState;
 #define GPS_ADR_STATE_CYCLE_SLIP                (1<<2)
 
 /**
- * Enumeration of available values to indicate the available GPS Natigation message types.
+ * Enumeration of available values to indicate the available GPS Navigation message types.
  */
 typedef uint8_t GpsNavigationMessageType;
 /** The message type is unknown. */
@@ -350,6 +357,19 @@ typedef uint8_t GpsNavigationMessageType;
 /** CNAV-2 message contained in the structure. */
 #define GPS_NAVIGATION_MESSAGE_TYPE_CNAV2           4
 
+/**
+ * Status of Navigation Message
+ * When a message is received properly without any parity error in its navigation words, the
+ * status should be set to NAV_MESSAGE_STATUS_PARITY_PASSED. But if a message is received
+ * with words that failed parity check, but GPS is able to correct those words, the status
+ * should be set to NAV_MESSAGE_STATUS_PARITY_REBUILT.
+ * No need to send any navigation message that contains words with parity error and cannot be
+ * corrected.
+ */
+typedef uint16_t NavigationMessageStatus;
+#define NAV_MESSAGE_STATUS_UNKONW              0
+#define NAV_MESSAGE_STATUS_PARITY_PASSED   (1<<0)
+#define NAV_MESSAGE_STATUS_PARITY_REBUILT  (1<<1)
 
 /**
  * Name for the GPS XTRA interface.
@@ -1386,12 +1406,16 @@ typedef struct {
      * Received GPS Time-of-Week at the measurement time, in nanoseconds.
      * The value is relative to the beginning of the current GPS week.
      *
-     * Given the sync state of GPS receiver, per each satellite, valid range for this field can be:
-     *      Searching           : [ 0       ]   : GPS_MEASUREMENT_STATE_UNKNOWN
-     *      Ranging code lock   : [ 0   1ms ]   : GPS_MEASUREMENT_STATE_CODE_LOCK is set
-     *      Bit sync            : [ 0  20ms ]   : GPS_MEASUREMENT_STATE_BIT_SYNC is set
-     *      Subframe sync       : [ 0   6ms ]   : GPS_MEASUREMENT_STATE_SUBFRAME_SYNC is set
-     *      TOW decoded         : [ 0 1week ]   : GPS_MEASUREMENT_STATE_TOW_DECODED is set
+     * Given the highest sync state that can be achieved, per each satellite, valid range for
+     * this field can be:
+     *     Searching       : [ 0       ]   : GPS_MEASUREMENT_STATE_UNKNOWN
+     *     C/A code lock   : [ 0   1ms ]   : GPS_MEASUREMENT_STATE_CODE_LOCK is set
+     *     Bit sync        : [ 0  20ms ]   : GPS_MEASUREMENT_STATE_BIT_SYNC is set
+     *     Subframe sync   : [ 0    6s ]   : GPS_MEASUREMENT_STATE_SUBFRAME_SYNC is set
+     *     TOW decoded     : [ 0 1week ]   : GPS_MEASUREMENT_STATE_TOW_DECODED is set
+     *
+     * However, if there is any ambiguity in integer millisecond,
+     * GPS_MEASUREMENT_STATE_MSEC_AMBIGUOUS should be set accordingly, in the 'state' field.
      */
     int64_t received_gps_tow_ns;
 
@@ -1679,6 +1703,13 @@ typedef struct {
      * This is a Mandatory value.
      */
     GpsNavigationMessageType type;
+
+    /**
+     * The status of the received navigation message.
+     * No need to send any navigation message that contains words with parity error and cannot be
+     * corrected.
+     */
+    NavigationMessageStatus status;
 
     /**
      * Message identifier.
