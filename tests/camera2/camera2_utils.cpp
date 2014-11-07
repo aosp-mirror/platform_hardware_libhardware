@@ -574,7 +574,7 @@ status_t FrameWaiter::waitForFrame(nsecs_t timeout) {
     return OK;
 }
 
-void FrameWaiter::onFrameAvailable() {
+void FrameWaiter::onFrameAvailable(const BufferItem& /* item */) {
     Mutex::Autolock lock(mMutex);
     mPendingFrames++;
     mCondition.signal();
