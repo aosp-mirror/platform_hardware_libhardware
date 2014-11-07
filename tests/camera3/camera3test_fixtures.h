@@ -68,7 +68,7 @@ class Camera3Device : public Camera3Module {
                 << "Can't open camera device";
         ASSERT_TRUE(NULL != device)
                     << "Camera open() returned a NULL device";
-        ASSERT_EQ(kVersion3_0, device->version)
+        ASSERT_LE(kVersion3_0, device->version)
                     << "The device does not support HAL3";
         cam_device_ = reinterpret_cast<camera3_device_t*>(device);
     }

@@ -23,6 +23,7 @@
 #include <fstream>
 
 #include <utils/Vector.h>
+#include <utils/KeyedVector.h>
 #include <gui/CpuConsumer.h>
 #include <ui/PixelFormat.h>
 #include <system/camera_metadata.h>
@@ -202,7 +203,9 @@ class Camera2Test: public testing::Test {
         res = sCameraModule->get_camera_info(id, &info);
         ASSERT_EQ(OK, res);
 
+        mDeviceVersion = info.device_version;
         mStaticInfo = info.static_camera_characteristics;
+        buildOutputResolutions();
 
         res = configureCameraDevice(mDevice,
                 mRequests,
@@ -241,44 +244,91 @@ class Camera2Test: public testing::Test {
         ASSERT_GT(mStreams.size(), i) << "Stream id not found:" << id;
     }
 
+    void buildOutputResolutions() {
+        status_t res;
+        if (mDeviceVersion < CAMERA_DEVICE_API_VERSION_3_2) {
+            return;
+        }
+        if (mOutputResolutions.isEmpty()) {
+            camera_metadata_ro_entry_t availableStrmConfigs;
+            res = find_camera_metadata_ro_entry(mStaticInfo,
+                    ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                    &availableStrmConfigs);
+            ASSERT_EQ(OK, res);
+            ASSERT_EQ(0u, availableStrmConfigs.count % 4);
+            for (uint32_t i = 0; i < availableStrmConfigs.count; i += 4) {
+                int32_t format = availableStrmConfigs.data.i32[i];
+                int32_t width = availableStrmConfigs.data.i32[i + 1];
+                int32_t height = availableStrmConfigs.data.i32[i + 2];
+                int32_t inOrOut = availableStrmConfigs.data.i32[i + 3];
+                if (inOrOut == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT) {
+                    int index = mOutputResolutions.indexOfKey(format);
+                    if (index < 0) {
+                        index = mOutputResolutions.add(format, new Vector<int32_t>());
+                        ASSERT_TRUE(index >= 0);
+                    }
+                    Vector<int32_t> *resolutions = mOutputResolutions.editValueAt(index);
+                    resolutions->add(width);
+                    resolutions->add(height);
+                }
+            }
+        }
+    }
+
+    void deleteOutputResolutions() {
+        for (uint32_t i = 0; i < mOutputResolutions.size(); i++) {
+            Vector<int32_t>* resolutions = mOutputResolutions.editValueAt(i);
+            delete resolutions;
+        }
+        mOutputResolutions.clear();
+    }
+
     void getResolutionList(int32_t format,
             const int32_t **list,
             size_t *count) {
-        ALOGV("Getting resolutions for format %x", format);
         status_t res;
-        if (format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
-            camera_metadata_ro_entry_t availableFormats;
-            res = find_camera_metadata_ro_entry(mStaticInfo,
-                    ANDROID_SCALER_AVAILABLE_FORMATS,
-                    &availableFormats);
+        ALOGV("Getting resolutions for format %x", format);
+        if (mDeviceVersion < CAMERA_DEVICE_API_VERSION_3_2) {
+            if (format != HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+                camera_metadata_ro_entry_t availableFormats;
+                res = find_camera_metadata_ro_entry(mStaticInfo,
+                        ANDROID_SCALER_AVAILABLE_FORMATS,
+                        &availableFormats);
+                ASSERT_EQ(OK, res);
+
+                uint32_t formatIdx;
+                for (formatIdx=0; formatIdx < availableFormats.count; formatIdx++) {
+                    if (availableFormats.data.i32[formatIdx] == format) break;
+                }
+                ASSERT_NE(availableFormats.count, formatIdx)
+                    << "No support found for format 0x" << std::hex << format;
+            }
+
+            camera_metadata_ro_entry_t availableSizes;
+            if (format == HAL_PIXEL_FORMAT_RAW_SENSOR) {
+                res = find_camera_metadata_ro_entry(mStaticInfo,
+                        ANDROID_SCALER_AVAILABLE_RAW_SIZES,
+                        &availableSizes);
+            } else if (format == HAL_PIXEL_FORMAT_BLOB) {
+                res = find_camera_metadata_ro_entry(mStaticInfo,
+                        ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
+                        &availableSizes);
+            } else {
+                res = find_camera_metadata_ro_entry(mStaticInfo,
+                        ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
+                        &availableSizes);
+            }
             ASSERT_EQ(OK, res);
 
-            uint32_t formatIdx;
-            for (formatIdx=0; formatIdx < availableFormats.count; formatIdx++) {
-                if (availableFormats.data.i32[formatIdx] == format) break;
-            }
-            ASSERT_NE(availableFormats.count, formatIdx)
-                << "No support found for format 0x" << std::hex << format;
-        }
-
-        camera_metadata_ro_entry_t availableSizes;
-        if (format == HAL_PIXEL_FORMAT_RAW_SENSOR) {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
-                    ANDROID_SCALER_AVAILABLE_RAW_SIZES,
-                    &availableSizes);
-        } else if (format == HAL_PIXEL_FORMAT_BLOB) {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
-                    ANDROID_SCALER_AVAILABLE_JPEG_SIZES,
-                    &availableSizes);
+            *list = availableSizes.data.i32;
+            *count = availableSizes.count;
         } else {
-            res = find_camera_metadata_ro_entry(mStaticInfo,
-                    ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES,
-                    &availableSizes);
+            int index = mOutputResolutions.indexOfKey(format);
+            ASSERT_TRUE(index >= 0);
+            Vector<int32_t>* resolutions = mOutputResolutions.valueAt(index);
+            *list = resolutions->array();
+            *count = resolutions->size();
         }
-        ASSERT_EQ(OK, res);
-
-        *list = availableSizes.data.i32;
-        *count = availableSizes.count;
     }
 
     status_t waitUntilDrained() {
@@ -325,11 +375,13 @@ class Camera2Test: public testing::Test {
             closeCameraDevice(&mDevice);
         }
 
+        deleteOutputResolutions();
         TearDownModule();
     }
 
     int mId;
     camera2_device    *mDevice;
+    uint32_t mDeviceVersion;
     const camera_metadata_t *mStaticInfo;
 
     MetadataQueue    mRequests;
@@ -337,11 +389,13 @@ class Camera2Test: public testing::Test {
     NotifierListener mNotifications;
 
     Vector<StreamAdapter*> mStreams;
+    KeyedVector<int32_t, Vector<int32_t>* > mOutputResolutions;
 
   private:
     static camera_module_t *sCameraModule;
     static int              sNumCameras;
     static bool            *sCameraSupportsHal2;
+
 };
 
 camera_module_t *Camera2Test::sCameraModule = NULL;
