@@ -162,26 +162,33 @@ TEST_F(CameraMetadataTest, RequiredFormats) {
 TEST_F(CameraMetadataTest, SaneResolutions) {
     TEST_EXTENSION_FORKING_INIT;
 
-    // Iff there are listed raw resolutions, the format should be available
-    int rawResolutionsCount =
-            GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_RAW_SIZES);
-    if (rawResolutionsCount > 0) {
-        EXPECT_TRUE(
-            HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
-                    HAL_PIXEL_FORMAT_RAW_SENSOR));
+    if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+        // Iff there are listed raw resolutions, the format should be available
+        int rawResolutionsCount =
+                GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_RAW_SIZES);
+        if (rawResolutionsCount > 0) {
+            EXPECT_TRUE(
+                HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
+                        HAL_PIXEL_FORMAT_RAW_SENSOR));
+        }
+
+        // Required processed sizes.
+        int processedSizeCount =
+               GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
+        EXPECT_NE(0, processedSizeCount);
+        EXPECT_EQ(0, processedSizeCount % 2); // multiple of 2 (w,h)
+
+        // Required JPEG sizes
+        int jpegSizeCount =
+                GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_JPEG_SIZES);
+        EXPECT_NE(0, jpegSizeCount);
+        EXPECT_EQ(0, jpegSizeCount % 2); // multiple of 2 (w,h)
+    } else {
+        int strmConfigCount =
+                GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS);
+        EXPECT_NE(0, strmConfigCount);
+        EXPECT_EQ(0, strmConfigCount % 4); // multiple of 4 (format,w,h,output?)
     }
-
-    // Required processed sizes.
-    int processedSizeCount =
-           GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES);
-    EXPECT_NE(0, processedSizeCount);
-    EXPECT_EQ(0, processedSizeCount % 2); // multiple of 2 (w,h)
-
-    // Required JPEG sizes
-    int jpegSizeCount =
-            GetEntryCountFromStaticTag(ANDROID_SCALER_AVAILABLE_JPEG_SIZES);
-    EXPECT_NE(0, jpegSizeCount);
-    EXPECT_EQ(0, jpegSizeCount % 2); // multiple of 2 (w,h)
 
 }
 
