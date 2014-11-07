@@ -213,7 +213,7 @@ protected:
         }
 
         // CpuConsumer::FrameAvailableListener implementation
-        virtual void onFrameAvailable() {
+        virtual void onFrameAvailable(const BufferItem& /* item */) {
             ALOGV("Frame now available (start)");
 
             Mutex::Autolock lock(mMutex);
