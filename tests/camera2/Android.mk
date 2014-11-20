@@ -35,7 +35,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/native/include \
 
 LOCAL_CFLAGS += -Wall -Wextra
-
+LOCAL_CPPFLAGS := -std=gnu++98
 LOCAL_MODULE:= camera2_test
 LOCAL_MODULE_STEM_32 := camera2_test
 LOCAL_MODULE_STEM_64 := camera2_test64
