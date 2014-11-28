@@ -227,15 +227,15 @@ void Stream::dump(int fd)
 
     dprintf(fd, "Stream ID: %d (%p)\n", mId, mStream);
     dprintf(fd, "Stream Type: %s (%d)\n", typeToString(mType), mType);
-    dprintf(fd, "Width: %"PRIu32" Height: %"PRIu32"\n", mWidth, mHeight);
+    dprintf(fd, "Width: %" PRIu32 " Height: %" PRIu32 "\n", mWidth, mHeight);
     dprintf(fd, "Stream Format: %s (%d)", formatToString(mFormat), mFormat);
     // ToDo: prettyprint usage mask flags
-    dprintf(fd, "Gralloc Usage Mask: %#"PRIx32"\n", mUsage);
-    dprintf(fd, "Max Buffer Count: %"PRIu32"\n", mMaxBuffers);
+    dprintf(fd, "Gralloc Usage Mask: %#" PRIx32 "\n", mUsage);
+    dprintf(fd, "Max Buffer Count: %" PRIu32 "\n", mMaxBuffers);
     dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
-    dprintf(fd, "Number of Buffers: %"PRIu32"\n", mNumBuffers);
+    dprintf(fd, "Number of Buffers: %" PRIu32 "\n", mNumBuffers);
     for (uint32_t i = 0; i < mNumBuffers; i++) {
-        dprintf(fd, "Buffer %"PRIu32"/%"PRIu32": %p\n", i, mNumBuffers,
+        dprintf(fd, "Buffer %" PRIu32 "/%" PRIu32 ": %p\n", i, mNumBuffers,
                 mBuffers[i]);
     }
 }
