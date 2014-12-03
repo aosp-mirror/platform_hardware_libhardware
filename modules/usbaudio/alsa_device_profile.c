@@ -58,10 +58,9 @@ extern int8_t const pcm_format_value_map[50];
 static const unsigned std_sample_rates[] =
     {48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000};
 
-void profile_init(alsa_device_profile* profile, int direction)
+static void profile_reset(alsa_device_profile* profile)
 {
     profile->card = profile->device = -1;
-    profile->direction = direction;
 
     /* Fill the attribute arrays with invalid values */
     size_t index;
@@ -83,6 +82,12 @@ void profile_init(alsa_device_profile* profile, int direction)
     profile->is_valid = false;
 }
 
+void profile_init(alsa_device_profile* profile, int direction)
+{
+    profile->direction = direction;
+    profile_reset(profile);
+}
+
 bool profile_is_initialized(alsa_device_profile* profile)
 {
     return profile->card >= 0 && profile->device >= 0;
@@ -97,7 +102,7 @@ bool profile_is_cached_for(alsa_device_profile* profile, int card, int device) {
 }
 
 void profile_decache(alsa_device_profile* profile) {
-    profile->card = profile->device = -1;
+    profile_reset(profile);
 }
 
 /*
