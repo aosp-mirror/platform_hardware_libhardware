@@ -536,6 +536,12 @@ typedef struct {
       * Success indicates that the VSC command was sent to controller
       */
     int (*read_energy_info)();
+
+    /**
+     * Native support for dumpsys function
+     * Function is synchronous and |fd| is owned by caller.
+     */
+    void (*dump)(int fd);
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
