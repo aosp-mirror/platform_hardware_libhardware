@@ -33,14 +33,6 @@
 #include "gralloc_priv.h"
 
 
-/* desktop Linux needs a little help with gettid() */
-#if defined(ARCH_X86) && !defined(HAVE_ANDROID_OS)
-#define __KERNEL__
-# include <linux/unistd.h>
-pid_t gettid() { return syscall(__NR_gettid);}
-#undef __KERNEL__
-#endif
-
 /*****************************************************************************/
 
 static int gralloc_map(gralloc_module_t const* /*module*/,
