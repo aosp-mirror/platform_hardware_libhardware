@@ -1036,9 +1036,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
     SUBMIX_ALOGV("in_read bytes=%zu", bytes);
     pthread_mutex_lock(&rsxadev->lock);
 
-    const bool output_standby_transition =
-            (in->output_standby_rec_thr != rsxadev->routes[in->route_handle].output->output_standby);
-    in->output_standby_rec_thr = rsxadev->routes[in->route_handle].output->output_standby;
+    const bool output_standby = rsxadev->routes[in->route_handle].output == NULL
+            ? true : rsxadev->routes[in->route_handle].output->output_standby;
+    const bool output_standby_transition = (in->output_standby_rec_thr != output_standby);
+    in->output_standby_rec_thr = output_standby;
 
     if (in->input_standby || output_standby_transition) {
         in->input_standby = false;
