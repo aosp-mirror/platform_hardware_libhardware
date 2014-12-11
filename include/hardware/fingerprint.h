@@ -18,6 +18,7 @@
 #define ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 
 #define FINGERPRINT_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
+#define FINGERPRINT_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
 #define FINGERPRINT_HARDWARE_MODULE_ID "fingerprint"
 
 typedef enum fingerprint_msg_type {
@@ -25,7 +26,8 @@ typedef enum fingerprint_msg_type {
     FINGERPRINT_ACQUIRED = 1,
     FINGERPRINT_PROCESSED = 2,
     FINGERPRINT_TEMPLATE_ENROLLING = 3,
-    FINGERPRINT_TEMPLATE_REMOVED = 4
+    FINGERPRINT_TEMPLATE_REMOVED = 4,
+    FINGERPRINT_AUTHENTICATED = 5
 } fingerprint_msg_type_t;
 
 typedef enum fingerprint_error {
@@ -39,36 +41,53 @@ typedef enum fingerprint_acquired_info {
     FINGERPRINT_ACQUIRED_GOOD = 0,
     FINGERPRINT_ACQUIRED_PARTIAL = 1,
     FINGERPRINT_ACQUIRED_INSUFFICIENT = 2,
-    FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 4,
-    FINGERPRINT_ACQUIRED_TOO_SLOW = 8,
-    FINGERPRINT_ACQUIRED_TOO_FAST = 16
+    FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 3,
+    FINGERPRINT_ACQUIRED_TOO_SLOW = 4,
+    FINGERPRINT_ACQUIRED_TOO_FAST = 5,
+    FINGERPRINT_ACQUIRED_VENDOR_DEFINED = 6
 } fingerprint_acquired_info_t;
 
+typedef struct fingerprint_finger_id {
+    uint32_t gid;
+    uint32_t fid;
+} fingerprint_finger_id_t;
+
+/* The progress indication may be augmented by a bitmap encoded indication
+* of what finger area is considered as collected.
+* Bit numbers mapped to physical location:
+*
+*             distal
+*        +--+--+--+--+--+
+*        | 4| 3| 2| 1| 0|
+*        | 9| 8| 7| 6| 5|
+* medial |14|13|12|11|10| lateral
+*        |19|18|17|16|15|
+*        |24|23|22|21|20|
+*        +--+--+--+--+--+
+*            proximal
+*
+*/
+typedef uint32_t finger_map_bmp;
+
+typedef enum fingerprint_enroll_msg_type {
+    FINGERPRINT_ENROLL_MSG_NONE = 0,
+    FINGERPRINT_ENROLL_MSG_PREDEFINED = 1,  /* TODO: define standard enroll cues */
+    FINGERPRINT_ENROLL_MSG_BITMAP = 2,  /* typeof(fingerprint_enroll.msg) == *finger_map_bmp */
+    FINGERPRINT_ENROLL_MSG_VENDOR = 3
+} fingerprint_enroll_msg_type_t;
+
 typedef struct fingerprint_enroll {
-    uint32_t id;
+    fingerprint_finger_id_t finger;
+    uint32_t samples_remaining;
     /* samples_remaining goes from N (no data collected, but N scans needed)
-     * to 0 (no more data is needed to build a template).
-     * The progress indication may be augmented by a bitmap encoded indication
-     * of finger area that needs to be presented by the user.
-     * Bit numbers mapped to physical location:
-     *
-     *        distal
-     *        +-+-+-+
-     *        |2|1|0|
-     *        |5|4|3|
-     * medial |8|7|6| lateral
-     *        |b|a|9|
-     *        |e|d|c|
-     *        +-+-+-+
-     *        proximal
-     *
-     */
-    uint16_t data_collected_bmp;
-    uint16_t samples_remaining;
+     * to 0 (no more data is needed to build a template). */
+    fingerprint_enroll_msg_type_t msg_type;
+    size_t msg_size;
+    void *msg;
 } fingerprint_enroll_t;
 
 typedef struct fingerprint_removed {
-    uint32_t id;
+    fingerprint_finger_id_t finger;
 } fingerprint_removed_t;
 
 typedef struct fingerprint_acquired {
@@ -76,18 +95,29 @@ typedef struct fingerprint_acquired {
 } fingerprint_acquired_t;
 
 typedef struct fingerprint_processed {
-    uint32_t id; /* 0 is a special id and means no match */
+    fingerprint_finger_id_t finger; /* all 0s is a special case and means no match */
 } fingerprint_processed_t;
+
+typedef struct fingerprint_authenticated {
+    uint32_t user_id;
+    uint32_t auth_id;
+    uint32_t timestamp;
+    uint32_t app_id;
+    uint64_t crypto_op_id;
+    uint8_t hmac[16];  /* 128-bit */
+    uint32_t auth_token_size;
+    uint8_t *auth_token;
+} fingerprint_authenticated_t;
 
 typedef struct fingerprint_msg {
     fingerprint_msg_type_t type;
     union {
-        uint64_t raw;
         fingerprint_error_t error;
         fingerprint_enroll_t enroll;
         fingerprint_removed_t removed;
         fingerprint_acquired_t acquired;
         fingerprint_processed_t processed;
+        fingerprint_authenticated_t authenticated;
     } data;
 } fingerprint_msg_t;
 
@@ -111,12 +141,14 @@ typedef struct fingerprint_device {
      * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
      *  fingerprint_msg.data.enroll.samples_remaining == 0)
      * or after timeout_sec seconds.
+     * The fingerprint template will be assigned to the group gid. User has a choice
+     * to supply the gid or set it to 0 in which case a unique group id will be generated.
      *
      * Function return: 0 if enrollment process can be successfully started
      *                 -1 otherwise. A notify() function may be called
      *                    indicating the error condition.
      */
-    int (*enroll)(struct fingerprint_device *dev, uint32_t timeout_sec);
+    int (*enroll)(struct fingerprint_device *dev, uint32_t gid, uint32_t timeout_sec);
 
     /*
      * Cancel fingerprint enroll request:
@@ -133,7 +165,9 @@ typedef struct fingerprint_device {
     /*
      * Fingerprint remove request:
      * deletes a fingerprint template.
-     * If the fingerprint id is 0 the entire template database will be removed.
+     * If the fingerprint id is 0 and the group is 0 then the entire template
+     * database will be removed. A combinaiton of fingerprint id 0 and a valid
+     * group id deletes all fingreprints in that group.
      * notify() will be called for each template deleted with
      * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
      * fingerprint_msg.data.removed.id indicating each template id removed.
@@ -141,7 +175,24 @@ typedef struct fingerprint_device {
      * Function return: 0 if fingerprint template(s) can be successfully deleted
      *                 -1 otherwise.
      */
-    int (*remove)(struct fingerprint_device *dev, uint32_t fingerprint_id);
+    int (*remove)(struct fingerprint_device *dev, fingerprint_finger_id_t finger);
+
+    /*
+     * Restricts the HAL operation to a set of fingerprints belonging to a
+     * group provided. Gid of 0 signals global operation.
+     *
+     * Function return: 0 on success
+     *                 -1 if the group does not exist.
+     */
+    int (*set_active_group)(struct fingerprint_device *dev, uint32_t gid);
+
+    /*
+     * Authenticates an operation identifed by operation_id
+     *
+     * Function return: 0 on success
+     *                 -1 if the size is out of bounds.
+     */
+    int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id);
 
     /*
      * Set notification callback:

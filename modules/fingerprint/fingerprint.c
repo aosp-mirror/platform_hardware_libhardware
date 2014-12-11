@@ -33,12 +33,27 @@ static int fingerprint_close(hw_device_t *dev)
 }
 
 static int fingerprint_enroll(struct fingerprint_device __unused *dev,
+                                uint32_t __unused gid,
                                 uint32_t __unused timeout_sec) {
     return FINGERPRINT_ERROR;
 }
 
+static int fingerprint_enroll_cancel(struct fingerprint_device __unused *dev) {
+    return FINGERPRINT_ERROR;
+}
+
 static int fingerprint_remove(struct fingerprint_device __unused *dev,
-                                uint32_t __unused fingerprint_id) {
+                                fingerprint_finger_id_t __unused fingerprint_id) {
+    return FINGERPRINT_ERROR;
+}
+
+static int fingerprint_set_active_group(struct fingerprint_device __unused *dev,
+                                        uint32_t __unused gid) {
+    return FINGERPRINT_ERROR;
+}
+
+static int fingerprint_authenticate(struct fingerprint_device __unused *dev,
+                                    uint64_t __unused operation_id) {
     return FINGERPRINT_ERROR;
 }
 
@@ -61,12 +76,15 @@ static int fingerprint_open(const hw_module_t* module, const char __unused *id,
     memset(dev, 0, sizeof(fingerprint_device_t));
 
     dev->common.tag = HARDWARE_DEVICE_TAG;
-    dev->common.version = HARDWARE_MODULE_API_VERSION(1, 0);
+    dev->common.version = FINGERPRINT_MODULE_API_VERSION_2_0;
     dev->common.module = (struct hw_module_t*) module;
     dev->common.close = fingerprint_close;
 
     dev->enroll = fingerprint_enroll;
+    dev->enroll_cancel = fingerprint_enroll_cancel;
     dev->remove = fingerprint_remove;
+    dev->set_active_group = fingerprint_set_active_group;
+    dev->authenticate = fingerprint_authenticate;
     dev->set_notify = set_notify_callback;
     dev->notify = NULL;
 
@@ -81,7 +99,7 @@ static struct hw_module_methods_t fingerprint_module_methods = {
 fingerprint_module_t HAL_MODULE_INFO_SYM = {
     .common = {
         .tag                = HARDWARE_MODULE_TAG,
-        .module_api_version = FINGERPRINT_MODULE_API_VERSION_1_0,
+        .module_api_version = FINGERPRINT_MODULE_API_VERSION_2_0,
         .hal_api_version    = HARDWARE_HAL_API_VERSION,
         .id                 = FINGERPRINT_HARDWARE_MODULE_ID,
         .name               = "Demo Fingerprint HAL",
