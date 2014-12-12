@@ -356,7 +356,7 @@ public:
             ASSERT_EQ(OK, request.update(ANDROID_SENSOR_EXPOSURE_TIME, &exposures[i], 1));
             ASSERT_EQ(OK, request.update(ANDROID_SENSOR_SENSITIVITY, &sensitivities[i], 1));
             ASSERT_EQ(OK, mDevice->capture(request));
-            ALOGV("Submitting request with: id %d with exposure %"PRId64", sensitivity %d",
+            ALOGV("Submitting request with: id %d with exposure %" PRId64 ", sensitivity %d",
                     *requestIdStart, exposures[i], sensitivities[i]);
             if (CAMERA_MULTI_STREAM_DEBUGGING) {
                 request.dump(STDOUT_FILENO);
@@ -529,7 +529,7 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
         minFrameDuration = DEFAULT_FRAME_DURATION;
     }
 
-    ALOGV("targeted minimal frame duration is: %"PRId64"ns", minFrameDuration);
+    ALOGV("targeted minimal frame duration is: %" PRId64 "ns", minFrameDuration);
 
     data = &(availableJpegSizes.data.i32[0]);
     count = availableJpegSizes.count;
@@ -649,7 +649,7 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
         ASSERT_EQ(OK, previewRequest.update(
                 ANDROID_SENSOR_EXPOSURE_TIME,
                 &exposures[i], 1));
-        ALOGV("Submitting preview request %zu with exposure %"PRId64,
+        ALOGV("Submitting preview request %zu with exposure %" PRId64,
                 i, exposures[i]);
 
         ASSERT_EQ(OK, mDevice->setStreamingRequest(previewRequest));
