@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_LOGGING_H
-#define ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_LOGGING_H
+#ifndef ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_AUDIO_FORMAT_H
+#define ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_AUDIO_FORMAT_H
+
+#include <system/audio.h>
 
 #include <tinyalsa/asoundlib.h>
 
-void log_pcm_mask(const char* mask_name, struct pcm_mask* mask);
-void log_pcm_params(struct pcm_params * alsa_hw_params);
-void log_pcm_config(struct pcm_config * config, const char* label);
+enum pcm_format get_pcm_format_for_mask(struct pcm_mask* mask);
 
-#endif /* ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_LOGGING_H */
+#endif /* ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_AUDIO_FORMAT_H */

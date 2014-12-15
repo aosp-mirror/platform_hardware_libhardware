@@ -17,7 +17,7 @@
 #define LOG_TAG "audio_format"
 /*#define LOG_NDEBUG 0*/
 
-#include "format.h"
+#include "audio_format.h"
 
 #include <tinyalsa/asoundlib.h>
 

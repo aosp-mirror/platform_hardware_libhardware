@@ -22,7 +22,7 @@
 
 #include "alsa_device_proxy.h"
 
-#include "logging.h"
+#include "audio_logging.h"
 
 #define DEFAULT_PERIOD_SIZE     1024
 #define DEFAULT_PERIOD_COUNT    2

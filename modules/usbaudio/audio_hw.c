@@ -51,7 +51,7 @@ static const unsigned k_force_channels = 0;
 
 #include "alsa_device_profile.h"
 #include "alsa_device_proxy.h"
-#include "logging.h"
+#include "audio_logging.h"
 
 #define DEFAULT_INPUT_BUFFER_SIZE_MS 20
 

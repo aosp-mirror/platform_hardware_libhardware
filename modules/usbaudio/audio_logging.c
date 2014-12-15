@@ -21,7 +21,7 @@
 
 #include <log/log.h>
 
-#include "logging.h"
+#include "audio_logging.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 
