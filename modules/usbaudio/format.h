@@ -21,7 +21,6 @@
 
 #include <tinyalsa/asoundlib.h>
 
-audio_format_t get_format_for_mask(struct pcm_mask* mask);
 enum pcm_format get_pcm_format_for_mask(struct pcm_mask* mask);
 
 #endif /* ANDROID_HARDWARE_LIBHARDWARE_MODULES_USBAUDIO_FORMAT_H */

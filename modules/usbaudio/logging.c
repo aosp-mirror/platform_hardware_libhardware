@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "usb_logging"
+#define LOG_TAG "audio_logging"
 /*#define LOG_NDEBUG 0*/
 
 #include <string.h>
