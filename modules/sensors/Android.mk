@@ -37,7 +37,6 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
 
-LOCAL_PRELINK_MODULE := false
 LOCAL_STRIP_MODULE := false
 
 include $(BUILD_SHARED_LIBRARY)
