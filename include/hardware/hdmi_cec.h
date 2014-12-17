@@ -390,7 +390,7 @@ typedef struct hdmi_cec_device {
      *
      * Returns 0 on success or -errno on error.
      */
-    void (*set_audio_return_channel)(const struct hdmi_cec_device* dev, int flag);
+    void (*set_audio_return_channel)(const struct hdmi_cec_device* dev, int port_id, int flag);
 
     /*
      * (*is_connected)() returns the connection status of the specified port.
