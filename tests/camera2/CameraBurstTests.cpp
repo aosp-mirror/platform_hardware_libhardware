@@ -49,7 +49,7 @@
 #define dout if (0) std::cout
 #endif
 
-#define WARN_UNLESS(condition) (!(condition) ? (std::cerr) : (std::ostream(NULL)) << "Warning: ")
+#define WARN_UNLESS(condition) if(!(condition)) std::cerr << "Warning: "
 #define WARN_LE(exp, act) WARN_UNLESS((exp) <= (act))
 #define WARN_LT(exp, act) WARN_UNLESS((exp) < (act))
 #define WARN_GT(exp, act) WARN_UNLESS((exp) > (act))
@@ -219,7 +219,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
         CameraMetadata tmpRequest = previewRequest;
         ASSERT_EQ(OK, tmpRequest.update(ANDROID_SENSOR_EXPOSURE_TIME,
                                         &exposures[i], 1));
-        ALOGV("Submitting capture request %d with exposure %"PRId64, i,
+        ALOGV("Submitting capture request %d with exposure %" PRId64, i,
             exposures[i]);
         dout << "Capture request " << i << " exposure is "
              << (exposures[i]/1e6f) << std::endl;
@@ -231,7 +231,7 @@ TEST_F(CameraBurstTest, ManualExposureControl) {
     float brightnesses[CAMERA_FRAME_BURST_COUNT];
     // Get each frame (metadata) and then the buffer. Calculate brightness.
     for (int i = 0; i < CAMERA_FRAME_BURST_COUNT; ++i) {
-        ALOGV("Reading capture request %d with exposure %"PRId64, i, exposures[i]);
+        ALOGV("Reading capture request %d with exposure %" PRId64, i, exposures[i]);
         ASSERT_EQ(OK, mDevice->waitForNextFrame(CAMERA_FRAME_TIMEOUT));
         ALOGV("Reading capture request-1 %d", i);
         CaptureResult result;
@@ -618,7 +618,7 @@ TEST_F(CameraBurstTest, VariableBurst) {
                                         &durationList[i], 1));
         ASSERT_EQ(OK, tmpRequest.update(ANDROID_SENSOR_SENSITIVITY,
                                         &sensitivityList[i], 1));
-        ALOGV("Submitting capture %zu with exposure %"PRId64", frame duration %"PRId64", sensitivity %d",
+        ALOGV("Submitting capture %zu with exposure %" PRId64 ", frame duration %" PRId64 ", sensitivity %d",
                 i, expList[i], durationList[i], sensitivityList[i]);
         dout << "Capture request " << i <<
                 ": exposure is " << (expList[i]/1e6f) << " ms" <<
