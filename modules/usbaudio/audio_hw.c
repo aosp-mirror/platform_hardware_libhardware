@@ -1037,6 +1037,8 @@ static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
         }
     }
 
+    str_parms_destroy(parms);
+
     return 0;
 }
 
