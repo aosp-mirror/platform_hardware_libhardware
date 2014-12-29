@@ -20,6 +20,8 @@
 
 #include <log/log.h>
 
+#include <errno.h>
+
 #include "alsa_device_proxy.h"
 
 #include "logging.h"
