@@ -344,9 +344,10 @@ struct effect_interface_s {
     //    Output:
     //          returned value: 0       successful operation
     //                          -EINVAL invalid interface handle or
-    //                                  invalid command/reply size or format according to command code
-    //              The return code should be restricted to indicate problems related to the this
-    //              API specification. Status related to the execution of a particular command should be
+    //                                  invalid command/reply size or format according to
+    //                                  command code
+    //              The return code should be restricted to indicate problems related to this API
+    //              specification. Status related to the execution of a particular command should be
     //              indicated as part of the reply field.
     //
     //          *pReplyData updated with command response
@@ -937,11 +938,12 @@ typedef struct audio_effect_library_s {
     //
     //    Input:
     //          uuid:    pointer to the effect uuid.
-    //          sessionId:  audio session to which this effect instance will be attached. All effects
-    //              created with the same session ID are connected in series and process the same signal
-    //              stream. Knowing that two effects are part of the same effect chain can help the
-    //              library implement some kind of optimizations.
-    //          ioId:   identifies the output or input stream this effect is directed to at audio HAL.
+    //          sessionId:  audio session to which this effect instance will be attached.
+    //              All effects created with the same session ID are connected in series and process
+    //              the same signal stream. Knowing that two effects are part of the same effect
+    //              chain can help the library implement some kind of optimizations.
+    //          ioId:   identifies the output or input stream this effect is directed to in
+    //              audio HAL.
     //              For future use especially with tunneled HW accelerated effects
     //
     //    Input/Output:

@@ -278,7 +278,8 @@ static unsigned profile_enum_sample_formats(alsa_device_profile* profile, struct
     return num_written;
 }
 
-static unsigned profile_enum_channel_counts(alsa_device_profile* profile, unsigned min, unsigned max)
+static unsigned profile_enum_channel_counts(alsa_device_profile* profile, unsigned min,
+        unsigned max)
 {
     static const unsigned std_channel_counts[] = {8, 4, 2, 1};
 
