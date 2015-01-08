@@ -20,6 +20,7 @@
 #define ANDROID_INCLUDE_CAMERA_COMMON_H
 
 #include <stdint.h>
+#include <stdbool.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 #include <cutils/native_handle.h>
@@ -85,6 +86,19 @@ __BEGIN_DECLS
  *   The standard hardware module open call (common.methods->open) continues
  *   to open the camera device with the latest supported version, which is
  *   also the version listed in camera_info_t.device_version.
+ *
+ *******************************************************************************
+ * Version: 2.4 [CAMERA_MODULE_API_VERSION_2_4]
+ *
+ *   This camera module version adds torch mode support. The framework can
+ *   use it to turn on torch mode for any camera device that has a flash unit,
+ *   without opening a camera device. The camera device has a higher priority
+ *   accessing the flash unit than the camera module; opening a camera device
+ *   will turn off the torch if it had been enabled through the module
+ *   interface. When there are any resource conflicts, such as open() is called
+ *   to open a camera device, the camera HAL module must notify the framework
+ *   through the torch mode status callback that the torch mode has been turned
+ *   off.
  */
 
 /**
@@ -100,8 +114,9 @@ __BEGIN_DECLS
 #define CAMERA_MODULE_API_VERSION_2_1 HARDWARE_MODULE_API_VERSION(2, 1)
 #define CAMERA_MODULE_API_VERSION_2_2 HARDWARE_MODULE_API_VERSION(2, 2)
 #define CAMERA_MODULE_API_VERSION_2_3 HARDWARE_MODULE_API_VERSION(2, 3)
+#define CAMERA_MODULE_API_VERSION_2_4 HARDWARE_MODULE_API_VERSION(2, 4)
 
-#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_3
+#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_4
 
 /**
  * All device versions <= HARDWARE_DEVICE_API_VERSION(1, 0xFF) must be treated
@@ -234,10 +249,87 @@ typedef enum camera_device_status {
 } camera_device_status_t;
 
 /**
+ * torch_mode_status_t:
+ *
+ * The current status of the torch mode, as provided by the HAL through the
+ * camera_module_callbacks.torch_mode_status_change() call.
+ *
+ * The torch mode status of a camera device is applicable only when the camera
+ * device is present. The framework will not call set_torch_mode() to turn on
+ * torch mode of a camera device if the camera device is not present. At module
+ * load time, the framework will assume torch modes are in the
+ * TORCH_MODE_STATUS_AVAILABLE state if the camera device is present and
+ * android.flash.info.available is reported as true via get_camera_info() call.
+ *
+ * The behaviors of the camera HAL module that the framework expects in the
+ * following situations when a camera device's status changes:
+ *  1. A previously-disconnected camera device becomes connected.
+ *      After camera_module_callbacks::camera_device_status_change() is invoked
+ *      to inform the framework that the camera device is present, the framework
+ *      will assume the camera device's torch mode is in
+ *      TORCH_MODE_STATUS_AVAILABLE state. The camera HAL module does not need
+ *      to invoke camera_module_callbacks::torch_mode_status_change() unless the
+ *      flash unit is unavailable to use by set_torch_mode().
+ *
+ *  2. A previously-connected camera becomes disconnected.
+ *      After camera_module_callbacks::camera_device_status_change() is invoked
+ *      to inform the framework that the camera device is not present, the
+ *      framework will not call set_torch_mode() for the disconnected camera
+ *      device until its flash unit becomes available again. The camera HAL
+ *      module does not need to invoke
+ *      camera_module_callbacks::torch_mode_status_change() separately to inform
+ *      that the flash unit has become unavailable.
+ *
+ *  3. open() is called to open a camera device.
+ *      The camera HAL module must invoke
+ *      camera_module_callbacks::torch_mode_status_change() for all flash units
+ *      that have entered TORCH_MODE_STATUS_RESOURCE_BUSY state and can not be
+ *      turned on by calling set_torch_mode() anymore due to this open() call.
+ *
+ *  4. close() is called to close a camera device.
+ *      The camera HAL module must invoke
+ *      camera_module_callbacks::torch_mode_status_change() for all flash units
+ *      that have entered TORCH_MODE_STATUS_AVAILABLE state and can be turned
+ *      on by calling set_torch_mode() again because of enough resources freed
+ *      up by this close() call.
+ *
+ *  Note that the framework calling set_torch_mode() should not trigger any
+ *  callbacks.
+ */
+typedef enum torch_mode_status {
+    /**
+     * The flash unit is available and the torch mode can be turned on by
+     * calling set_torch_mode(). By default, the framework will assume all
+     * flash units of all present camera devices are in this state if
+     * android.flash.info.available is reported as true via get_camera_info()
+     * call.
+     */
+    TORCH_MODE_STATUS_AVAILABLE = 0,
+
+    /**
+     * The flash unit is no longer available and the torch mode can not be
+     * turned on by calling set_torch_mode(). If the torch mode is on, it
+     * will be turned off by HAL before HAL calls torch_mode_status_change().
+     */
+    TORCH_MODE_STATUS_RESOURCE_BUSY = 1,
+
+} torch_mode_status_t;
+
+/**
  * Callback functions for the camera HAL module to use to inform the framework
- * of changes to the camera subsystem. These are called only by HAL modules
- * implementing version CAMERA_MODULE_API_VERSION_2_1 or higher of the HAL
- * module API interface.
+ * of changes to the camera subsystem.
+ *
+ * Version information (based on camera_module_t.common.module_api_version):
+ *
+ * Each callback is called only by HAL modules implementing the indicated
+ * version or higher of the HAL module API interface.
+ *
+ *  CAMERA_MODULE_API_VERSION_2_1:
+ *    camera_device_status_change()
+ *
+ *  CAMERA_MODULE_API_VERSION_2_4:
+ *    torch_mode_status_change()
+
  */
 typedef struct camera_module_callbacks {
 
@@ -249,6 +341,8 @@ typedef struct camera_module_callbacks {
      * camera devices are in the CAMERA_DEVICE_STATUS_PRESENT state. The HAL
      * must call this method to inform the framework of any initially
      * NOT_PRESENT devices.
+     *
+     * This callback is added for CAMERA_MODULE_API_VERSION_2_1.
      *
      * camera_module_callbacks: The instance of camera_module_callbacks_t passed
      *   to the module with set_callbacks.
@@ -262,6 +356,30 @@ typedef struct camera_module_callbacks {
     void (*camera_device_status_change)(const struct camera_module_callbacks*,
             int camera_id,
             int new_status);
+
+    /**
+     * torch_mode_status_change:
+     *
+     * Callback to the framework to indicate that the state of the torch mode
+     * of the flash unit associated with a specific camera device has changed.
+     * At module load time, the framework will assume the torch modes are in
+     * the TORCH_MODE_STATUS_AVAILABLE state if android.flash.info.available
+     * is reported as true via get_camera_info() call.
+     *
+     * This callback is added for CAMERA_MODULE_API_VERSION_2_4.
+     *
+     * camera_module_callbacks: The instance of camera_module_callbacks_t
+     *   passed to the module with set_callbacks.
+     *
+     * camera_id: The ID of camera device whose flash unit has a new torch mode
+     *   status.
+     *
+     * new_status: The new status code, one of the torch_mode_status_t enums.
+     */
+    void (*torch_mode_status_change)(const struct camera_module_callbacks*,
+            const char* camera_id,
+            int new_status);
+
 
 } camera_module_callbacks_t;
 
@@ -425,8 +543,51 @@ typedef struct camera_module {
     int (*open_legacy)(const struct hw_module_t* module, const char* id,
             uint32_t halVersion, struct hw_device_t** device);
 
+    /**
+     * set_torch_mode:
+     *
+     * Turn on or off the torch mode of the flash unit associated with a given
+     * camera ID. This function is blocking until the operation completes or
+     * fails.
+     *
+     * The camera device has a higher priority accessing the flash unit. When
+     * there are any resource conflicts, such as open() is called to open a
+     * camera device, HAL module must notify the framework through
+     * camera_module_callbacks.torch_mode_status_change() that the
+     * torch mode has been turned off and the torch mode state has become
+     * TORCH_MODE_STATUS_RESOURCE_BUSY. When resources to turn on torch mode
+     * become available again, HAL module must notify the framework through
+     * camera_module_callbacks.torch_mode_status_change() that the torch mode
+     * state has become available for set_torch_mode() to be called.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3:
+     *   Not provided by HAL module. Framework will not call this function.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4:
+     *   Valid to be called by the framework.
+     *
+     * Return values:
+     *
+     * 0:           On a successful operation.
+     *
+     * -ENOSYS:     The camera device does not support this operation. It is
+     *              returned if and only if android.flash.info.available is
+     *              false.
+     *
+     * -EBUSY:      The flash unit or the resource needed to turn on the torch
+     *              mode is busy, typically because the camera device is already
+     *              in use, or some other camera device is using enough
+     *              resources to make using the flash unit not possible.
+     *
+     * -EINVAL:     camera_id is invalid.
+     *
+     */
+    int (*set_torch_mode)(const char* camera_id, bool on);
+
     /* reserved for future use */
-    void* reserved[7];
+    void* reserved[6];
 } camera_module_t;
 
 __END_DECLS
