@@ -775,6 +775,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     size_t num_read_buff_bytes = 0;
     void * read_buff = buffer;
     void * out_buff = buffer;
+    int ret = 0;
 
     struct stream_in * in = (struct stream_in *)stream;
 
@@ -824,7 +825,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         read_buff = in->conversion_buffer;
     }
 
-    if (proxy_read(&in->proxy, read_buff, num_read_buff_bytes) == 0) {
+    ret = proxy_read(&in->proxy, read_buff, num_read_buff_bytes);
+    if (ret == 0) {
         /*
          * Do any conversions necessary to send the data in the format specified to/by the HAL
          * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
@@ -865,6 +867,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         /* no need to acquire in->dev->lock to read mic_muted here as we don't change its state */
         if (num_read_buff_bytes > 0 && in->dev->mic_muted)
             memset(buffer, 0, num_read_buff_bytes);
+    } else if (ret == -ENODEV) {
+            num_read_buff_bytes = 0; //reset the  value after USB headset is unplugged
     }
 
 err:
