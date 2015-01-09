@@ -32,7 +32,7 @@
 void proxy_prepare(alsa_device_proxy * proxy, alsa_device_profile* profile,
                    struct pcm_config * config)
 {
-    ALOGV("proxy_prepare()");
+    ALOGV("proxy_prepare(c:%d, d:%d)", profile->card, profile->device);
 
     proxy->profile = profile;
 
@@ -70,14 +70,18 @@ int proxy_open(alsa_device_proxy * proxy)
     ALOGV("proxy_open(card:%d device:%d %s)", profile->card, profile->device,
           profile->direction == PCM_OUT ? "PCM_OUT" : "PCM_IN");
 
+    if (profile->card < 0 || profile->device < 0) {
+        return -EINVAL;
+    }
+
     proxy->pcm = pcm_open(profile->card, profile->device, profile->direction, &proxy->alsa_config);
     if (proxy->pcm == NULL) {
         return -ENOMEM;
     }
 
     if (!pcm_is_ready(proxy->pcm)) {
-        ALOGE("[%s] proxy_open() pcm_open() failed: %s", LOG_TAG, pcm_get_error(proxy->pcm));
-#ifdef LOG_PCM_PARAMS
+        ALOGE("  proxy_open() pcm_open() failed: %s", pcm_get_error(proxy->pcm));
+#if defined(LOG_PCM_PARAMS)
         log_pcm_config(&proxy->alsa_config, "config");
 #endif
         pcm_close(proxy->pcm);

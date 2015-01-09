@@ -184,10 +184,40 @@ static size_t convert_32_to_16(const int32_t * in_buff, size_t num_in_samples, s
     return num_in_samples * 2;
 }
 
+/*
+ * Extract the card and device numbers from the supplied key/value pairs.
+ *   kvpairs    A null-terminated string containing the key/value pairs or card and device.
+ *              i.e. "card=1;device=42"
+ *   card   A pointer to a variable to receive the parsed-out card number.
+ *   device A pointer to a variable to receive the parsed-out device number.
+ * NOTE: The variables pointed to by card and device return -1 (undefined) if the
+ *  associated key/value pair is not found in the provided string.
+ */
+static void parse_card_device_params(const char *kvpairs, int *card, int *device)
+{
+    struct str_parms * parms = str_parms_create_str(kvpairs);
+    char value[32];
+    int param_val;
+
+    // initialize to "undefined" state.
+    *card = -1;
+    *device = -1;
+
+    param_val = str_parms_get_str(parms, "card", value, sizeof(value));
+    if (param_val >= 0) {
+        *card = atoi(value);
+    }
+
+    param_val = str_parms_get_str(parms, "device", value, sizeof(value));
+    if (param_val >= 0) {
+        *device = atoi(value);
+    }
+
+    str_parms_destroy(parms);
+}
+
 static char * device_get_parameters(alsa_device_profile * profile, const char * keys)
 {
-    ALOGV("usb:audio_hw::device_get_parameters() keys:%s", keys);
-
     if (profile->card < 0 || profile->device < 0) {
         return strdup("");
     }
@@ -311,24 +341,15 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     struct stream_out *out = (struct stream_out *)stream;
 
-    char value[32];
-    int param_val;
     int routing = 0;
     int ret_value = 0;
     int card = -1;
     int device = -1;
 
-    struct str_parms * parms = str_parms_create_str(kvpairs);
     pthread_mutex_lock(&out->dev->lock);
     pthread_mutex_lock(&out->lock);
 
-    param_val = str_parms_get_str(parms, "card", value, sizeof(value));
-    if (param_val >= 0)
-        card = atoi(value);
-
-    param_val = str_parms_get_str(parms, "device", value, sizeof(value));
-    if (param_val >= 0)
-        device = atoi(value);
+    parse_card_device_params(kvpairs, &card, &device);
 
     if (card >= 0 && device >= 0 && !profile_is_cached_for(out->profile, card, device)) {
         /* cannot read pcm device info if playback is active */
@@ -349,7 +370,6 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     pthread_mutex_unlock(&out->lock);
     pthread_mutex_unlock(&out->dev->lock);
-    str_parms_destroy(parms);
 
     return ret_value;
 }
@@ -480,10 +500,11 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out,
-                                   const char *address __unused)
+                                   const char *address /*__unused*/)
 {
-    ALOGV("usb:audio_hw::out adev_open_output_stream() handle:0x%X, device:0x%X, flags:0x%X",
-          handle, devices, flags);
+    ALOGV("usb:audio_hw::out adev_open_output_stream()"
+          "handle:0x%X, device:0x%X, flags:0x%X, addr:%s",
+          handle, devices, flags, address);
 
     struct audio_device *adev = (struct audio_device *)dev;
 
@@ -514,12 +535,19 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
     out->dev = adev;
-
+    pthread_mutex_lock(&adev->lock);
     out->profile = &adev->out_profile;
 
     // build this to hand to the alsa_device_proxy
     struct pcm_config proxy_config;
     memset(&proxy_config, 0, sizeof(proxy_config));
+
+    /* Pull out the card/device pair */
+    parse_card_device_params(address, &(out->profile->card), &(out->profile->device));
+
+    profile_read_device_info(out->profile);
+
+    pthread_mutex_unlock(&adev->lock);
 
     int ret = 0;
 
@@ -585,8 +613,9 @@ err_open:
 static void adev_close_output_stream(struct audio_hw_device *dev,
                                      struct audio_stream_out *stream)
 {
-    ALOGV("usb:audio_hw::out adev_close_output_stream()");
     struct stream_out *out = (struct stream_out *)stream;
+    ALOGV("usb:audio_hw::out adev_close_output_stream(c:%d d:%d)",
+          out->profile->card, out->profile->device);
 
     /* Close the pcm device */
     out_standby(&stream->common);
@@ -691,19 +720,10 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     int card = -1;
     int device = -1;
 
-    struct str_parms * parms = str_parms_create_str(kvpairs);
-
     pthread_mutex_lock(&in->dev->lock);
     pthread_mutex_lock(&in->lock);
 
-    /* Device Connection Message ("card=1,device=0") */
-    param_val = str_parms_get_str(parms, "card", value, sizeof(value));
-    if (param_val >= 0)
-        card = atoi(value);
-
-    param_val = str_parms_get_str(parms, "device", value, sizeof(value));
-    if (param_val >= 0)
-        device = atoi(value);
+    parse_card_device_params(kvpairs, &card, &device);
 
     if (card >= 0 && device >= 0 && !profile_is_cached_for(in->profile, card, device)) {
         /* cannot read pcm device info if playback is active */
@@ -724,8 +744,6 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     pthread_mutex_unlock(&in->lock);
     pthread_mutex_unlock(&in->dev->lock);
-
-    str_parms_destroy(parms);
 
     return ret_value;
 }
@@ -888,7 +906,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in,
                                   audio_input_flags_t flags __unused,
-                                  const char *address __unused,
+                                  const char *address /*__unused*/,
                                   audio_source_t source __unused)
 {
     ALOGV("usb: in adev_open_input_stream() rate:%" PRIu32 ", chanMask:0x%" PRIX32 ", fmt:%" PRIu8,
@@ -919,11 +937,18 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
 
     in->dev = (struct audio_device *)dev;
+    pthread_mutex_lock(&in->dev->lock);
 
     in->profile = &in->dev->in_profile;
 
     struct pcm_config proxy_config;
     memset(&proxy_config, 0, sizeof(proxy_config));
+
+    /* Pull out the card/device pair */
+    parse_card_device_params(address, &(in->profile->card), &(in->profile->device));
+
+    profile_read_device_info(in->profile);
+    pthread_mutex_unlock(&in->dev->lock);
 
     /* Rate */
     if (config->sample_rate == 0) {
