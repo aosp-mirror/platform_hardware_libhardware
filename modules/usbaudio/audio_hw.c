@@ -852,6 +852,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
                 num_read_buff_bytes =
                     convert_32_to_16(read_buff, num_read_buff_bytes / 4, out_buff);
             } else {
+                LOG_ALWAYS_FATAL("Unsupported format");
+                num_read_buff_bytes = 0;
                 goto err;
             }
         }
@@ -875,6 +877,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         /* no need to acquire in->dev->lock to read mic_muted here as we don't change its state */
         if (num_read_buff_bytes > 0 && in->dev->mic_muted)
             memset(buffer, 0, num_read_buff_bytes);
+    } else {
+        num_read_buff_bytes = 0;
     }
 
 err:
