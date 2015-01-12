@@ -90,15 +90,23 @@ __BEGIN_DECLS
  *******************************************************************************
  * Version: 2.4 [CAMERA_MODULE_API_VERSION_2_4]
  *
- *   This camera module version adds torch mode support. The framework can
- *   use it to turn on torch mode for any camera device that has a flash unit,
- *   without opening a camera device. The camera device has a higher priority
- *   accessing the flash unit than the camera module; opening a camera device
- *   will turn off the torch if it had been enabled through the module
- *   interface. When there are any resource conflicts, such as open() is called
- *   to open a camera device, the camera HAL module must notify the framework
- *   through the torch mode status callback that the torch mode has been turned
- *   off.
+ * This camera module version adds below API changes:
+ *
+ * 1. Torch mode support. The framework can use it to turn on torch mode for
+ *    any camera device that has a flash unit, without opening a camera device. The
+ *    camera device has a higher priority accessing the flash unit than the camera
+ *    module; opening a camera device will turn off the torch if it had been enabled
+ *    through the module interface. When there are any resource conflicts, such as
+ *    open() is called to open a camera device, the camera HAL module must notify the
+ *    framework through the torch mode status callback that the torch mode has been
+ *    turned off.
+ *
+ * 2. External camera (e.g. USB hot-plug camera) support. The API updates specify that
+ *    the camera static info is only available when camera is connected and ready to
+ *    use for external hot-plug cameras. Calls to get static info will be invalid
+ *    calls when camera status is not CAMERA_DEVICE_STATUS_PRESENT. The frameworks
+ *    will only count on device status change callbacks to manage the available external
+ *    camera list.
  */
 
 /**
@@ -140,11 +148,19 @@ typedef struct camera_metadata camera_metadata_t;
 
 typedef struct camera_info {
     /**
-     * The direction that the camera faces to. It should be CAMERA_FACING_BACK
-     * or CAMERA_FACING_FRONT.
+     * The direction that the camera faces to. See system/core/include/system/camera.h
+     * for camera facing definitions.
      *
-     * Version information:
-     *   Valid in all camera_module versions
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   It should be CAMERA_FACING_BACK or CAMERA_FACING_FRONT.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *   It should be CAMERA_FACING_BACK, CAMERA_FACING_FRONT or
+     *   CAMERA_FACING_EXTERNAL.
      */
     int facing;
 
@@ -160,8 +176,16 @@ typedef struct camera_info {
      * top side of a front-facing camera sensor is aligned with the right of the
      * screen, the value should be 270.
      *
-     * Version information:
-     *   Valid in all camera_module versions
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   Valid in all camera_module versions.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *   Valid if camera facing is CAMERA_FACING_BACK or CAMERA_FACING_FRONT,
+     *   not valid if camera facing is CAMERA_FACING_EXTERNAL.
      */
     int orientation;
 
@@ -183,9 +207,9 @@ typedef struct camera_info {
     uint32_t device_version;
 
     /**
-     * The camera's fixed characteristics, which include all camera metadata in
-     * the android.*.info.* sections. This should be a sorted metadata buffer,
-     * and may not be modified or freed by the caller. The pointer should remain
+     * The camera's fixed characteristics, which include all static camera metadata
+     * specified in system/media/camera/docs/docs.html. This should be a sorted metadata
+     * buffer, and may not be modified or freed by the caller. The pointer should remain
      * valid for the lifetime of the camera module, and values in it may not
      * change after it is returned by get_camera_info().
      *
@@ -226,23 +250,51 @@ typedef struct camera_info {
 typedef enum camera_device_status {
     /**
      * The camera device is not currently connected, and opening it will return
-     * failure. Calls to get_camera_info must still succeed, and provide the
-     * same information it would if the camera were connected
+     * failure.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   Calls to get_camera_info must still succeed, and provide the same information
+     *   it would if the camera were connected.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4:
+     *
+     *   The camera device at this status must return -EINVAL for get_camera_info call,
+     *   as the device is not connected.
      */
     CAMERA_DEVICE_STATUS_NOT_PRESENT = 0,
 
     /**
-     * The camera device is connected, and opening it will succeed. The
-     * information returned by get_camera_info cannot change due to this status
-     * change. By default, the framework will assume all devices are in this
-     * state.
+     * The camera device is connected, and opening it will succeed.
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   The information returned by get_camera_info cannot change due to this status
+     *   change. By default, the framework will assume all devices are in this state.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4:
+     *
+     *   The information returned by get_camera_info will become valid after a device's
+     *   status changes to this. By default, the framework will assume all devices are in
+     *   this state.
      */
     CAMERA_DEVICE_STATUS_PRESENT = 1,
 
     /**
      * The camera device is connected, but it is undergoing an enumeration and
-     * so opening the device will return -EBUSY. Calls to get_camera_info
-     * must still succeed, as if the camera was in the PRESENT status.
+     * so opening the device will return -EBUSY.
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   Calls to get_camera_info must still succeed, as if the camera was in the
+     *   PRESENT status.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4:
+     *
+     *   The camera device at this status must return -EINVAL for get_camera_info for call,
+     *   as the device is not ready.
      */
     CAMERA_DEVICE_STATUS_ENUMERATING = 2,
 
@@ -422,8 +474,21 @@ typedef struct camera_module {
      * simply the number converted to a string. That is, "0" for camera ID 0,
      * "1" for camera ID 1.
      *
-     * The value here must be static, and cannot change after the first call to
-     * this method
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *   The value here must be static, and cannot change after the first call
+     *   to this method.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *   The value here must be static, and must count only built-in cameras,
+     *   which have CAMERA_FACING_BACK or CAMERA_FACING_FRONT camera facing values
+     *   (camera_info.facing). The HAL must not include the external cameras
+     *   (camera_info.facing == CAMERA_FACING_EXTERNAL) into the return value
+     *   of this call. Frameworks will use camera_device_status_change callback
+     *   to manage number of external cameras.
      */
     int (*get_number_of_cameras)(void);
 
@@ -442,6 +507,14 @@ typedef struct camera_module {
      *
      * -EINVAL:     The input arguments are invalid, i.e. the id is invalid,
      *              and/or the module is invalid.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *   When a camera is disconnected, its camera id becomes invalid. Calling this
+     *   this method with this invalid camera id will get -EINVAL and NULL camera
+     *   static metadata (camera_info.static_camera_characteristics).
      */
     int (*get_camera_info)(int camera_id, struct camera_info *info);
 
