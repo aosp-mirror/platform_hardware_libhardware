@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "usb_audio_hw"
+#define LOG_TAG "modules.usbaudio.audio_hal"
 /*#define LOG_NDEBUG 0*/
 
 #include <errno.h>
@@ -51,7 +51,7 @@ static const unsigned k_force_channels = 0;
 
 #include "alsa_device_profile.h"
 #include "alsa_device_proxy.h"
-#include "audio_logging.h"
+#include "alsa_logging.h"
 
 #define DEFAULT_INPUT_BUFFER_SIZE_MS 20
 
