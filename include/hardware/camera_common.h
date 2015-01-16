@@ -107,6 +107,12 @@ __BEGIN_DECLS
  *    calls when camera status is not CAMERA_DEVICE_STATUS_PRESENT. The frameworks
  *    will only count on device status change callbacks to manage the available external
  *    camera list.
+ *
+ * 3. Camera arbitration hints. This module version adds support for explicitly
+ *    indicating the number of camera devices that can be simultaneously opened and used.
+ *    To specify valid combinations of devices, the resource_cost and conflicting_devices
+ *    fields should always be set in the camera_info structure returned by the
+ *    get_camera_info call.
  */
 
 /**
@@ -227,6 +233,80 @@ typedef struct camera_info {
      *
      */
     const camera_metadata_t *static_camera_characteristics;
+
+    /**
+     * The total resource "cost" of using this this camera, represented as
+     * an integer value in the range [0, 100] where 100 represents total usage
+     * of the shared resource that is the limiting bottleneck of the camera
+     * subsystem.
+     *
+     * The camera service must be able to simultaneously open and use any
+     * combination of camera devices exposed by the HAL where the sum of
+     * the resource costs of these cameras is <= 100.  For determining cost,
+     * each camera device must be assumed to be configured and operating at
+     * the maximally resource-consuming framerate and stream size settings
+     * available in the configuration settings exposed for that device through
+     * the camera metadata.
+     *
+     * Note: The camera service may still attempt to simultaneously open
+     * combinations of camera devices with a total resource cost > 100.  This
+     * may succeed or fail.  If this succeeds, combinations of configurations
+     * that are not supported should fail during the configure calls.  If the
+     * total resource cost is <= 100, configuration should never fail due to
+     * resource constraints.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     *  CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *    Not valid.  Can be assumed to be 100.  Do not read this field.
+     *
+     *  CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *    Always valid.
+     */
+    int resource_cost;
+
+    /**
+     * An array of camera device IDs represented as NULL-terminated strings
+     * indicating other devices that cannot be simultaneously opened while this
+     * camera device is in use.
+     *
+     * This field is intended to be used to indicate that this camera device
+     * is a composite of several other camera devices, or otherwise has
+     * hardware dependencies that prohibit simultaneous usage. If there are no
+     * dependencies, a NULL may be returned in this field to indicate this.
+     *
+     * The camera service will never simultaneously open any of the devices
+     * in this list while this camera device is open.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     *  CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *    Not valid.  Can be assumed to be NULL.  Do not read this field.
+     *
+     *  CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *    Always valid.
+     */
+    char** conflicting_devices;
+
+    /**
+     * The length of the array given in the conflicting_devices field.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     *  CAMERA_MODULE_API_VERSION_2_3 or lower:
+     *
+     *    Not valid.  Can be assumed to be 0.  Do not read this field.
+     *
+     *  CAMERA_MODULE_API_VERSION_2_4 or higher:
+     *
+     *    Always valid.
+     */
+    size_t conflicting_devices_length;
+
 } camera_info_t;
 
 /**
