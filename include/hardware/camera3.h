@@ -21,7 +21,7 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.2 [ CAMERA_DEVICE_API_VERSION_3_2 ]
+ * Camera device HAL 3.3 [ CAMERA_DEVICE_API_VERSION_3_3 ]
  *
  * This is the current recommended version of the camera device HAL.
  *
@@ -29,8 +29,13 @@
  * android.hardware.camera2 API in LIMITED or FULL modes.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_2 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_3 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
+ *
+ * CAMERA_DEVICE_API_VERSION_3_3:
+ *    Camera modules that may contain version 3.3 devices must implement at
+ *    least version 2.2 of the camera module interface (as defined by
+ *    camera_module_t.common.module_api_version).
  *
  * CAMERA_DEVICE_API_VERSION_3_2:
  *    Camera modules that may contain version 3.2 devices must implement at
@@ -54,6 +59,7 @@
  *   S7. Key Performance Indicator (KPI) glossary
  *   S8. Sample Use Cases
  *   S9. Notes on Controls and Metadata
+ *   S10. Reprocessing flow and controls
  */
 
 /**
@@ -119,6 +125,9 @@
  *   - change the input buffer return path. The buffer is returned in
  *     process_capture_result instead of process_capture_request.
  *
+ * 3.3: Minor revision of expanded-capability HAL:
+ *
+ *   - OPAQUE and YUV reprocessing API updates.
  */
 
 /**
@@ -1109,6 +1118,56 @@
  *       as input.
  *     - And a HAL_PIXEL_FORMAT_BLOB (JPEG) output stream.
  *
+ * S8.2 ZSL (OPAQUE) reprocessing with CAMERA3_STREAM_INPUT stream.
+ *
+ * CAMERA_DEVICE_API_VERSION_3_3:
+ *   When OPAQUE_REPROCESSING capability is supported by the camera device, the INPUT stream
+ *   can be used for application/framework implemented use case like Zero Shutter Lag (ZSL).
+ *   This kind of stream will be used by the framework as follows:
+ *
+ *   1. Application/framework configures an opaque (RAW or YUV based) format output stream that is
+ *      used to produce the ZSL output buffers. The stream pixel format will be
+ *      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED.
+ *
+ *   2. Application/framework configures an opaque format input stream that is used to
+ *      send the reprocessing ZSL buffers to the HAL. The stream pixel format will
+ *      also be HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED.
+ *
+ *   3. Application/framework configures a YUV/JPEG output stream that is used to receive the
+ *      reprocessed data. The stream pixel format will be YCbCr_420/HAL_PIXEL_FORMAT_BLOB.
+ *
+ *   4. Application/framework picks a ZSL buffer from the ZSL output stream when a ZSL capture is
+ *      issued by the application, and sends the data back as an input buffer in a
+ *      reprocessing request, then sends to the HAL for reprocessing.
+ *
+ *   5. The HAL sends back the output YUV/JPEG result to framework.
+ *
+ *   The HAL can select the actual opaque buffer format and configure the ISP pipeline
+ *   appropriately based on the HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED format and
+ *   the gralloc usage flag GRALLOC_USAGE_HW_CAMERA_ZSL.
+
+ * S8.3 YUV reprocessing with CAMERA3_STREAM_INPUT stream.
+ *
+ *   When YUV reprocessing is supported by the HAL, the INPUT stream
+ *   can be used for the YUV reprocessing use cases like lucky-shot and image fusion.
+ *   This kind of stream will be used by the framework as follows:
+ *
+ *   1. Application/framework configures an YCbCr_420 format output stream that is
+ *      used to produce the output buffers.
+ *
+ *   2. Application/framework configures an YCbCr_420 format input stream that is used to
+ *      send the reprocessing YUV buffers to the HAL.
+ *
+ *   3. Application/framework configures a YUV/JPEG output stream that is used to receive the
+ *      reprocessed data. The stream pixel format will be YCbCr_420/HAL_PIXEL_FORMAT_BLOB.
+ *
+ *   4. Application/framework processes the output buffers (could be as simple as picking
+ *      an output buffer directly) from the output stream when a capture is issued, and sends
+ *      the data back as an input buffer in a reprocessing request, then sends to the HAL
+ *      for reprocessing.
+ *
+ *   5. The HAL sends back the output YUV/JPEG result to framework.
+ *
  */
 
 /**
@@ -1137,6 +1196,100 @@
  *      be included in the 'available modes' tag to represent this operating
  *      mode.
  */
+
+/**
+ *   S10. Reprocessing flow and controls
+ *
+ *   This section describes the OPAQUE and YUV reprocessing flow and controls. OPAQUE reprocessing
+ *   uses an opaque format that is not directly application-visible, and the application can
+ *   only select some of the output buffers and send back to HAL for reprocessing, while YUV
+ *   reprocessing gives the application opportunity to process the buffers before reprocessing.
+ *
+ *   S8 gives the stream configurations for the typical reprocessing uses cases,
+ *   this section specifies the buffer flow and controls in more details.
+ *
+ *   S10.1 OPAQUE (typically for ZSL use case) reprocessing flow and controls
+ *
+ *   For OPAQUE reprocessing (e.g. ZSL) use case, after the application creates the specific
+ *   output and input streams, runtime buffer flow and controls are specified as below:
+ *
+ *   1. Application starts output streaming by sending repeating requests for output
+ *      opaque buffers and preview. The buffers are held by an application
+ *      maintained circular buffer. The requests are based on CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG
+ *      capture template, which should have all necessary settings that guarantee output
+ *      frame rate is not slowed down relative to sensor output frame rate.
+ *
+ *   2. When a capture is issued, the application selects one output buffer based
+ *      on application buffer selection logic, e.g. good AE and AF statistics etc.
+ *      Application then creates an reprocess request based on the capture result associated
+ *      with this selected buffer. The selected output buffer is now added to this reprocess
+ *      request as an input buffer, the output buffer of this reprocess request should be
+ *      either JPEG output buffer or YUV output buffer, or both, depending on the application
+ *      choice.
+ *
+ *   3. Application then alters the reprocess settings to get best image quality. The HAL must
+ *      support and only support below controls if the HAL support OPAQUE_REPROCESSING capability:
+ *          - android.jpeg.* (if JPEG buffer is included as one of the output)
+ *          - android.noiseReduction.mode (change to HIGH_QUALITY if it is supported)
+ *          - android.edge.mode (change to HIGH_QUALITY if it is supported)
+ *       All other controls must be ignored by the HAL.
+ *   4. HAL processed the input buffer and return the output buffers in the capture results
+ *      as normal.
+ *
+ *   S10.2 YUV reprocessing flow and controls
+ *
+ *   The YUV reprocessing buffer flow is similar as OPAQUE reprocessing, with below difference:
+ *
+ *   1. Application may want to have finer granularity control of the intermediate YUV images
+ *      (before reprocessing). For example, application may choose
+ *          - android.noiseReduction.mode == MINIMAL
+ *      to make sure the no YUV domain noise reduction has applied to the output YUV buffers,
+ *      then it can do its own advanced noise reduction on them. For OPAQUE reprocessing case, this
+ *      doesn't matter, as long as the final reprocessed image has the best quality.
+ *   2. Application may modify the YUV output buffer data. For example, for image fusion use
+ *      case, where multiple output images are merged together to improve the signal-to-noise
+ *      ratio (SNR). The input buffer may be generated from multiple buffers by the application.
+ *      To avoid excessive amount of noise reduction and insufficient amount of edge enhancement
+ *      being applied to the input buffer, the application can hint the HAL  how much effective
+ *      exposure time improvement has been done by the application, then the HAL can adjust the
+ *      noise reduction and edge enhancement paramters to get best reprocessed image quality.
+ *      Below tag can be used for this purpose:
+ *          - android.reprocess.effectiveExposureFactor
+ *      The value would be exposure time increase factor applied to the original output image,
+ *      for example, if there are N image merged, the exposure time increase factor would be up
+ *      to sqrt(N). See this tag spec for more details.
+ *
+ *   S10.3 Reprocessing pipeline characteristics
+ *
+ *   Reprocessing pipeline has below different characteristics comparing with normal output
+ *   pipeline:
+ *
+ *   1. The reprocessing result can be returned ahead of the pending normal output results. But
+ *      the FIFO ordering must be maintained for all reprocessing results. For example, there are
+ *      below requests (A stands for output requests, B stands for reprocessing requests)
+ *      being processed by the HAL:
+ *          A1, A2, A3, A4, B1, A5, B2, A6...
+ *      result of B1 can be returned before A1-A4, but result of B2 must be returned after B1.
+ *   2. Single input rule: For a given reprocessing request, all output buffers must be from the
+ *      input buffer, rather than sensor output. For example, if a reprocess request include both
+ *      JPEG and preview buffers, all output buffers must be produced from the input buffer
+ *      included by the reprocessing request, rather than sensor. The HAL must not output preview
+ *      buffers from sensor, while output JPEG buffer from the input buffer.
+ *   3. Input buffer will be from camera output directly (ZSL case) or indirectly(image fusion
+ *      case). For the case where buffer is modified, the size will remain same. The HAL can
+ *      notify CAMERA3_MSG_ERROR_REQUEST if buffer from unknown source is sent.
+ *   4. Result as reprocessing request: The HAL can expect that a reprocessing request is a copy
+ *      of one of the output results with minor allowed setting changes. The HAL can notify
+ *      CAMERA3_MSG_ERROR_REQUEST if a request from unknown source is issued.
+ *   5. Output buffers may not be used as inputs across the configure stream boundary, This is
+ *      because an opaque stream like the ZSL output stream may have different actual image size
+ *      inside of the ZSL buffer to save power and bandwidth for smaller resolution JPEG capture.
+ *      The HAL may notify CAMERA3_MSG_ERROR_REQUEST if this case occurs.
+ *   6. HAL Reprocess requests error reporting during flush should follow the same rule specified
+ *      by flush() method.
+ *
+ */
+
 __BEGIN_DECLS
 
 struct camera3_device;
@@ -1184,6 +1337,9 @@ typedef enum camera3_stream_type {
      * quality images (that otherwise would cause a frame rate performance
      * loss), or to do off-line reprocessing.
      *
+     * CAMERA_DEVICE_API_VERSION_3_3:
+     *    The typical use cases are OPAQUE (typically ZSL) and YUV reprocessing,
+     *    see S8.2, S8.3 and S10 for more details.
      */
     CAMERA3_STREAM_INPUT = 1,
 
