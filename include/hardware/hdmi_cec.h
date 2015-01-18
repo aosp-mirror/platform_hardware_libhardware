@@ -212,6 +212,15 @@ enum {
      * False by default.
      */
     HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
+
+    /* Option 4 not used */
+
+    /* Passes the updated language information of Android system.
+     * Contains 3-byte ASCII code as defined in ISO/FDIS 639-2. Can be
+     * used for HAL to respond to <Get Menu Language> while in standby mode.
+     * English(eng), for example, is converted to 0x656e67.
+     */
+    HDMI_OPTION_SET_LANG = 5,
 };
 
 /*
