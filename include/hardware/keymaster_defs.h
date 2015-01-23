@@ -138,13 +138,13 @@ typedef enum {
                                                            longer be trusted. */
     KM_TAG_MIN_SECONDS_BETWEEN_OPS = KM_INT | 403,      /* Minimum elapsed time between
                                                            cryptographic operations with the key. */
-    KM_TAG_SINGLE_USE_PER_BOOT = KM_BOOL | 404,         /* If true, the key can only be used once
-                                                           per boot. */
+    KM_TAG_MAX_USES_PER_BOOT = KM_INT | 404,            /* Number of times the key can be used per
+                                                           boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500, /* If key is usable by all users. */
-    KM_TAG_USER_ID = KM_INT | 501,    /* ID of authorized user.  Disallowed if KM_TAG_ALL_USERS is
-                                         present. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,           /* If key is usable by all users. */
+    KM_TAG_USER_ID = KM_INT | 501,              /* ID of authorized user.  Disallowed if
+                                                   KM_TAG_ALL_USERS is present. */
     KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 502,    /* If key is usable without authentication. */
     KM_TAG_USER_AUTH_ID = KM_INT_REP | 503,     /* ID of the authenticator to use (e.g. password,
                                                    fingerprint, etc.).  Repeatable to support
@@ -156,10 +156,6 @@ typedef enum {
                                                    If absent, authentication is required for every
                                                    use.  Authentication state is lost when the
                                                    device is powered off. */
-    KM_TAG_RESCOPE_AUTH_TIMEOUT = KM_INT | 505, /* Required freshness of user authentication for key
-                                                   rescoping operations, in seconds.  Public key
-                                                   operations require no authentication.  If absent,
-                                                   authentication required for every rescoping. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* If key is usable by all applications. */
