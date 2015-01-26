@@ -6,9 +6,6 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES:= \
     keymaster_test.cpp
 
-LOCAL_C_INCLUDES := \
-    external/openssl/include \
-
 LOCAL_SHARED_LIBRARIES := \
     liblog \
     libutils \
