@@ -278,7 +278,7 @@ struct keymaster_device {
      *
      * \param[in] data_length Length of \p data.
      */
-    keymaster_error_t (*add_rng_entropy)(const struct keymaster_device* dev, uint8_t* data,
+    keymaster_error_t (*add_rng_entropy)(const struct keymaster_device* dev, const uint8_t* data,
                                          size_t data_length);
 
     /**
