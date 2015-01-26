@@ -401,7 +401,7 @@ struct keymaster_device {
                                  const keymaster_key_blob_t* key_blob,
                                  const keymaster_blob_t* client_id,
                                  const keymaster_blob_t* app_data,
-                                 const keymaster_key_blob_t* rescoped_key_blob,
+                                 keymaster_key_blob_t* rescoped_key_blob,
                                  keymaster_key_characteristics_t** characteristics);
 
     /**
