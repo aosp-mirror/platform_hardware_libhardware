@@ -426,7 +426,10 @@ typedef enum camera_device_status {
  *      up by this close() call.
  *
  *  Note that the framework calling set_torch_mode() should not trigger any
- *  callbacks.
+ *  callbacks except when HAL cannot keep multiple torch modes on
+ *  simultaneously. In that case, HAL must notify the framework that any
+ *  previously-on torch mode states have become TORCH_MODE_STATUS_OFF.
+ *
  */
 typedef enum torch_mode_status {
     /**
@@ -444,6 +447,15 @@ typedef enum torch_mode_status {
      * will be turned off by HAL before HAL calls torch_mode_status_change().
      */
     TORCH_MODE_STATUS_RESOURCE_BUSY = 1,
+
+    /**
+     * The previously-on torch mode has been turned off by HAL but the flash
+     * unit is still available for set_torch_mode(). This may happen after the
+     * framework turned on the torch mode of some other camera device and HAL
+     * had to turn off the torch modes of any camera devices that were
+     * previously on.
+     */
+    TORCH_MODE_STATUS_OFF = 2,
 
 } torch_mode_status_t;
 
@@ -713,6 +725,12 @@ typedef struct camera_module {
      * camera_module_callbacks.torch_mode_status_change() that the torch mode
      * state has become available for set_torch_mode() to be called.
      *
+     * When the framework calls set_torch_mode() to turn on the torch mode of a
+     * flash unit, if HAL cannot keep multiple torch modes on simultaneously,
+     * HAL should turn off the torch mode that was turned on by
+     * a previous set_torch_mode() call and notify the framework that the torch
+     * mode state of that flash unit has become TORCH_MODE_STATUS_OFF.
+     *
      * Version information (based on camera_module_t.common.module_api_version):
      *
      * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3:
@@ -737,7 +755,7 @@ typedef struct camera_module {
      * -EINVAL:     camera_id is invalid.
      *
      */
-    int (*set_torch_mode)(const char* camera_id, bool on);
+    int (*set_torch_mode)(const char* camera_id, bool enabled);
 
     /* reserved for future use */
     void* reserved[6];
