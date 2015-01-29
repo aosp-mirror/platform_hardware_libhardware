@@ -1073,34 +1073,7 @@
  *
  * This includes some typical use case examples the camera HAL may support.
  *
- * S8.1 Zero Shutter Lag (ZSL) with CAMERA3_STREAM_INPUT stream.
- *
- *   When Zero Shutter Lag (ZSL) is supported by the camera device, the INPUT stream
- *   can be used for application/framework implemented ZSL use case. This kind of stream
- *   will be used by the framework as follows:
- *
- *   1. Framework configures an opaque raw format output stream that is used to
- *      produce the ZSL output buffers. The stream pixel format will be
- *      HAL_PIXEL_FORMAT_RAW_OPAQUE.
- *
- *   2. Framework configures an opaque raw format input stream that is used to
- *      send the reprocess ZSL buffers to the HAL. The stream pixel format will
- *      also be HAL_PIXEL_FORMAT_RAW_OPAQUE.
- *
- *   3. Framework configures a YUV/JPEG output stream that is used to receive the
- *      reprocessed data. The stream pixel format will be YCbCr_420/HAL_PIXEL_FORMAT_BLOB.
- *
- *   4. Framework picks a ZSL buffer from the output stream when a ZSL capture is
- *      issued by the application, and sends the data back as an input buffer in a
- *      reprocessing request, then sends to the HAL for reprocessing.
- *
- *   5. The HAL sends back the output JPEG result to framework.
- *
- *   The HAL can select the actual raw buffer format and configure the ISP pipeline
- *   appropriately based on the HAL_PIXEL_FORMAT_RAW_OPAQUE format. See this format
- *   definition for more details.
- *
- * S8.2 Zero Shutter Lag (ZSL) with CAMERA3_STREAM_BIDIRECTIONAL stream.
+ * S8.1 Zero Shutter Lag (ZSL) with CAMERA3_STREAM_BIDIRECTIONAL stream.
  *
  *   For this use case, the bidirectional stream will be used by the framework as follows:
  *
@@ -1211,8 +1184,6 @@ typedef enum camera3_stream_type {
      * quality images (that otherwise would cause a frame rate performance
      * loss), or to do off-line reprocessing.
      *
-     * A typical use case is Zero Shutter Lag (ZSL), see S8.1 for more details.
-     *
      */
     CAMERA3_STREAM_INPUT = 1,
 
@@ -1223,7 +1194,7 @@ typedef enum camera3_stream_type {
      *
      * This kind of stream is meant generally for Zero Shutter Lag (ZSL)
      * features, where copying the captured image from the output buffer to the
-     * reprocessing input buffer would be expensive. See S8.2 for more details.
+     * reprocessing input buffer would be expensive. See S8.1 for more details.
      *
      * Note that the HAL will always be reprocessing data it produced.
      *
