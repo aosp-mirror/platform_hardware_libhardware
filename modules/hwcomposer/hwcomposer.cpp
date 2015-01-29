@@ -16,8 +16,9 @@
 
 #include <hardware/hardware.h>
 
-#include <fcntl.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <malloc.h>
 
 #include <cutils/log.h>
 #include <cutils/atomic.h>
