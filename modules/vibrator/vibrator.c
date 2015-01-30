@@ -19,6 +19,7 @@
 
 #include <cutils/log.h>
 
+#include <malloc.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
