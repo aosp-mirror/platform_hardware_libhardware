@@ -16,6 +16,7 @@
 #define LOG_TAG "FingerprintHal"
 
 #include <errno.h>
+#include <malloc.h>
 #include <string.h>
 #include <cutils/log.h>
 #include <hardware/hardware.h>
