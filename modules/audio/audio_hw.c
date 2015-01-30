@@ -18,6 +18,7 @@
 //#define LOG_NDEBUG 0
 
 #include <errno.h>
+#include <malloc.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <sys/time.h>
