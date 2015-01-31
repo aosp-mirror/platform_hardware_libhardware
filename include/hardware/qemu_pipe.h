@@ -23,6 +23,7 @@
 #include <pthread.h>  /* for pthread_once() */
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <errno.h>
 
 #ifndef D
