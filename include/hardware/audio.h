@@ -128,6 +128,7 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"   /* audio_source_t */
 #define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" /* uint32_t */
 
+#define AUDIO_PARAMETER_DEVICE_CONNECT "connect"            /* audio_devices_t */
 #define AUDIO_PARAMETER_DEVICE_DISCONNECT "disconnect"      /* audio_devices_t */
 
 /* Query supported formats. The response is a '|' separated list of strings from
