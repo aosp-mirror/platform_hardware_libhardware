@@ -102,15 +102,15 @@ typedef enum {
      */
 
     /* Crypto parameters */
-    KM_TAG_PURPOSE = KM_ENUM_REP | 1, /* keymaster_purpose_t. */
-    KM_TAG_ALGORITHM = KM_ENUM | 2,   /* keymaster_algorithm_t. */
-    KM_TAG_KEY_SIZE = KM_INT | 3,     /* Key size in bits. */
-    KM_TAG_BLOCK_MODE = KM_ENUM | 4,  /* keymaster_block_mode_t. */
-    KM_TAG_DIGEST = KM_ENUM | 5,      /* keymaster_digest_t. */
-    KM_TAG_MAC_LENGTH = KM_INT | 6,   /* MAC length in bits. */
-    KM_TAG_PADDING = KM_ENUM | 7,     /* keymaster_padding_t. */
-    KM_TAG_CHUNK_LENGTH = KM_INT | 8, /* AEAD mode minimum decryption chunk size, in bytes. */
-    KM_TAG_NONCE = KM_BYTES | 9,      /* Nonce or Initialization Vector */
+    KM_TAG_PURPOSE = KM_ENUM_REP | 1,  /* keymaster_purpose_t. */
+    KM_TAG_ALGORITHM = KM_ENUM | 2,    /* keymaster_algorithm_t. */
+    KM_TAG_KEY_SIZE = KM_INT | 3,      /* Key size in bits. */
+    KM_TAG_BLOCK_MODE = KM_ENUM | 4,   /* keymaster_block_mode_t. */
+    KM_TAG_DIGEST = KM_ENUM | 5,       /* keymaster_digest_t. */
+    KM_TAG_MAC_LENGTH = KM_INT | 6,    /* MAC length in bits. */
+    KM_TAG_PADDING = KM_ENUM | 7,      /* keymaster_padding_t. */
+    KM_TAG_CHUNK_LENGTH = KM_INT | 8,  /* AEAD mode minimum decryption chunk size, in bytes. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 9, /* Allow caller to specify nonce or IV. */
 
     /* Other hardware-enforced. */
     KM_TAG_RESCOPING_ADD = KM_ENUM_REP | 101, /* Tags authorized for addition via rescoping. */
@@ -142,20 +142,20 @@ typedef enum {
                                                            boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500,           /* If key is usable by all users. */
-    KM_TAG_USER_ID = KM_INT | 501,              /* ID of authorized user.  Disallowed if
-                                                   KM_TAG_ALL_USERS is present. */
-    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 502,    /* If key is usable without authentication. */
-    KM_TAG_USER_AUTH_ID = KM_INT_REP | 503,     /* ID of the authenticator to use (e.g. password,
-                                                   fingerprint, etc.).  Repeatable to support
-                                                   multi-factor auth.  Disallowed if
-                                                   KM_TAG_NO_AUTH_REQUIRED is present. */
-    KM_TAG_AUTH_TIMEOUT = KM_INT | 504,         /* Required freshness of user authentication for
-                                                   private/secret key operations, in seconds.
-                                                   Public key operations require no authentication.
-                                                   If absent, authentication is required for every
-                                                   use.  Authentication state is lost when the
-                                                   device is powered off. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,        /* If key is usable by all users. */
+    KM_TAG_USER_ID = KM_INT | 501,           /* ID of authorized user.  Disallowed if
+                                                KM_TAG_ALL_USERS is present. */
+    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 502, /* If key is usable without authentication. */
+    KM_TAG_USER_AUTH_ID = KM_INT_REP | 503,  /* ID of the authenticator to use (e.g. password,
+                                                fingerprint, etc.).  Repeatable to support
+                                                multi-factor auth.  Disallowed if
+                                                KM_TAG_NO_AUTH_REQUIRED is present. */
+    KM_TAG_AUTH_TIMEOUT = KM_INT | 504,      /* Required freshness of user authentication for
+                                                private/secret key operations, in seconds.
+                                                Public key operations require no authentication.
+                                                If absent, authentication is required for every
+                                                use.  Authentication state is lost when the
+                                                device is powered off. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* If key is usable by all applications. */
@@ -175,6 +175,7 @@ typedef enum {
 
     /* Tags used only to provide data to operations */
     KM_TAG_ADDITIONAL_DATA = KM_BYTES | 1000, /* Used to provide additional data for AEAD modes. */
+    KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
 } keymaster_tag_t;
 
 /**
