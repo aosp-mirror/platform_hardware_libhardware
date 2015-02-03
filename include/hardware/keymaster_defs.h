@@ -187,7 +187,7 @@ typedef enum {
 typedef enum {
     /* Asymmetric algorithms. */
     KM_ALGORITHM_RSA = 1,   /* required */
-    KM_ALGORITHM_DSA = 2,   /* required */
+    KM_ALGORITHM_DSA = 2,
     KM_ALGORITHM_ECDSA = 3, /* required */
     KM_ALGORITHM_ECIES = 4,
     /* FIPS Approved Ciphers */
