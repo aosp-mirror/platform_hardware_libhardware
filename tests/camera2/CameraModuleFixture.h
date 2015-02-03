@@ -22,6 +22,7 @@
 #include "hardware/hardware.h"
 #include "hardware/camera2.h"
 
+#include <common/CameraModule.h>
 #include <device2/Camera2Device.h>
 #include <device3/Camera3Device.h>
 
@@ -54,15 +55,17 @@ struct CameraModuleFixture {
     void SetUp() {
         TEST_EXTENSION_FORKING_SET_UP;
 
+        camera_module_t *rawModule;
         ASSERT_LE(0, hw_get_module(CAMERA_HARDWARE_MODULE_ID,
-            (const hw_module_t **)&mModule)) << "Could not load camera module";
-        ASSERT_NE((void*)0, mModule);
+            (const hw_module_t **)&rawModule)) << "Could not load camera module";
+        ASSERT_NE((void*)0, rawModule);
+        mModule = new CameraModule(rawModule);
 
-        mNumberOfCameras = mModule->get_number_of_cameras();
+        mNumberOfCameras = mModule->getNumberOfCameras();
         ASSERT_LE(0, mNumberOfCameras);
 
         ASSERT_LE(
-            CAMERA_MODULE_API_VERSION_2_0, mModule->common.module_api_version)
+            CAMERA_MODULE_API_VERSION_2_0, mModule->getRawModule()->module_api_version)
             << "Wrong module API version";
 
         /* For using this fixture in other tests only */
@@ -72,6 +75,7 @@ struct CameraModuleFixture {
     void TearDown() {
         TEST_EXTENSION_FORKING_TEAR_DOWN;
 
+        delete mModule;
         TearDownMixin();
 
         /* important: device must be destructed before closing module,
@@ -79,14 +83,14 @@ struct CameraModuleFixture {
         mDevice.clear();
 
         if (!TEST_EXTENSION_FORKING_ENABLED) {
-            ASSERT_EQ(0, HWModuleHelpers::closeModule(&mModule->common))
+            ASSERT_EQ(0, HWModuleHelpers::closeModule(mModule->getRawModule()))
                 << "Failed to close camera HAL module";
         }
     }
 
     void CreateCamera(int cameraID, /*out*/ sp<CameraDeviceBase> *device) {
         struct camera_info info;
-        ASSERT_EQ(OK, mModule->get_camera_info(cameraID, &info));
+        ASSERT_EQ(OK, mModule->getCameraInfo(cameraID, &info));
 
         ASSERT_GE((int)info.device_version, CAMERA_DEVICE_API_VERSION_2_0) <<
                 "Device version too old for camera " << cameraID << ". Version: " <<
@@ -116,7 +120,7 @@ struct CameraModuleFixture {
     int getDeviceVersion(int cameraId, status_t* status = NULL) {
         camera_info info;
         status_t res;
-        res = mModule->get_camera_info(cameraId, &info);
+        res = mModule->getCameraInfo(cameraId, &info);
         if (status != NULL) *status = res;
 
         return info.device_version;
@@ -147,7 +151,7 @@ private:
 
 protected:
     int mNumberOfCameras;
-    camera_module_t *mModule;
+    CameraModule *mModule;
     sp<CameraDeviceBase> mDevice;
 
 private:
