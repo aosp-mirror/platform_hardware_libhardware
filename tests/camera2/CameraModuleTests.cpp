@@ -93,11 +93,7 @@ TEST_F(CameraModuleTest, LoadModuleBadIndices) {
 
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
         String8 deviceName = String8::format("%d", idx[i]);
-        status_t res =
-                mModule->common.methods->open(
-                                             &mModule->common,
-                                             deviceName,
-                                             &device);
+        status_t res = mModule->open(deviceName, &device);
         EXPECT_NE(OK, res);
         EXPECT_EQ(-ENODEV, res)
             << "Incorrect error code when trying to open camera with invalid id "
@@ -111,7 +107,7 @@ TEST_F(CameraModuleTest, GetCameraInfo) {
 
     for (int i = 0; i < mNumberOfCameras; ++i) {
         struct camera_info info;
-        ASSERT_EQ(OK, mModule->get_camera_info(i, &info));
+        ASSERT_EQ(OK, mModule->getCameraInfo(i, &info));
     }
 
 }
@@ -123,8 +119,8 @@ TEST_F(CameraModuleTest, GetCameraInfoBadIndices) {
     int idx[] = { -1, mNumberOfCameras, mNumberOfCameras + 1 };
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
         struct camera_info info;
-        EXPECT_NE(OK, mModule->get_camera_info(idx[i], &info));
-        EXPECT_EQ(-ENODEV, mModule->get_camera_info(idx[i], &info))
+        EXPECT_NE(OK, mModule->getCameraInfo(idx[i], &info));
+        EXPECT_EQ(-ENODEV, mModule->getCameraInfo(idx[i], &info))
             << "Incorrect error code for get_camera_info idx= "
             << idx[i];
     }

@@ -580,7 +580,7 @@ void FrameWaiter::onFrameAvailable(const BufferItem& /* item */) {
     mCondition.signal();
 }
 
-int HWModuleHelpers::closeModule(hw_module_t* module) {
+int HWModuleHelpers::closeModule(const hw_module_t* module) {
     int status;
 
     if (!module) {
