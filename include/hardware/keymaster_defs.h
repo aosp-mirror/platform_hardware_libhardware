@@ -187,7 +187,7 @@ typedef enum {
 typedef enum {
     /* Asymmetric algorithms. */
     KM_ALGORITHM_RSA = 1,   /* required */
-    KM_ALGORITHM_DSA = 2,   /* required */
+    KM_ALGORITHM_DSA = 2,
     KM_ALGORITHM_ECDSA = 3, /* required */
     KM_ALGORITHM_ECIES = 4,
     /* FIPS Approved Ciphers */
@@ -359,6 +359,7 @@ typedef enum {
     KM_KEY_FORMAT_X509,   /* for public key export, required */
     KM_KEY_FORMAT_PKCS8,  /* for asymmetric key pair import, required */
     KM_KEY_FORMAT_PKCS12, /* for asymmetric key pair import, not required */
+    KM_KEY_FORMAT_RAW,    /* for symmetric key import, required */
 } keymaster_key_format_t;
 
 /**
