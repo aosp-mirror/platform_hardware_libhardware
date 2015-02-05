@@ -53,9 +53,9 @@ struct keyguard_device {
      * Returns: 0 on success or an error code less than 0 on error.
      * On error, enrolled_password_handle will not be allocated.
      */
-    int (*enroll)(const struct keyguard_device *dev, const uint8_t *password_payload,
-            const uint8_t password_payload_length, uint8_t **enrolled_password_handle,
-            uint8_t *enrolled_password_handle_length);
+    int (*enroll)(const struct keyguard_device *dev, uint32_t uid,
+            const uint8_t *password_payload, size_t password_payload_length,
+            uint8_t **enrolled_password_handle, size_t *enrolled_password_handle_length);
 
     /**
      * Verifies provided_password matches enrolled_password_handle.
@@ -70,9 +70,10 @@ struct keyguard_device {
      * Returns: 0 on success or an error code less than 0 on error
      * On error, verification token will not be allocated
      */
-    int (*verify)(const struct keyguard_device *dev, const uint8_t *enrolled_password_handle,
-            const uint8_t enrolled_password_handle_length, const uint8_t *provided_password,
-            const uint8_t provided_password_length, uint8_t **verification_token);
+    int (*verify)(const struct keyguard_device *dev, uint32_t uid,
+            const uint8_t *enrolled_password_handle, size_t enrolled_password_handle_length,
+            const uint8_t *provided_password, size_t provided_password_length,
+            uint8_t **verification_token, size_t *verification_token_length);
 
 };
 typedef struct keyguard_device keyguard_device_t;
