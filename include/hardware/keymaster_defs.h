@@ -173,8 +173,8 @@ typedef enum {
     KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,     /* Root of trust ID.  Empty array means usable by all
                                                   roots. */
 
-    /* Tags used only to provide data to operations */
-    KM_TAG_ADDITIONAL_DATA = KM_BYTES | 1000, /* Used to provide additional data for AEAD modes. */
+    /* Tags used only to provide data to or receive data from operations */
+    KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
 } keymaster_tag_t;
 
