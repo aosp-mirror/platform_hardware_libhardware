@@ -534,8 +534,8 @@ struct keymaster_device {
      * \param[in] params Additional parameters for the operation.  This is typically used to provide
      * client ID information, with tags KM_TAG_APPLICATION_ID and KM_TAG_APPLICATION_DATA.  If the
      * client information associated with the key is not provided, begin() will fail and return
-     * KM_ERROR_INVALID_KEY_BLOB.  Less commonly, \params can be used to provide AEAD additional
-     * data and chunk size with KM_TAG_ADDITIONAL_DATA or KM_TAG_CHUNK_SIZE respectively.
+     * KM_ERROR_INVALID_KEY_BLOB.  For operations that require a nonce or IV, this must contain a
+     * tag KM_TAG_NONCE.
      *
      * \param[in] params_count The number of entries in \p params.
      *
@@ -569,6 +569,11 @@ struct keymaster_device {
      *
      * \param[in] operation_handle The operation handle returned by begin().
      *
+     * \param[in] params Additional parameters for the operation.  For AEAD modes, this is used to
+     * specify KM_TAG_ADDITIONAL_DATA.
+     *
+     * \param[in] params_count Length of \p params.
+     *
      * \param[in] input Data to be processed, per the parameters established in the call to begin().
      * Note that update() may or may not consume all of the data provided.  See \p data_consumed.
      *
@@ -589,9 +594,10 @@ struct keymaster_device {
      * *output may be either NULL or zero-length (so the caller should always free() it).
      */
     keymaster_error_t (*update)(const struct keymaster_device* dev,
-                                keymaster_operation_handle_t operation_handle, const uint8_t* input,
-                                size_t input_length, size_t* input_consumed, uint8_t** output,
-                                size_t* output_length);
+                                keymaster_operation_handle_t operation_handle,
+                                const keymaster_key_param_t* params, size_t params_count,
+                                const uint8_t* input, size_t input_length, size_t* input_consumed,
+                                uint8_t** output, size_t* output_length);
 
     /**
      * Finalizes a cryptographic operation begun with begin() and invalidates operation_handle
@@ -601,6 +607,11 @@ struct keymaster_device {
      *
      * \param[in] operation_handle The operation handle returned by begin().  This handle will be
      * invalidated.
+     *
+     * \param[in] params Additional parameters for the operation.  For AEAD modes, this is used to
+     * specify KM_TAG_ADDITIONAL_DATA.
+     *
+     * \param[in] params_count Length of \p params.
      *
      * \param[in] signature The signature to be verified if the purpose specified in the begin()
      * call was KM_PURPOSE_VERIFY.
@@ -617,6 +628,7 @@ struct keymaster_device {
      */
     keymaster_error_t (*finish)(const struct keymaster_device* dev,
                                 keymaster_operation_handle_t operation_handle,
+                                const keymaster_key_param_t* params, size_t params_count,
                                 const uint8_t* signature, size_t signature_length, uint8_t** output,
                                 size_t* output_length);
 
