@@ -535,7 +535,7 @@ struct keymaster_device {
      * client ID information, with tags KM_TAG_APPLICATION_ID and KM_TAG_APPLICATION_DATA.  If the
      * client information associated with the key is not provided, begin() will fail and return
      * KM_ERROR_INVALID_KEY_BLOB.  For operations that require a nonce or IV, this must contain a
-     * tag KM_TAG_NONCE.
+     * tag KM_TAG_NONCE.  For AEAD operations KM_TAG_CHUNK_SIZE is specified here.
      *
      * \param[in] params_count The number of entries in \p params.
      *

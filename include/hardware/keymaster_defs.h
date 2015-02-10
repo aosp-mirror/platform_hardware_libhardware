@@ -102,15 +102,16 @@ typedef enum {
      */
 
     /* Crypto parameters */
-    KM_TAG_PURPOSE = KM_ENUM_REP | 1,  /* keymaster_purpose_t. */
-    KM_TAG_ALGORITHM = KM_ENUM | 2,    /* keymaster_algorithm_t. */
-    KM_TAG_KEY_SIZE = KM_INT | 3,      /* Key size in bits. */
-    KM_TAG_BLOCK_MODE = KM_ENUM | 4,   /* keymaster_block_mode_t. */
-    KM_TAG_DIGEST = KM_ENUM | 5,       /* keymaster_digest_t. */
-    KM_TAG_MAC_LENGTH = KM_INT | 6,    /* MAC length in bits. */
-    KM_TAG_PADDING = KM_ENUM | 7,      /* keymaster_padding_t. */
-    KM_TAG_CHUNK_LENGTH = KM_INT | 8,  /* AEAD mode minimum decryption chunk size, in bytes. */
-    KM_TAG_CALLER_NONCE = KM_BOOL | 9, /* Allow caller to specify nonce or IV. */
+    KM_TAG_PURPOSE = KM_ENUM_REP | 1,     /* keymaster_purpose_t. */
+    KM_TAG_ALGORITHM = KM_ENUM | 2,       /* keymaster_algorithm_t. */
+    KM_TAG_KEY_SIZE = KM_INT | 3,         /* Key size in bits. */
+    KM_TAG_BLOCK_MODE = KM_ENUM | 4,      /* keymaster_block_mode_t. */
+    KM_TAG_DIGEST = KM_ENUM | 5,          /* keymaster_digest_t. */
+    KM_TAG_MAC_LENGTH = KM_INT | 6,       /* MAC length in bits. */
+    KM_TAG_PADDING = KM_ENUM | 7,         /* keymaster_padding_t. */
+    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 8, /* Allow AEAD decryption to return plaintext before it has
+                                             been authenticated.  WARNING: Not recommended. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 9,    /* Allow caller to specify nonce or IV. */
 
     /* Other hardware-enforced. */
     KM_TAG_RESCOPING_ADD = KM_ENUM_REP | 101, /* Tags authorized for addition via rescoping. */
@@ -176,6 +177,8 @@ typedef enum {
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
+    KM_TAG_CHUNK_LENGTH = KM_INT | 1002,      /* AEAD mode chunk size, in bytes.  0 means no limit,
+                                                 which requires KM_TAG_RETURN_UNAUTHED. */
 } keymaster_tag_t;
 
 /**
