@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "bt_gatt_types.h"
+#include "bt_common_types.h"
 
 __BEGIN_DECLS
 
@@ -66,6 +67,23 @@ typedef struct
     uint16_t            len;
     uint8_t             is_notify;
 } btgatt_notify_params_t;
+
+typedef struct
+{
+    uint8_t  client_if;
+    uint8_t  action;
+    uint8_t  filt_index;
+    uint16_t feat_seln;
+    uint16_t list_logic_type;
+    uint8_t  filt_logic_type;
+    uint8_t  rssi_high_thres;
+    uint8_t  rssi_low_thres;
+    uint8_t  dely_mode;
+    uint16_t found_timeout;
+    uint16_t lost_timeout;
+    uint8_t  found_timeout_cnt;
+    uint16_t  num_of_tracking_entries;
+} btgatt_filt_param_setup_t;
 
 typedef struct
 {
@@ -202,8 +220,7 @@ typedef void (*batchscan_reports_callback)(int client_if, int status, int report
 typedef void (*batchscan_threshold_callback)(int client_if);
 
 /** Track ADV VSE callback invoked when tracked device is found or lost */
-typedef void (*track_adv_event_callback)(int client_if, int filt_index, int addr_type,
-                                             bt_bdaddr_t* bda, int adv_state);
+typedef void (*track_adv_event_callback)(btgatt_track_adv_info_t *p_track_adv_info);
 
 typedef struct {
     register_client_callback            register_client_cb;
@@ -336,10 +353,7 @@ typedef struct {
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
 
     /** Setup scan filter params */
-    bt_status_t (*scan_filter_param_setup)(int client_if, int action, int filt_index, int feat_seln,
-                                      int list_logic_type, int filt_logic_type, int rssi_high_thres,
-                                      int rssi_low_thres, int dely_mode, int found_timeout,
-                                      int lost_timeout, int found_timeout_cnt);
+    bt_status_t (*scan_filter_param_setup)(btgatt_filt_param_setup_t filt_param);
 
 
     /** Configure a scan filter condition  */
