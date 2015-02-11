@@ -748,10 +748,12 @@ typedef struct camera_module {
      *              returned if and only if android.flash.info.available is
      *              false.
      *
-     * -EBUSY:      The flash unit or the resource needed to turn on the torch
-     *              mode is busy, typically because the camera device is already
-     *              in use, or some other camera device is using enough
-     *              resources to make using the flash unit not possible.
+     * -EBUSY:      The camera device is already in use.
+     *
+     * -EUSERS:     The resources needed to turn on the torch mode are not
+     *              available, typically because other camera devices are
+     *              holding the resources to make using the flash unit not
+     *              possible.
      *
      * -EINVAL:     camera_id is invalid.
      *
