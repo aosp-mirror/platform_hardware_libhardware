@@ -602,6 +602,22 @@ enum {
 #define SENSOR_TYPE_PICK_UP_GESTURE                            (25)
 #define SENSOR_STRING_TYPE_PICK_UP_GESTURE                     "android.sensor.pick_up_gesture"
 
+/*
+ * SENSOR_TYPE_WRIST_TILT_GESTURE
+ * trigger-mode: special
+ * wake-up sensor: yes
+ *
+ * A sensor of this type triggers an event each time a tilt of the wrist-worn
+ * device is detected.
+ *
+ * This sensor must be low power, as it is likely to be activated 24/7.
+ * The only allowed value to return is 1.0.
+ *
+ * Implement only the wake-up version of this sensor.
+ */
+#define SENSOR_TYPE_WRIST_TILT_GESTURE                         (26)
+#define SENSOR_STRING_TYPE_WRIST_TILT_GESTURE                  "android.sensor.wrist_tilt_gesture"
+
 /**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
