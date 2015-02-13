@@ -17,27 +17,95 @@
 #define LOG_NDEBUG 0
 #define LOG_TAG "EvdevModule"
 
+#include <memory>
+#include <string>
+#include <thread>
+
 #include <assert.h>
 #include <hardware/hardware.h>
 #include <hardware/input.h>
 
-namespace input {
+#include <utils/Log.h>
+
+#include "InputHub.h"
+#include "InputDeviceManager.h"
+#include "InputHost.h"
+
+namespace android {
+
+static const char kDevInput[] = "/dev/input";
+
+class EvdevModule {
+public:
+    explicit EvdevModule(InputHost inputHost);
+
+    void init();
+    void notifyReport(input_report_t* r);
+
+private:
+    void loop();
+
+    InputHost mInputHost;
+    std::shared_ptr<InputDeviceManager> mDeviceManager;
+    std::shared_ptr<InputHub> mInputHub;
+    std::thread mPollThread;
+};
+
+static std::shared_ptr<EvdevModule> gEvdevModule;
+
+EvdevModule::EvdevModule(InputHost inputHost) :
+    mInputHost(inputHost),
+    mDeviceManager(std::make_shared<InputDeviceManager>()),
+    mInputHub(std::make_shared<InputHub>(mDeviceManager)) {}
+
+void EvdevModule::init() {
+    ALOGV("%s", __func__);
+
+    mInputHub->registerDevicePath(kDevInput);
+    mPollThread = std::thread(&EvdevModule::loop, this);
+}
+
+void EvdevModule::notifyReport(input_report_t* r) {
+    ALOGV("%s", __func__);
+
+    // notifyReport() will be called from an arbitrary thread within the input
+    // host. Since InputHub is not threadsafe, this is how I expect this to
+    // work:
+    //   * notifyReport() will queue up the output report in the EvdevModule and
+    //     call wake() on the InputHub.
+    //   * In the main loop thread, after returning from poll(), the queue will
+    //     be processed with any pending work.
+}
+
+void EvdevModule::loop() {
+    ALOGV("%s", __func__);
+    for (;;) {
+        mInputHub->poll();
+
+        // TODO: process any pending work, like notify reports
+    }
+}
 
 extern "C" {
 
 static int dummy_open(const hw_module_t __unused *module, const char __unused *id,
-                            hw_device_t __unused **device) {
-    assert(false);
+        hw_device_t __unused **device) {
+    ALOGW("open not implemented in the input HAL!");
     return 0;
 }
 
 static void input_init(const input_module_t* module,
         input_host_t* host, input_host_callbacks_t cb) {
-    return;
+    LOG_ALWAYS_FATAL_IF(strcmp(module->common.id, INPUT_HARDWARE_MODULE_ID) != 0);
+    InputHost inputHost = {host, cb};
+    gEvdevModule = std::make_shared<EvdevModule>(inputHost);
+    gEvdevModule->init();
 }
 
-static void input_notify_report(input_report_t* r) {
-    return;
+static void input_notify_report(const input_module_t* module, input_report_t* r) {
+    LOG_ALWAYS_FATAL_IF(strcmp(module->common.id, INPUT_HARDWARE_MODULE_ID) != 0);
+    LOG_ALWAYS_FATAL_IF(gEvdevModule == nullptr);
+    gEvdevModule->notifyReport(r);
 }
 
 static struct hw_module_methods_t input_module_methods = {

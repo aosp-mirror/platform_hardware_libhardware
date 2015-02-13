@@ -14,6 +14,29 @@
 
 LOCAL_PATH := $(call my-dir)
 
+# Evdev module implementation
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES := \
+    InputHub.cpp \
+    InputDevice.cpp \
+    InputDeviceManager.cpp \
+    InputHost.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+    libhardware_legacy \
+    liblog \
+    libutils
+
+LOCAL_CLANG := true
+LOCAL_CPPFLAGS += -std=c++14 -Wno-unused-parameter
+
+LOCAL_MODULE := libinput_evdev
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_SHARED_LIBRARY)
+
+# HAL module
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := input.evdev.default
@@ -22,7 +45,12 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_SRC_FILES := \
     EvdevModule.cpp
 
-LOCAL_SHARED_LIBRARIES := liblog
+LOCAL_SHARED_LIBRARIES := \
+    libinput_evdev \
+    liblog
+
+LOCAL_CLANG := true
+LOCAL_CPPFLAGS += -std=c++14 -Wno-unused-parameter
 
 LOCAL_MODULE_TAGS := optional
 

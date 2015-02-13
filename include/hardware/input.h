@@ -164,7 +164,7 @@ struct input_module {
      * Sends an output report with a new set of state the host would like the given device to
      * assume.
      */
-    void (*notify_report)(input_report_t* report);
+    void (*notify_report)(const input_module_t* module, input_report_t* report);
 };
 
 static inline int input_open(const struct hw_module_t** module, const char* type) {
