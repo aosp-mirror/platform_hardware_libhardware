@@ -96,7 +96,7 @@ private:
         sp<CameraDeviceBase> device = mDevice;
 
         /* use an arbitrary w,h */
-        {
+        if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
             const int tag = ANDROID_SCALER_AVAILABLE_PROCESSED_SIZES;
 
             const CameraMetadata& staticInfo = device->info();
@@ -106,9 +106,22 @@ private:
 
             ASSERT_LE(2u, entry.count);
             /* this seems like it would always be the smallest w,h
-               but we actually make no contract that it's sorted asc */;
+               but we actually make no contract that it's sorted asc */
             mWidth = entry.data.i32[0];
             mHeight = entry.data.i32[1];
+        } else {
+            buildOutputResolutions();
+            const int32_t *implDefResolutions;
+            size_t   implDefResolutionsCount;
+
+            int format = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+
+            getResolutionList(format,
+                    &implDefResolutions, &implDefResolutionsCount);
+            ASSERT_NE(0u, implDefResolutionsCount)
+                << "Missing implementation defined sizes";
+            mWidth = implDefResolutions[0];
+            mHeight = implDefResolutions[1];
         }
     }
     void TearDown() {
@@ -117,12 +130,82 @@ private:
         // important: shut down HAL before releasing streams
         CameraModuleFixture::TearDown();
 
+        deleteOutputResolutions();
         mNativeWindow.clear();
         mCpuConsumer.clear();
         mFrameListener.clear();
     }
 
 protected:
+
+    int64_t getMinFrameDurationFor(int32_t format, int32_t width, int32_t height) {
+        int64_t minFrameDuration = -1L;
+        const int tag = ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS;
+        sp<CameraDeviceBase> device = mDevice;
+        const CameraMetadata& staticInfo = device->info();
+        camera_metadata_ro_entry_t availableMinDurations = staticInfo.find(tag);
+        for (uint32_t i = 0; i < availableMinDurations.count; i += 4) {
+            if (format == availableMinDurations.data.i64[i] &&
+                    width == availableMinDurations.data.i64[i + 1] &&
+                    height == availableMinDurations.data.i64[i + 2]) {
+                minFrameDuration = availableMinDurations.data.i64[i + 3];
+                break;
+            }
+        }
+        return minFrameDuration;
+    }
+
+    void buildOutputResolutions() {
+        if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+            return;
+        }
+        if (mOutputResolutions.isEmpty()) {
+            const int tag = ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS;
+            const CameraMetadata& staticInfo = mDevice->info();
+            camera_metadata_ro_entry_t availableStrmConfigs = staticInfo.find(tag);
+            ASSERT_EQ(0u, availableStrmConfigs.count % 4);
+            for (uint32_t i = 0; i < availableStrmConfigs.count; i += 4) {
+                int32_t format = availableStrmConfigs.data.i32[i];
+                int32_t width = availableStrmConfigs.data.i32[i + 1];
+                int32_t height = availableStrmConfigs.data.i32[i + 2];
+                int32_t inOrOut = availableStrmConfigs.data.i32[i + 3];
+                if (inOrOut == ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT) {
+                    int index = mOutputResolutions.indexOfKey(format);
+                    if (index < 0) {
+                        index = mOutputResolutions.add(format, new Vector<int32_t>());
+                        ASSERT_TRUE(index >= 0);
+                    }
+                    Vector<int32_t> *resolutions = mOutputResolutions.editValueAt(index);
+                    resolutions->add(width);
+                    resolutions->add(height);
+                }
+            }
+        }
+    }
+
+    void getResolutionList(int32_t format,
+            const int32_t **list,
+            size_t *count) {
+        status_t res;
+        ALOGV("Getting resolutions for format %x", format);
+        if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
+            return;
+        }
+        int index = mOutputResolutions.indexOfKey(format);
+        ASSERT_TRUE(index >= 0);
+        Vector<int32_t>* resolutions = mOutputResolutions.valueAt(index);
+        *list = resolutions->array();
+        *count = resolutions->size();
+    }
+
+    void deleteOutputResolutions() {
+        for (uint32_t i = 0; i < mOutputResolutions.size(); i++) {
+            Vector<int32_t>* resolutions = mOutputResolutions.editValueAt(i);
+            delete resolutions;
+        }
+        mOutputResolutions.clear();
+    }
+
     struct FrameListener : public ConsumerBase::FrameAvailableListener {
 
         FrameListener() {
@@ -130,7 +213,7 @@ protected:
         }
 
         // CpuConsumer::FrameAvailableListener implementation
-        virtual void onFrameAvailable() {
+        virtual void onFrameAvailable(const BufferItem& /* item */) {
             ALOGV("Frame now available (start)");
 
             Mutex::Autolock lock(mMutex);
@@ -280,7 +363,7 @@ protected:
     android::sp<FrameListener>       mFrameListener;
     android::sp<CpuConsumer>         mCpuConsumer;
     android::sp<ANativeWindow>       mNativeWindow;
-
+    KeyedVector<int32_t, Vector<int32_t>* > mOutputResolutions;
 
 private:
     CameraStreamParams mParam;

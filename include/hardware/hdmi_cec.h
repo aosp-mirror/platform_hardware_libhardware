@@ -212,6 +212,15 @@ enum {
      * False by default.
      */
     HDMI_OPTION_SYSTEM_CEC_CONTROL = 3,
+
+    /* Option 4 not used */
+
+    /* Passes the updated language information of Android system.
+     * Contains 3-byte ASCII code as defined in ISO/FDIS 639-2. Can be
+     * used for HAL to respond to <Get Menu Language> while in standby mode.
+     * English(eng), for example, is converted to 0x656e67.
+     */
+    HDMI_OPTION_SET_LANG = 5,
 };
 
 /*
@@ -390,7 +399,7 @@ typedef struct hdmi_cec_device {
      *
      * Returns 0 on success or -errno on error.
      */
-    void (*set_audio_return_channel)(const struct hdmi_cec_device* dev, int flag);
+    void (*set_audio_return_channel)(const struct hdmi_cec_device* dev, int port_id, int flag);
 
     /*
      * (*is_connected)() returns the connection status of the specified port.

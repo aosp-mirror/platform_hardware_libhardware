@@ -231,7 +231,7 @@ class FrameWaiter : public CpuConsumer::FrameAvailableListener {
      */
     status_t waitForFrame(nsecs_t timeout);
 
-    virtual void onFrameAvailable();
+    virtual void onFrameAvailable(const BufferItem& item);
 
     int mPendingFrames;
     Mutex mMutex;

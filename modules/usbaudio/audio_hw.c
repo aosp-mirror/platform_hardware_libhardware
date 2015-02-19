@@ -104,9 +104,11 @@ struct stream_in {
     alsa_device_profile * profile;
     alsa_device_proxy proxy;            /* state of the stream */
 
-    // not used?
-    // struct audio_config hal_pcm_config;
-
+    unsigned hal_channel_count;         /* channel count exposed to AudioFlinger.
+                                         * This may differ from the device channel count when
+                                         * the device is not compatible with AudioFlinger
+                                         * capabilities, e.g. exposes too many channels or
+                                         * too few channels. */
     /* We may need to read more data from the device in order to data reduce to 16bit, 4chan */
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
@@ -623,25 +625,13 @@ static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
     const struct stream_in * in = ((const struct stream_in*)stream);
-    size_t buffer_size =
-        proxy_get_period_size(&in->proxy) * audio_stream_in_frame_size(&(in->stream));
-    ALOGV("in_get_buffer_size() = %zd", buffer_size);
-
-    return buffer_size;
+    return proxy_get_period_size(&in->proxy) * audio_stream_in_frame_size(&(in->stream));
 }
 
 static uint32_t in_get_channels(const struct audio_stream *stream)
 {
-    /* TODO Here is the code we need when we support arbitrary channel counts
-     * alsa_device_proxy * proxy = ((struct stream_in*)stream)->proxy;
-     * unsigned channel_count = proxy_get_channel_count(proxy);
-     * uint32_t channel_mask = audio_channel_in_mask_from_count(channel_count);
-     * ALOGV("in_get_channels() = 0x%X count:%d", channel_mask, channel_count);
-     * return channel_mask;
-     */
-    /* TODO When AudioPolicyManager & AudioFlinger supports arbitrary channels
-     rewrite this to return the ACTUAL channel format */
-    return AUDIO_CHANNEL_IN_STEREO;
+    const struct stream_in *in = (const struct stream_in*)stream;
+    return audio_channel_in_mask_from_count(in->hal_channel_count);
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
@@ -785,6 +775,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     size_t num_read_buff_bytes = 0;
     void * read_buff = buffer;
     void * out_buff = buffer;
+    int ret = 0;
 
     struct stream_in * in = (struct stream_in *)stream;
 
@@ -808,7 +799,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
      */
     num_read_buff_bytes = bytes;
     int num_device_channels = proxy_get_channel_count(&in->proxy);
-    int num_req_channels = 2; /* always, for now */
+    int num_req_channels = in->hal_channel_count;
 
     if (num_device_channels != num_req_channels) {
         num_read_buff_bytes = (num_device_channels * num_read_buff_bytes) / num_req_channels;
@@ -834,7 +825,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         read_buff = in->conversion_buffer;
     }
 
-    if (proxy_read(&in->proxy, read_buff, num_read_buff_bytes) == 0) {
+    ret = proxy_read(&in->proxy, read_buff, num_read_buff_bytes);
+    if (ret == 0) {
         /*
          * Do any conversions necessary to send the data in the format specified to/by the HAL
          * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
@@ -878,7 +870,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         if (num_read_buff_bytes > 0 && in->dev->mic_muted)
             memset(buffer, 0, num_read_buff_bytes);
     } else {
-        num_read_buff_bytes = 0;
+        num_read_buff_bytes = 0; // reset the value after USB headset is unplugged
     }
 
 err:
@@ -964,19 +956,18 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         ret = -EINVAL;
     }
 
-    if (config->channel_mask == AUDIO_CHANNEL_NONE) {
-        /* just return AUDIO_CHANNEL_IN_STEREO until the framework supports other input
-         * formats */
-        config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
-
-    } else if (config->channel_mask != AUDIO_CHANNEL_IN_STEREO) {
-        /* allow only stereo capture for now */
-        config->channel_mask = AUDIO_CHANNEL_IN_STEREO;
-        ret = -EINVAL;
+    /* Channels */
+    unsigned proposed_channel_count = profile_get_default_channel_count(in->profile);
+    if (k_force_channels) {
+        proposed_channel_count = k_force_channels;
+    } else if (config->channel_mask != AUDIO_CHANNEL_NONE) {
+        proposed_channel_count = audio_channel_count_from_in_mask(config->channel_mask);
     }
-    // proxy_config.channels = 0;  /* don't change */
-    proxy_config.channels = profile_get_default_channel_count(in->profile);
 
+    /* we can expose any channel count mask, and emulate internally. */
+    config->channel_mask = audio_channel_in_mask_from_count(proposed_channel_count);
+    in->hal_channel_count = proposed_channel_count;
+    proxy_config.channels = profile_get_default_channel_count(in->profile);
     proxy_prepare(&in->proxy, in->profile, &proxy_config);
 
     in->standby = true;

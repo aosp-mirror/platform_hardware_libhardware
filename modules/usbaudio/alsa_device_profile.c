@@ -58,10 +58,9 @@ extern int8_t const pcm_format_value_map[50];
 static const unsigned std_sample_rates[] =
     {48000, 44100, 32000, 24000, 22050, 16000, 12000, 11025, 8000};
 
-void profile_init(alsa_device_profile* profile, int direction)
+static void profile_reset(alsa_device_profile* profile)
 {
     profile->card = profile->device = -1;
-    profile->direction = direction;
 
     /* Fill the attribute arrays with invalid values */
     size_t index;
@@ -83,6 +82,12 @@ void profile_init(alsa_device_profile* profile, int direction)
     profile->is_valid = false;
 }
 
+void profile_init(alsa_device_profile* profile, int direction)
+{
+    profile->direction = direction;
+    profile_reset(profile);
+}
+
 bool profile_is_initialized(alsa_device_profile* profile)
 {
     return profile->card >= 0 && profile->device >= 0;
@@ -97,7 +102,7 @@ bool profile_is_cached_for(alsa_device_profile* profile, int card, int device) {
 }
 
 void profile_decache(alsa_device_profile* profile) {
-    profile->card = profile->device = -1;
+    profile_reset(profile);
 }
 
 /*
@@ -275,28 +280,19 @@ static unsigned profile_enum_sample_formats(alsa_device_profile* profile, struct
 
 static unsigned profile_enum_channel_counts(alsa_device_profile* profile, unsigned min, unsigned max)
 {
-    // TODO: Don't return MONO even if the device supports it. This causes problems
-    // in AudioPolicyManager. Revisit.
-    static const unsigned std_out_channel_counts[] = {8, 4, 2/*, 1*/};
-    static const unsigned std_in_channel_counts[] = {8, 4, 2, 1};
-
-    unsigned * channel_counts =
-        profile->direction == PCM_OUT ? std_out_channel_counts : std_in_channel_counts;
-    unsigned num_channel_counts =
-        profile->direction == PCM_OUT
-            ? ARRAY_SIZE(std_out_channel_counts) : ARRAY_SIZE(std_in_channel_counts);
+    static const unsigned std_channel_counts[] = {8, 4, 2, 1};
 
     unsigned num_counts = 0;
     unsigned index;
     /* TODO write a profile_test_channel_count() */
     /* Ensure there is at least one invalid channel count to terminate the channel counts array */
-    for (index = 0; index < num_channel_counts &&
+    for (index = 0; index < ARRAY_SIZE(std_channel_counts) &&
                     num_counts < ARRAY_SIZE(profile->channel_counts) - 1;
          index++) {
         /* TODO Do we want a channel counts test? */
-        if (channel_counts[index] >= min && channel_counts[index] <= max /* &&
+        if (std_channel_counts[index] >= min && std_channel_counts[index] <= max /* &&
             profile_test_channel_count(profile, channel_counts[index])*/) {
-            profile->channel_counts[num_counts++] = channel_counts[index];
+            profile->channel_counts[num_counts++] = std_channel_counts[index];
         }
     }
 
@@ -459,6 +455,7 @@ char * profile_get_channel_count_strs(alsa_device_profile* profile)
     };
 
     const bool isOutProfile = profile->direction == PCM_OUT;
+
     const char * const * const names_array = isOutProfile ? out_chans_strs : in_chans_strs;
     const size_t names_size = isOutProfile ? ARRAY_SIZE(out_chans_strs)
             : ARRAY_SIZE(in_chans_strs);
@@ -467,12 +464,17 @@ char * profile_get_channel_count_strs(alsa_device_profile* profile)
     buffer[0] = '\0';
     const int buffer_size = ARRAY_SIZE(buffer);
     int num_entries = 0;
-    bool stereo_allowed = false;
+    /* We currently support MONO and STEREO, and always report STEREO but some (many)
+     * USB Audio Devices may only announce support for MONO (a headset mic for example), or
+     * The total number of output channels. SO, if the device itself doesn't explicitly
+     * support STEREO, append to the channel config strings we are generating.
+     */
+    bool stereo_present = false;
     unsigned index;
     unsigned channel_count;
 
     for (index = 0; (channel_count = profile->channel_counts[index]) != 0; index++) {
-        stereo_allowed = stereo_allowed || channel_count == 2;
+        stereo_present = stereo_present || channel_count == 2;
         if (channel_count < names_size && names_array[channel_count] != NULL) {
             if (num_entries++ != 0) {
                 strncat(buffer, "|", buffer_size);
@@ -480,14 +482,16 @@ char * profile_get_channel_count_strs(alsa_device_profile* profile)
             strncat(buffer, names_array[channel_count], buffer_size);
         }
     }
+
     /* emulated modes:
      * always expose stereo as we can emulate it for PCM_OUT
      */
-    if (!stereo_allowed && isOutProfile) {
+    if (!stereo_present) {
         if (num_entries++ != 0) {
             strncat(buffer, "|", buffer_size);
         }
         strncat(buffer, names_array[2], buffer_size); /* stereo */
     }
+
     return strdup(buffer);
 }

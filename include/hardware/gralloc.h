@@ -237,8 +237,17 @@ typedef struct gralloc_module_t {
      * difference that it fills a struct ycbcr with a description of the buffer
      * layout, and zeroes out the reserved fields.
      *
-     * This will only work on buffers with HAL_PIXEL_FORMAT_YCbCr_*_888, and
-     * will return -EINVAL on any other buffer formats.
+     * If the buffer format is not compatible with a flexible YUV format (e.g.
+     * the buffer layout cannot be represented with the ycbcr struct), it
+     * will return -EINVAL.
+     *
+     * This method must work on buffers with HAL_PIXEL_FORMAT_YCbCr_*_888
+     * if supported by the device, as well as with any other format that is
+     * requested by the multimedia codecs when they are configured with a
+     * flexible-YUV-compatible color-format with android native buffers.
+     *
+     * Note that this method may also be called on buffers of other formats,
+     * including non-YUV formats.
      *
      * Added in GRALLOC_MODULE_API_VERSION_0_2.
      */
