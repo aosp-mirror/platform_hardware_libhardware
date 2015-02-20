@@ -424,12 +424,10 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     if (out->standby) {
         ret = start_output_stream(out);
         if (ret != 0) {
-            pthread_mutex_unlock(&out->dev->lock);
             goto err;
         }
         out->standby = false;
     }
-    pthread_mutex_unlock(&out->dev->lock);
 
     alsa_device_proxy* proxy = &out->proxy;
     const void * write_buff = buffer;
@@ -460,11 +458,13 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     }
 
     pthread_mutex_unlock(&out->lock);
+    pthread_mutex_unlock(&out->dev->lock);
 
     return bytes;
 
 err:
     pthread_mutex_unlock(&out->lock);
+    pthread_mutex_unlock(&out->dev->lock);
     if (ret != 0) {
         usleep(bytes * 1000000 / audio_stream_out_frame_size(stream) /
                out_get_sample_rate(&stream->common));
@@ -807,13 +807,10 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     pthread_mutex_lock(&in->lock);
     if (in->standby) {
         if (start_input_stream(in) != 0) {
-            pthread_mutex_unlock(&in->dev->lock);
             goto err;
         }
         in->standby = false;
     }
-    pthread_mutex_unlock(&in->dev->lock);
-
 
     alsa_device_profile * profile = in->profile;
 
@@ -899,6 +896,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
 err:
     pthread_mutex_unlock(&in->lock);
+    pthread_mutex_unlock(&in->dev->lock);
 
     return num_read_buff_bytes;
 }
@@ -1028,43 +1026,6 @@ static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_st
  */
 static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
 {
-    ALOGV("adev_set_parameters(%s)", kvpairs);
-
-    struct audio_device * adev = (struct audio_device *)dev;
-
-    char value[32];
-    int param_val;
-
-    struct str_parms * parms = str_parms_create_str(kvpairs);
-
-    /* Check for the "disconnect" message */
-    param_val = str_parms_get_str(parms, "disconnect", value, sizeof(value));
-    if (param_val >= 0) {
-        audio_devices_t device = (audio_devices_t)atoi(value);
-
-        param_val = str_parms_get_str(parms, "card", value, sizeof(value));
-        int alsa_card = param_val >= 0 ? atoi(value) : -1;
-
-        param_val = str_parms_get_str(parms, "device", value, sizeof(value));
-        int alsa_device = param_val >= 0 ? atoi(value) : -1;
-
-        if (alsa_card >= 0 && alsa_device >= 0) {
-            /* "decache" the profile */
-            pthread_mutex_lock(&adev->lock);
-            if (device == AUDIO_DEVICE_OUT_USB_DEVICE &&
-                profile_is_cached_for(&adev->out_profile, alsa_card, alsa_device)) {
-                profile_decache(&adev->out_profile);
-            }
-            if (device == AUDIO_DEVICE_IN_USB_DEVICE &&
-                profile_is_cached_for(&adev->in_profile, alsa_card, alsa_device)) {
-                profile_decache(&adev->in_profile);
-            }
-            pthread_mutex_unlock(&adev->lock);
-        }
-    }
-
-    str_parms_destroy(parms);
-
     return 0;
 }
 
