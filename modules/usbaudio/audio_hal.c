@@ -424,10 +424,12 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     if (out->standby) {
         ret = start_output_stream(out);
         if (ret != 0) {
+            pthread_mutex_unlock(&out->dev->lock);
             goto err;
         }
         out->standby = false;
     }
+    pthread_mutex_unlock(&out->dev->lock);
 
     alsa_device_proxy* proxy = &out->proxy;
     const void * write_buff = buffer;
@@ -458,13 +460,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
     }
 
     pthread_mutex_unlock(&out->lock);
-    pthread_mutex_unlock(&out->dev->lock);
 
     return bytes;
 
 err:
     pthread_mutex_unlock(&out->lock);
-    pthread_mutex_unlock(&out->dev->lock);
     if (ret != 0) {
         usleep(bytes * 1000000 / audio_stream_out_frame_size(stream) /
                out_get_sample_rate(&stream->common));
@@ -807,10 +807,12 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
     pthread_mutex_lock(&in->lock);
     if (in->standby) {
         if (start_input_stream(in) != 0) {
+            pthread_mutex_unlock(&in->dev->lock);
             goto err;
         }
         in->standby = false;
     }
+    pthread_mutex_unlock(&in->dev->lock);
 
     alsa_device_profile * profile = in->profile;
 
@@ -896,7 +898,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
 err:
     pthread_mutex_unlock(&in->lock);
-    pthread_mutex_unlock(&in->dev->lock);
 
     return num_read_buff_bytes;
 }
