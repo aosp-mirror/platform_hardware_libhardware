@@ -107,7 +107,7 @@ typedef enum {
     KM_TAG_KEY_SIZE = KM_INT | 3,         /* Key size in bits. */
     KM_TAG_BLOCK_MODE = KM_ENUM | 4,      /* keymaster_block_mode_t. */
     KM_TAG_DIGEST = KM_ENUM | 5,          /* keymaster_digest_t. */
-    KM_TAG_MAC_LENGTH = KM_INT | 6,       /* MAC length in bits. */
+    KM_TAG_MAC_LENGTH = KM_INT | 6,       /* MAC or AEAD authentication tag length in bits. */
     KM_TAG_PADDING = KM_ENUM | 7,         /* keymaster_padding_t. */
     KM_TAG_RETURN_UNAUTHED = KM_BOOL | 8, /* Allow AEAD decryption to return plaintext before it has
                                              been authenticated.  WARNING: Not recommended. */
