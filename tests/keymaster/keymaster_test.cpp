@@ -35,7 +35,7 @@
 
 #include <UniquePtr.h>
 
-#include <hardware/keymaster.h>
+#include <hardware/keymaster0.h>
 
 namespace android {
 
@@ -92,13 +92,13 @@ std::ostream &operator<<(std::ostream &stream, const UniqueBlob& blob) {
 
 class UniqueKey : public UniqueBlob {
 public:
-    UniqueKey(keymaster_device_t** dev, uint8_t* bytes, size_t length) :
+    UniqueKey(keymaster0_device_t** dev, uint8_t* bytes, size_t length) :
             UniqueBlob(bytes, length), mDevice(dev) {
     }
 
     ~UniqueKey() {
         if (mDevice != NULL && *mDevice != NULL) {
-            keymaster_device_t* dev = *mDevice;
+            keymaster0_device_t* dev = *mDevice;
             if (dev->delete_keypair != NULL) {
                 dev->delete_keypair(dev, get(), length());
             }
@@ -106,7 +106,7 @@ public:
     }
 
 private:
-    keymaster_device_t** mDevice;
+    keymaster0_device_t** mDevice;
 };
 
 class UniqueReadOnlyBlob {
@@ -341,7 +341,7 @@ public:
 
         std::cout << "Using keymaster module: " << mod->name << std::endl;
 
-        ASSERT_EQ(0, keymaster_open(mod, &sDevice))
+        ASSERT_EQ(0, keymaster0_open(mod, &sDevice))
                 << "Should be able to open the keymaster device";
 
         ASSERT_EQ(KEYMASTER_MODULE_API_VERSION_0_2, mod->module_api_version)
@@ -364,14 +364,14 @@ public:
     }
 
     static void TearDownTestCase() {
-        ASSERT_EQ(0, keymaster_close(sDevice));
+        ASSERT_EQ(0, keymaster0_close(sDevice));
     }
 
 protected:
-    static keymaster_device_t* sDevice;
+    static keymaster0_device_t* sDevice;
 };
 
-keymaster_device_t* KeymasterBaseTest::sDevice = NULL;
+keymaster0_device_t* KeymasterBaseTest::sDevice = NULL;
 
 class KeymasterTest : public KeymasterBaseTest {
 };

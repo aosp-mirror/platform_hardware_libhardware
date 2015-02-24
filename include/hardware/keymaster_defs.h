@@ -25,57 +25,6 @@
 extern "C" {
 #endif  // defined(__cplusplus)
 
-/*!
- * \deprecated Flags for keymaster_device::flags
- *
- * keymaster_device::flags is deprecated and will be removed in the
- * next version of the API in favor of the more detailed information
- * available from TODO:
- */
-enum {
-    /*
-     * Indicates this keymaster implementation does not have hardware that
-     * keeps private keys out of user space.
-     *
-     * This should not be implemented on anything other than the default
-     * implementation.
-     */
-    KEYMASTER_SOFTWARE_ONLY = 1 << 0,
-
-    /*
-     * This indicates that the key blobs returned via all the primitives
-     * are sufficient to operate on their own without the trusted OS
-     * querying userspace to retrieve some other data. Key blobs of
-     * this type are normally returned encrypted with a
-     * Key Encryption Key (KEK).
-     *
-     * This is currently used by "vold" to know whether the whole disk
-     * encryption secret can be unwrapped without having some external
-     * service started up beforehand since the "/data" partition will
-     * be unavailable at that point.
-     */
-    KEYMASTER_BLOBS_ARE_STANDALONE = 1 << 1,
-
-    /*
-     * Indicates that the keymaster module supports DSA keys.
-     */
-    KEYMASTER_SUPPORTS_DSA = 1 << 2,
-
-    /*
-     * Indicates that the keymaster module supports EC keys.
-     */
-    KEYMASTER_SUPPORTS_EC = 1 << 3,
-};
-
-/**
- * \deprecated Asymmetric key pair types.
- */
-typedef enum {
-    TYPE_RSA = 1,
-    TYPE_DSA = 2,
-    TYPE_EC = 3,
-} keymaster_keypair_t;
-
 /**
  * Authorization tags each have an associated type.  This enumeration facilitates tagging each with
  * a type, by using the high four bits (of an implied 32-bit unsigned enum value) to specify up to
@@ -183,9 +132,7 @@ typedef enum {
 
 /**
  * Algorithms that may be provided by keymaster implementations.  Those that must be provided by all
- * implementations are tagged as "required".  Note that where the values in this enumeration overlap
- * with the values for the deprecated keymaster_keypair_t, the same algorithm must be
- * specified. This type is new in 0_4 and replaces the deprecated keymaster_keypair_t.
+ * implementations are tagged as "required".
  */
 typedef enum {
     /* Asymmetric algorithms. */
@@ -271,7 +218,6 @@ typedef enum {
  */
 typedef enum {
     KM_DIGEST_NONE = 0,           /* new, required */
-    DIGEST_NONE = KM_DIGEST_NONE, /* For 0_2 compatibility */
     KM_DIGEST_MD5 = 1,            /* new, for compatibility with old protocols only */
     KM_DIGEST_SHA1 = 2,           /* new */
     KM_DIGEST_SHA_2_224 = 3,      /* new */
@@ -432,68 +378,6 @@ typedef enum {
      * with Google to avoid code collision. */
     KM_ERROR_UNKNOWN_ERROR = -1000,
 } keymaster_error_t;
-
-/**
- * \deprecated Parameters needed to generate an RSA key.
- */
-typedef struct {
-    uint32_t modulus_size; /* bits */
-    uint64_t public_exponent;
-} keymaster_rsa_keygen_params_t;
-
-/**
- * \deprecated Parameters needed to generate a DSA key.
- */
-typedef struct {
-    uint32_t key_size; /* bits */
-    uint32_t generator_len;
-    uint32_t prime_p_len;
-    uint32_t prime_q_len;
-    const uint8_t* generator;
-    const uint8_t* prime_p;
-    const uint8_t* prime_q;
-} keymaster_dsa_keygen_params_t;
-
-/**
- * \deprecated Parameters needed to generate an EC key.
- *
- * Field size is the only parameter in version 4. The sizes correspond to these required curves:
- *
- * 192 = NIST P-192
- * 224 = NIST P-224
- * 256 = NIST P-256
- * 384 = NIST P-384
- * 521 = NIST P-521
- *
- * The parameters for these curves are available at: http://www.nsa.gov/ia/_files/nist-routines.pdf
- * in Chapter 4.
- */
-typedef struct { uint32_t field_size; /* bits */ } keymaster_ec_keygen_params_t;
-
-/**
- * \deprecated Type of padding used for RSA operations.
- */
-typedef enum {
-    PADDING_NONE,
-} keymaster_rsa_padding_t;
-
-/**
- * \deprecated
- */
-typedef struct { keymaster_digest_t digest_type; } keymaster_dsa_sign_params_t;
-
-/**
- * \deprecated
- */
-typedef struct { keymaster_digest_t digest_type; } keymaster_ec_sign_params_t;
-
-/**
- *\deprecated
- */
-typedef struct {
-    keymaster_digest_t digest_type;
-    keymaster_rsa_padding_t padding_type;
-} keymaster_rsa_sign_params_t;
 
 /* Convenience functions for manipulating keymaster tag types */
 
