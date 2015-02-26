@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 The Android Open Source Project
+ * Copyright (C) 2015 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,57 +14,18 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_KEYMASTER_H
-#define ANDROID_HARDWARE_KEYMASTER_H
+#ifndef ANDROID_HARDWARE_KEYMASTER1_H
+#define ANDROID_HARDWARE_KEYMASTER1_H
 
-#include <stdint.h>
-#include <sys/cdefs.h>
-#include <sys/types.h>
-
-#include <hardware/hardware.h>
+#include <hardware/keymaster_common.h>
 #include <hardware/keymaster_defs.h>
 
 __BEGIN_DECLS
 
 /**
- * The id of this module
+ * Keymaster1 device definition
  */
-#define KEYSTORE_HARDWARE_MODULE_ID "keystore"
-
-#define KEYSTORE_KEYMASTER "keymaster"
-
-/**
- * Settings for "module_api_version" and "hal_api_version"
- * fields in the keymaster_module initialization.
- */
-#define KEYMASTER_HEADER_VERSION 4
-
-#define KEYMASTER_MODULE_API_VERSION_0_2 HARDWARE_MODULE_API_VERSION(0, 2)
-#define KEYMASTER_DEVICE_API_VERSION_0_2 \
-    HARDWARE_DEVICE_API_VERSION_2(0, 2, KEYMASTER_HEADER_VERSION)
-
-#define KEYMASTER_MODULE_API_VERSION_0_3 HARDWARE_MODULE_API_VERSION(0, 3)
-#define KEYMASTER_DEVICE_API_VERSION_0_3 \
-    HARDWARE_DEVICE_API_VERSION_2(0, 3, KEYMASTER_HEADER_VERSION)
-
-#define KEYMASTER_MODULE_API_VERSION_0_4 HARDWARE_MODULE_API_VERSION(0, 4)
-#define KEYMASTER_DEVICE_API_VERSION_0_4 \
-    HARDWARE_DEVICE_API_VERSION_2(0, 4, KEYMASTER_HEADER_VERSION)
-
-struct keystore_module {
-    /**
-     * Common methods of the keystore module.  This *must* be the first member of
-     * keystore_module as users of this structure will cast a hw_module_t to
-     * keystore_module pointer in contexts where it's known the hw_module_t references a
-     * keystore_module.
-     */
-    hw_module_t common;
-};
-
-/**
- * The parameters that can be set for a given keymaster implementation.
- */
-struct keymaster_device {
+struct keymaster1_device {
     /**
      * Common methods of the keymaster device.  This *must* be the first member of
      * keymaster_device as users of this structure will cast a hw_device_t to
@@ -80,7 +41,7 @@ struct keymaster_device {
     uint32_t client_version;
 
     /**
-     * See flags defined for keymaster_device::flags above.
+     * See flags defined for keymaster0_devices::flags in keymaster_common.h
      */
     uint32_t flags;
 
@@ -92,7 +53,7 @@ struct keymaster_device {
      *
      * Returns: 0 on success or an error code less than 0.
      */
-    int (*generate_keypair)(const struct keymaster_device* dev, const keymaster_keypair_t key_type,
+    int (*generate_keypair)(const struct keymaster1_device* dev, const keymaster_keypair_t key_type,
                             const void* key_params, uint8_t** key_blob, size_t* key_blob_length);
 
     /**
@@ -102,7 +63,7 @@ struct keymaster_device {
      *
      * Returns: 0 on success or an error code less than 0.
      */
-    int (*import_keypair)(const struct keymaster_device* dev, const uint8_t* key,
+    int (*import_keypair)(const struct keymaster1_device* dev, const uint8_t* key,
                           const size_t key_length, uint8_t** key_blob, size_t* key_blob_length);
 
     /**
@@ -112,7 +73,7 @@ struct keymaster_device {
      * Returns: 0 on success or an error code less than 0.  On error, x509_data
      * should not be allocated.
      */
-    int (*get_keypair_public)(const struct keymaster_device* dev, const uint8_t* key_blob,
+    int (*get_keypair_public)(const struct keymaster1_device* dev, const uint8_t* key_blob,
                               const size_t key_blob_length, uint8_t** x509_data,
                               size_t* x509_data_length);
 
@@ -124,7 +85,7 @@ struct keymaster_device {
      *
      * Returns 0 on success or an error code less than 0.
      */
-    int (*delete_keypair)(const struct keymaster_device* dev, const uint8_t* key_blob,
+    int (*delete_keypair)(const struct keymaster1_device* dev, const uint8_t* key_blob,
                           const size_t key_blob_length);
 
     /**
@@ -136,7 +97,7 @@ struct keymaster_device {
      *
      * Returns 0 on success or an error code less than 0.
      */
-    int (*delete_all)(const struct keymaster_device* dev);
+    int (*delete_all)(const struct keymaster1_device* dev);
 
     /**
      * \deprecated Signs data using a key-blob generated before. This can use either an asymmetric
@@ -144,7 +105,7 @@ struct keymaster_device {
      *
      * Returns: 0 on success or an error code less than 0.
      */
-    int (*sign_data)(const struct keymaster_device* dev, const void* signing_params,
+    int (*sign_data)(const struct keymaster1_device* dev, const void* signing_params,
                      const uint8_t* key_blob, const size_t key_blob_length, const uint8_t* data,
                      const size_t data_length, uint8_t** signed_data, size_t* signed_data_length);
 
@@ -154,7 +115,7 @@ struct keymaster_device {
      *
      * Returns: 0 on successful verification or an error code less than 0.
      */
-    int (*verify_data)(const struct keymaster_device* dev, const void* signing_params,
+    int (*verify_data)(const struct keymaster1_device* dev, const void* signing_params,
                        const uint8_t* key_blob, const size_t key_blob_length,
                        const uint8_t* signed_data, const size_t signed_data_length,
                        const uint8_t* signature, const size_t signature_length);
@@ -169,7 +130,7 @@ struct keymaster_device {
      *
      * \param[out] algorithms_length Length of \p algorithms.
      */
-    keymaster_error_t (*get_supported_algorithms)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_algorithms)(const struct keymaster1_device* dev,
                                                   keymaster_algorithm_t** algorithms,
                                                   size_t* algorithms_length);
 
@@ -185,7 +146,7 @@ struct keymaster_device {
      *
      * \param[out] modes_length Length of \p modes.
      */
-    keymaster_error_t (*get_supported_block_modes)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_block_modes)(const struct keymaster1_device* dev,
                                                    keymaster_algorithm_t algorithm,
                                                    keymaster_purpose_t purpose,
                                                    keymaster_block_mode_t** modes,
@@ -204,7 +165,7 @@ struct keymaster_device {
      *
      * \param[out] modes_length Length of \p modes.
      */
-    keymaster_error_t (*get_supported_padding_modes)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_padding_modes)(const struct keymaster1_device* dev,
                                                      keymaster_algorithm_t algorithm,
                                                      keymaster_purpose_t purpose,
                                                      keymaster_padding_t** modes,
@@ -223,7 +184,7 @@ struct keymaster_device {
      *
      * \param[out] digests_length Length of \p digests.
      */
-    keymaster_error_t (*get_supported_digests)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_digests)(const struct keymaster1_device* dev,
                                                keymaster_algorithm_t algorithm,
                                                keymaster_purpose_t purpose,
                                                keymaster_digest_t** digests,
@@ -242,7 +203,7 @@ struct keymaster_device {
      *
      * \param[out] formats_length Length of \p formats.
      */
-    keymaster_error_t (*get_supported_import_formats)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_import_formats)(const struct keymaster1_device* dev,
                                                       keymaster_algorithm_t algorithm,
                                                       keymaster_key_format_t** formats,
                                                       size_t* formats_length);
@@ -260,7 +221,7 @@ struct keymaster_device {
      *
      * \param[out] formats_length Length of \p formats.
      */
-    keymaster_error_t (*get_supported_export_formats)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_supported_export_formats)(const struct keymaster1_device* dev,
                                                       keymaster_algorithm_t algorithm,
                                                       keymaster_key_format_t** formats,
                                                       size_t* formats_length);
@@ -278,7 +239,7 @@ struct keymaster_device {
      *
      * \param[in] data_length Length of \p data.
      */
-    keymaster_error_t (*add_rng_entropy)(const struct keymaster_device* dev, const uint8_t* data,
+    keymaster_error_t (*add_rng_entropy)(const struct keymaster1_device* dev, const uint8_t* data,
                                          size_t data_length);
 
     /**
@@ -336,7 +297,7 @@ struct keymaster_device {
      * keymaster_free_characteristics().  Note that KM_TAG_ROOT_OF_TRUST, KM_TAG_APPLICATION_ID and
      * KM_TAG_APPLICATION_DATA are never returned.
      */
-    keymaster_error_t (*generate_key)(const struct keymaster_device* dev,
+    keymaster_error_t (*generate_key)(const struct keymaster1_device* dev,
                                       const keymaster_key_param_t* params, size_t params_count,
                                       keymaster_key_blob_t* key_blob,
                                       keymaster_key_characteristics_t** characteristics);
@@ -361,7 +322,7 @@ struct keymaster_device {
      *
      * \param[out] characteristics The key characteristics.
      */
-    keymaster_error_t (*get_key_characteristics)(const struct keymaster_device* dev,
+    keymaster_error_t (*get_key_characteristics)(const struct keymaster1_device* dev,
                                                  const keymaster_key_blob_t* key_blob,
                                                  const keymaster_blob_t* client_id,
                                                  const keymaster_blob_t* app_data,
@@ -396,7 +357,7 @@ struct keymaster_device {
      * hw_enforced and sw_enforced lists.  The caller takes ownership and must call
      * keymaster_free_characteristics() to free.
      */
-    keymaster_error_t (*rescope)(const struct keymaster_device* dev,
+    keymaster_error_t (*rescope)(const struct keymaster1_device* dev,
                                  const keymaster_key_param_t* new_params, size_t new_params_count,
                                  const keymaster_key_blob_t* key_blob,
                                  const keymaster_blob_t* client_id,
@@ -456,7 +417,7 @@ struct keymaster_device {
      * NULL, in which case no characteristics will be returned.  If non-NULL, the caller assumes
      * ownership and must deallocate with keymaster_free_characteristics().
      */
-    keymaster_error_t (*import_key)(const struct keymaster_device* dev,
+    keymaster_error_t (*import_key)(const struct keymaster1_device* dev,
                                     const keymaster_key_param_t* params, size_t params_count,
                                     keymaster_key_format_t key_format, const uint8_t* key_data,
                                     size_t key_data_length, keymaster_key_blob_t* key_blob,
@@ -475,7 +436,7 @@ struct keymaster_device {
      *
      * \param[out] export_data_length The length of \p export_data.
      */
-    keymaster_error_t (*export_key)(const struct keymaster_device* dev,
+    keymaster_error_t (*export_key)(const struct keymaster1_device* dev,
                                     keymaster_key_format_t export_format,
                                     const keymaster_key_blob_t* key_to_export,
                                     const keymaster_blob_t* client_id,
@@ -494,7 +455,7 @@ struct keymaster_device {
      *
      * \param[in] key The key to be deleted.
      */
-    keymaster_error_t (*delete_key)(const struct keymaster_device* dev,
+    keymaster_error_t (*delete_key)(const struct keymaster1_device* dev,
                                     const keymaster_key_blob_t* key);
 
     /**
@@ -508,7 +469,7 @@ struct keymaster_device {
      *
      * Returns 0 on success or an error code less than 0.
      */
-    int (*delete_all_keys)(const struct keymaster_device* dev);
+    int (*delete_all_keys)(const struct keymaster1_device* dev);
 
     /**
      * Begins a cryptographic operation using the specified key.  If all is well, begin() will
@@ -549,7 +510,7 @@ struct keymaster_device {
      * \param[out] operation_handle The newly-created operation handle which must be passed to
      * update(), finish() or abort().
      */
-    keymaster_error_t (*begin)(const struct keymaster_device* dev, keymaster_purpose_t purpose,
+    keymaster_error_t (*begin)(const struct keymaster1_device* dev, keymaster_purpose_t purpose,
                                const keymaster_key_blob_t* key, const keymaster_key_param_t* params,
                                size_t params_count, keymaster_key_param_t** out_params,
                                size_t* out_params_count,
@@ -593,7 +554,7 @@ struct keymaster_device {
      * Note that update() may not provide any output, in which case *output_length will be zero, and
      * *output may be either NULL or zero-length (so the caller should always free() it).
      */
-    keymaster_error_t (*update)(const struct keymaster_device* dev,
+    keymaster_error_t (*update)(const struct keymaster1_device* dev,
                                 keymaster_operation_handle_t operation_handle,
                                 const keymaster_key_param_t* params, size_t params_count,
                                 const uint8_t* input, size_t input_length, size_t* input_consumed,
@@ -626,7 +587,7 @@ struct keymaster_device {
      * If the operation being finished is a signature verification or an AEAD-mode decryption and
      * verification fails then finish() will return KM_ERROR_VERIFICATION_FAILED.
      */
-    keymaster_error_t (*finish)(const struct keymaster_device* dev,
+    keymaster_error_t (*finish)(const struct keymaster1_device* dev,
                                 keymaster_operation_handle_t operation_handle,
                                 const keymaster_key_param_t* params, size_t params_count,
                                 const uint8_t* signature, size_t signature_length, uint8_t** output,
@@ -636,21 +597,21 @@ struct keymaster_device {
      * Aborts a cryptographic operation begun with begin(), freeing all internal resources and
      * invalidating operation_handle.
      */
-    keymaster_error_t (*abort)(const struct keymaster_device* dev,
+    keymaster_error_t (*abort)(const struct keymaster1_device* dev,
                                keymaster_operation_handle_t operation_handle);
 };
-typedef struct keymaster_device keymaster_device_t;
+typedef struct keymaster1_device keymaster1_device_t;
 
 /* Convenience API for opening and closing keymaster devices */
 
-static inline int keymaster_open(const struct hw_module_t* module, keymaster_device_t** device) {
+static inline int keymaster1_open(const struct hw_module_t* module, keymaster1_device_t** device) {
     return module->methods->open(module, KEYSTORE_KEYMASTER, (struct hw_device_t**)device);
 }
 
-static inline int keymaster_close(keymaster_device_t* device) {
+static inline int keymaster1_close(keymaster1_device_t* device) {
     return device->common.close(&device->common);
 }
 
 __END_DECLS
 
-#endif  // ANDROID_HARDWARE_KEYMASTER_H
+#endif  // ANDROID_HARDWARE_KEYMASTER1_H
