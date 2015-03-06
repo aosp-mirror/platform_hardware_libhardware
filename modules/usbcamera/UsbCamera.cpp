@@ -94,7 +94,7 @@ int UsbCamera::initStaticInfo() {
 
     /* android.scaler */
     int32_t android_scaler_available_formats[] = {
-            HAL_PIXEL_FORMAT_RAW_SENSOR,
+            HAL_PIXEL_FORMAT_RAW16,
             HAL_PIXEL_FORMAT_BLOB,
             HAL_PIXEL_FORMAT_RGBA_8888,
             HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED,
