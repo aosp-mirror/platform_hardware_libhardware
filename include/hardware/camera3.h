@@ -128,6 +128,11 @@
  * 3.3: Minor revision of expanded-capability HAL:
  *
  *   - OPAQUE and YUV reprocessing API updates.
+ *
+ *   - Basic support for depth output buffers
+ *
+ *   - Addition of data_space field to camera3_stream_t.
+ *
  */
 
 /**
@@ -1481,6 +1486,35 @@ typedef struct camera3_stream {
      * by the framework code.
      */
     void *priv;
+
+    /**
+     * A field that describes the contents of the buffer. The format and buffer
+     * dimensions define the memory layout and structure of the stream buffers,
+     * while dataSpace defines the meaning of the data within the buffer.
+     *
+     * For most formats, dataSpace defines the color space of the image data.
+     * In addition, for some formats, dataSpace indicates whether image- or
+     * depth-based data is requested.  See system/core/include/system/graphics.h
+     * for details of formats and valid dataSpace values for each format.
+     *
+     * Version information:
+     *
+     * < CAMERA_DEVICE_API_VERSION_3_3:
+     *
+     *   Not defined and should not be accessed. dataSpace should be assumed to
+     *   be HAL_DATASPACE_UNKNOWN, and the appropriate color space, etc, should
+     *   be determined from the usage flags and the format.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_3:
+     *
+     *   Always set by the camera service. HAL must use this dataSpace to
+     *   configure the stream to the correct colorspace, or to select between
+     *   color and depth outputs if supported.
+     */
+    android_dataspace_t data_space;
+
+    /* reserved for future use */
+    void *reserved[8];
 
 } camera3_stream_t;
 
