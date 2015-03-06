@@ -208,7 +208,7 @@ public:
         void SetUp() {
             ASSERT_EQ(OK,
                 mDevice->createStream(mNativeWindow,
-                    mWidth, mHeight, mFormat,
+                    mWidth, mHeight, mFormat, HAL_DATASPACE_UNKNOWN,
                     &mStreamId));
 
             ASSERT_NE(-1, mStreamId);

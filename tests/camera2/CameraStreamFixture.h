@@ -257,6 +257,7 @@ protected:
         ASSERT_EQ(OK,
             device->createStream(mNativeWindow,
                 mWidth, mHeight, format,
+                HAL_DATASPACE_UNKNOWN,
                 &mStreamId));
 
         ASSERT_NE(-1, mStreamId);
