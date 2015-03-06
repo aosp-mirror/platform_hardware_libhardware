@@ -217,7 +217,7 @@ static int gralloc_alloc(alloc_device_t* dev,
             bpp = 3;
             break;
         case HAL_PIXEL_FORMAT_RGB_565:
-        case HAL_PIXEL_FORMAT_RAW_SENSOR:
+        case HAL_PIXEL_FORMAT_RAW16:
             bpp = 2;
             break;
         default:

@@ -169,7 +169,7 @@ TEST_F(CameraMetadataTest, SaneResolutions) {
         if (rawResolutionsCount > 0) {
             EXPECT_TRUE(
                 HasElementInArrayFromStaticTag(ANDROID_SCALER_AVAILABLE_FORMATS,
-                        HAL_PIXEL_FORMAT_RAW_SENSOR));
+                        HAL_PIXEL_FORMAT_RAW16));
         }
 
         // Required processed sizes.

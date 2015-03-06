@@ -166,15 +166,15 @@ static CameraStreamParams TestParameters[] = {
         /*mHeapCount*/ 3
     },
     {
-        /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
+        /*mFormat*/    HAL_PIXEL_FORMAT_RAW16,
         /*mHeapCount*/ 1
     },
     {
-        /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
+        /*mFormat*/    HAL_PIXEL_FORMAT_RAW16,
         /*mHeapCount*/ 2
     },
     {
-        /*mFormat*/    HAL_PIXEL_FORMAT_RAW_SENSOR,
+        /*mFormat*/    HAL_PIXEL_FORMAT_RAW16,
         /*mHeapCount*/ 3
     },
 };
