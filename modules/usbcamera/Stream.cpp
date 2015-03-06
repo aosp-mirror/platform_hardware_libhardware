@@ -98,10 +98,6 @@ const char* Stream::formatToString(int format) {
         return "RGB 888";
     case HAL_PIXEL_FORMAT_RGB_565:
         return "RGB 565";
-    case HAL_PIXEL_FORMAT_sRGB_A_8888:
-        return "sRGB A 8888";
-    case HAL_PIXEL_FORMAT_sRGB_X_8888:
-        return "sRGB B 8888";
     case HAL_PIXEL_FORMAT_Y8:
         return "Y8";
     case HAL_PIXEL_FORMAT_Y16:
@@ -114,8 +110,10 @@ const char* Stream::formatToString(int format) {
         return "NV21";
     case HAL_PIXEL_FORMAT_YCbCr_422_I:
         return "YUY2";
-    case HAL_PIXEL_FORMAT_RAW_SENSOR:
-        return "RAW SENSOR";
+    case HAL_PIXEL_FORMAT_RAW10:
+        return "RAW10";
+    case HAL_PIXEL_FORMAT_RAW16:
+        return "RAW16";
     case HAL_PIXEL_FORMAT_BLOB:
         return "BLOB";
     case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:

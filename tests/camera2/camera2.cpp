@@ -305,7 +305,7 @@ class Camera2Test: public testing::Test {
             }
 
             camera_metadata_ro_entry_t availableSizes;
-            if (format == HAL_PIXEL_FORMAT_RAW_SENSOR) {
+            if (format == HAL_PIXEL_FORMAT_RAW16) {
                 res = find_camera_metadata_ro_entry(mStaticInfo,
                         ANDROID_SCALER_AVAILABLE_RAW_SIZES,
                         &availableSizes);
@@ -445,7 +445,7 @@ TEST_F(Camera2Test, Capture1Raw) {
         const int32_t *rawResolutions;
         size_t   rawResolutionsCount;
 
-        int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
+        int format = HAL_PIXEL_FORMAT_RAW16;
 
         getResolutionList(format,
                 &rawResolutions, &rawResolutionsCount);
@@ -457,7 +457,7 @@ TEST_F(Camera2Test, Capture1Raw) {
                       << test_info->test_case_name() << "."
                       << test_info->name()
                       << " because the optional format was not available: "
-                      << "RAW_SENSOR" << std::endl;
+                      << "RAW16" << std::endl;
             return;
         }
 
@@ -581,7 +581,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
         const int32_t *rawResolutions;
         size_t    rawResolutionsCount;
 
-        int format = HAL_PIXEL_FORMAT_RAW_SENSOR;
+        int format = HAL_PIXEL_FORMAT_RAW16;
 
         getResolutionList(format,
                 &rawResolutions, &rawResolutionsCount);
@@ -593,7 +593,7 @@ TEST_F(Camera2Test, CaptureBurstRaw) {
                       << test_info->test_case_name() << "."
                       << test_info->name()
                       << " because the optional format was not available: "
-                      << "RAW_SENSOR" << std::endl;
+                      << "RAW16" << std::endl;
             return;
         }
 
