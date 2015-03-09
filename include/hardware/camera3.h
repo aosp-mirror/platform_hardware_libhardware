@@ -129,9 +129,11 @@
  *
  *   - OPAQUE and YUV reprocessing API updates.
  *
- *   - Basic support for depth output buffers
+ *   - Basic support for depth output buffers.
  *
  *   - Addition of data_space field to camera3_stream_t.
+ *
+ *   - Addition of rotation field to camera3_stream_t.
  *
  */
 
@@ -1370,6 +1372,25 @@ typedef enum camera3_stream_type {
 } camera3_stream_type_t;
 
 /**
+ * camera3_stream_rotation_t:
+ *
+ * The required counterclockwise rotation of camera stream.
+ */
+typedef enum camera3_stream_rotation {
+    /* No rotation */
+    CAMERA3_STREAM_ROTATION_0 = 0,
+
+    /* Rotate by 90 degree counterclockwise */
+    CAMERA3_STREAM_ROTATION_90 = 1,
+
+    /* Rotate by 180 degree counterclockwise */
+    CAMERA3_STREAM_ROTATION_180 = 2,
+
+    /* Rotate by 270 degree counterclockwise */
+    CAMERA3_STREAM_ROTATION_270 = 3
+} camera3_stream_rotation_t;
+
+/**
  * camera3_stream_t:
  *
  * A handle to a single camera input or output stream. A stream is defined by
@@ -1513,8 +1534,32 @@ typedef struct camera3_stream {
      */
     android_dataspace_t data_space;
 
+    /**
+     * The required output rotation of the stream, one of
+     * the camera3_stream_rotation_t values. This must be inspected by HAL along
+     * with stream width and height. For example, if the rotation is 90 degree
+     * and the stream width and height is 720 and 1280 respectively, camera service
+     * will supply buffers of size 720x1280, and HAL should capture a 1280x720 image
+     * and rotate the image by 90 degree counterclockwise.
+     *
+     * <= CAMERA_DEVICE_API_VERSION_3_2:
+     *
+     *    Not defined and must not be accessed. HAL must not apply any rotation
+     *    on output images.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_3:
+     *
+     *    Always set by camera service. HAL must inspect this field during stream
+     *    configuration and returns -EINVAL if HAL cannot perform such rotation.
+     *    HAL must always support CAMERA3_STREAM_ROTATION_0, so a
+     *    configure_streams() call must not fail for unsupported rotation if
+     *    rotation field of all streams is CAMERA3_STREAM_ROTATION_0.
+     *
+     */
+    int rotation;
+
     /* reserved for future use */
-    void *reserved[8];
+    void *reserved[7];
 
 } camera3_stream_t;
 
@@ -2569,6 +2614,9 @@ typedef struct camera3_device_ops {
      *            size for that format.
      *
      *          - Including too many output streams of a certain format.
+     *
+     *          - Unsupported rotation configuration (only applies to
+     *            devices with version >= CAMERA_DEVICE_API_VERSION_3_3)
      *
      *          Note that the framework submitting an invalid stream
      *          configuration is not normal operation, since stream
