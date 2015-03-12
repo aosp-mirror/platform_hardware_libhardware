@@ -258,6 +258,7 @@ protected:
             device->createStream(mNativeWindow,
                 mWidth, mHeight, format,
                 HAL_DATASPACE_UNKNOWN,
+                CAMERA3_STREAM_ROTATION_0,
                 &mStreamId));
 
         ASSERT_NE(-1, mStreamId);

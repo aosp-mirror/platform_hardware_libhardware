@@ -209,7 +209,7 @@ public:
             ASSERT_EQ(OK,
                 mDevice->createStream(mNativeWindow,
                     mWidth, mHeight, mFormat, HAL_DATASPACE_UNKNOWN,
-                    &mStreamId));
+                    CAMERA3_STREAM_ROTATION_0, &mStreamId));
 
             ASSERT_NE(-1, mStreamId);
         }

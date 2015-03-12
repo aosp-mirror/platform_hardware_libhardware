@@ -1540,7 +1540,9 @@ typedef struct camera3_stream {
      * with stream width and height. For example, if the rotation is 90 degree
      * and the stream width and height is 720 and 1280 respectively, camera service
      * will supply buffers of size 720x1280, and HAL should capture a 1280x720 image
-     * and rotate the image by 90 degree counterclockwise.
+     * and rotate the image by 90 degree counterclockwise. The rotation field is
+     * no-op when the stream type is input. Camera HAL must ignore the rotation
+     * field for an input stream.
      *
      * <= CAMERA_DEVICE_API_VERSION_3_2:
      *
