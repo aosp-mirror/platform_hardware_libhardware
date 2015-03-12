@@ -461,6 +461,54 @@ inline keymaster_key_param_t keymaster_param_date(keymaster_tag_t tag, uint64_t 
     return param;
 }
 
+#define KEYMASTER_SIMPLE_COMPARE(a, b) (a < b) ? -1 : ((a > b) ? 1 : 0)
+inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymaster_key_param_t* b) {
+    int retval = KEYMASTER_SIMPLE_COMPARE(a->tag, b->tag);
+    if (retval != 0)
+        return retval;
+
+    switch (keymaster_tag_get_type(a->tag)) {
+    case KM_INVALID:
+    case KM_BOOL:
+        return 0;
+    case KM_ENUM:
+    case KM_ENUM_REP:
+        return KEYMASTER_SIMPLE_COMPARE(a->enumerated, b->enumerated);
+    case KM_INT:
+    case KM_INT_REP:
+        return KEYMASTER_SIMPLE_COMPARE(a->integer, b->integer);
+    case KM_LONG:
+        return KEYMASTER_SIMPLE_COMPARE(a->long_integer, b->long_integer);
+    case KM_DATE:
+        return KEYMASTER_SIMPLE_COMPARE(a->date_time, b->date_time);
+    case KM_BIGNUM:
+    case KM_BYTES:
+        // Handle the empty cases.
+        if (a->blob.data_length != 0 && b->blob.data_length == 0)
+            return -1;
+        if (a->blob.data_length == 0 && b->blob.data_length == 0)
+            return 0;
+        if (a->blob.data_length == 0 && b->blob.data_length > 0)
+            return 1;
+
+        retval = memcmp(a->blob.data, b->blob.data, a->blob.data_length < b->blob.data_length
+                                                        ? a->blob.data_length
+                                                        : b->blob.data_length);
+        if (retval != 0)
+            return retval;
+        else if (a->blob.data_length != b->blob.data_length) {
+            // Equal up to the common length; longer one is larger.
+            if (a->blob.data_length < b->blob.data_length)
+                return -1;
+            if (a->blob.data_length > b->blob.data_length)
+                return 1;
+        };
+    }
+
+    return 0;
+}
+#undef KEYMASTER_SIMPLE_COMPARE
+
 inline void keymaster_free_param_values(keymaster_key_param_t* param, size_t param_count) {
     while (param_count-- > 0) {
         switch (keymaster_tag_get_type(param->tag)) {
