@@ -21,9 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif  // defined(__cplusplus)
+__BEGIN_DECLS
 
 /**
  * Authorization tags each have an associated type.  This enumeration facilitates tagging each with
@@ -128,6 +126,9 @@ typedef enum {
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
     KM_TAG_CHUNK_LENGTH = KM_INT | 1002,      /* AEAD mode chunk size, in bytes.  0 means no limit,
                                                  which requires KM_TAG_RETURN_UNAUTHED. */
+    KM_TAG_AUTH_TOKEN = KM_BYTES | 1003,      /* Authentication token that proves secure user
+                                                 authentication has been performed.  Structure
+                                                 defined in hw_auth_token_t in hw_auth_token.h. */
 } keymaster_tag_t;
 
 /**
@@ -545,8 +546,6 @@ inline void keymaster_free_characteristics(keymaster_key_characteristics_t* char
     }
 }
 
-#if defined(__cplusplus)
-}  // extern "C"
-#endif  // defined(__cplusplus)
+__END_DECLS
 
 #endif  // ANDROID_HARDWARE_KEYMASTER_DEFS_H
