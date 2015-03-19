@@ -19,7 +19,9 @@
 #ifndef ANDROID_HARDWARE_HW_AUTH_TOKEN_H
 #define ANDROID_HARDWARE_HW_AUTH_TOKEN_H
 
-__BEGIN_DECLS
+#ifndef __cplusplus
+extern "C" {
+#endif  // __cplusplus
 
 typedef enum {
     HW_AUTH_NONE = 0,
@@ -42,6 +44,8 @@ typedef struct __attribute__((__packed__)) {
     uint8_t hmac[32];
 } hw_auth_token_t;
 
-__END_DECLS
+#ifndef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
 #endif  // ANDROID_HARDWARE_HW_AUTH_TOKEN_H
