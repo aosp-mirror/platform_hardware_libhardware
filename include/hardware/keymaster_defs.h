@@ -21,7 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-__BEGIN_DECLS
+#ifndef __cplusplus
+extern "C" {
+#endif  // __cplusplus
 
 /**
  * Authorization tags each have an associated type.  This enumeration facilitates tagging each with
@@ -546,6 +548,8 @@ inline void keymaster_free_characteristics(keymaster_key_characteristics_t* char
     }
 }
 
-__END_DECLS
+#ifndef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
 
 #endif  // ANDROID_HARDWARE_KEYMASTER_DEFS_H
