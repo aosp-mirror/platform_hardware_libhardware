@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_HARDWARE_KEYGUARD_H
-#define ANDROID_HARDWARE_KEYGUARD_H
+#ifndef ANDROID_HARDWARE_GATEKEEPER_H
+#define ANDROID_HARDWARE_GATEKEEPER_H
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
@@ -23,24 +23,24 @@
 
 __BEGIN_DECLS
 
-#define KEYGUARD_HARDWARE_MODULE_ID "keyguard"
+#define GATEKEEPER_HARDWARE_MODULE_ID "gatekeeper"
 
-#define KEYGUARD_MODULE_API_VERSION_0_1 HARDWARE_MODULE_API_VERSION(0, 1)
+#define GATEKEEPER_MODULE_API_VERSION_0_1 HARDWARE_MODULE_API_VERSION(0, 1)
 
-#define HARDWARE_KEYGUARD "keyguard"
+#define HARDWARE_GATEKEEPER "gatekeeper"
 
-struct keyguard_module {
+struct gatekeeper_module {
     /**
-     * Comon methods of the keyguard module. This *must* be the first member of
-     * keyguard_module as users of this structure will cast a hw_module_t to
-     * a keyguard_module pointer in the appropriate context.
+     * Comon methods of the gatekeeper module. This *must* be the first member of
+     * gatekeeper_module as users of this structure will cast a hw_module_t to
+     * a gatekeeper_module pointer in the appropriate context.
      */
     hw_module_t common;
 };
 
-struct keyguard_device {
+struct gatekeeper_device {
     /**
-     * Common methods of the keyguard device. As above, this must be the first
+     * Common methods of the gatekeeper device. As above, this must be the first
      * member of keymaster_device.
      */
     hw_device_t common;
@@ -57,7 +57,7 @@ struct keyguard_device {
      * Returns: 0 on success or an error code less than 0 on error.
      * On error, enrolled_password_handle will not be allocated.
      */
-    int (*enroll)(const struct keyguard_device *dev, uint32_t uid,
+    int (*enroll)(const struct gatekeeper_device *dev, uint32_t uid,
             const uint8_t *current_password_handle, size_t current_password_handle_length,
             const uint8_t *current_password, size_t current_password_length,
             const uint8_t *desired_password, size_t desired_password_length,
@@ -76,24 +76,24 @@ struct keyguard_device {
      * Returns: 0 on success or an error code less than 0 on error
      * On error, verification token will not be allocated
      */
-    int (*verify)(const struct keyguard_device *dev, uint32_t uid,
+    int (*verify)(const struct gatekeeper_device *dev, uint32_t uid,
             const uint8_t *enrolled_password_handle, size_t enrolled_password_handle_length,
             const uint8_t *provided_password, size_t provided_password_length,
             uint8_t **auth_token, size_t *auth_token_length);
 
 };
-typedef struct keyguard_device keyguard_device_t;
+typedef struct gatekeeper_device gatekeeper_device_t;
 
-static inline int keyguard_open(const struct hw_module_t *module,
-        keyguard_device_t **device) {
-    return module->methods->open(module, HARDWARE_KEYGUARD,
+static inline int gatekeeper_open(const struct hw_module_t *module,
+        gatekeeper_device_t **device) {
+    return module->methods->open(module, HARDWARE_GATEKEEPER,
             (struct hw_device_t **) device);
 }
 
-static inline int keyguard_close(keyguard_device_t *device) {
+static inline int gatekeeper_close(gatekeeper_device_t *device) {
     return device->common.close(&device->common);
 }
 
 __END_DECLS
 
-#endif // ANDROID_HARDWARE_KEYGUARD_H
+#endif // ANDROID_HARDWARE_GATEKEEPER_H
