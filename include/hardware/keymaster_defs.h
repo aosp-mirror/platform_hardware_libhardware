@@ -41,6 +41,7 @@ typedef enum {
     KM_BOOL = 7 << 28,
     KM_BIGNUM = 8 << 28,
     KM_BYTES = 9 << 28,
+    KM_LONG_REP = 10 << 28, /* Repeatable long value */
 } keymaster_tag_type_t;
 
 typedef enum {
@@ -92,20 +93,23 @@ typedef enum {
                                                            boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500,        /* If key is usable by all users. */
-    KM_TAG_USER_ID = KM_INT | 501,           /* ID of authorized user.  Disallowed if
-                                                KM_TAG_ALL_USERS is present. */
-    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 502, /* If key is usable without authentication. */
-    KM_TAG_USER_AUTH_ID = KM_INT_REP | 503,  /* ID of the authenticator to use (e.g. password,
-                                                fingerprint, etc.).  Repeatable to support
-                                                multi-factor auth.  Disallowed if
-                                                KM_TAG_NO_AUTH_REQUIRED is present. */
-    KM_TAG_AUTH_TIMEOUT = KM_INT | 504,      /* Required freshness of user authentication for
-                                                private/secret key operations, in seconds.
-                                                Public key operations require no authentication.
-                                                If absent, authentication is required for every
-                                                use.  Authentication state is lost when the
-                                                device is powered off. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,          /* If key is usable by all users. */
+    KM_TAG_USER_ID = KM_INT | 501,             /* ID of authorized user.  Disallowed if
+                                                  KM_TAG_ALL_USERS is present. */
+    KM_TAG_USER_SECURE_ID = KM_LONG_REP | 502, /* Secure ID of authorized user or authenticator(s).
+                                                  Disallowed if KM_TAG_ALL_USERS or
+                                                  KM_TAG_NO_AUTH_REQUIRED is present. */
+    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 503,   /* If key is usable without authentication. */
+    KM_TAG_USER_AUTH_TYPE = KM_ENUM | 504,     /* Bitmask of authenticator types allowed when
+                                                * KM_TAG_USER_SECURE_ID contains a secure user ID,
+                                                * rather than a secure authenticator ID.  Defined in
+                                                * hw_authenticator_type_t in hw_auth_token.h. */
+    KM_TAG_AUTH_TIMEOUT = KM_INT | 505,        /* Required freshness of user authentication for
+                                                  private/secret key operations, in seconds.
+                                                  Public key operations require no authentication.
+                                                  If absent, authentication is required for every
+                                                  use.  Authentication state is lost when the
+                                                  device is powered off. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* If key is usable by all applications. */
@@ -486,6 +490,7 @@ inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymast
     case KM_INT_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->integer, b->integer);
     case KM_LONG:
+    case KM_LONG_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->long_integer, b->long_integer);
     case KM_DATE:
         return KEYMASTER_SIMPLE_COMPARE(a->date_time, b->date_time);
