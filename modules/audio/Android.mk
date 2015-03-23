@@ -31,6 +31,23 @@ LOCAL_CFLAGS := -Wno-unused-parameter
 
 include $(BUILD_SHARED_LIBRARY)
 
+# The stub audio HAL module, identical to the default audio hal, but with
+# different name to be loaded concurrently with other audio HALs if necessary.
+# This can also be used as skeleton for new implementations
+#
+# The format of the name is audio.<type>.<hardware/etc>.so where the only
+# required type is 'primary'. Other possibilites are 'a2dp', 'usb', etc.
+include $(CLEAR_VARS)
+
+LOCAL_MODULE := audio.stub.default
+LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_SRC_FILES := audio_hw.c
+LOCAL_SHARED_LIBRARIES := liblog libcutils
+LOCAL_MODULE_TAGS := optional
+LOCAL_CFLAGS := -Wno-unused-parameter
+
+include $(BUILD_SHARED_LIBRARY)
+
 # The stub audio policy HAL module that can be used as a skeleton for
 # new implementations.
 include $(CLEAR_VARS)
