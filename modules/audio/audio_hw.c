@@ -128,19 +128,19 @@ static int out_get_render_position(const struct audio_stream_out *stream,
                                    uint32_t *dsp_frames)
 {
     *dsp_frames = 0;
-    ALOGV("out_get_render_position: dsp_frames: %d", (int)dsp_frames);
+    ALOGV("out_get_render_position: dsp_frames: %p", dsp_frames);
     return -EINVAL;
 }
 
 static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
-    ALOGV("out_add_audio_effect: %d", (int)effect);
+    ALOGV("out_add_audio_effect: %p", effect);
     return 0;
 }
 
 static int out_remove_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
 {
-    ALOGV("out_remove_audio_effect: %d", (int)effect);
+    ALOGV("out_remove_audio_effect: %p", effect);
     return 0;
 }
 
