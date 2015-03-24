@@ -65,7 +65,7 @@ struct CameraModuleFixture {
         ASSERT_LE(0, mNumberOfCameras);
 
         ASSERT_LE(
-            CAMERA_MODULE_API_VERSION_2_0, mModule->getRawModule()->module_api_version)
+            CAMERA_MODULE_API_VERSION_2_0, mModule->getModuleApiVersion())
             << "Wrong module API version";
 
         /* For using this fixture in other tests only */
@@ -83,7 +83,7 @@ struct CameraModuleFixture {
         mDevice.clear();
 
         if (!TEST_EXTENSION_FORKING_ENABLED) {
-            ASSERT_EQ(0, HWModuleHelpers::closeModule(mModule->getRawModule()))
+            ASSERT_EQ(0, HWModuleHelpers::closeModule(mModule->getDso()))
                 << "Failed to close camera HAL module";
         }
     }

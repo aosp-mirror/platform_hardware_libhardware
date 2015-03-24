@@ -528,7 +528,8 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
 
     // Find the right sizes for preview, metering, and capture streams
     int64_t minFrameDuration = DEFAULT_FRAME_DURATION;
-    Size processedMinSize, processedMaxSize, jpegMaxSize;
+    Size processedMinSize = {0, 0}, processedMaxSize = {0, 0};
+    Size jpegMaxSize = {0, 0};
 
     int32_t minIdx, maxIdx;
     GetMinSize(implDefData, implDefCount, &processedMinSize, &minIdx);

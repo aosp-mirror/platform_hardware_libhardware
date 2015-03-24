@@ -111,7 +111,7 @@ private:
             mHeight = entry.data.i32[1];
         } else {
             buildOutputResolutions();
-            const int32_t *implDefResolutions;
+            const int32_t *implDefResolutions = NULL;
             size_t   implDefResolutionsCount;
 
             int format = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
