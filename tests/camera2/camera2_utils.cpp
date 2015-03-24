@@ -580,14 +580,13 @@ void FrameWaiter::onFrameAvailable(const BufferItem& /* item */) {
     mCondition.signal();
 }
 
-int HWModuleHelpers::closeModule(const hw_module_t* module) {
+int HWModuleHelpers::closeModule(void *dso) {
     int status;
-
-    if (!module) {
+    if (!dso) {
         return -EINVAL;
     }
 
-    status = dlclose(module->dso);
+    status = dlclose(dso);
     if (status != 0) {
         char const *err_str = dlerror();
         ALOGE("%s dlclose failed, error: %s", __func__, err_str ?: "unknown");

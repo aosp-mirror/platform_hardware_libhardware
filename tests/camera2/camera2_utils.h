@@ -240,7 +240,7 @@ class FrameWaiter : public CpuConsumer::FrameAvailableListener {
 
 struct HWModuleHelpers {
     /* attempt to unload the library with dlclose */
-    static int closeModule(const hw_module_t* module);
+    static int closeModule(void* dso);
 };
 
 }
