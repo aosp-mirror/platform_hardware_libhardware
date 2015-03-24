@@ -32,7 +32,7 @@ typedef struct
     uint8_t  advertiser_info_present;
     uint8_t  addr_type;
     uint8_t  tx_power;
-    uint8_t  rssi_value;
+    int8_t  rssi_value;
     uint16_t time_stamp;
     bt_bdaddr_t bd_addr;
     uint8_t  adv_pkt_len;
