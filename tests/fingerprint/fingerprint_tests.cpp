@@ -29,6 +29,11 @@ TEST_F(FingerprintDevice, isThereRemove) {
         << "remove() function is not implemented";
 }
 
+TEST_F(FingerprintDevice, isThereAuthenticate) {
+    ASSERT_TRUE(NULL != fp_device()->authenticate)
+        << "authenticate() function is not implemented";
+}
+
 TEST_F(FingerprintDevice, isThereSetNotify) {
     ASSERT_TRUE(NULL != fp_device()->set_notify)
         << "set_notify() function is not implemented";

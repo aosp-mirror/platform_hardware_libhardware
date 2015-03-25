@@ -34,7 +34,10 @@ typedef enum fingerprint_error {
     FINGERPRINT_ERROR_HW_UNAVAILABLE = 1,
     FINGERPRINT_ERROR_UNABLE_TO_PROCESS = 2,
     FINGERPRINT_ERROR_TIMEOUT = 3,
-    FINGERPRINT_ERROR_NO_SPACE = 4  /* No space available to store a template */
+    FINGERPRINT_ERROR_NO_SPACE = 4, /* No space available to store a template */
+    FINGERPRINT_ERROR_CANCELED = 5,
+    FINGERPRINT_ERROR_UNABLE_TO_REMOVE = 6, /* fingerprint id can't be removed */
+    FINGERPRINT_ERROR_VENDOR_BASE = 1000 /* vendor-specific error messages start here */
 } fingerprint_error_t;
 
 typedef enum fingerprint_acquired_info {
@@ -44,7 +47,7 @@ typedef enum fingerprint_acquired_info {
     FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 3,
     FINGERPRINT_ACQUIRED_TOO_SLOW = 4,
     FINGERPRINT_ACQUIRED_TOO_FAST = 5,
-    FINGERPRINT_ACQUIRED_VENDOR_DEFINED = 6
+    FINGERPRINT_ACQUIRED_VENDOR_BASE = 1000 /* vendor-specific acquisition messages start here */
 } fingerprint_acquired_info_t;
 
 typedef struct fingerprint_finger_id {
@@ -78,9 +81,9 @@ typedef enum fingerprint_enroll_msg_type {
 
 typedef struct fingerprint_enroll {
     fingerprint_finger_id_t finger;
-    uint32_t samples_remaining;
     /* samples_remaining goes from N (no data collected, but N scans needed)
      * to 0 (no more data is needed to build a template). */
+    uint32_t samples_remaining;
     fingerprint_enroll_msg_type_t msg_type;
     size_t msg_size;
     void *msg;
@@ -192,7 +195,7 @@ typedef struct fingerprint_device {
      * Function return: 0 on success
      *                 -1 if the size is out of bounds.
      */
-    int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id);
+    int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id, uint32_t gid);
 
     /*
      * Set notification callback:

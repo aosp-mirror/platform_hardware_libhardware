@@ -53,7 +53,7 @@ static int fingerprint_set_active_group(struct fingerprint_device __unused *dev,
 }
 
 static int fingerprint_authenticate(struct fingerprint_device __unused *dev,
-                                    uint64_t __unused operation_id) {
+                                    uint64_t __unused operation_id, __unused uint32_t gid) {
     return FINGERPRINT_ERROR;
 }
 
