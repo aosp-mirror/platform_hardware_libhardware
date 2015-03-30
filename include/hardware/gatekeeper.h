@@ -54,14 +54,40 @@ struct gatekeeper_device {
      * current_password_handle, along with the current password in current_password
      * that should validate against current_password_handle.
      *
+     * Parameters:
+     * - dev: pointer to gatekeeper_device acquired via calls to gatekeeper_open
+     * - uid: the Android user identifier
+     *
+     * - current_password_handle: the currently enrolled password handle the user
+     *   wants to replace. May be null if there's no currently enrolled password.
+     * - current_password_handle_length: the length in bytes of the buffer pointed
+     *   at by current_password_handle. Must be 0 if current_password_handle is NULL.
+     *
+     * - current_password: the user's current password in plain text. If presented,
+     *   it MUST verify against current_password_handle.
+     * - current_password_length: the size in bytes of the buffer pointed at by
+     *   current_password. Must be 0 if the current_password is NULL.
+     *
+     * - desired_password: the new password the user wishes to enroll in plain-text.
+     *   Cannot be NULL.
+     * - desired_password_length: the length in bytes of the buffer pointed at by
+     *   desired_password.
+     *
+     * - enrolled_password_handle: on success, a buffer will be allocated with the
+     *   new password handle referencing the password provided in desired_password.
+     *   This buffer can be used on subsequent calls to enroll or verify.
+     *   The caller is responsible for deallocating this buffer via a call to free()
+     * - enrolled_password_handle_length: pointer to the length in bytes of the buffer allocated
+     *   by this function and pointed to by *enrolled_password_handle_length.
+     *
      * Returns: 0 on success or an error code less than 0 on error.
      * On error, enrolled_password_handle will not be allocated.
      */
     int (*enroll)(const struct gatekeeper_device *dev, uint32_t uid,
-            const uint8_t *current_password_handle, size_t current_password_handle_length,
-            const uint8_t *current_password, size_t current_password_length,
-            const uint8_t *desired_password, size_t desired_password_length,
-            uint8_t **enrolled_password_handle, size_t *enrolled_password_handle_length);
+            const uint8_t *current_password_handle, uint32_t current_password_handle_length,
+            const uint8_t *current_password, uint32_t current_password_length,
+            const uint8_t *desired_password, uint32_t desired_password_length,
+            uint8_t **enrolled_password_handle, uint32_t *enrolled_password_handle_length);
 
     /**
      * Verifies provided_password matches enrolled_password_handle.
@@ -73,13 +99,33 @@ struct gatekeeper_device {
      * usable to attest password verification to other trusted services. Clients
      * may pass NULL for this value.
      *
+     * Parameters:
+     * - dev: pointer to gatekeeper_device acquired via calls to gatekeeper_open
+     * - uid: the Android user identifier
+     *
+     * - enrolled_password_handle: the currently enrolled password handle that the
+     *   user wishes to verify against.
+     * - enrolled_password_handle_length: the length in bytes of the buffer pointed
+     *   to by enrolled_password_handle
+     *
+     * - provided_password: the plaintext password to be verified against the
+     *   enrolled_password_handle
+     * - provided_password_length: the length in bytes of the buffer pointed to by
+     *   provided_password
+     *
+     * - auth_token: on success, a buffer containing the authentication token
+     *   resulting from this verification is assigned to *auth_token. The caller
+     *   is responsible for deallocating this memory via a call to free()
+     * - auth_token_length: on success, the length in bytes of the authentication
+     *   token assigned to *auth_token will be assigned to *auth_token_length
+     *
      * Returns: 0 on success or an error code less than 0 on error
-     * On error, verification token will not be allocated
+     * On error, auth token will not be allocated
      */
     int (*verify)(const struct gatekeeper_device *dev, uint32_t uid,
-            const uint8_t *enrolled_password_handle, size_t enrolled_password_handle_length,
-            const uint8_t *provided_password, size_t provided_password_length,
-            uint8_t **auth_token, size_t *auth_token_length);
+            const uint8_t *enrolled_password_handle, uint32_t enrolled_password_handle_length,
+            const uint8_t *provided_password, uint32_t provided_password_length,
+            uint8_t **auth_token, uint32_t *auth_token_length);
 
 };
 typedef struct gatekeeper_device gatekeeper_device_t;
