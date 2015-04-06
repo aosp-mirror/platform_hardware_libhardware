@@ -17,6 +17,8 @@
 #ifndef ANDROID_INPUT_HOST_H_
 #define ANDROID_INPUT_HOST_H_
 
+#include <memory>
+
 #include <hardware/input.h>
 
 namespace android {
@@ -109,6 +111,61 @@ private:
     input_device_definition_t* mDeviceDefinition;
 };
 
+class InputProperty : private InputHostBase {
+public:
+    virtual ~InputProperty();
+
+    operator input_property_t*() { return mProperty; }
+
+    const char* getKey();
+    const char* getValue();
+
+    // Default move constructor transfers ownership of the input_property_t
+    // pointer.
+    InputProperty(InputProperty&& rhs) = default;
+
+    // Prevent copy/assign because of the ownership of the underlying
+    // input_property_t pointer.
+    InputProperty(const InputProperty& rhs) = delete;
+    InputProperty& operator=(const InputProperty& rhs) = delete;
+
+private:
+    friend class InputPropertyMap;
+
+    InputProperty(
+            input_host_t* host, input_host_callbacks_t cb, input_property_t* p) :
+        InputHostBase(host, cb), mProperty(p) {}
+
+    input_property_t* mProperty;
+};
+
+class InputPropertyMap : private InputHostBase {
+public:
+    virtual ~InputPropertyMap();
+
+    operator input_property_map_t*() { return mMap; }
+
+    InputProperty getDeviceProperty(const char* key);
+
+    // Default move constructor transfers ownership of the input_property_map_t
+    // pointer.
+    InputPropertyMap(InputPropertyMap&& rhs) = default;
+
+    // Prevent copy/assign because of the ownership of the underlying
+    // input_property_map_t pointer.
+    InputPropertyMap(const InputPropertyMap& rhs) = delete;
+    InputPropertyMap& operator=(const InputPropertyMap& rhs) = delete;
+
+private:
+    friend class InputHost;
+
+    InputPropertyMap(
+            input_host_t* host, input_host_callbacks_t cb, input_property_map_t* m) :
+        InputHostBase(host, cb), mMap(m) {}
+
+    input_property_map_t* mMap;
+};
+
 class InputHost : private InputHostBase {
 public:
     InputHost(input_host_t* host, input_host_callbacks_t cb) : InputHostBase(host, cb) {}
@@ -126,6 +183,8 @@ public:
 
     InputDeviceHandle registerDevice(InputDeviceIdentifier id, InputDeviceDefinition d);
     void unregisterDevice(InputDeviceHandle handle);
+
+    InputPropertyMap getDevicePropertyMap(InputDeviceIdentifier id);
 };
 
 }  // namespace android

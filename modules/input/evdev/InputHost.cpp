@@ -47,6 +47,27 @@ void InputDeviceDefinition::addReport(InputReportDefinition r) {
     mCallbacks.input_device_definition_add_report(mHost, mDeviceDefinition, r);
 }
 
+InputProperty::~InputProperty() {
+    mCallbacks.input_free_device_property(mHost, mProperty);
+}
+
+const char* InputProperty::getKey() {
+    return mCallbacks.input_get_property_key(mHost, mProperty);
+}
+
+const char* InputProperty::getValue() {
+    return mCallbacks.input_get_property_value(mHost, mProperty);
+}
+
+InputPropertyMap::~InputPropertyMap() {
+    mCallbacks.input_free_device_property_map(mHost, mMap);
+}
+
+InputProperty InputPropertyMap::getDeviceProperty(const char* key) {
+    return InputProperty(mHost, mCallbacks,
+            mCallbacks.input_get_device_property(mHost, mMap, key));
+}
+
 InputDeviceIdentifier InputHost::createDeviceIdentifier(const char* name, int32_t productId,
         int32_t vendorId, InputBus bus, const char* uniqueId) {
     return mCallbacks.create_device_identifier(mHost, name, productId, vendorId, bus, uniqueId);
@@ -73,6 +94,11 @@ InputDeviceHandle InputHost::registerDevice(InputDeviceIdentifier id,
 
 void InputHost::unregisterDevice(InputDeviceHandle handle) {
     return mCallbacks.unregister_device(mHost, handle);
+}
+
+InputPropertyMap InputHost::getDevicePropertyMap(InputDeviceIdentifier id) {
+    return InputPropertyMap(mHost, mCallbacks,
+            mCallbacks.input_get_device_property_map(mHost, id));
 }
 
 }  // namespace android

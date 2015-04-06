@@ -48,6 +48,10 @@ typedef struct input_report input_report_t;
 
 typedef struct input_collection input_collection_t;
 
+typedef struct input_property_map input_property_map_t;
+
+typedef struct input_property input_property_t;
+
 typedef enum {
     // keycodes
     INPUT_USAGE_KEYCODE_UNKNOWN,
@@ -472,6 +476,44 @@ typedef struct input_host_callbacks {
             input_collection_id_t id, input_usage_t usage, bool value, int32_t arity_index);
 
     void (*report_event)(input_host_t* host, input_device_handle_t* d, input_report_t* report);
+
+    /**
+     * Retrieve the set of properties for the device. The returned
+     * input_property_map_t* may be used to query specific properties via the
+     * input_get_device_property callback.
+     */
+    input_property_map_t* (*input_get_device_property_map)(input_host_t* host,
+            input_device_identifier_t* id);
+    /**
+     * Retrieve a property for the device with the given key. Returns NULL if
+     * the key does not exist, or an input_property_t* that must be freed using
+     * input_free_device_property(). Using an input_property_t after the
+     * corresponding input_property_map_t is freed is undefined.
+     */
+    input_property_t* (*input_get_device_property)(input_host_t* host,
+            input_property_map_t* map, const char* key);
+
+    /**
+     * Get the key for the input property. Returns NULL if the property is NULL.
+     * The returned const char* is owned by the input_property_t.
+     */
+    const char* (*input_get_property_key)(input_host_t* host, input_property_t* property);
+
+    /**
+     * Get the value for the input property. Returns NULL if the property is
+     * NULL. The returned const char* is owned by the input_property_t.
+     */
+    const char* (*input_get_property_value)(input_host_t* host, input_property_t* property);
+
+    /**
+     * Frees the input_property_t*.
+     */
+    void (*input_free_device_property)(input_host_t* host, input_property_t* property);
+
+    /**
+     * Frees the input_property_map_t*.
+     */
+    void (*input_free_device_property_map)(input_host_t* host, input_property_map_t* map);
 } input_host_callbacks_t;
 
 typedef struct input_module input_module_t;
