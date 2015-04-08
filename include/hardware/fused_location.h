@@ -228,6 +228,23 @@ typedef struct {
      * seconds.
      */
     int64_t period_ns;
+
+    /**
+     * The smallest displacement between reported locations in meters.
+     *
+     * If set to 0, then you should report locations at the requested
+     * interval even if the device is stationary.  If positive, you
+     * can use this parameter as a hint to save power (e.g. throttling
+     * location period if the user hasn't traveled close to the displacement
+     * threshold).  Even small positive values can be interpreted to mean
+     * that you don't have to compute location when the device is stationary.
+     *
+     * There is no need to filter location delivery based on this parameter.
+     * Locations can be delivered even if they have a displacement smaller than
+     * requested. This parameter can safely be ignored at the cost of potential
+     * power savings.
+     */
+    float smallest_displacement_meters;
 } FlpBatchOptions;
 
 #define FLP_RESULT_SUCCESS                       0
