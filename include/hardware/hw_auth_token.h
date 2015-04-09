@@ -19,7 +19,7 @@
 #ifndef ANDROID_HARDWARE_HW_AUTH_TOKEN_H
 #define ANDROID_HARDWARE_HW_AUTH_TOKEN_H
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
 
@@ -46,7 +46,7 @@ typedef struct __attribute__((__packed__)) {
     uint8_t hmac[32];
 } hw_auth_token_t;
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus
 
