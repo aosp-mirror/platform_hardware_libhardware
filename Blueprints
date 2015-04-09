@@ -1,0 +1,24 @@
+// Copyright 2006 The Android Open Source Project
+
+// Setting LOCAL_PATH will mess up all-subdir-makefiles, so do it beforehand.
+//SUBDIR_MAKEFILES = ["<func:'all-named-subdir-makefiles' unset>"]
+
+// ANDROIDMK TRANSLATION ERROR: unsupported assignment to LOCAL_INCLUDES
+// LOCAL_INCLUDES+=$(LOCAL_PATH)
+
+cc_library_shared {
+    name: "libhardware",
+
+    shared_libs: [
+        "libcutils",
+        "liblog",
+        "libdl",
+    ],
+
+    cflags: ["-DQEMU_HARDWARE"],
+
+    srcs: ["hardware.c"],
+}
+
+// ANDROIDMK TRANSLATION ERROR: unsupported include
+// include $(SUBDIR_MAKEFILES)
