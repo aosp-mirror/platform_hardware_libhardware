@@ -154,16 +154,26 @@ typedef struct fingerprint_device {
     int (*enroll)(struct fingerprint_device *dev, uint32_t gid, uint32_t timeout_sec);
 
     /*
-     * Cancel fingerprint enroll request:
-     * Switches the HAL state machine back to accept a fingerprint scan mode.
-     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
-     *  fingerprint_msg.data.enroll.samples_remaining == 0)
+     * Fingerprint pre-enroll enroll request:
+     * Generates a unique token to upper layers to indicate the start of an enrollment transaction.
+     * This token will be wrapped by security for verification and passed to enroll() for
+     * verification before enrollment will be allowed. This is to ensure adding a new fingerprint
+     * template was preceded by some kind of credential confirmation (e.g. device password).
+     *
+     * Function return: 0 if function failed
+     *                  otherwise, a uint64_t of token
+     */
+    uint64_t (*pre_enroll)(struct fingerprint_device *dev);
+
+    /*
+     * Cancel pending enroll or authenticate, sending FINGERPRINT_ERROR_CANCELED
+     * to all running clients. Switches the HAL state machine back to the idle state.
      * will indicate switch back to the scan mode.
      *
      * Function return: 0 if cancel request is accepted
      *                 -1 otherwise.
      */
-    int (*enroll_cancel)(struct fingerprint_device *dev);
+    int (*cancel)(struct fingerprint_device *dev);
 
     /*
      * Fingerprint remove request:
@@ -193,7 +203,7 @@ typedef struct fingerprint_device {
      * Authenticates an operation identifed by operation_id
      *
      * Function return: 0 on success
-     *                 -1 if the size is out of bounds.
+     *                 -1 if the operation cannot be completed
      */
     int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id, uint32_t gid);
 
@@ -206,8 +216,7 @@ typedef struct fingerprint_device {
      * Function return: 0 if callback function is successfuly registered
      *                 -1 otherwise.
      */
-    int (*set_notify)(struct fingerprint_device *dev,
-                        fingerprint_notify_t notify);
+    int (*set_notify)(struct fingerprint_device *dev, fingerprint_notify_t notify);
 
     /*
      * Client provided callback function to receive notifications.

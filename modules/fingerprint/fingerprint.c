@@ -38,7 +38,7 @@ static int fingerprint_enroll(struct fingerprint_device __unused *dev,
     return FINGERPRINT_ERROR;
 }
 
-static int fingerprint_enroll_cancel(struct fingerprint_device __unused *dev) {
+static int fingerprint_cancel(struct fingerprint_device __unused *dev) {
     return FINGERPRINT_ERROR;
 }
 
@@ -81,7 +81,7 @@ static int fingerprint_open(const hw_module_t* module, const char __unused *id,
     dev->common.close = fingerprint_close;
 
     dev->enroll = fingerprint_enroll;
-    dev->enroll_cancel = fingerprint_enroll_cancel;
+    dev->cancel = fingerprint_cancel;
     dev->remove = fingerprint_remove;
     dev->set_active_group = fingerprint_set_active_group;
     dev->authenticate = fingerprint_authenticate;
