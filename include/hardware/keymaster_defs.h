@@ -274,10 +274,9 @@ typedef struct {
  * In the future this list will expand greatly to accommodate asymmetric key import/export.
  */
 typedef enum {
-    KM_KEY_FORMAT_X509 = 0,   /* for public key export, required */
-    KM_KEY_FORMAT_PKCS8 = 1,  /* for asymmetric key pair import, required */
-    KM_KEY_FORMAT_PKCS12 = 2, /* for asymmetric key pair import, not required */
-    KM_KEY_FORMAT_RAW = 3,    /* for symmetric key import, required */
+    KM_KEY_FORMAT_X509 = 0,   /* for public key export */
+    KM_KEY_FORMAT_PKCS8 = 1,  /* for asymmetric key pair import */
+    KM_KEY_FORMAT_RAW = 3,    /* for symmetric key import */
 } keymaster_key_format_t;
 
 /**
