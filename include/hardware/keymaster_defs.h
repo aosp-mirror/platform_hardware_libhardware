@@ -55,13 +55,12 @@ typedef enum {
     KM_TAG_PURPOSE = KM_ENUM_REP | 1,     /* keymaster_purpose_t. */
     KM_TAG_ALGORITHM = KM_ENUM | 2,       /* keymaster_algorithm_t. */
     KM_TAG_KEY_SIZE = KM_INT | 3,         /* Key size in bits. */
-    KM_TAG_BLOCK_MODE = KM_ENUM | 4,      /* keymaster_block_mode_t. */
-    KM_TAG_DIGEST = KM_ENUM | 5,          /* keymaster_digest_t. */
-    KM_TAG_MAC_LENGTH = KM_INT | 6,       /* MAC or AEAD authentication tag length in bits. */
-    KM_TAG_PADDING = KM_ENUM | 7,         /* keymaster_padding_t. */
-    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 8, /* Allow AEAD decryption to return plaintext before it has
+    KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4,  /* keymaster_block_mode_t. */
+    KM_TAG_DIGEST = KM_ENUM_REP | 5,      /* keymaster_digest_t. */
+    KM_TAG_PADDING = KM_ENUM_REP | 6,     /* keymaster_padding_t. */
+    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 7, /* Allow AEAD decryption to return plaintext before it has
                                              been authenticated.  WARNING: Not recommended. */
-    KM_TAG_CALLER_NONCE = KM_BOOL | 9,    /* Allow caller to specify nonce or IV. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 8,    /* Allow caller to specify nonce or IV. */
 
     /* Other hardware-enforced. */
     KM_TAG_RESCOPING_ADD = KM_ENUM_REP | 101, /* Tags authorized for addition via rescoping. */
@@ -130,6 +129,7 @@ typedef enum {
     KM_TAG_AUTH_TOKEN = KM_BYTES | 1003,      /* Authentication token that proves secure user
                                                  authentication has been performed.  Structure
                                                  defined in hw_auth_token_t in hw_auth_token.h. */
+    KM_TAG_MAC_LENGTH = KM_INT | 1004,        /* MAC or AEAD authentication tag length in bits. */
 } keymaster_tag_t;
 
 /**
