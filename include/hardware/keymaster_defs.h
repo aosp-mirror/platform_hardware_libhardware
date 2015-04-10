@@ -70,11 +70,6 @@ typedef enum {
 
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_LONG | 200, /* Defaults to 2^16+1 */
-    KM_TAG_DSA_GENERATOR = KM_BIGNUM | 201,
-    KM_TAG_DSA_P = KM_BIGNUM | 202,
-    KM_TAG_DSA_Q = KM_BIGNUM | 203,
-    /* Note there are no EC-specific params.  Field size is defined by KM_TAG_KEY_SIZE, and the
-       curve is chosen from NIST recommendations for field size */
 
     /*
      * Tags that should be semantically enforced by hardware if possible and will otherwise be
@@ -143,29 +138,15 @@ typedef enum {
  */
 typedef enum {
     /* Asymmetric algorithms. */
-    KM_ALGORITHM_RSA = 1,   /* required */
-    KM_ALGORITHM_DSA = 2,
-    KM_ALGORITHM_ECDSA = 3, /* required */
-    KM_ALGORITHM_ECIES = 4,
-    /* FIPS Approved Ciphers */
-    KM_ALGORITHM_AES = 32, /* required */
-    KM_ALGORITHM_3DES = 33,
-    KM_ALGORITHM_SKIPJACK = 34,
-    /* AES Finalists */
-    KM_ALGORITHM_MARS = 48,
-    KM_ALGORITHM_RC6 = 49,
-    KM_ALGORITHM_SERPENT = 50,
-    KM_ALGORITHM_TWOFISH = 51,
-    /* Other common block ciphers */
-    KM_ALGORITHM_IDEA = 52,
-    KM_ALGORITHM_RC5 = 53,
-    KM_ALGORITHM_CAST5 = 54,
-    KM_ALGORITHM_BLOWFISH = 55,
-    /* Common stream ciphers */
-    KM_ALGORITHM_RC4 = 64,
-    KM_ALGORITHM_CHACHA20 = 65,
+    KM_ALGORITHM_RSA = 1,
+    // KM_ALGORITHM_DSA = 2, -- Removed, do not re-use value 2.
+    KM_ALGORITHM_EC = 3,
+
+    /* Block ciphers algorithms */
+    KM_ALGORITHM_AES = 32,
+
     /* MAC algorithms */
-    KM_ALGORITHM_HMAC = 128, /* required */
+    KM_ALGORITHM_HMAC = 128,
 } keymaster_algorithm_t;
 
 /**
@@ -370,7 +351,6 @@ typedef enum {
     KM_ERROR_INVALID_TAG = -40,
     KM_ERROR_MEMORY_ALLOCATION_FAILED = -41,
     KM_ERROR_INVALID_RESCOPING = -42,
-    KM_ERROR_INVALID_DSA_PARAMS = -43,
     KM_ERROR_IMPORT_PARAMETER_MISMATCH = -44,
     KM_ERROR_SECURE_HW_ACCESS_DENIED = -45,
     KM_ERROR_OPERATION_CANCELLED = -46,
