@@ -150,34 +150,23 @@ typedef enum {
 } keymaster_algorithm_t;
 
 /**
- * Symmetric block cipher modes that may be provided by keymaster implementations.  Those that must
- * be provided by all implementations are tagged as "required".  This type is new in 0_4.
+ * Symmetric block cipher modes provided by keymaster implementations.
  *
- * KM_MODE_FIRST_UNAUTHENTICATED, KM_MODE_FIRST_AUTHENTICATED and KM_MODE_FIRST_MAC are not modes,
- * but markers used to separate the available modes into classes.
+ * KM_MODE_FIRST_UNAUTHENTICATED and KM_MODE_FIRST_AUTHENTICATED are not modes but markers used to
+ * separate the available modes into classes.
  */
 typedef enum {
     /* Unauthenticated modes, usable only for encryption/decryption and not generally recommended
      * except for compatibility with existing other protocols. */
     KM_MODE_FIRST_UNAUTHENTICATED = 1,
-    KM_MODE_ECB = KM_MODE_FIRST_UNAUTHENTICATED, /* required */
-    KM_MODE_CBC = 2,                             /* required */
-    KM_MODE_CBC_CTS = 3,                         /* recommended */
-    KM_MODE_CTR = 4,                             /* recommended */
-    KM_MODE_OFB = 5,
-    KM_MODE_CFB = 6,
-    KM_MODE_XTS = 7, /* Note: requires double-length keys */
+    KM_MODE_ECB = KM_MODE_FIRST_UNAUTHENTICATED,
+    KM_MODE_CBC = 2,
+    KM_MODE_CTR = 4,
+
     /* Authenticated modes, usable for encryption/decryption and signing/verification.  Recommended
-     * over unauthenticated modes for all purposes.  One of KM_MODE_GCM and KM_MODE_OCB is
-     * required. */
+     * over unauthenticated modes for all purposes. */
     KM_MODE_FIRST_AUTHENTICATED = 32,
     KM_MODE_GCM = KM_MODE_FIRST_AUTHENTICATED,
-    KM_MODE_OCB = 33,
-    KM_MODE_CCM = 34,
-    /* MAC modes -- only for signing/verification */
-    KM_MODE_FIRST_MAC = 128,
-    KM_MODE_CMAC = KM_MODE_FIRST_MAC,
-    KM_MODE_POLY1305 = 129,
 } keymaster_block_mode_t;
 
 /**
