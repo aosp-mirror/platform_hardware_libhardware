@@ -189,21 +189,17 @@ typedef enum {
 } keymaster_padding_t;
 
 /**
- * Digests that may be provided by keymaster implementations.  Those that must be provided by all
- * implementations are tagged as "required".  Those that have been added since version 0_2 of the
- * API are tagged as "new".
+ * Digests provided by keymaster implementations.
  */
 typedef enum {
-    KM_DIGEST_NONE = 0,           /* new, required */
-    KM_DIGEST_MD5 = 1,            /* new, for compatibility with old protocols only */
-    KM_DIGEST_SHA1 = 2,           /* new */
-    KM_DIGEST_SHA_2_224 = 3,      /* new */
-    KM_DIGEST_SHA_2_256 = 4,      /* new, required */
-    KM_DIGEST_SHA_2_384 = 5,      /* new, recommended */
-    KM_DIGEST_SHA_2_512 = 6,      /* new, recommended */
-    KM_DIGEST_SHA_3_256 = 7,      /* new */
-    KM_DIGEST_SHA_3_384 = 8,      /* new */
-    KM_DIGEST_SHA_3_512 = 9,      /* new */
+    KM_DIGEST_NONE = 0,
+    KM_DIGEST_MD5 = 1, /* Optional, may not be implemented in hardware, will be handled in software
+                        * if needed. */
+    KM_DIGEST_SHA1 = 2,
+    KM_DIGEST_SHA_2_224 = 3,
+    KM_DIGEST_SHA_2_256 = 4,
+    KM_DIGEST_SHA_2_384 = 5,
+    KM_DIGEST_SHA_2_512 = 6,
 } keymaster_digest_t;
 
 /**
