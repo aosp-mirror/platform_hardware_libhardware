@@ -293,6 +293,8 @@ typedef uint32_t GpsMeasurementFlags;
 #define GPS_MEASUREMENT_HAS_DOPPLER_SHIFT_UNCERTAINTY         (1<<16)
 /** A valid 'used in fix' flag is stored in the data structure. */
 #define GPS_MEASUREMENT_HAS_USED_IN_FIX                       (1<<17)
+/** The value of 'pseudorange rate' is uncorrected. */
+#define GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE      (1<<18)
 
 /**
  * Enumeration of the available values for the GPS Measurement's loss of lock.
@@ -1353,6 +1355,9 @@ typedef struct {
      *
      * The value contains the 'drift uncertainty' in it.
      * If the data is available 'flags' must contain GPS_CLOCK_HAS_DRIFT.
+     *
+     * If GpsMeasurement's 'flags' field contains GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE,
+     * it is encouraged that this field is also provided.
      */
     double drift_nsps;
 
@@ -1416,11 +1421,15 @@ typedef struct {
      *
      * However, if there is any ambiguity in integer millisecond,
      * GPS_MEASUREMENT_STATE_MSEC_AMBIGUOUS should be set accordingly, in the 'state' field.
+     *
+     * This value must be populated if 'state' != GPS_MEASUREMENT_STATE_UNKNOWN.
      */
     int64_t received_gps_tow_ns;
 
     /**
      * 1-Sigma uncertainty of the Received GPS Time-of-Week in nanoseconds.
+     *
+     * This value must be populated if 'state' != GPS_MEASUREMENT_STATE_UNKNOWN.
      */
     int64_t received_gps_tow_uncertainty_ns;
 
@@ -1434,11 +1443,23 @@ typedef struct {
 
     /**
      * Pseudorange rate at the timestamp in m/s.
-     * The value also includes the effects of the receiver clock frequency and satellite clock
-     * frequency errors.
+     * The effects of the receiver clock frequency and satellite clock frequency errors, are known
+     * as the correction of a given Pseudorange rate value.
+     *
+     * If GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE is set in 'flags' field, this field must
+     * be populated with the 'uncorrected' reading.
+     * If GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE is not set in 'flags' field, this field
+     * must be populated with the 'corrected' reading. This is the default behavior.
+     *
+     * It is encouraged to provide the 'uncorrected' 'pseudorange rate', and provide GpsClock's
+     * 'drift' field as well.
      *
      * The value includes the 'pseudorange rate uncertainty' in it.
-     * A positive value indicates that the pseudorange is getting larger.
+     * A positive 'uncorrected' value indicates that the SV is moving away from the receiver.
+     *
+     * The sign of the 'uncorrected' 'pseudorange rate' and its correlation to the sign of 'doppler
+     * shift' is given by the equation:
+     *      pseudorange rate = -k * doppler shift
      *
      * This is a Mandatory value.
      */
@@ -1462,13 +1483,21 @@ typedef struct {
 
     /**
      * Accumulated delta range since the last channel reset in meters.
-     * The data is available if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
+     * A positive value indicates that the SV is moving away fro the receiver.
+     *
+     * The sign of the 'accumulated delta range' and its correlation to the sign of 'carrier phase'
+     * is given by the equation:
+     *          accumulated delta range = -k * carrier phase
+     *
+     * This value must be populated if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
+     * However, it is expected that the data is only accurate when:
+     *      'accumulated delta range state' == GPS_ADR_STATE_VALID.
      */
     double accumulated_delta_range_m;
 
     /**
      * 1-Sigma uncertainty of the accumulated delta range in meters.
-     * The data is available if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
+     * This value must be populated if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
      */
     double accumulated_delta_range_uncertainty_m;
 
