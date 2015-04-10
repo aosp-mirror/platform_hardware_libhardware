@@ -27,8 +27,8 @@ const uint8_t HW_AUTH_TOKEN_VERSION = 0;
 
 typedef enum {
     HW_AUTH_NONE = 0,
-    HW_AUTH_PASSWORD = 1 << 1,
-    HW_AUTH_FINGERPRINT = 1 << 2,
+    HW_AUTH_PASSWORD = 1 << 0,
+    HW_AUTH_FINGERPRINT = 1 << 1,
     // Additional entries should be powers of 2.
     HW_AUTH_ANY = UINT32_MAX,
 } hw_authenticator_type_t;
