@@ -176,16 +176,12 @@ typedef enum {
  * cryptographically-appropriate pairs.
  */
 typedef enum {
-    KM_PAD_NONE = 1,     /* required, deprecated */
-    KM_PAD_RSA_OAEP = 2, /* required */
-    KM_PAD_RSA_PSS = 3,  /* required */
+    KM_PAD_NONE = 1, /* deprecated */
+    KM_PAD_RSA_OAEP = 2,
+    KM_PAD_RSA_PSS = 3,
     KM_PAD_RSA_PKCS1_1_5_ENCRYPT = 4,
     KM_PAD_RSA_PKCS1_1_5_SIGN = 5,
-    KM_PAD_ANSI_X923 = 32,
-    KM_PAD_ISO_10126 = 33,
-    KM_PAD_ZERO = 64,  /* required */
-    KM_PAD_PKCS7 = 65, /* required */
-    KM_PAD_ISO_7816_4 = 66,
+    KM_PAD_PKCS7 = 64,
 } keymaster_padding_t;
 
 /**
