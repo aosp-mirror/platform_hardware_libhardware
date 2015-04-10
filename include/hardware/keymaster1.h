@@ -466,10 +466,8 @@ struct keymaster1_device {
      * This function is optional and should be set to NULL if it is not implemented.
      *
      * \param[in] dev The keymaster device structure.
-     *
-     * Returns 0 on success or an error code less than 0.
      */
-    int (*delete_all_keys)(const struct keymaster1_device* dev);
+    keymaster_error_t (*delete_all_keys)(const struct keymaster1_device* dev);
 
     /**
      * Begins a cryptographic operation using the specified key.  If all is well, begin() will
