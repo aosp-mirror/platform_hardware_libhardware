@@ -199,12 +199,13 @@ typedef enum {
 } keymaster_digest_t;
 
 /**
- * The origin of a key (or pair), i.e. where it was generated.  Origin and can be used together to
- * determine whether a key may have existed outside of secure hardware.  This type is new in 0_4.
+ * The origin of a key (or pair), i.e. where it was generated.  Note that KM_TAG_ORIGIN can be found
+ * in either the hardware-enforced or software-enforced list for a key, indicating whether the key
+ * is hardware or software-based.  Specifically, a key with KM_ORIGIN_GENERATED in the
+ * hardware-enforced list is guaranteed never to have existed outide the secure hardware.
  */
 typedef enum {
-    KM_ORIGIN_HARDWARE = 0, /* Generated in secure hardware */
-    KM_ORIGIN_SOFTWARE = 1, /* Generated in non-secure software */
+    KM_ORIGIN_GENERATED = 0, /* Generated in keymaster */
     KM_ORIGIN_IMPORTED = 2, /* Imported, origin unknown */
 } keymaster_key_origin_t;
 
