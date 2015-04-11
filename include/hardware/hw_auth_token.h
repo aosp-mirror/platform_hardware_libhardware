@@ -23,6 +23,8 @@
 extern "C" {
 #endif  // __cplusplus
 
+const uint8_t HW_AUTH_TOKEN_VERSION = 0;
+
 typedef enum {
     HW_AUTH_NONE = 0,
     HW_AUTH_PASSWORD = 1 << 0,
