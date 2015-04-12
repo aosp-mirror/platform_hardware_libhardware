@@ -103,6 +103,10 @@ struct gatekeeper_device {
      * - dev: pointer to gatekeeper_device acquired via calls to gatekeeper_open
      * - uid: the Android user identifier
      *
+     * - challenge: An optional challenge to authenticate against, or 0. Used when a separate
+     *              authenticator requests password verification, or for transactional
+     *              password authentication.
+     *
      * - enrolled_password_handle: the currently enrolled password handle that the
      *   user wishes to verify against.
      * - enrolled_password_handle_length: the length in bytes of the buffer pointed
@@ -122,7 +126,7 @@ struct gatekeeper_device {
      * Returns: 0 on success or an error code less than 0 on error
      * On error, auth token will not be allocated
      */
-    int (*verify)(const struct gatekeeper_device *dev, uint32_t uid,
+    int (*verify)(const struct gatekeeper_device *dev, uint32_t uid, uint64_t challenge,
             const uint8_t *enrolled_password_handle, uint32_t enrolled_password_handle_length,
             const uint8_t *provided_password, uint32_t provided_password_length,
             uint8_t **auth_token, uint32_t *auth_token_length);
