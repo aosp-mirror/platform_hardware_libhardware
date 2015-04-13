@@ -92,6 +92,17 @@ __BEGIN_DECLS
 #define CAPABILITY_CELL         (1U<<3)
 
 /**
+ * Status to return in flp_status_callback when your implementation transitions
+ * from being unsuccessful in determining location to being successful.
+ */
+#define FLP_STATUS_LOCATION_AVAILABLE         0
+/**
+ * Status to return in flp_status_callback when your implementation transitions
+ * from being successful in determining location to being unsuccessful.
+ */
+#define FLP_STATUS_LOCATION_UNAVAILABLE       1
+
+/**
  * This constant is used with the batched locations
  * APIs. Batching is mandatory when FLP implementation
  * is supported. If the flag is set, the hardware implementation
@@ -214,6 +225,22 @@ typedef int (*flp_set_thread_event)(ThreadEvent event);
  */
 typedef void (*flp_capabilities_callback)(int capabilities);
 
+/**
+ * Callback with status information on the ability to compute location.
+ * To avoid waking up the application processor you should only send
+ * changes in status (you shouldn't call this method twice in a row
+ * with the same status value).  As a guideline you should not call this
+ * more frequently then the requested batch period set with period_ns
+ * in FlpBatchOptions.  For example if period_ns is set to 5 minutes and
+ * the status changes many times in that interval, you should only report
+ * one status change every 5 minutes.
+ *
+ * Parameters:
+ *     status is one of FLP_STATUS_LOCATION_AVAILABLE
+ *     or FLP_STATUS_LOCATION_UNAVAILABLE.
+ */
+typedef void (*flp_status_callback)(int32_t status);
+
 /** FLP callback structure. */
 typedef struct {
     /** set to sizeof(FlpCallbacks) */
@@ -223,6 +250,7 @@ typedef struct {
     flp_release_wakelock release_wakelock_cb;
     flp_set_thread_event set_thread_event_cb;
     flp_capabilities_callback flp_capabilities_cb;
+    flp_status_callback flp_status_cb;
 } FlpCallbacks;
 
 
