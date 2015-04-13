@@ -425,6 +425,15 @@ typedef struct {
      * Get a pointer to extension information.
      */
     const void* (*get_extension)(const char* name);
+
+    /**
+     * Retrieve all batched locations currently stored and clear the buffer.
+     * flp_location_callback MUST be called in response, even if there are
+     * no locations to flush (in which case num_locations should be 0).
+     * Subsequent calls to get_batched_location or flush_batched_locations
+     * should not return any of the locations returned in this call.
+     */
+    void (*flush_batched_locations)();
 } FlpLocationInterface;
 
 struct flp_device_t {
