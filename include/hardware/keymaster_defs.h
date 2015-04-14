@@ -206,7 +206,11 @@ typedef enum {
  */
 typedef enum {
     KM_ORIGIN_GENERATED = 0, /* Generated in keymaster */
-    KM_ORIGIN_IMPORTED = 2, /* Imported, origin unknown */
+    KM_ORIGIN_IMPORTED = 2,  /* Imported, origin unknown */
+    KM_ORIGIN_UNKNOWN = 3,   /* Keymaster did not record origin.  This value can only be seen on
+                              * keys in a keymaster0 implementation.  The keymaster0 adapter uses
+                              * this value to document the fact that it is unkown whether the key
+                              * was generated inside or imported into keymaster. */
 } keymaster_key_origin_t;
 
 /**
