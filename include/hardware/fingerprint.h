@@ -17,6 +17,8 @@
 #ifndef ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 #define ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 
+#include <hardware/hw_auth_token.h>
+
 #define FINGERPRINT_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
 #define FINGERPRINT_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
 #define FINGERPRINT_HARDWARE_MODULE_ID "fingerprint"
@@ -24,7 +26,6 @@
 typedef enum fingerprint_msg_type {
     FINGERPRINT_ERROR = -1,
     FINGERPRINT_ACQUIRED = 1,
-    FINGERPRINT_PROCESSED = 2,
     FINGERPRINT_TEMPLATE_ENROLLING = 3,
     FINGERPRINT_TEMPLATE_REMOVED = 4,
     FINGERPRINT_AUTHENTICATED = 5
@@ -97,19 +98,9 @@ typedef struct fingerprint_acquired {
     fingerprint_acquired_info_t acquired_info; /* information about the image */
 } fingerprint_acquired_t;
 
-typedef struct fingerprint_processed {
-    fingerprint_finger_id_t finger; /* all 0s is a special case and means no match */
-} fingerprint_processed_t;
-
 typedef struct fingerprint_authenticated {
-    uint32_t user_id;
-    uint32_t auth_id;
-    uint32_t timestamp;
-    uint32_t app_id;
-    uint64_t crypto_op_id;
-    uint8_t hmac[16];  /* 128-bit */
-    uint32_t auth_token_size;
-    uint8_t *auth_token;
+    fingerprint_finger_id_t finger;
+    hw_auth_token_t hat;
 } fingerprint_authenticated_t;
 
 typedef struct fingerprint_msg {
@@ -119,7 +110,6 @@ typedef struct fingerprint_msg {
         fingerprint_enroll_t enroll;
         fingerprint_removed_t removed;
         fingerprint_acquired_t acquired;
-        fingerprint_processed_t processed;
         fingerprint_authenticated_t authenticated;
     } data;
 } fingerprint_msg_t;
@@ -151,7 +141,8 @@ typedef struct fingerprint_device {
      *                 -1 otherwise. A notify() function may be called
      *                    indicating the error condition.
      */
-    int (*enroll)(struct fingerprint_device *dev, uint32_t gid, uint32_t timeout_sec);
+    int (*enroll)(struct fingerprint_device *dev, const hw_auth_token_t *hat,
+                    uint32_t gid, uint32_t timeout_sec);
 
     /*
      * Fingerprint pre-enroll enroll request:
