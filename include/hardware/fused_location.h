@@ -72,6 +72,26 @@ __BEGIN_DECLS
 #define FLP_TECH_MASK_BLUETOOTH (1U<<4)
 
 /**
+ * Set when your implementation can produce GNNS-derived locations,
+ * for use with flp_capabilities_callback.
+ *
+ * GNNS is a required capability for a particular feature to be used
+ * (batching or geofencing).  If not supported that particular feature
+ * won't be used by the upper layer.
+ */
+#define CAPABILITY_GNSS         (1U<<0)
+/**
+ * Set when your implementation can produce WiFi-derived locations, for
+ * use with flp_capabilities_callback.
+ */
+#define CAPABILITY_WIFI         (1U<<1)
+/**
+ * Set when your implementation can produce cell-derived locations, for
+ * use with flp_capabilities_callback.
+ */
+#define CAPABILITY_CELL         (1U<<3)
+
+/**
  * This constant is used with the batched locations
  * APIs. Batching is mandatory when FLP implementation
  * is supported. If the flag is set, the hardware implementation
@@ -183,6 +203,17 @@ typedef void (*flp_release_wakelock)();
  */
 typedef int (*flp_set_thread_event)(ThreadEvent event);
 
+/**
+ * Callback for technologies supported by this implementation.
+ *
+ * Parameters: capabilities is a bitmask of FLP_CAPABILITY_* values describing
+ * which features your implementation supports.  You should support
+ * CAPABILITY_GNSS at a minimum for your implementation to be utilized.  You can
+ * return 0 in FlpGeofenceCallbacks to indicate you don't support geofencing,
+ * or 0 in FlpCallbacks to indicate you don't support location batching.
+ */
+typedef void (*flp_capabilities_callback)(int capabilities);
+
 /** FLP callback structure. */
 typedef struct {
     /** set to sizeof(FlpCallbacks) */
@@ -191,6 +222,7 @@ typedef struct {
     flp_acquire_wakelock acquire_wakelock_cb;
     flp_release_wakelock release_wakelock_cb;
     flp_set_thread_event set_thread_event_cb;
+    flp_capabilities_callback flp_capabilities_cb;
 } FlpCallbacks;
 
 
@@ -266,7 +298,9 @@ typedef struct {
 
     /**
      * Opens the interface and provides the callback routines
-     * to the implemenation of this interface.
+     * to the implementation of this interface.  Once called you should respond
+     * by calling the flp_capabilities_callback in FlpCallbacks to
+     * specify the capabilities that your implementation supports.
      */
     int (*init)(FlpCallbacks* callbacks );
 
@@ -615,6 +649,7 @@ typedef struct {
     flp_geofence_pause_callback geofence_pause_callback;
     flp_geofence_resume_callback geofence_resume_callback;
     flp_set_thread_event set_thread_event_cb;
+    flp_capabilities_callback flp_capabilities_cb;
 } FlpGeofenceCallbacks;
 
 
@@ -695,7 +730,9 @@ typedef struct {
 
    /**
     * Opens the geofence interface and provides the callback routines
-    * to the implemenation of this interface.
+    * to the implemenation of this interface.  Once called you should respond
+    * by calling the flp_capabilities_callback in FlpGeofenceCallbacks to
+    * specify the capabilities that your implementation supports.
     */
    void  (*init)( FlpGeofenceCallbacks* callbacks );
 
