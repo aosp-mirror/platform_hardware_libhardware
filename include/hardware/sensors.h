@@ -35,6 +35,7 @@ __BEGIN_DECLS
 #define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, SENSORS_HEADER_VERSION)
+#define SENSORS_DEVICE_API_VERSION_1_4  HARDWARE_DEVICE_API_VERSION_2(1, 4, SENSORS_HEADER_VERSION)
 
 /**
  * Please see the Sensors section of source.android.com for an
@@ -91,6 +92,28 @@ enum {
  * permission.
  */
 #define SENSOR_PERMISSION_BODY_SENSORS "android.permission.BODY_SENSORS"
+
+/*
+ * Availability: SENSORS_DEVICE_API_VERSION_1_4
+ * Sensor HAL modes uses in set_operation_mode method
+ */
+enum {
+    /*
+     * Operating modes for the HAL.
+     */
+
+    /*
+     * Normal mode operation. This is the default state of operation.
+     * The HAL shall initialize into this mode on device startup.
+     */
+    SENSOR_HAL_NORMAL_MODE        = 0,
+
+    /* Loopback mode. In this mode, the device shall not source data from the
+     * physical sensors as it would in normal mode. Instead sensor data is
+     * injected by the sensor service.
+     */
+    SENSOR_HAL_LOOPBACK_MODE      = 0x1
+};
 
 /*
  * Availability: SENSORS_DEVICE_API_VERSION_1_3
@@ -619,6 +642,36 @@ enum {
 #define SENSOR_STRING_TYPE_WRIST_TILT_GESTURE                  "android.sensor.wrist_tilt_gesture"
 
 /**
+ * SENSOR_TYPE_TIME_SYNC
+ * reporting-mode: continuous
+ *
+ *  A time synchronization mechanism sensor to synchronize timing between
+ *  differnt parts of the device.
+ *  This sensor returns the following values in the sensor_event
+ *      Time_stamp of the event
+ *        u64.data[0] -> Type of event latched
+ *        u64.data[1] -> count
+ *
+ *  Implement only the wake-up version of this sensor.
+ */
+#define SENSOR_TYPE_TIME_SYNC                        (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 0x10)
+#define SENSOR_STRING_TYPE_TIME_SYNC                 "android.sensor.time_sync"
+
+/**
+ * SENSOR_TYPE_NUDGE_GESTURE
+ * reporting-mode: one-shot
+ *
+ * A sensor of this type triggers when the device is nudged.
+ *
+ * The only allowed return value is 1.0. This sensor
+ * de-activates itself immediately after it triggers.
+ *
+ * Implement only the wake-up version of this sensor.
+ */
+#define SENSOR_TYPE_NUDGE_GESTURE                   (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 0x11)
+#define SENSOR_STRING_NUDGE_UP_GESTURE              "android.sensor.nudge_gesture"
+
+/**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
  */
@@ -807,6 +860,15 @@ struct sensors_module_t {
      */
     int (*get_sensors_list)(struct sensors_module_t* module,
             struct sensor_t const** list);
+
+    /**
+     *  Place the module in a specific mode. The following modes are defined
+     *
+     *  0  - Normal operation. Default state of the module.
+     *  1 - Loopback mode. Data is injected for the the supported sensors by
+     *      the sensor service in this mode.
+     */
+    int (*set_operation_mode)(unsigned int mode);
 };
 
 struct sensor_t {
@@ -1004,7 +1066,12 @@ typedef struct sensors_poll_device_1 {
      */
     int (*flush)(struct sensors_poll_device_1* dev, int sensor_handle);
 
-    void (*reserved_procs[8])(void);
+    /*
+     * Inject a sensor samples to be to this device.
+     */
+    int (*inject_sensor_data)(struct sensors_poll_device_1 *dev, const sensors_event_t *data);
+
+    void (*reserved_procs[7])(void);
 
 } sensors_poll_device_1_t;
 
