@@ -1443,8 +1443,8 @@ typedef struct {
 
     /**
      * Pseudorange rate at the timestamp in m/s.
-     * The effects of the receiver clock frequency and satellite clock frequency errors, are known
-     * as the correction of a given Pseudorange rate value.
+     * The correction of a given Pseudorange Rate value includes corrections for receiver and
+     * satellite clock frequency errors.
      *
      * If GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE is set in 'flags' field, this field must
      * be populated with the 'uncorrected' reading.
@@ -1457,9 +1457,9 @@ typedef struct {
      * The value includes the 'pseudorange rate uncertainty' in it.
      * A positive 'uncorrected' value indicates that the SV is moving away from the receiver.
      *
-     * The sign of the 'uncorrected' 'pseudorange rate' and its correlation to the sign of 'doppler
+     * The sign of the 'uncorrected' 'pseudorange rate' and its relation to the sign of 'doppler
      * shift' is given by the equation:
-     *      pseudorange rate = -k * doppler shift
+     *      pseudorange rate = -k * doppler shift   (where k is a constant)
      *
      * This is a Mandatory value.
      */
@@ -1483,11 +1483,11 @@ typedef struct {
 
     /**
      * Accumulated delta range since the last channel reset in meters.
-     * A positive value indicates that the SV is moving away fro the receiver.
+     * A positive value indicates that the SV is moving away from the receiver.
      *
-     * The sign of the 'accumulated delta range' and its correlation to the sign of 'carrier phase'
+     * The sign of the 'accumulated delta range' and its relation to the sign of 'carrier phase'
      * is given by the equation:
-     *          accumulated delta range = -k * carrier phase
+     *          accumulated delta range = -k * carrier phase    (where k is a constant)
      *
      * This value must be populated if 'accumulated delta range state' != GPS_ADR_STATE_UNKNOWN.
      * However, it is expected that the data is only accurate when:
