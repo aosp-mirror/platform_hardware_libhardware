@@ -157,6 +157,16 @@ typedef struct fingerprint_device {
     uint64_t (*pre_enroll)(struct fingerprint_device *dev);
 
     /*
+     * get_authenticator_id:
+     * Returns a token associated with the current fingerprint set. This value will
+     * change whenever a new fingerprint is enrolled, thus creating a new fingerprint
+     * set.
+     *
+     * Function return: current authenticator id.
+     */
+    uint64_t (*get_authenticator_id)(struct fingerprint_device *dev);
+
+    /*
      * Cancel pending enroll or authenticate, sending FINGERPRINT_ERROR_CANCELED
      * to all running clients. Switches the HAL state machine back to the idle state.
      * will indicate switch back to the scan mode.
@@ -214,9 +224,6 @@ typedef struct fingerprint_device {
      * Do not set by hand, use the function above instead.
      */
     fingerprint_notify_t notify;
-
-    /* Reserved for future use. Must be NULL. */
-    void* reserved[8 - 4];
 } fingerprint_device_t;
 
 typedef struct fingerprint_module {

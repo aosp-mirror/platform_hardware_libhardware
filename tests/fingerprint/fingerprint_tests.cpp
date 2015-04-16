@@ -29,6 +29,11 @@ TEST_F(FingerprintDevice, isTherePreEnroll) {
         << "pre_enroll() function is not implemented";
 }
 
+TEST_F(FingerprintDevice, isThereGetAuthenticatorId) {
+    ASSERT_TRUE(NULL != fp_device()->get_authenticator_id)
+        << "get_authenticator_id() function is not implemented";
+}
+
 TEST_F(FingerprintDevice, isThereCancel) {
     ASSERT_TRUE(NULL != fp_device()->cancel)
         << "cancel() function is not implemented";

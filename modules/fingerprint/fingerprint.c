@@ -32,10 +32,19 @@ static int fingerprint_close(hw_device_t *dev)
     }
 }
 
+
+static uint64_t fingerprint_pre_enroll(struct fingerprint_device __unused *dev) {
+    return FINGERPRINT_ERROR;
+}
+
 static int fingerprint_enroll(struct fingerprint_device __unused *dev,
                                 const hw_auth_token_t __unused *hat,
                                 uint32_t __unused gid,
                                 uint32_t __unused timeout_sec) {
+    return FINGERPRINT_ERROR;
+}
+
+static uint64_t fingerprint_get_auth_id(struct fingerprint_device __unused *dev) {
     return FINGERPRINT_ERROR;
 }
 
@@ -81,7 +90,9 @@ static int fingerprint_open(const hw_module_t* module, const char __unused *id,
     dev->common.module = (struct hw_module_t*) module;
     dev->common.close = fingerprint_close;
 
+    dev->pre_enroll = fingerprint_pre_enroll;
     dev->enroll = fingerprint_enroll;
+    dev->get_authenticator_id = fingerprint_get_auth_id;
     dev->cancel = fingerprint_cancel;
     dev->remove = fingerprint_remove;
     dev->set_active_group = fingerprint_set_active_group;
