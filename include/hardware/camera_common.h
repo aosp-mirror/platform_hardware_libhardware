@@ -113,6 +113,10 @@ __BEGIN_DECLS
  *    To specify valid combinations of devices, the resource_cost and conflicting_devices
  *    fields should always be set in the camera_info structure returned by the
  *    get_camera_info call.
+ *
+ * 4. Module initialization method. This will be called by the camera service
+ *    right after the HAL module is loaded, to allow for one-time initialization
+ *    of the HAL. It is called before any other module methods are invoked.
  */
 
 /**
@@ -868,8 +872,39 @@ typedef struct camera_module {
      */
     int (*set_torch_mode)(const char* camera_id, bool enabled);
 
+    /**
+     * init:
+     *
+     * This method is called by the camera service before any other methods
+     * are invoked, right after the camera HAL library has been successfully
+     * loaded. It may be left as NULL by the HAL module, if no initialization
+     * in needed.
+     *
+     * It can be used by HAL implementations to perform initialization and
+     * other one-time operations.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3:
+     *   Not provided by HAL module. Framework will not call this function.
+     *
+     * CAMERA_MODULE_API_VERSION_2_4:
+     *   If not NULL, will always be called by the framework once after the HAL
+     *   module is loaded, before any other HAL module method is called.
+     *
+     * Return values:
+     *
+     * 0:           On a successful operation.
+     *
+     * -ENODEV:     Initialization cannot be completed due to an internal
+     *              error. The HAL must be assumed to be in a nonfunctional
+     *              state.
+     *
+     */
+    int (*init)();
+
     /* reserved for future use */
-    void* reserved[6];
+    void* reserved[5];
 } camera_module_t;
 
 __END_DECLS

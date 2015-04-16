@@ -214,7 +214,8 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(camera_module_t, get_vendor_tag_ops, 140, 272);
     CHECK_MEMBER_AT(camera_module_t, open_legacy, 144, 280);
     CHECK_MEMBER_AT(camera_module_t, set_torch_mode, 148, 288);
-    CHECK_MEMBER_AT(camera_module_t, reserved, 152, 296);
+    CHECK_MEMBER_AT(camera_module_t, init, 152, 296);
+    CHECK_MEMBER_AT(camera_module_t, reserved, 156, 304);
 
     //Types defined in camera3.h
     CHECK_MEMBER_AT(camera3_device_ops_t, initialize, 0, 0);
