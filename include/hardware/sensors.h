@@ -95,7 +95,7 @@ enum {
 
 /*
  * Availability: SENSORS_DEVICE_API_VERSION_1_4
- * Sensor HAL modes uses in set_operation_mode method
+ * Sensor HAL modes used in set_operation_mode method
  */
 enum {
     /*
@@ -108,7 +108,8 @@ enum {
      */
     SENSOR_HAL_NORMAL_MODE        = 0,
 
-    /* Loopback mode. In this mode, the device shall not source data from the
+    /* 
+     * Loopback mode. In this mode, the device shall not source data from the
      * physical sensors as it would in normal mode. Instead sensor data is
      * injected by the sensor service.
      */
@@ -642,36 +643,6 @@ enum {
 #define SENSOR_STRING_TYPE_WRIST_TILT_GESTURE                  "android.sensor.wrist_tilt_gesture"
 
 /**
- * SENSOR_TYPE_TIME_SYNC
- * reporting-mode: continuous
- *
- *  A time synchronization mechanism sensor to synchronize timing between
- *  differnt parts of the device.
- *  This sensor returns the following values in the sensor_event
- *      Time_stamp of the event
- *        u64.data[0] -> Type of event latched
- *        u64.data[1] -> count
- *
- *  Implement only the wake-up version of this sensor.
- */
-#define SENSOR_TYPE_TIME_SYNC                        (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 0x10)
-#define SENSOR_STRING_TYPE_TIME_SYNC                 "android.sensor.time_sync"
-
-/**
- * SENSOR_TYPE_NUDGE_GESTURE
- * reporting-mode: one-shot
- *
- * A sensor of this type triggers when the device is nudged.
- *
- * The only allowed return value is 1.0. This sensor
- * de-activates itself immediately after it triggers.
- *
- * Implement only the wake-up version of this sensor.
- */
-#define SENSOR_TYPE_NUDGE_GESTURE                   (SENSOR_TYPE_DEVICE_PRIVATE_BASE + 0x11)
-#define SENSOR_STRING_NUDGE_UP_GESTURE              "android.sensor.nudge_gesture"
-
-/**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
  */
@@ -864,9 +835,12 @@ struct sensors_module_t {
     /**
      *  Place the module in a specific mode. The following modes are defined
      *
-     *  0  - Normal operation. Default state of the module.
-     *  1 - Loopback mode. Data is injected for the the supported sensors by
-     *      the sensor service in this mode.
+     *  0 - Normal operation. Default state of the module.
+     *  1 - Loopback mode. Data is injected for the the supported
+     *      sensors by the sensor service in this mode.
+     * @return 0 on success 
+     *         -EINVAL if requested mode is not supported
+     *         -EPERM if operation is not allowed 
      */
     int (*set_operation_mode)(unsigned int mode);
 };
@@ -1067,7 +1041,11 @@ typedef struct sensors_poll_device_1 {
     int (*flush)(struct sensors_poll_device_1* dev, int sensor_handle);
 
     /*
-     * Inject a sensor samples to be to this device.
+     * Inject a single sensor sample to be to this device.
+     * data points to the sensor event to be injected
+     * @return 0 on success 
+     *         -EPERM if operation is not allowed 
+     *         -EINVAL if sensor event cannot be injected
      */
     int (*inject_sensor_data)(struct sensors_poll_device_1 *dev, const sensors_event_t *data);
 
