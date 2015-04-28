@@ -256,6 +256,8 @@ static void *callback_thread_loop(void *context)
         struct listnode *item;
         struct listnode *tmp;
         struct timespec cur_ts;
+        bool got_cancel = false;
+        bool send_meta_data = false;
 
         if (list_empty(&tuner->command_list) || ts.tv_sec != 0) {
             ALOGV("%s SLEEPING", __func__);
@@ -275,9 +277,17 @@ static void *callback_thread_loop(void *context)
         list_for_each_safe(item, tmp, &tuner->command_list) {
             cmd = node_to_item(item, struct thread_command, node);
 
+            if (got_cancel && (cmd->type == CMD_STEP || cmd->type == CMD_SCAN ||
+                    cmd->type == CMD_TUNE || cmd->type == CMD_METADATA)) {
+                 list_remove(item);
+                 free(cmd);
+                 continue;
+            }
+
             if ((cmd->ts.tv_sec < cur_ts.tv_sec) ||
                     ((cmd->ts.tv_sec == cur_ts.tv_sec) && (cmd->ts.tv_nsec < cur_ts.tv_nsec))) {
                 radio_hal_event_t event;
+                radio_metadata_t *metadata = NULL;
 
                 event.type = RADIO_EVENT_HW_FAILURE;
                 list_remove(item);
@@ -357,10 +367,7 @@ static void *callback_thread_loop(void *context)
 
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
-                    if (tuner->program.metadata != NULL)
-                        radio_metadata_deallocate(tuner->program.metadata);
-                    tuner->program.metadata = NULL;
-                    send_command_l(tuner, CMD_METADATA, 2000, NULL);
+                    send_meta_data = true;
                 } break;
 
                 case CMD_TUNE: {
@@ -385,24 +392,20 @@ static void *callback_thread_loop(void *context)
                             tuner->program.tuned ? tuner->config.am.stereo : false;
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
+                    send_meta_data = true;
                 } break;
 
                 case CMD_METADATA: {
-                    prepare_metadata(tuner, &tuner->program.metadata, false);
-                    event.type = RADIO_EVENT_METADATA;
-                    event.metadata = tuner->program.metadata;
+                    int ret = prepare_metadata(tuner, &metadata, false);
+                    if (ret == 0) {
+                        event.type = RADIO_EVENT_METADATA;
+                        event.metadata = metadata;
+                    }
+                    send_meta_data = true;
                 } break;
 
                 case CMD_CANCEL: {
-                    struct listnode *tmp2;
-                    list_for_each_safe(item, tmp2, &tuner->command_list) {
-                        cmd = node_to_item(item, struct thread_command, node);
-                        if (cmd->type == CMD_STEP || cmd->type == CMD_SCAN ||
-                                cmd->type == CMD_TUNE || cmd->type == CMD_METADATA) {
-                            list_remove(item);
-                            free(cmd);
-                        }
-                    }
+                    got_cancel = true;
                 } break;
 
                 }
@@ -410,6 +413,10 @@ static void *callback_thread_loop(void *context)
                     pthread_mutex_unlock(&tuner->lock);
                     tuner->callback(&event, tuner->cookie);
                     pthread_mutex_lock(&tuner->lock);
+                    if (event.type == RADIO_EVENT_METADATA && metadata != NULL) {
+                        radio_metadata_deallocate(metadata);
+                        metadata = NULL;
+                    }
                 }
                 ALOGV("%s processed command %d", __func__, cmd->type);
                 free(cmd);
@@ -421,6 +428,17 @@ static void *callback_thread_loop(void *context)
                     ts.tv_nsec = cmd->ts.tv_nsec;
                 }
             }
+        }
+
+        if (send_meta_data) {
+            list_for_each_safe(item, tmp, &tuner->command_list) {
+                cmd = node_to_item(item, struct thread_command, node);
+                if (cmd->type == CMD_METADATA) {
+                    list_remove(item);
+                    free(cmd);
+                }
+            }
+            send_command_l(tuner, CMD_METADATA, 100, NULL);
         }
     }
 
@@ -557,7 +575,7 @@ static int tuner_get_program_information(const struct radio_tuner *tuner,
     metadata = info->metadata;
     *info = stub_tuner->program;
     info->metadata = metadata;
-    if (metadata != NULL)
+    if (metadata != NULL && stub_tuner->program.metadata != NULL)
         radio_metadata_add_metadata(&info->metadata, stub_tuner->program.metadata);
 
 exit:
