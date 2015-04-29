@@ -51,7 +51,10 @@ typedef uint32_t GpsPositionMode;
 #define GPS_POSITION_MODE_STANDALONE    0
 /** AGPS MS-Based mode. */
 #define GPS_POSITION_MODE_MS_BASED      1
-/** AGPS MS-Assisted mode. */
+/**
+ * AGPS MS-Assisted mode. This mode is not maintained by the platform anymore.
+ * It is strongly recommended to use GPS_POSITION_MODE_MS_BASE instead.
+ */
 #define GPS_POSITION_MODE_MS_ASSISTED   2
 
 /** Requested recurrence mode for GPS operation. */
@@ -619,6 +622,12 @@ typedef struct {
      * min_interval represents the time between fixes in milliseconds.
      * preferred_accuracy represents the requested fix accuracy in meters.
      * preferred_time represents the requested time to first fix in milliseconds.
+     *
+     * 'mode' parameter should be one of GPS_POSITION_MODE_MS_BASE
+     * or GPS_POSITION_MODE_STANDALONE.
+     * It is allowed by the platform (and it is recommended) to fallback to
+     * GPS_POSITION_MODE_MS_BASE if GPS_POSITION_MODE_MS_ASSISTED is passed in, and
+     * GPS_POSITION_MODE_MS_BASED is supported.
      */
     int   (*set_position_mode)(GpsPositionMode mode, GpsPositionRecurrence recurrence,
             uint32_t min_interval, uint32_t preferred_accuracy, uint32_t preferred_time);
