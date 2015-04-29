@@ -34,7 +34,7 @@
 
 namespace android {
 
-EvdevDevice::EvdevDevice(std::shared_ptr<InputDeviceNode> node) :
+EvdevDevice::EvdevDevice(const std::shared_ptr<InputDeviceNode>& node) :
     mDeviceNode(node) {}
 
 void EvdevDevice::processInput(InputEvent& event, nsecs_t currentTime) {

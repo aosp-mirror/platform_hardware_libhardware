@@ -41,11 +41,11 @@ namespace tests {
 
 using namespace std::literals::chrono_literals;
 
-using InputCbFunc = std::function<void(std::shared_ptr<InputDeviceNode>, InputEvent&, nsecs_t)>;
-using DeviceCbFunc = std::function<void(std::shared_ptr<InputDeviceNode>)>;
+using InputCbFunc = std::function<void(const std::shared_ptr<InputDeviceNode>&, InputEvent&, nsecs_t)>;
+using DeviceCbFunc = std::function<void(const std::shared_ptr<InputDeviceNode>&)>;
 
-static const InputCbFunc kNoopInputCb = [](std::shared_ptr<InputDeviceNode>, InputEvent&, nsecs_t){};
-static const DeviceCbFunc kNoopDeviceCb = [](std::shared_ptr<InputDeviceNode>){};
+static const InputCbFunc kNoopInputCb = [](const std::shared_ptr<InputDeviceNode>&, InputEvent&, nsecs_t){};
+static const DeviceCbFunc kNoopDeviceCb = [](const std::shared_ptr<InputDeviceNode>&){};
 
 class TestInputCallback : public InputCallbackInterface {
 public:
@@ -57,14 +57,14 @@ public:
     void setDeviceAddedCallback(DeviceCbFunc cb) { mDeviceAddedCb = cb; }
     void setDeviceRemovedCallback(DeviceCbFunc cb) { mDeviceRemovedCb = cb; }
 
-    virtual void onInputEvent(std::shared_ptr<InputDeviceNode> node, InputEvent& event,
+    virtual void onInputEvent(const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
             nsecs_t event_time) override {
         mInputCb(node, event, event_time);
     }
-    virtual void onDeviceAdded(std::shared_ptr<InputDeviceNode> node) override {
+    virtual void onDeviceAdded(const std::shared_ptr<InputDeviceNode>& node) override {
         mDeviceAddedCb(node);
     }
-    virtual void onDeviceRemoved(std::shared_ptr<InputDeviceNode> node) override {
+    virtual void onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) override {
         mDeviceRemovedCb(node);
     }
 
@@ -101,7 +101,7 @@ TEST_F(InputHubTest, DISABLED_testDeviceAdded) {
     std::string pathname;
     // Expect that this callback will run and set handle and pathname.
     mCallback->setDeviceAddedCallback(
-            [&](std::shared_ptr<InputDeviceNode> node) {
+            [&](const std::shared_ptr<InputDeviceNode>& node) {
                 pathname = node->getPath();
             });
 
@@ -136,11 +136,11 @@ TEST_F(InputHubTest, DISABLED_testDeviceRemoved) {
     std::shared_ptr<InputDeviceNode> tempNode;
     // Expect that these callbacks will run for the above device file.
     mCallback->setDeviceAddedCallback(
-            [&](std::shared_ptr<InputDeviceNode> node) {
+            [&](const std::shared_ptr<InputDeviceNode>& node) {
                 tempNode = node;
             });
     mCallback->setDeviceRemovedCallback(
-            [&](std::shared_ptr<InputDeviceNode> node) {
+            [&](const std::shared_ptr<InputDeviceNode>& node) {
                 EXPECT_EQ(tempNode, node);
             });
 
@@ -182,7 +182,8 @@ TEST_F(InputHubTest, DISABLED_testInputEvent) {
     // Expect this callback to run when the input event is read.
     nsecs_t expectedWhen = systemTime(CLOCK_MONOTONIC) + ms2ns(inputDelayMs.count());
     mCallback->setInputCallback(
-            [&](std::shared_ptr<InputDeviceNode> node, InputEvent& event, nsecs_t event_time) {
+            [&](const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
+                nsecs_t event_time) {
                 EXPECT_NEAR(expectedWhen, event_time, ms2ns(TIMING_TOLERANCE_MS));
                 EXPECT_EQ(s2ns(1), event.when);
                 EXPECT_EQ(tempFileName, node->getPath());
@@ -211,7 +212,7 @@ TEST_F(InputHubTest, DISABLED_testCallbackOrder) {
     // Setup the callback for input events. Should run before the device
     // callback.
     mCallback->setInputCallback(
-            [&](std::shared_ptr<InputDeviceNode>, InputEvent&, nsecs_t) {
+            [&](const std::shared_ptr<InputDeviceNode>&, InputEvent&, nsecs_t) {
                 ASSERT_FALSE(deviceCallbackFinished);
                 inputCallbackFinished = true;
             });
@@ -219,7 +220,7 @@ TEST_F(InputHubTest, DISABLED_testCallbackOrder) {
     // Setup the callback for device removal. Should run after the input
     // callback.
     mCallback->setDeviceRemovedCallback(
-            [&](std::shared_ptr<InputDeviceNode> node) {
+            [&](const std::shared_ptr<InputDeviceNode>& node) {
                 ASSERT_TRUE(inputCallbackFinished)
                     << "input callback did not run before device changed callback";
                 // Make sure the correct device was removed.

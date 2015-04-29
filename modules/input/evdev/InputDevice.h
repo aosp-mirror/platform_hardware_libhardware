@@ -43,7 +43,7 @@ protected:
  */
 class EvdevDevice : public InputDeviceInterface {
 public:
-    explicit EvdevDevice(std::shared_ptr<InputDeviceNode> node);
+    explicit EvdevDevice(const std::shared_ptr<InputDeviceNode>& node);
     virtual ~EvdevDevice() override = default;
 
     virtual void processInput(InputEvent& event, nsecs_t currentTime) override;

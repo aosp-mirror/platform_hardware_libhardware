@@ -396,7 +396,7 @@ void EvdevDeviceNode::disableDriverKeyRepeat() {
     }
 }
 
-InputHub::InputHub(std::shared_ptr<InputCallbackInterface> cb) :
+InputHub::InputHub(const std::shared_ptr<InputCallbackInterface>& cb) :
     mInputCallback(cb) {
     // Determine the type of suspend blocking we can do on this device. There
     // are 3 options, in decreasing order of preference:
@@ -670,9 +670,8 @@ status_t InputHub::readNotify() {
             ALOGV("inotify event for path %s", path.c_str());
 
             if (event->mask & IN_CREATE) {
-                std::shared_ptr<InputDeviceNode> deviceNode;
-                status_t res = openNode(path, &deviceNode);
-                if (res != OK) {
+                auto deviceNode = openNode(path);
+                if (deviceNode == nullptr) {
                     ALOGE("could not open device node %s. err=%d", path.c_str(), res);
                 } else {
                     mInputCallback->onDeviceAdded(deviceNode);
@@ -680,7 +679,7 @@ status_t InputHub::readNotify() {
             } else {
                 auto deviceNode = findNodeByPath(path);
                 if (deviceNode != nullptr) {
-                    status_t ret = closeNode(deviceNode);
+                    status_t ret = closeNode(deviceNode.get());
                     if (ret != OK) {
                         ALOGW("Could not close device %s. errno=%d", path.c_str(), ret);
                     } else {
@@ -712,8 +711,8 @@ status_t InputHub::scanDir(const std::string& path) {
             continue;
         }
         std::string filename = path + "/" + dirent->d_name;
-        std::shared_ptr<InputDeviceNode> node;
-        if (openNode(filename, &node) != OK) {
+        auto node = openNode(filename);
+        if (node == nullptr) {
             ALOGE("could not open device node %s", filename.c_str());
         } else {
             mInputCallback->onDeviceAdded(node);
@@ -723,18 +722,16 @@ status_t InputHub::scanDir(const std::string& path) {
     return OK;
 }
 
-status_t InputHub::openNode(const std::string& path,
-        std::shared_ptr<InputDeviceNode>* outNode) {
+std::shared_ptr<InputDeviceNode> InputHub::openNode(const std::string& path) {
     ALOGV("opening %s...", path.c_str());
     auto evdevNode = std::shared_ptr<EvdevDeviceNode>(EvdevDeviceNode::openDeviceNode(path));
     if (evdevNode == nullptr) {
-        return UNKNOWN_ERROR;
+        return nullptr;
     }
 
     auto fd = evdevNode->getFd();
     ALOGV("opened %s with fd %d", path.c_str(), fd);
-    *outNode = std::static_pointer_cast<InputDeviceNode>(evdevNode);
-    mDeviceNodes[fd] = *outNode;
+    mDeviceNodes[fd] = evdevNode;
     struct epoll_event eventItem{};
     eventItem.events = EPOLLIN;
     if (mWakeupMechanism == WakeMechanism::EPOLL_WAKEUP) {
@@ -743,7 +740,7 @@ status_t InputHub::openNode(const std::string& path,
     eventItem.data.u32 = fd;
     if (epoll_ctl(mEpollFd, EPOLL_CTL_ADD, fd, &eventItem)) {
         ALOGE("Could not add device fd to epoll instance. errno=%d", errno);
-        return -errno;
+        return nullptr;
     }
 
     if (mNeedToCheckSuspendBlockIoctl) {
@@ -765,12 +762,12 @@ status_t InputHub::openNode(const std::string& path,
         mNeedToCheckSuspendBlockIoctl = false;
     }
 
-    return OK;
+    return evdevNode;
 }
 
-status_t InputHub::closeNode(const std::shared_ptr<InputDeviceNode>& node) {
+status_t InputHub::closeNode(const InputDeviceNode* node) {
     for (auto pair : mDeviceNodes) {
-        if (pair.second.get() == node.get()) {
+        if (pair.second.get() == node) {
             return closeNodeByFd(pair.first);
         }
     }

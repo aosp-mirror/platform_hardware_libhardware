@@ -36,10 +36,10 @@ class InputDeviceManager : public InputCallbackInterface {
 public:
     virtual ~InputDeviceManager() override = default;
 
-    virtual void onInputEvent(std::shared_ptr<InputDeviceNode> node, InputEvent& event,
+    virtual void onInputEvent(const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
             nsecs_t event_time) override;
-    virtual void onDeviceAdded(std::shared_ptr<InputDeviceNode> node) override;
-    virtual void onDeviceRemoved(std::shared_ptr<InputDeviceNode> node) override;
+    virtual void onDeviceAdded(const std::shared_ptr<InputDeviceNode>& node) override;
+    virtual void onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) override;
 
 private:
     template<class T, class U>

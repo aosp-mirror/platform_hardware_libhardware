@@ -89,10 +89,10 @@ protected:
 /** Callback interface for receiving input events, including device changes. */
 class InputCallbackInterface {
 public:
-    virtual void onInputEvent(std::shared_ptr<InputDeviceNode> node, InputEvent& event,
+    virtual void onInputEvent(const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
             nsecs_t event_time) = 0;
-    virtual void onDeviceAdded(std::shared_ptr<InputDeviceNode> node) = 0;
-    virtual void onDeviceRemoved(std::shared_ptr<InputDeviceNode> node) = 0;
+    virtual void onDeviceAdded(const std::shared_ptr<InputDeviceNode>& node) = 0;
+    virtual void onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) = 0;
 
 protected:
     InputCallbackInterface() = default;
@@ -129,7 +129,7 @@ protected:
  */
 class InputHub : public InputHubInterface {
 public:
-    explicit InputHub(std::shared_ptr<InputCallbackInterface> cb);
+    explicit InputHub(const std::shared_ptr<InputCallbackInterface>& cb);
     virtual ~InputHub() override;
 
     virtual status_t registerDevicePath(const std::string& path) override;
@@ -143,8 +143,8 @@ public:
 private:
     status_t readNotify();
     status_t scanDir(const std::string& path);
-    status_t openNode(const std::string& path, std::shared_ptr<InputDeviceNode>* outNode);
-    status_t closeNode(const std::shared_ptr<InputDeviceNode>& node);
+    std::shared_ptr<InputDeviceNode> openNode(const std::string& path);
+    status_t closeNode(const InputDeviceNode* node);
     status_t closeNodeByFd(int fd);
     std::shared_ptr<InputDeviceNode> findNodeByPath(const std::string& path);
 

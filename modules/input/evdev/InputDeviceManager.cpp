@@ -24,7 +24,7 @@
 
 namespace android {
 
-void InputDeviceManager::onInputEvent(std::shared_ptr<InputDeviceNode> node, InputEvent& event,
+void InputDeviceManager::onInputEvent(const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
         nsecs_t event_time) {
     if (mDevices[node] == nullptr) {
         ALOGE("got input event for unknown node %s", node->getPath().c_str());
@@ -33,11 +33,11 @@ void InputDeviceManager::onInputEvent(std::shared_ptr<InputDeviceNode> node, Inp
     mDevices[node]->processInput(event, event_time);
 }
 
-void InputDeviceManager::onDeviceAdded(std::shared_ptr<InputDeviceNode> node) {
+void InputDeviceManager::onDeviceAdded(const std::shared_ptr<InputDeviceNode>& node) {
     mDevices[node] = std::make_shared<EvdevDevice>(node);
 }
 
-void InputDeviceManager::onDeviceRemoved(std::shared_ptr<InputDeviceNode> node) {
+void InputDeviceManager::onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) {
     if (mDevices[node] == nullptr) {
         ALOGE("could not remove unknown node %s", node->getPath().c_str());
         return;

@@ -47,16 +47,16 @@ private:
 
     InputHost mInputHost;
     std::shared_ptr<InputDeviceManager> mDeviceManager;
-    std::shared_ptr<InputHub> mInputHub;
+    std::unique_ptr<InputHub> mInputHub;
     std::thread mPollThread;
 };
 
-static std::shared_ptr<EvdevModule> gEvdevModule;
+static std::unique_ptr<EvdevModule> gEvdevModule;
 
 EvdevModule::EvdevModule(InputHost inputHost) :
     mInputHost(inputHost),
     mDeviceManager(std::make_shared<InputDeviceManager>()),
-    mInputHub(std::make_shared<InputHub>(mDeviceManager)) {}
+    mInputHub(std::make_unique<InputHub>(mDeviceManager)) {}
 
 void EvdevModule::init() {
     ALOGV("%s", __func__);
@@ -98,7 +98,7 @@ static void input_init(const input_module_t* module,
         input_host_t* host, input_host_callbacks_t cb) {
     LOG_ALWAYS_FATAL_IF(strcmp(module->common.id, INPUT_HARDWARE_MODULE_ID) != 0);
     InputHost inputHost = {host, cb};
-    gEvdevModule = std::make_shared<EvdevModule>(inputHost);
+    gEvdevModule = std::make_unique<EvdevModule>(inputHost);
     gEvdevModule->init();
 }
 
