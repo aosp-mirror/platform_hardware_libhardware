@@ -21,9 +21,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(__cplusplus)
+#ifndef __cplusplus
 extern "C" {
-#endif  // defined(__cplusplus)
+#endif  // __cplusplus
 
 /**
  * Authorization tags each have an associated type.  This enumeration facilitates tagging each with
@@ -41,6 +41,7 @@ typedef enum {
     KM_BOOL = 7 << 28,
     KM_BIGNUM = 8 << 28,
     KM_BYTES = 9 << 28,
+    KM_LONG_REP = 10 << 28, /* Repeatable long value */
 } keymaster_tag_type_t;
 
 typedef enum {
@@ -54,13 +55,12 @@ typedef enum {
     KM_TAG_PURPOSE = KM_ENUM_REP | 1,     /* keymaster_purpose_t. */
     KM_TAG_ALGORITHM = KM_ENUM | 2,       /* keymaster_algorithm_t. */
     KM_TAG_KEY_SIZE = KM_INT | 3,         /* Key size in bits. */
-    KM_TAG_BLOCK_MODE = KM_ENUM | 4,      /* keymaster_block_mode_t. */
-    KM_TAG_DIGEST = KM_ENUM | 5,          /* keymaster_digest_t. */
-    KM_TAG_MAC_LENGTH = KM_INT | 6,       /* MAC or AEAD authentication tag length in bits. */
-    KM_TAG_PADDING = KM_ENUM | 7,         /* keymaster_padding_t. */
-    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 8, /* Allow AEAD decryption to return plaintext before it has
+    KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4,  /* keymaster_block_mode_t. */
+    KM_TAG_DIGEST = KM_ENUM_REP | 5,      /* keymaster_digest_t. */
+    KM_TAG_PADDING = KM_ENUM_REP | 6,     /* keymaster_padding_t. */
+    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 7, /* Allow AEAD decryption to return plaintext before it has
                                              been authenticated.  WARNING: Not recommended. */
-    KM_TAG_CALLER_NONCE = KM_BOOL | 9,    /* Allow caller to specify nonce or IV. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 8,    /* Allow caller to specify nonce or IV. */
 
     /* Other hardware-enforced. */
     KM_TAG_RESCOPING_ADD = KM_ENUM_REP | 101, /* Tags authorized for addition via rescoping. */
@@ -69,11 +69,6 @@ typedef enum {
 
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_LONG | 200, /* Defaults to 2^16+1 */
-    KM_TAG_DSA_GENERATOR = KM_BIGNUM | 201,
-    KM_TAG_DSA_P = KM_BIGNUM | 202,
-    KM_TAG_DSA_Q = KM_BIGNUM | 203,
-    /* Note there are no EC-specific params.  Field size is defined by KM_TAG_KEY_SIZE, and the
-       curve is chosen from NIST recommendations for field size */
 
     /*
      * Tags that should be semantically enforced by hardware if possible and will otherwise be
@@ -92,20 +87,23 @@ typedef enum {
                                                            boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500,        /* If key is usable by all users. */
-    KM_TAG_USER_ID = KM_INT | 501,           /* ID of authorized user.  Disallowed if
-                                                KM_TAG_ALL_USERS is present. */
-    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 502, /* If key is usable without authentication. */
-    KM_TAG_USER_AUTH_ID = KM_INT_REP | 503,  /* ID of the authenticator to use (e.g. password,
-                                                fingerprint, etc.).  Repeatable to support
-                                                multi-factor auth.  Disallowed if
-                                                KM_TAG_NO_AUTH_REQUIRED is present. */
-    KM_TAG_AUTH_TIMEOUT = KM_INT | 504,      /* Required freshness of user authentication for
-                                                private/secret key operations, in seconds.
-                                                Public key operations require no authentication.
-                                                If absent, authentication is required for every
-                                                use.  Authentication state is lost when the
-                                                device is powered off. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,          /* If key is usable by all users. */
+    KM_TAG_USER_ID = KM_INT | 501,             /* ID of authorized user.  Disallowed if
+                                                  KM_TAG_ALL_USERS is present. */
+    KM_TAG_USER_SECURE_ID = KM_LONG_REP | 502, /* Secure ID of authorized user or authenticator(s).
+                                                  Disallowed if KM_TAG_ALL_USERS or
+                                                  KM_TAG_NO_AUTH_REQUIRED is present. */
+    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 503,   /* If key is usable without authentication. */
+    KM_TAG_USER_AUTH_TYPE = KM_ENUM | 504,     /* Bitmask of authenticator types allowed when
+                                                * KM_TAG_USER_SECURE_ID contains a secure user ID,
+                                                * rather than a secure authenticator ID.  Defined in
+                                                * hw_authenticator_type_t in hw_auth_token.h. */
+    KM_TAG_AUTH_TIMEOUT = KM_INT | 505,        /* Required freshness of user authentication for
+                                                  private/secret key operations, in seconds.
+                                                  Public key operations require no authentication.
+                                                  If absent, authentication is required for every
+                                                  use.  Authentication state is lost when the
+                                                  device is powered off. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* If key is usable by all applications. */
@@ -128,6 +126,10 @@ typedef enum {
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
     KM_TAG_CHUNK_LENGTH = KM_INT | 1002,      /* AEAD mode chunk size, in bytes.  0 means no limit,
                                                  which requires KM_TAG_RETURN_UNAUTHED. */
+    KM_TAG_AUTH_TOKEN = KM_BYTES | 1003,      /* Authentication token that proves secure user
+                                                 authentication has been performed.  Structure
+                                                 defined in hw_auth_token_t in hw_auth_token.h. */
+    KM_TAG_MAC_LENGTH = KM_INT | 1004,        /* MAC or AEAD authentication tag length in bits. */
 } keymaster_tag_t;
 
 /**
@@ -136,60 +138,35 @@ typedef enum {
  */
 typedef enum {
     /* Asymmetric algorithms. */
-    KM_ALGORITHM_RSA = 1,   /* required */
-    KM_ALGORITHM_DSA = 2,
-    KM_ALGORITHM_ECDSA = 3, /* required */
-    KM_ALGORITHM_ECIES = 4,
-    /* FIPS Approved Ciphers */
-    KM_ALGORITHM_AES = 32, /* required */
-    KM_ALGORITHM_3DES = 33,
-    KM_ALGORITHM_SKIPJACK = 34,
-    /* AES Finalists */
-    KM_ALGORITHM_MARS = 48,
-    KM_ALGORITHM_RC6 = 49,
-    KM_ALGORITHM_SERPENT = 50,
-    KM_ALGORITHM_TWOFISH = 51,
-    /* Other common block ciphers */
-    KM_ALGORITHM_IDEA = 52,
-    KM_ALGORITHM_RC5 = 53,
-    KM_ALGORITHM_CAST5 = 54,
-    KM_ALGORITHM_BLOWFISH = 55,
-    /* Common stream ciphers */
-    KM_ALGORITHM_RC4 = 64,
-    KM_ALGORITHM_CHACHA20 = 65,
+    KM_ALGORITHM_RSA = 1,
+    // KM_ALGORITHM_DSA = 2, -- Removed, do not re-use value 2.
+    KM_ALGORITHM_EC = 3,
+
+    /* Block ciphers algorithms */
+    KM_ALGORITHM_AES = 32,
+
     /* MAC algorithms */
-    KM_ALGORITHM_HMAC = 128, /* required */
+    KM_ALGORITHM_HMAC = 128,
 } keymaster_algorithm_t;
 
 /**
- * Symmetric block cipher modes that may be provided by keymaster implementations.  Those that must
- * be provided by all implementations are tagged as "required".  This type is new in 0_4.
+ * Symmetric block cipher modes provided by keymaster implementations.
  *
- * KM_MODE_FIRST_UNAUTHENTICATED, KM_MODE_FIRST_AUTHENTICATED and KM_MODE_FIRST_MAC are not modes,
- * but markers used to separate the available modes into classes.
+ * KM_MODE_FIRST_UNAUTHENTICATED and KM_MODE_FIRST_AUTHENTICATED are not modes but markers used to
+ * separate the available modes into classes.
  */
 typedef enum {
     /* Unauthenticated modes, usable only for encryption/decryption and not generally recommended
      * except for compatibility with existing other protocols. */
     KM_MODE_FIRST_UNAUTHENTICATED = 1,
-    KM_MODE_ECB = KM_MODE_FIRST_UNAUTHENTICATED, /* required */
-    KM_MODE_CBC = 2,                             /* required */
-    KM_MODE_CBC_CTS = 3,                         /* recommended */
-    KM_MODE_CTR = 4,                             /* recommended */
-    KM_MODE_OFB = 5,
-    KM_MODE_CFB = 6,
-    KM_MODE_XTS = 7, /* Note: requires double-length keys */
+    KM_MODE_ECB = KM_MODE_FIRST_UNAUTHENTICATED,
+    KM_MODE_CBC = 2,
+    KM_MODE_CTR = 4,
+
     /* Authenticated modes, usable for encryption/decryption and signing/verification.  Recommended
-     * over unauthenticated modes for all purposes.  One of KM_MODE_GCM and KM_MODE_OCB is
-     * required. */
+     * over unauthenticated modes for all purposes. */
     KM_MODE_FIRST_AUTHENTICATED = 32,
     KM_MODE_GCM = KM_MODE_FIRST_AUTHENTICATED,
-    KM_MODE_OCB = 33,
-    KM_MODE_CCM = 34,
-    /* MAC modes -- only for signing/verification */
-    KM_MODE_FIRST_MAC = 128,
-    KM_MODE_CMAC = KM_MODE_FIRST_MAC,
-    KM_MODE_POLY1305 = 129,
 } keymaster_block_mode_t;
 
 /**
@@ -199,44 +176,41 @@ typedef enum {
  * cryptographically-appropriate pairs.
  */
 typedef enum {
-    KM_PAD_NONE = 1,     /* required, deprecated */
-    KM_PAD_RSA_OAEP = 2, /* required */
-    KM_PAD_RSA_PSS = 3,  /* required */
+    KM_PAD_NONE = 1, /* deprecated */
+    KM_PAD_RSA_OAEP = 2,
+    KM_PAD_RSA_PSS = 3,
     KM_PAD_RSA_PKCS1_1_5_ENCRYPT = 4,
     KM_PAD_RSA_PKCS1_1_5_SIGN = 5,
-    KM_PAD_ANSI_X923 = 32,
-    KM_PAD_ISO_10126 = 33,
-    KM_PAD_ZERO = 64,  /* required */
-    KM_PAD_PKCS7 = 65, /* required */
-    KM_PAD_ISO_7816_4 = 66,
+    KM_PAD_PKCS7 = 64,
 } keymaster_padding_t;
 
 /**
- * Digests that may be provided by keymaster implementations.  Those that must be provided by all
- * implementations are tagged as "required".  Those that have been added since version 0_2 of the
- * API are tagged as "new".
+ * Digests provided by keymaster implementations.
  */
 typedef enum {
-    KM_DIGEST_NONE = 0,           /* new, required */
-    KM_DIGEST_MD5 = 1,            /* new, for compatibility with old protocols only */
-    KM_DIGEST_SHA1 = 2,           /* new */
-    KM_DIGEST_SHA_2_224 = 3,      /* new */
-    KM_DIGEST_SHA_2_256 = 4,      /* new, required */
-    KM_DIGEST_SHA_2_384 = 5,      /* new, recommended */
-    KM_DIGEST_SHA_2_512 = 6,      /* new, recommended */
-    KM_DIGEST_SHA_3_256 = 7,      /* new */
-    KM_DIGEST_SHA_3_384 = 8,      /* new */
-    KM_DIGEST_SHA_3_512 = 9,      /* new */
+    KM_DIGEST_NONE = 0,
+    KM_DIGEST_MD5 = 1, /* Optional, may not be implemented in hardware, will be handled in software
+                        * if needed. */
+    KM_DIGEST_SHA1 = 2,
+    KM_DIGEST_SHA_2_224 = 3,
+    KM_DIGEST_SHA_2_256 = 4,
+    KM_DIGEST_SHA_2_384 = 5,
+    KM_DIGEST_SHA_2_512 = 6,
 } keymaster_digest_t;
 
 /**
- * The origin of a key (or pair), i.e. where it was generated.  Origin and can be used together to
- * determine whether a key may have existed outside of secure hardware.  This type is new in 0_4.
+ * The origin of a key (or pair), i.e. where it was generated.  Note that KM_TAG_ORIGIN can be found
+ * in either the hardware-enforced or software-enforced list for a key, indicating whether the key
+ * is hardware or software-based.  Specifically, a key with KM_ORIGIN_GENERATED in the
+ * hardware-enforced list is guaranteed never to have existed outide the secure hardware.
  */
 typedef enum {
-    KM_ORIGIN_HARDWARE = 0, /* Generated in secure hardware */
-    KM_ORIGIN_SOFTWARE = 1, /* Generated in non-secure software */
-    KM_ORIGIN_IMPORTED = 2, /* Imported, origin unknown */
+    KM_ORIGIN_GENERATED = 0, /* Generated in keymaster */
+    KM_ORIGIN_IMPORTED = 2,  /* Imported, origin unknown */
+    KM_ORIGIN_UNKNOWN = 3,   /* Keymaster did not record origin.  This value can only be seen on
+                              * keys in a keymaster0 implementation.  The keymaster0 adapter uses
+                              * this value to document the fact that it is unkown whether the key
+                              * was generated inside or imported into keymaster. */
 } keymaster_key_origin_t;
 
 /**
@@ -305,10 +279,9 @@ typedef struct {
  * In the future this list will expand greatly to accommodate asymmetric key import/export.
  */
 typedef enum {
-    KM_KEY_FORMAT_X509 = 0,   /* for public key export, required */
-    KM_KEY_FORMAT_PKCS8 = 1,  /* for asymmetric key pair import, required */
-    KM_KEY_FORMAT_PKCS12 = 2, /* for asymmetric key pair import, not required */
-    KM_KEY_FORMAT_RAW = 3,    /* for symmetric key import, required */
+    KM_KEY_FORMAT_X509 = 0,   /* for public key export */
+    KM_KEY_FORMAT_PKCS8 = 1,  /* for asymmetric key pair import */
+    KM_KEY_FORMAT_RAW = 3,    /* for symmetric key import */
 } keymaster_key_format_t;
 
 /**
@@ -363,7 +336,6 @@ typedef enum {
     KM_ERROR_INVALID_TAG = -40,
     KM_ERROR_MEMORY_ALLOCATION_FAILED = -41,
     KM_ERROR_INVALID_RESCOPING = -42,
-    KM_ERROR_INVALID_DSA_PARAMS = -43,
     KM_ERROR_IMPORT_PARAMETER_MISMATCH = -44,
     KM_ERROR_SECURE_HW_ACCESS_DENIED = -45,
     KM_ERROR_OPERATION_CANCELLED = -46,
@@ -371,6 +343,12 @@ typedef enum {
     KM_ERROR_SECURE_HW_BUSY = -48,
     KM_ERROR_SECURE_HW_COMMUNICATION_FAILED = -49,
     KM_ERROR_UNSUPPORTED_EC_FIELD = -50,
+    KM_ERROR_MISSING_NONCE = -51,
+    KM_ERROR_INVALID_NONCE = -52,
+    KM_ERROR_UNSUPPORTED_CHUNK_LENGTH = -53,
+    KM_ERROR_RESCOPABLE_KEY_NOT_USABLE = -54,
+    KM_ERROR_CALLER_NONCE_PROHIBITED = -55,
+
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
 
@@ -478,6 +456,7 @@ inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymast
     case KM_INT_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->integer, b->integer);
     case KM_LONG:
+    case KM_LONG_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->long_integer, b->long_integer);
     case KM_DATE:
         return KEYMASTER_SIMPLE_COMPARE(a->date_time, b->date_time);
@@ -540,8 +519,8 @@ inline void keymaster_free_characteristics(keymaster_key_characteristics_t* char
     }
 }
 
-#if defined(__cplusplus)
+#ifndef __cplusplus
 }  // extern "C"
-#endif  // defined(__cplusplus)
+#endif  // __cplusplus
 
 #endif  // ANDROID_HARDWARE_KEYMASTER_DEFS_H

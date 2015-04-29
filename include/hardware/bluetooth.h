@@ -46,7 +46,7 @@ __BEGIN_DECLS
 #define BT_PROFILE_HIDHOST_ID "hidhost"
 #define BT_PROFILE_PAN_ID "pan"
 #define BT_PROFILE_MAP_CLIENT_ID "map_client"
-
+#define BT_PROFILE_SDP_CLIENT_ID "sdp"
 #define BT_PROFILE_GATT_ID "gatt"
 #define BT_PROFILE_AV_RC_ID "avrcp"
 #define BT_PROFILE_AV_RC_CTRL_ID "avrcp_ctrl"
@@ -143,14 +143,15 @@ typedef struct
 
 typedef struct
 {
+    uint16_t version_supported;
     uint8_t local_privacy_enabled;
     uint8_t max_adv_instance;
     uint8_t rpa_offload_supported;
     uint8_t max_irk_list_size;
     uint8_t max_adv_filter_supported;
-    uint8_t scan_result_storage_size_lobyte;
-    uint8_t scan_result_storage_size_hibyte;
     uint8_t activity_energy_info_supported;
+    uint16_t scan_result_storage_size;
+    uint16_t total_trackable_advertisers;
 }bt_local_le_features_t;
 
 /* Bluetooth Adapter and Remote Device property types */
@@ -545,6 +546,8 @@ typedef struct {
 } bluetooth_device_t;
 
 typedef bluetooth_device_t bluetooth_module_t;
+
+
 __END_DECLS
 
 #endif /* ANDROID_INCLUDE_BLUETOOTH_H */
