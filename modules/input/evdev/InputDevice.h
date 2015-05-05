@@ -18,11 +18,13 @@
 #define ANDROID_INPUT_DEVICE_H_
 
 #include <memory>
+#include <vector>
 
 #include <utils/Timers.h>
 
 #include "InputHost.h"
 #include "InputHub.h"
+#include "InputMapper.h"
 
 namespace android {
 
@@ -45,16 +47,22 @@ protected:
  */
 class EvdevDevice : public InputDeviceInterface {
 public:
-    EvdevDevice(InputHost host, const std::shared_ptr<InputDeviceNode>& node);
+    EvdevDevice(InputHostInterface* host, const std::shared_ptr<InputDeviceNode>& node);
     virtual ~EvdevDevice() override = default;
 
     virtual void processInput(InputEvent& event, nsecs_t currentTime) override;
 
     virtual uint32_t getInputClasses() override { return mClasses; }
 private:
-    InputHost mHost;
+    void createMappers();
+    void configureDevice();
+
+    InputHostInterface* mHost = nullptr;
     std::shared_ptr<InputDeviceNode> mDeviceNode;
-    InputDeviceIdentifier mInputId;
+    InputDeviceIdentifier* mInputId = nullptr;
+    InputDeviceDefinition* mDeviceDefinition = nullptr;
+    InputDeviceHandle* mDeviceHandle = nullptr;
+    std::vector<std::unique_ptr<InputMapper>> mMappers;
     uint32_t mClasses = 0;
 
     int32_t mOverrideSec = 0;

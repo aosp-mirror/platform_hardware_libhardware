@@ -35,7 +35,7 @@ namespace android {
  */
 class InputDeviceManager : public InputCallbackInterface {
 public:
-    explicit InputDeviceManager(InputHost host) :
+    explicit InputDeviceManager(InputHostInterface* host) :
         mHost(host) {}
     virtual ~InputDeviceManager() override = default;
 
@@ -45,7 +45,7 @@ public:
     virtual void onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) override;
 
 private:
-    InputHost mHost;
+    InputHostInterface* mHost;
 
     template<class T, class U>
     using DeviceMap = std::unordered_map<std::shared_ptr<T>, std::shared_ptr<U>>;

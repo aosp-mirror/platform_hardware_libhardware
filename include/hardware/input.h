@@ -375,13 +375,23 @@ typedef enum {
     INPUT_USAGE_LED_CONTROLLER_2,
     INPUT_USAGE_LED_CONTROLLER_3,
     INPUT_USAGE_LED_CONTROLLER_4,
+
+    // switches
+    INPUT_USAGE_SWITCH_UNKNOWN,
+    INPUT_USAGE_SWITCH_LID,
+    INPUT_USAGE_SWITCH_KEYPAD_SLIDE,
+    INPUT_USAGE_SWITCH_HEADPHONE_INSERT,
+    INPUT_USAGE_SWITCH_MICROPHONE_INSERT,
+    INPUT_USAGE_SWITCH_LINEOUT_INSERT,
+    INPUT_USAGE_SWITCH_CAMERA_LENS_COVER,
 } input_usage_t;
 
-typedef enum {
+typedef enum input_collection_id {
     INPUT_COLLECTION_ID_TOUCH,
     INPUT_COLLECTION_ID_KEYBOARD,
     INPUT_COLLECTION_ID_MOUSE,
     INPUT_COLLECTION_ID_TOUCHPAD,
+    INPUT_COLLECTION_ID_SWITCH,
     // etc
 } input_collection_id_t;
 
@@ -411,6 +421,11 @@ typedef struct input_host_callbacks {
      */
     input_report_definition_t* (*create_input_report_definition)(input_host_t* host);
     input_report_definition_t* (*create_output_report_definition)(input_host_t* host);
+
+    /**
+     * Frees the report definition.
+     */
+    void (*free_report_definition)(input_host_t* host, input_report_definition_t* report_def);
 
     /**
      * Append the report to the given input device.

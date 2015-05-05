@@ -21,7 +21,9 @@ LOCAL_SRC_FILES := \
     InputHub.cpp \
     InputDevice.cpp \
     InputDeviceManager.cpp \
-    InputHost.cpp
+    InputHost.cpp \
+    InputMapper.cpp \
+    SwitchInputMapper.cpp
 
 LOCAL_SHARED_LIBRARIES := \
     libhardware_legacy \

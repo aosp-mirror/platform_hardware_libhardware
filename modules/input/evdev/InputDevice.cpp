@@ -32,6 +32,8 @@
 
 #include "InputHub.h"
 #include "InputDevice.h"
+#include "InputMapper.h"
+#include "SwitchInputMapper.h"
 
 #define MSC_ANDROID_TIME_SEC  0x6
 #define MSC_ANDROID_TIME_USEC 0x7
@@ -104,49 +106,83 @@ static bool getBooleanProperty(const InputProperty& prop) {
     return value;
 }
 
-static void setDeviceClasses(const InputDeviceNode* node, uint32_t* classes) {
-    // See if this is a keyboard. Ignore everything in the button range except
-    // for joystick and gamepad buttons which are handled like keyboards for the
-    // most part.
-    bool haveKeyboardKeys = node->hasKeyInRange(0, BTN_MISC) ||
-        node->hasKeyInRange(KEY_OK, KEY_CNT);
-    bool haveGamepadButtons = node->hasKeyInRange(BTN_MISC, BTN_MOUSE) ||
-        node->hasKeyInRange(BTN_JOYSTICK, BTN_DIGI);
-    if (haveKeyboardKeys || haveGamepadButtons) {
-        *classes |= INPUT_DEVICE_CLASS_KEYBOARD;
-    }
+EvdevDevice::EvdevDevice(InputHostInterface* host, const std::shared_ptr<InputDeviceNode>& node) :
+    mHost(host), mDeviceNode(node), mDeviceDefinition(mHost->createDeviceDefinition()) {
 
+    InputBus bus = getInputBus(node);
+    mInputId = mHost->createDeviceIdentifier(
+            node->getName().c_str(),
+            node->getProductId(),
+            node->getVendorId(),
+            bus,
+            node->getUniqueId().c_str());
+
+    createMappers();
+    configureDevice();
+
+    // If we found a need for at least one mapper, register the device with the
+    // host. If there were no mappers, this device is effectively ignored, as
+    // the host won't know about it.
+    if (mMappers.size() > 0) {
+        mDeviceHandle = mHost->registerDevice(mInputId, mDeviceDefinition);
+        for (const auto& mapper : mMappers) {
+            mapper->setDeviceHandle(mDeviceHandle);
+        }
+    }
+}
+
+void EvdevDevice::createMappers() {
     // See if this is a cursor device such as a trackball or mouse.
-    if (node->hasKey(BTN_MOUSE)
-            && node->hasRelativeAxis(REL_X)
-            && node->hasRelativeAxis(REL_Y)) {
-        *classes |= INPUT_DEVICE_CLASS_CURSOR;
+    if (mDeviceNode->hasKey(BTN_MOUSE)
+            && mDeviceNode->hasRelativeAxis(REL_X)
+            && mDeviceNode->hasRelativeAxis(REL_Y)) {
+        mClasses |= INPUT_DEVICE_CLASS_CURSOR;
+        //mMappers.push_back(std::make_unique<CursorInputMapper>());
     }
 
-    // See if this is a touch pad.
+    bool isStylus = false;
+    bool haveGamepadButtons = mDeviceNode->hasKeyInRange(BTN_MISC, BTN_MOUSE) ||
+            mDeviceNode->hasKeyInRange(BTN_JOYSTICK, BTN_DIGI);
+
+    // See if this is a touch pad or stylus.
     // Is this a new modern multi-touch driver?
-    if (node->hasAbsoluteAxis(ABS_MT_POSITION_X)
-            && node->hasAbsoluteAxis(ABS_MT_POSITION_Y)) {
+    if (mDeviceNode->hasAbsoluteAxis(ABS_MT_POSITION_X)
+            && mDeviceNode->hasAbsoluteAxis(ABS_MT_POSITION_Y)) {
         // Some joysticks such as the PS3 controller report axes that conflict
         // with the ABS_MT range. Try to confirm that the device really is a
         // touch screen.
-        if (node->hasKey(BTN_TOUCH) || !haveGamepadButtons) {
-            *classes |= INPUT_DEVICE_CLASS_TOUCH | INPUT_DEVICE_CLASS_TOUCH_MT;
+        if (mDeviceNode->hasKey(BTN_TOUCH) || !haveGamepadButtons) {
+            mClasses |= INPUT_DEVICE_CLASS_TOUCH | INPUT_DEVICE_CLASS_TOUCH_MT;
+            //mMappers.push_back(std::make_unique<MultiTouchInputMapper>());
         }
     // Is this an old style single-touch driver?
-    } else if (node->hasKey(BTN_TOUCH)
-            && node->hasAbsoluteAxis(ABS_X)
-            && node->hasAbsoluteAxis(ABS_Y)) {
-        *classes != INPUT_DEVICE_CLASS_TOUCH;
+    } else if (mDeviceNode->hasKey(BTN_TOUCH)
+            && mDeviceNode->hasAbsoluteAxis(ABS_X)
+            && mDeviceNode->hasAbsoluteAxis(ABS_Y)) {
+        mClasses |= INPUT_DEVICE_CLASS_TOUCH;
+        //mMappers.push_back(std::make_unique<SingleTouchInputMapper>());
     // Is this a BT stylus?
-    } else if ((node->hasAbsoluteAxis(ABS_PRESSURE) || node->hasKey(BTN_TOUCH))
-            && !node->hasAbsoluteAxis(ABS_X) && !node->hasAbsoluteAxis(ABS_Y)) {
-        *classes |= INPUT_DEVICE_CLASS_EXTERNAL_STYLUS;
-        // Keyboard will try to claim some of the buttons but we really want to
-        // reserve those so we can fuse it with the touch screen data, so just
-        // take them back. Note this means an external stylus cannot also be a
-        // keyboard device.
-        *classes &= ~INPUT_DEVICE_CLASS_KEYBOARD;
+    } else if ((mDeviceNode->hasAbsoluteAxis(ABS_PRESSURE) || mDeviceNode->hasKey(BTN_TOUCH))
+            && !mDeviceNode->hasAbsoluteAxis(ABS_X) && !mDeviceNode->hasAbsoluteAxis(ABS_Y)) {
+        mClasses |= INPUT_DEVICE_CLASS_EXTERNAL_STYLUS;
+        //mMappers.push_back(std::make_unique<ExternalStylusInputMapper>());
+        isStylus = true;
+        mClasses &= ~INPUT_DEVICE_CLASS_KEYBOARD;
+    }
+
+    // See if this is a keyboard. Ignore everything in the button range except
+    // for joystick and gamepad buttons which are handled like keyboards for the
+    // most part.
+    // Keyboard will try to claim some of the stylus buttons but we really want
+    // to reserve those so we can fuse it with the touch screen data. Note this
+    // means an external stylus cannot also be a keyboard device.
+    if (!isStylus) {
+        bool haveKeyboardKeys = mDeviceNode->hasKeyInRange(0, BTN_MISC) ||
+            mDeviceNode->hasKeyInRange(KEY_OK, KEY_CNT);
+        if (haveKeyboardKeys || haveGamepadButtons) {
+            mClasses |= INPUT_DEVICE_CLASS_KEYBOARD;
+            //mMappers.push_back(std::make_unique<KeyboardInputMapper>());
+        }
     }
 
     // See if this device is a joystick.
@@ -154,11 +190,12 @@ static void setDeviceClasses(const InputDeviceNode* node, uint32_t* classes) {
     // distinguish them from other devices such as accelerometers that also have
     // absolute axes.
     if (haveGamepadButtons) {
-        uint32_t assumedClasses = *classes | INPUT_DEVICE_CLASS_JOYSTICK;
+        uint32_t assumedClasses = mClasses | INPUT_DEVICE_CLASS_JOYSTICK;
         for (int i = 0; i < ABS_CNT; ++i) {
-            if (node->hasAbsoluteAxis(i)
+            if (mDeviceNode->hasAbsoluteAxis(i)
                     && getAbsAxisUsage(i, assumedClasses) == INPUT_DEVICE_CLASS_JOYSTICK) {
-                *classes = assumedClasses;
+                mClasses = assumedClasses;
+                //mMappers.push_back(std::make_unique<JoystickInputMapper>());
                 break;
             }
         }
@@ -166,36 +203,40 @@ static void setDeviceClasses(const InputDeviceNode* node, uint32_t* classes) {
 
     // Check whether this device has switches.
     for (int i = 0; i < SW_CNT; ++i) {
-        if (node->hasSwitch(i)) {
-            *classes |= INPUT_DEVICE_CLASS_SWITCH;
+        if (mDeviceNode->hasSwitch(i)) {
+            mClasses |= INPUT_DEVICE_CLASS_SWITCH;
+            mMappers.push_back(std::make_unique<SwitchInputMapper>());
             break;
         }
     }
 
     // Check whether this device supports the vibrator.
-    if (node->hasForceFeedback(FF_RUMBLE)) {
-        *classes |= INPUT_DEVICE_CLASS_VIBRATOR;
+    // TODO: decide if this is necessary.
+    if (mDeviceNode->hasForceFeedback(FF_RUMBLE)) {
+        mClasses |= INPUT_DEVICE_CLASS_VIBRATOR;
+        //mMappers.push_back(std::make_unique<VibratorInputMapper>());
     }
 
-    // If the device isn't recognized as something we handle, don't monitor it.
-    // TODO
-
-    ALOGD("device %s classes=0x%x", node->getPath().c_str(), *classes);
+    ALOGD("device %s classes=0x%x %d mappers", mDeviceNode->getPath().c_str(), mClasses,
+            mMappers.size());
 }
 
-EvdevDevice::EvdevDevice(InputHost host, const std::shared_ptr<InputDeviceNode>& node) :
-    mHost(host), mDeviceNode(node) {
+void EvdevDevice::configureDevice() {
+    for (const auto& mapper : mMappers) {
+        auto reportDef = mHost->createInputReportDefinition();
+        if (mapper->configureInputReport(mDeviceNode.get(), reportDef)) {
+            mDeviceDefinition->addReport(reportDef);
+        } else {
+            mHost->freeReportDefinition(reportDef);
+        }
 
-    InputBus bus = getInputBus(node);
-    mInputId = mHost.createDeviceIdentifier(
-            node->getName().c_str(),
-            node->getProductId(),
-            node->getVendorId(),
-            bus,
-            node->getUniqueId().c_str());
-
-    InputPropertyMap propMap = mHost.getDevicePropertyMap(mInputId);
-    setDeviceClasses(mDeviceNode.get(), &mClasses);
+        reportDef = mHost->createOutputReportDefinition();
+        if (mapper->configureOutputReport(mDeviceNode.get(), reportDef)) {
+            mDeviceDefinition->addReport(reportDef);
+        } else {
+            mHost->freeReportDefinition(reportDef);
+        }
+    }
 }
 
 void EvdevDevice::processInput(InputEvent& event, nsecs_t currentTime) {
@@ -259,6 +300,10 @@ void EvdevDevice::processInput(InputEvent& event, nsecs_t currentTime) {
                     "call to systemTime: event time %" PRId64 ", current time %" PRId64
                     ", call time %" PRId64 ".", event.when, time, currentTime);
         }
+    }
+
+    for (size_t i = 0; i < mMappers.size(); ++i) {
+        mMappers[i]->process(event);
     }
 }
 

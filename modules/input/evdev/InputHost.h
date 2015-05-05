@@ -25,17 +25,17 @@ namespace android {
 
 /**
  * Classes in this file wrap the corresponding interfaces in the Input HAL. They
- * are intended to be lightweight and passed by value. It is still important not
- * to use an object after a HAL-specific method has freed the underlying
- * representation.
+ * are intended to be lightweight, as they primarily wrap pointers to callbacks.
+ * It is still important not to use an object after a HAL-specific method has
+ * freed the underlying representation.
  *
  * See hardware/input.h for details about each of these methods.
  */
 
 using InputBus = input_bus_t;
 using InputCollectionId = input_collection_id_t;
-using InputDeviceHandle = input_device_handle_t*;
-using InputDeviceIdentifier = input_device_identifier_t*;
+using InputDeviceHandle = input_device_handle_t;
+using InputDeviceIdentifier = input_device_identifier_t;
 using InputUsage = input_usage_t;
 
 class InputHostBase {
@@ -43,8 +43,8 @@ protected:
     InputHostBase(input_host_t* host, input_host_callbacks_t cb) : mHost(host), mCallbacks(cb) {}
     virtual ~InputHostBase() = default;
 
-    InputHostBase(const InputHostBase& rhs) = default;
-    InputHostBase(InputHostBase&& rhs) = default;
+    InputHostBase(const InputHostBase& rhs) = delete;
+    InputHostBase(InputHostBase&& rhs) = delete;
 
     input_host_t* mHost;
     input_host_callbacks_t mCallbacks;
@@ -52,140 +52,139 @@ protected:
 
 class InputReport : private InputHostBase {
 public:
-    virtual ~InputReport() = default;
-
-    InputReport(const InputReport& rhs) = default;
-    InputReport& operator=(const InputReport& rhs) = default;
-    operator input_report_t*() const { return mReport; }
-
-    void reportEvent(InputDeviceHandle d);
-
-private:
-    friend class InputReportDefinition;
-
     InputReport(input_host_t* host, input_host_callbacks_t cb, input_report_t* r) :
         InputHostBase(host, cb), mReport(r) {}
+    virtual ~InputReport() = default;
 
+    virtual void setIntUsage(InputCollectionId id, InputUsage usage, int32_t value,
+            int32_t arityIndex);
+    virtual void setBoolUsage(InputCollectionId id, InputUsage usage, bool value,
+            int32_t arityIndex);
+    virtual void reportEvent(InputDeviceHandle* d);
+
+    operator input_report_t*() const { return mReport; }
+
+    InputReport(const InputReport& rhs) = delete;
+    InputReport& operator=(const InputReport& rhs) = delete;
+private:
     input_report_t* mReport;
 };
 
 class InputReportDefinition : private InputHostBase {
 public:
+    InputReportDefinition(input_host_t* host, input_host_callbacks_t cb,
+            input_report_definition_t* r) : InputHostBase(host, cb), mReportDefinition(r) {}
     virtual ~InputReportDefinition() = default;
 
-    InputReportDefinition(const InputReportDefinition& rhs) = default;
-    InputReportDefinition& operator=(const InputReportDefinition& rhs) = default;
+    virtual void addCollection(InputCollectionId id, int32_t arity);
+    virtual void declareUsage(InputCollectionId id, InputUsage usage, int32_t min, int32_t max,
+            float resolution);
+    virtual void declareUsages(InputCollectionId id, InputUsage* usage, size_t usageCount);
+
+    virtual InputReport* allocateReport();
+
     operator input_report_definition_t*() { return mReportDefinition; }
 
-    void addCollection(InputCollectionId id, int32_t arity);
-    void declareUsage(InputCollectionId id, InputUsage usage, int32_t min, int32_t max,
-            float resolution);
-    void declareUsage(InputCollectionId id, InputUsage* usage, size_t usageCount);
-
-    InputReport allocateReport();
-
+    InputReportDefinition(const InputReportDefinition& rhs) = delete;
+    InputReportDefinition& operator=(const InputReportDefinition& rhs) = delete;
 private:
-    friend class InputHost;
-
-    InputReportDefinition(
-            input_host_t* host, input_host_callbacks_t cb, input_report_definition_t* r) :
-        InputHostBase(host, cb), mReportDefinition(r) {}
-
     input_report_definition_t* mReportDefinition;
 };
 
 class InputDeviceDefinition : private InputHostBase {
 public:
+    InputDeviceDefinition(input_host_t* host, input_host_callbacks_t cb,
+            input_device_definition_t* d) :
+        InputHostBase(host, cb), mDeviceDefinition(d) {}
     virtual ~InputDeviceDefinition() = default;
 
-    InputDeviceDefinition(const InputDeviceDefinition& rhs) = default;
-    InputDeviceDefinition& operator=(const InputDeviceDefinition& rhs) = default;
+    virtual void addReport(InputReportDefinition* r);
+
     operator input_device_definition_t*() { return mDeviceDefinition; }
 
-    void addReport(InputReportDefinition r);
-
+    InputDeviceDefinition(const InputDeviceDefinition& rhs) = delete;
+    InputDeviceDefinition& operator=(const InputDeviceDefinition& rhs) = delete;
 private:
-    friend class InputHost;
-
-    InputDeviceDefinition(
-            input_host_t* host, input_host_callbacks_t cb, input_device_definition_t* d) :
-        InputHostBase(host, cb), mDeviceDefinition(d) {}
-
     input_device_definition_t* mDeviceDefinition;
 };
 
 class InputProperty : private InputHostBase {
 public:
-    virtual ~InputProperty();
+    virtual ~InputProperty() = default;
+
+    InputProperty(input_host_t* host, input_host_callbacks_t cb, input_property_t* p) :
+        InputHostBase(host, cb), mProperty(p) {}
+
+    virtual const char* getKey() const;
+    virtual const char* getValue() const;
 
     operator input_property_t*() { return mProperty; }
 
-    const char* getKey() const;
-    const char* getValue() const;
-
-    // Transfers ownership of the input_property_t pointer.
-    InputProperty(InputProperty&& rhs);
-
-    // Prevent copy/assign because of the ownership of the underlying
-    // input_property_t pointer.
     InputProperty(const InputProperty& rhs) = delete;
     InputProperty& operator=(const InputProperty& rhs) = delete;
-
 private:
-    friend class InputPropertyMap;
-
-    InputProperty(
-            input_host_t* host, input_host_callbacks_t cb, input_property_t* p) :
-        InputHostBase(host, cb), mProperty(p) {}
-
     input_property_t* mProperty;
 };
 
 class InputPropertyMap : private InputHostBase {
 public:
-    virtual ~InputPropertyMap();
+    virtual ~InputPropertyMap() = default;
+
+    InputPropertyMap(input_host_t* host, input_host_callbacks_t cb, input_property_map_t* m) :
+        InputHostBase(host, cb), mMap(m) {}
+
+    virtual InputProperty* getDeviceProperty(const char* key) const;
+    virtual void freeDeviceProperty(InputProperty* property) const;
 
     operator input_property_map_t*() { return mMap; }
 
-    InputProperty getDeviceProperty(const char* key) const;
-
-    // Transfers ownership of the input_property_map_t pointer.
-    InputPropertyMap(InputPropertyMap&& rhs);
-
-    // Prevent copy/assign because of the ownership of the underlying
-    // input_property_map_t pointer.
     InputPropertyMap(const InputPropertyMap& rhs) = delete;
     InputPropertyMap& operator=(const InputPropertyMap& rhs) = delete;
-
 private:
-    friend class InputHost;
-
-    InputPropertyMap(
-            input_host_t* host, input_host_callbacks_t cb, input_property_map_t* m) :
-        InputHostBase(host, cb), mMap(m) {}
-
     input_property_map_t* mMap;
 };
 
-class InputHost : private InputHostBase {
+class InputHostInterface {
+public:
+    virtual ~InputHostInterface() = default;
+
+    virtual InputDeviceIdentifier* createDeviceIdentifier(const char* name, int32_t productId,
+            int32_t vendorId, InputBus bus, const char* uniqueId) = 0;
+
+    virtual InputDeviceDefinition* createDeviceDefinition() = 0;
+    virtual InputReportDefinition* createInputReportDefinition() = 0;
+    virtual InputReportDefinition* createOutputReportDefinition() = 0;
+    virtual void freeReportDefinition(InputReportDefinition* reportDef) = 0;
+
+    virtual InputDeviceHandle* registerDevice(InputDeviceIdentifier* id,
+            InputDeviceDefinition* d) = 0;
+    virtual void unregisterDevice(InputDeviceHandle* handle) = 0;
+
+    virtual InputPropertyMap* getDevicePropertyMap(InputDeviceIdentifier* id) = 0;
+    virtual void freeDevicePropertyMap(InputPropertyMap* propertyMap) = 0;
+};
+
+class InputHost : public InputHostInterface, private InputHostBase {
 public:
     InputHost(input_host_t* host, input_host_callbacks_t cb) : InputHostBase(host, cb) {}
     virtual ~InputHost() = default;
 
-    InputHost(const InputHost& rhs) = default;
-    InputHost& operator=(const InputHost& rhs) = default;
+    InputDeviceIdentifier* createDeviceIdentifier(const char* name, int32_t productId,
+            int32_t vendorId, InputBus bus, const char* uniqueId) override;
 
-    InputDeviceIdentifier createDeviceIdentifier(const char* name, int32_t productId,
-            int32_t vendorId, InputBus bus, const char* uniqueId);
+    InputDeviceDefinition* createDeviceDefinition() override;
+    InputReportDefinition* createInputReportDefinition() override;
+    InputReportDefinition* createOutputReportDefinition() override;
+    virtual void freeReportDefinition(InputReportDefinition* reportDef) override;
 
-    InputDeviceDefinition createDeviceDefinition();
-    InputReportDefinition createInputReportDefinition();
-    InputReportDefinition createOutputReportDefinition();
+    InputDeviceHandle* registerDevice(InputDeviceIdentifier* id, InputDeviceDefinition* d) override;
+    void unregisterDevice(InputDeviceHandle* handle) override;
 
-    InputDeviceHandle registerDevice(InputDeviceIdentifier id, InputDeviceDefinition d);
-    void unregisterDevice(InputDeviceHandle handle);
+    InputPropertyMap* getDevicePropertyMap(InputDeviceIdentifier* id) override;
+    void freeDevicePropertyMap(InputPropertyMap* propertyMap) override;
 
-    InputPropertyMap getDevicePropertyMap(InputDeviceIdentifier id);
+    InputHost(const InputHost& rhs) = delete;
+    InputHost& operator=(const InputHost& rhs) = delete;
 };
 
 }  // namespace android

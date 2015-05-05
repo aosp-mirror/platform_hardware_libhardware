@@ -37,7 +37,8 @@ static const char kDevInput[] = "/dev/input";
 
 class EvdevModule {
 public:
-    explicit EvdevModule(InputHost inputHost);
+    // Takes ownership of the InputHostInterface
+    explicit EvdevModule(InputHostInterface* inputHost);
 
     void init();
     void notifyReport(input_report_t* r);
@@ -45,7 +46,7 @@ public:
 private:
     void loop();
 
-    InputHost mInputHost;
+    std::unique_ptr<InputHostInterface> mInputHost;
     std::shared_ptr<InputDeviceManager> mDeviceManager;
     std::unique_ptr<InputHub> mInputHub;
     std::thread mPollThread;
@@ -53,9 +54,9 @@ private:
 
 static std::unique_ptr<EvdevModule> gEvdevModule;
 
-EvdevModule::EvdevModule(InputHost inputHost) :
+EvdevModule::EvdevModule(InputHostInterface* inputHost) :
     mInputHost(inputHost),
-    mDeviceManager(std::make_shared<InputDeviceManager>(mInputHost)),
+    mDeviceManager(std::make_shared<InputDeviceManager>(mInputHost.get())),
     mInputHub(std::make_unique<InputHub>(mDeviceManager)) {}
 
 void EvdevModule::init() {
@@ -97,7 +98,7 @@ static int dummy_open(const hw_module_t __unused *module, const char __unused *i
 static void input_init(const input_module_t* module,
         input_host_t* host, input_host_callbacks_t cb) {
     LOG_ALWAYS_FATAL_IF(strcmp(module->common.id, INPUT_HARDWARE_MODULE_ID) != 0);
-    InputHost inputHost = {host, cb};
+    auto inputHost = new InputHost(host, cb);
     gEvdevModule = std::make_unique<EvdevModule>(inputHost);
     gEvdevModule->init();
 }
