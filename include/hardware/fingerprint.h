@@ -213,12 +213,15 @@ typedef struct fingerprint_device {
 
     /*
      * Restricts the HAL operation to a set of fingerprints belonging to a
-     * group provided. Gid of 0 signals global operation.
+     * group provided.
+     * The caller must provide a path to a storage location within the user's
+     * data directory.
      *
      * Function return: 0 on success
      *                 -1 if the group does not exist.
      */
-    int (*set_active_group)(struct fingerprint_device *dev, uint32_t gid);
+    int (*set_active_group)(struct fingerprint_device *dev, uint32_t gid,
+                            const char *store_path);
 
     /*
      * Authenticates an operation identifed by operation_id
