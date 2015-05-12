@@ -329,43 +329,6 @@ struct keymaster1_device {
                                                  keymaster_key_characteristics_t** characteristics);
 
     /**
-     * Change a key's authorizations.
-     *
-     * Update the authorizations associated with key_blob to the list specified in new_params, which
-     * must contain the complete set of authorizations desired (hw_enforced and sw_enforced).  Tags
-     * will be added, removed and/or updated only if the appropriate KM_TAG_RESCOPING_ADD and
-     * KM_TAG_RESCOPING_DEL tags exist in the key's authorizations, otherwise
-     * KM_ERROR_INVALID_RESCOPING will be returned and no changes will be made.
-     *
-     * \param[in] dev The keymaster device structure.
-     *
-     * \param[in] new_params The new authorization list to be associated with the key.
-     *
-     * \param[in] new_params_count The number of entries in \p new_params.
-     *
-     * \param[in] key_blob The key to update.
-     *
-     * \param[in] client_id The client ID associated with the key, or NULL if none is associated.
-     *
-     * \param[in] app_data The application data associated with the key, or NULL if none is
-     * associated.
-     *
-     * \param[out] rescoped_key_blob The key blob with the updated authorizations, if successful.
-     * The caller assumes ownership of rescoped_key_blob->key_material and must free() it.
-     *
-     * \param[out] characteristics If not null will contain the new key authorizations, divided into
-     * hw_enforced and sw_enforced lists.  The caller takes ownership and must call
-     * keymaster_free_characteristics() to free.
-     */
-    keymaster_error_t (*rescope)(const struct keymaster1_device* dev,
-                                 const keymaster_key_param_t* new_params, size_t new_params_count,
-                                 const keymaster_key_blob_t* key_blob,
-                                 const keymaster_blob_t* client_id,
-                                 const keymaster_blob_t* app_data,
-                                 keymaster_key_blob_t* rescoped_key_blob,
-                                 keymaster_key_characteristics_t** characteristics);
-
-    /**
      * Imports a key, or key pair, returning a key blob and/or a description of the key.
      *
      * Most key import parameters are defined as keymaster tag/value pairs, provided in "params".
@@ -445,9 +408,8 @@ struct keymaster1_device {
 
     /**
      * Deletes the key, or key pair, associated with the key blob.  After calling this function it
-     * will be impossible to use the key for any other operations (though rescoped versions may
-     * exist, and if so will be usable).  May be applied to keys from foreign roots of trust (keys
-     * not usable under the current root of trust).
+     * will be impossible to use the key for any other operations.  May be applied to keys from
+     * foreign roots of trust (keys not usable under the current root of trust).
      *
      * This function is optional and should be set to NULL if it is not implemented.
      *
