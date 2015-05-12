@@ -55,6 +55,9 @@ static const unsigned k_force_channels = 0;
 
 #define DEFAULT_INPUT_BUFFER_SIZE_MS 20
 
+// fixed channel count of 8 limitation (for data processing in AudioFlinger)
+#define FCC_8 8
+
 struct audio_device {
     struct audio_hw_device hw_device;
 
@@ -109,6 +112,8 @@ struct stream_in {
                                          * the device is not compatible with AudioFlinger
                                          * capabilities, e.g. exposes too many channels or
                                          * too few channels. */
+    audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
+
     /* We may need to read more data from the device in order to data reduce to 16bit, 4chan */
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
@@ -664,21 +669,14 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
 static uint32_t in_get_channels(const struct audio_stream *stream)
 {
     const struct stream_in *in = (const struct stream_in*)stream;
-    return audio_channel_in_mask_from_count(in->hal_channel_count);
+    return in->hal_channel_mask;
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
-    /* TODO Here is the code we need when we support arbitrary input formats
-     * alsa_device_proxy * proxy = ((struct stream_in*)stream)->proxy;
-     * audio_format_t format = audio_format_from_pcm_format(proxy_get_format(proxy));
-     * ALOGV("in_get_format() = %d", format);
-     * return format;
-     */
-    /* Input only supports PCM16 */
-    /* TODO When AudioPolicyManager & AudioFlinger supports arbitrary input formats
-       rewrite this to return the ACTUAL channel format (above) */
-    return AUDIO_FORMAT_PCM_16_BIT;
+     alsa_device_proxy *proxy = &((struct stream_in*)stream)->proxy;
+     audio_format_t format = audio_format_from_pcm_format(proxy_get_format(proxy));
+     return format;
 }
 
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
@@ -821,20 +819,11 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
      * number of bytes in the HAL format (16-bit, stereo).
      */
     num_read_buff_bytes = bytes;
-    int num_device_channels = proxy_get_channel_count(&in->proxy);
-    int num_req_channels = in->hal_channel_count;
+    int num_device_channels = proxy_get_channel_count(&in->proxy); /* what we told Alsa */
+    int num_req_channels = in->hal_channel_count; /* what we told AudioFlinger */
 
     if (num_device_channels != num_req_channels) {
         num_read_buff_bytes = (num_device_channels * num_read_buff_bytes) / num_req_channels;
-    }
-
-    enum pcm_format format = proxy_get_format(&in->proxy);
-    if (format == PCM_FORMAT_S24_3LE) {
-        /* 24-bit USB device */
-        num_read_buff_bytes = (3 * num_read_buff_bytes) / 2;
-    } else if (format == PCM_FORMAT_S32_LE) {
-        /* 32-bit USB device */
-        num_read_buff_bytes = num_read_buff_bytes * 2;
     }
 
     /* Setup/Realloc the conversion buffer (if necessary). */
@@ -850,29 +839,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
     ret = proxy_read(&in->proxy, read_buff, num_read_buff_bytes);
     if (ret == 0) {
-        /*
-         * Do any conversions necessary to send the data in the format specified to/by the HAL
-         * (but different from the ALSA format), such as 24bit ->16bit, or 4chan -> 2chan.
-         */
-        if (format != PCM_FORMAT_S16_LE) {
-            /* we need to convert */
-            if (num_device_channels != num_req_channels) {
-                out_buff = read_buff;
-            }
-
-            if (format == PCM_FORMAT_S24_3LE) {
-                num_read_buff_bytes =
-                    convert_24_3_to_16(read_buff, num_read_buff_bytes / 3, out_buff);
-            } else if (format == PCM_FORMAT_S32_LE) {
-                num_read_buff_bytes =
-                    convert_32_to_16(read_buff, num_read_buff_bytes / 4, out_buff);
-            } else {
-                LOG_ALWAYS_FATAL("Unsupported format");
-                num_read_buff_bytes = 0;
-                goto err;
-            }
-        }
-
         if (num_device_channels != num_req_channels) {
             // ALOGV("chans dev:%d req:%d", num_device_channels, num_req_channels);
 
@@ -968,35 +934,39 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     }
 
     /* Format */
-    /* until the framework supports format conversion, just take what it asks for
-     * i.e. AUDIO_FORMAT_PCM_16_BIT */
     if (config->format == AUDIO_FORMAT_DEFAULT) {
-        /* just return AUDIO_FORMAT_PCM_16_BIT until the framework supports other input
-         * formats */
-        config->format = AUDIO_FORMAT_PCM_16_BIT;
-        proxy_config.format = PCM_FORMAT_S16_LE;
-    } else if (config->format == AUDIO_FORMAT_PCM_16_BIT) {
-        /* Always accept AUDIO_FORMAT_PCM_16_BIT until the framework supports other input
-         * formats */
-        proxy_config.format = PCM_FORMAT_S16_LE;
+        proxy_config.format = profile_get_default_format(in->profile);
+        config->format = audio_format_from_pcm_format(proxy_config.format);
     } else {
-        /* When the framework support other formats, validate here */
-        config->format = AUDIO_FORMAT_PCM_16_BIT;
-        proxy_config.format = PCM_FORMAT_S16_LE;
-        ret = -EINVAL;
+        enum pcm_format fmt = pcm_format_from_audio_format(config->format);
+        if (profile_is_format_valid(in->profile, fmt)) {
+            proxy_config.format = fmt;
+        } else {
+            proxy_config.format = profile_get_default_format(in->profile);
+            config->format = audio_format_from_pcm_format(proxy_config.format);
+            ret = -EINVAL;
+        }
     }
 
     /* Channels */
-    unsigned proposed_channel_count = profile_get_default_channel_count(in->profile);
+    unsigned proposed_channel_count = 0;
     if (k_force_channels) {
         proposed_channel_count = k_force_channels;
-    } else if (config->channel_mask != AUDIO_CHANNEL_NONE) {
-        proposed_channel_count = audio_channel_count_from_in_mask(config->channel_mask);
+    } else if (config->channel_mask == AUDIO_CHANNEL_NONE) {
+        proposed_channel_count = profile_get_default_channel_count(in->profile);
     }
+    if (proposed_channel_count != 0) {
+        config->channel_mask = audio_channel_in_mask_from_count(proposed_channel_count);
+        if (config->channel_mask == AUDIO_CHANNEL_INVALID)
+            config->channel_mask =
+                    audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
+        in->hal_channel_count = proposed_channel_count;
+    } else {
+        in->hal_channel_count = audio_channel_count_from_in_mask(config->channel_mask);
+    }
+    /* we can expose any channel mask, and emulate internally based on channel count. */
+    in->hal_channel_mask = config->channel_mask;
 
-    /* we can expose any channel count mask, and emulate internally. */
-    config->channel_mask = audio_channel_in_mask_from_count(proposed_channel_count);
-    in->hal_channel_count = proposed_channel_count;
     proxy_config.channels = profile_get_default_channel_count(in->profile);
     proxy_prepare(&in->proxy, in->profile, &proxy_config);
 
