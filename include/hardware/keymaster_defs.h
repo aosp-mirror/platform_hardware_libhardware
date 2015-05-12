@@ -62,11 +62,12 @@ typedef enum {
                                              been authenticated.  WARNING: Not recommended. */
     KM_TAG_CALLER_NONCE = KM_BOOL | 8,    /* Allow caller to specify nonce or IV. */
 
-    /* Other hardware-enforced. */
-    KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 705, /* keymaster_key_blob_usage_requirements_t */
-
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_LONG | 200, /* Defaults to 2^16+1 */
+
+    /* Other hardware-enforced. */
+    KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
+    KM_TAG_BOOTLOADER_ONLY = KM_BOOL | 302,         /* Usable only by bootloader */
 
     /*
      * Tags that should be semantically enforced by hardware if possible and will otherwise be
@@ -277,9 +278,9 @@ typedef struct {
  * In the future this list will expand greatly to accommodate asymmetric key import/export.
  */
 typedef enum {
-    KM_KEY_FORMAT_X509 = 0,   /* for public key export */
-    KM_KEY_FORMAT_PKCS8 = 1,  /* for asymmetric key pair import */
-    KM_KEY_FORMAT_RAW = 3,    /* for symmetric key import */
+    KM_KEY_FORMAT_X509 = 0,  /* for public key export */
+    KM_KEY_FORMAT_PKCS8 = 1, /* for asymmetric key pair import */
+    KM_KEY_FORMAT_RAW = 3,   /* for symmetric key import */
 } keymaster_key_format_t;
 
 /**
