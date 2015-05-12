@@ -90,6 +90,8 @@ struct stream_out {
                                          * the device is not compatible with AudioFlinger
                                          * capabilities, e.g. exposes too many channels or
                                          * too few channels. */
+    audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
+
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
                                          * there was a previous conversion */
@@ -301,7 +303,7 @@ static size_t out_get_buffer_size(const struct audio_stream *stream)
 static uint32_t out_get_channels(const struct audio_stream *stream)
 {
     const struct stream_out *out = (const struct stream_out*)stream;
-    return audio_channel_out_mask_from_count(out->hal_channel_count);
+    return out->hal_channel_mask;
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
@@ -587,15 +589,24 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     }
 
     /* Channels */
-    unsigned proposed_channel_count = profile_get_default_channel_count(out->profile);
+    unsigned proposed_channel_count = 0;
     if (k_force_channels) {
         proposed_channel_count = k_force_channels;
-    } else if (config->channel_mask != AUDIO_CHANNEL_NONE) {
-        proposed_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
+    } else if (config->channel_mask == AUDIO_CHANNEL_NONE) {
+        proposed_channel_count =  profile_get_default_channel_count(out->profile);
     }
-    /* we can expose any channel count mask, and emulate internally. */
-    config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
-    out->hal_channel_count = proposed_channel_count;
+    if (proposed_channel_count != 0) {
+        config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
+        if (config->channel_mask == AUDIO_CHANNEL_INVALID)
+            config->channel_mask =
+                    audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
+        out->hal_channel_count = proposed_channel_count;
+    } else {
+        out->hal_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
+    }
+    /* we can expose any channel mask, and emulate internally based on channel count. */
+    out->hal_channel_mask = config->channel_mask;
+
     /* no validity checks are needed as proxy_prepare() forces channel_count to be valid.
      * and we emulate any channel count discrepancies in out_write(). */
     proxy_config.channels = proposed_channel_count;
