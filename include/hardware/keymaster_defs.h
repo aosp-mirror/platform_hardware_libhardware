@@ -63,8 +63,6 @@ typedef enum {
     KM_TAG_CALLER_NONCE = KM_BOOL | 8,    /* Allow caller to specify nonce or IV. */
 
     /* Other hardware-enforced. */
-    KM_TAG_RESCOPING_ADD = KM_ENUM_REP | 101, /* Tags authorized for addition via rescoping. */
-    KM_TAG_RESCOPING_DEL = KM_ENUM_REP | 102, /* Tags authorized for removal via rescoping. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 705, /* keymaster_key_blob_usage_requirements_t */
 
     /* Algorithm-specific. */
@@ -335,7 +333,6 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_TAG = -39,
     KM_ERROR_INVALID_TAG = -40,
     KM_ERROR_MEMORY_ALLOCATION_FAILED = -41,
-    KM_ERROR_INVALID_RESCOPING = -42,
     KM_ERROR_IMPORT_PARAMETER_MISMATCH = -44,
     KM_ERROR_SECURE_HW_ACCESS_DENIED = -45,
     KM_ERROR_OPERATION_CANCELLED = -46,
@@ -346,7 +343,6 @@ typedef enum {
     KM_ERROR_MISSING_NONCE = -51,
     KM_ERROR_INVALID_NONCE = -52,
     KM_ERROR_UNSUPPORTED_CHUNK_LENGTH = -53,
-    KM_ERROR_RESCOPABLE_KEY_NOT_USABLE = -54,
     KM_ERROR_CALLER_NONCE_PROHIBITED = -55,
 
     KM_ERROR_UNIMPLEMENTED = -100,
