@@ -177,6 +177,28 @@ typedef struct fingerprint_device {
     int (*cancel)(struct fingerprint_device *dev);
 
     /*
+     * Enumerate all the fingerprint templates found in the directory set by
+     * set_active_group()
+     * This is a synchronous call. The function takes:
+     * - A pointer to an array of fingerprint_finger_id_t.
+     * - The size of the array provided, in fingerprint_finger_id_t elements.
+     * Max_size is a bi-directional parameter and returns the actual number
+     * of elements copied to the caller supplied array.
+     * In the absence of errors the function returns the total number of templates
+     * in the user directory.
+     * If the caller has no good guess on the size of the array he should call this
+     * function witn *max_size == 0 and use the return value for the array allocation.
+     * The caller of this function has a complete list of the templates when *max_size
+     * is the same as the function return.
+     *
+     * Function return: Total number of fingerprint templates in the current
+                        storage directory.
+     *                 -1 on error.
+     */
+    int (*enumerate)(struct fingerprint_device *dev, fingerprint_finger_id_t *results,
+        uint32_t *max_size);
+
+    /*
      * Fingerprint remove request:
      * deletes a fingerprint template.
      * If the fingerprint id is 0 and the group is 0 then the entire template
