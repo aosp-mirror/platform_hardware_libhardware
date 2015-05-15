@@ -80,7 +80,12 @@ struct gatekeeper_device {
      * - enrolled_password_handle_length: pointer to the length in bytes of the buffer allocated
      *   by this function and pointed to by *enrolled_password_handle_length.
      *
-     * Returns: 0 on success or an error code less than 0 on error.
+     * Returns:
+     * - 0 on success
+     * - An error code < 0 on failure, or
+     * - A timeout value T > 0 if the call should not be re-attempted until T milliseconds
+     *   have elapsed.
+     *
      * On error, enrolled_password_handle will not be allocated.
      */
     int (*enroll)(const struct gatekeeper_device *dev, uint32_t uid,
@@ -123,7 +128,11 @@ struct gatekeeper_device {
      * - auth_token_length: on success, the length in bytes of the authentication
      *   token assigned to *auth_token will be assigned to *auth_token_length
      *
-     * Returns: 0 on success or an error code less than 0 on error
+     * Returns:
+     * - 0 on success
+     * - An error code < 0 on failure, or
+     * - A timeout value T > 0 if the call should not be re-attempted until T milliseconds
+     *   have elapsed.
      * On error, auth token will not be allocated
      */
     int (*verify)(const struct gatekeeper_device *dev, uint32_t uid, uint64_t challenge,
