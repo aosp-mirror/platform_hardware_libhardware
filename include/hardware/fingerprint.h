@@ -200,10 +200,8 @@ typedef struct fingerprint_device {
 
     /*
      * Fingerprint remove request:
-     * deletes a fingerprint template.
-     * If the fingerprint id is 0 and the group is 0 then the entire template
-     * database will be removed. A combinaiton of fingerprint id 0 and a valid
-     * group id deletes all fingreprints in that group.
+     * deletes a fingerprint template or a previously selected group.
+     * If the fingerprint id is 0 then the entire group is removed.
      * notify() will be called for each template deleted with
      * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
      * fingerprint_msg.data.removed.id indicating each template id removed.
