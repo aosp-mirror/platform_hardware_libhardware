@@ -17,10 +17,15 @@
 #ifndef ANDROID_INPUT_MAPPER_H_
 #define ANDROID_INPUT_MAPPER_H_
 
-#include "InputHost.h"
-#include "InputHub.h"
+struct input_device_handle;
 
 namespace android {
+
+class InputDeviceNode;
+class InputReport;
+class InputReportDefinition;
+struct InputEvent;
+using InputDeviceHandle = struct input_device_handle;
 
 /**
  * An InputMapper processes raw evdev input events and combines them into
@@ -31,7 +36,8 @@ namespace android {
  */
 class InputMapper {
 public:
-    virtual ~InputMapper() = default;
+    InputMapper() = default;
+    virtual ~InputMapper() {}
 
     /**
      * If the mapper supports input events from the InputDevice,

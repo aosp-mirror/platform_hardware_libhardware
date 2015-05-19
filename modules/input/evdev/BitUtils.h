@@ -14,16 +14,16 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_INPUT_HUB_INTERNAL_H_
-#define ANDROID_INPUT_HUB_INTERNAL_H_
+#ifndef ANDROID_BIT_UTILS_H_
+#define ANDROID_BIT_UTILS_H_
+
+#include <cstdint>
 
 namespace android {
-namespace internal {
 
 /** Test whether any bits in the interval [start, end) are set in the array. */
 bool testBitInRange(const uint8_t arr[], size_t start, size_t end);
 
-}  // namespace internal
 }  // namespace android
 
-#endif  // ANDROID_INPUT_HUB_INTERNAL_H_
+#endif  // ANDROID_BIT_UTILS_H_

@@ -5,6 +5,7 @@ LOCAL_C_INCLUDES += hardware/libhardware/modules/input/evdev
 LOCAL_C_INCLUDES += $(TOP)/external/gmock/include
 
 LOCAL_SRC_FILES:= \
+    BitUtils_test.cpp \
     InputDevice_test.cpp \
     InputHub_test.cpp \
     InputMocks.cpp \

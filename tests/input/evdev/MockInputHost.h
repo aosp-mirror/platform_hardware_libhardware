@@ -17,9 +17,10 @@
 #ifndef ANDROID_MOCK_INPUT_HOST_H_
 #define ANDROID_MOCK_INPUT_HOST_H_
 
+#include "InputHost.h"
+
 #include "gmock/gmock.h"
 
-#include "InputHost.h"
 
 namespace android {
 namespace tests {

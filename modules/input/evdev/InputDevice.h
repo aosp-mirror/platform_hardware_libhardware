@@ -22,11 +22,19 @@
 
 #include <utils/Timers.h>
 
-#include "InputHost.h"
-#include "InputHub.h"
 #include "InputMapper.h"
 
+struct input_device_handle;
+struct input_device_identifier;
+
 namespace android {
+
+class InputDeviceDefinition;
+class InputDeviceNode;
+class InputHostInterface;
+struct InputEvent;
+using InputDeviceHandle = struct input_device_handle;
+using InputDeviceIdentifier = struct input_device_identifier;
 
 /**
  * InputDeviceInterface represents an input device in the HAL. It processes

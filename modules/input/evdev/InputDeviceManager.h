@@ -22,11 +22,12 @@
 
 #include <utils/Timers.h>
 
-#include "InputDevice.h"
-#include "InputHost.h"
 #include "InputHub.h"
 
 namespace android {
+
+class InputDeviceInterface;
+class InputHostInterface;
 
 /**
  * InputDeviceManager keeps the mapping of InputDeviceNodes to
