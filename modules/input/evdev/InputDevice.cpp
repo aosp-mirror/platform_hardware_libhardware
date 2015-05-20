@@ -34,6 +34,7 @@
 
 #include "InputHost.h"
 #include "InputHub.h"
+#include "MouseInputMapper.h"
 #include "SwitchInputMapper.h"
 
 #define MSC_ANDROID_TIME_SEC  0x6
@@ -138,7 +139,7 @@ void EvdevDevice::createMappers() {
             && mDeviceNode->hasRelativeAxis(REL_X)
             && mDeviceNode->hasRelativeAxis(REL_Y)) {
         mClasses |= INPUT_DEVICE_CLASS_CURSOR;
-        //mMappers.push_back(std::make_unique<CursorInputMapper>());
+        mMappers.push_back(std::make_unique<MouseInputMapper>());
     }
 
     bool isStylus = false;

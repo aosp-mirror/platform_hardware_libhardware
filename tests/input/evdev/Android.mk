@@ -9,6 +9,7 @@ LOCAL_SRC_FILES:= \
     InputDevice_test.cpp \
     InputHub_test.cpp \
     InputMocks.cpp \
+    MouseInputMapper_test.cpp \
     SwitchInputMapper_test.cpp \
     TestHelpers.cpp
 

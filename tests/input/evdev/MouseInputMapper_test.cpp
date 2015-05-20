@@ -22,7 +22,7 @@
 
 #include "InputMocks.h"
 #include "MockInputHost.h"
-#include "SwitchInputMapper.h"
+#include "MouseInputMapper.h"
 
 using ::testing::_;
 using ::testing::Args;
@@ -33,47 +33,57 @@ using ::testing::UnorderedElementsAre;
 namespace android {
 namespace tests {
 
-class SwitchInputMapperTest : public ::testing::Test {
+class MouseInputMapperTest : public ::testing::Test {
 protected:
      virtual void SetUp() override {
-         mMapper = std::make_unique<SwitchInputMapper>();
+         mMapper = std::make_unique<MouseInputMapper>();
      }
 
      MockInputHost mHost;
-     std::unique_ptr<SwitchInputMapper> mMapper;
+     std::unique_ptr<MouseInputMapper> mMapper;
 };
 
-TEST_F(SwitchInputMapperTest, testConfigureDevice) {
+TEST_F(MouseInputMapperTest, testConfigureDevice) {
     MockInputReportDefinition reportDef;
     MockInputDeviceNode deviceNode;
-    deviceNode.addSwitch(SW_LID);
-    deviceNode.addSwitch(SW_CAMERA_LENS_COVER);
+    deviceNode.addKeys(BTN_LEFT, BTN_RIGHT, BTN_MIDDLE);
+    deviceNode.addRelAxis(REL_X);
+    deviceNode.addRelAxis(REL_Y);
 
-    EXPECT_CALL(reportDef, addCollection(INPUT_COLLECTION_ID_SWITCH, 1));
-    EXPECT_CALL(reportDef, declareUsages(INPUT_COLLECTION_ID_SWITCH, _, 2))
-        .With(Args<1,2>(UnorderedElementsAre(INPUT_USAGE_SWITCH_LID,
-                        INPUT_USAGE_SWITCH_CAMERA_LENS_COVER)));
+    const auto id = INPUT_COLLECTION_ID_MOUSE;
+    EXPECT_CALL(reportDef, addCollection(id, 1));
+    EXPECT_CALL(reportDef, declareUsage(id, INPUT_USAGE_AXIS_X, _, _, _));
+    EXPECT_CALL(reportDef, declareUsage(id, INPUT_USAGE_AXIS_Y, _, _, _));
+    EXPECT_CALL(reportDef, declareUsages(id, _, 3))
+        .With(Args<1,2>(UnorderedElementsAre(
+                        INPUT_USAGE_BUTTON_PRIMARY,
+                        INPUT_USAGE_BUTTON_SECONDARY,
+                        INPUT_USAGE_BUTTON_TERTIARY)));
 
     EXPECT_TRUE(mMapper->configureInputReport(&deviceNode, &reportDef));
 }
 
-TEST_F(SwitchInputMapperTest, testConfigureDevice_noSwitches) {
+TEST_F(MouseInputMapperTest, testConfigureDevice_noXAxis) {
     MockInputReportDefinition reportDef;
     MockInputDeviceNode deviceNode;
 
-    EXPECT_CALL(reportDef, addCollection(_, _)).Times(0);
+    EXPECT_CALL(reportDef, addCollection(INPUT_COLLECTION_ID_MOUSE, 1));
+    EXPECT_CALL(reportDef, declareUsage(_, _, _, _, _)).Times(0);
     EXPECT_CALL(reportDef, declareUsages(_, _, _)).Times(0);
 
     EXPECT_FALSE(mMapper->configureInputReport(&deviceNode, &reportDef));
 }
 
-TEST_F(SwitchInputMapperTest, testProcessInput) {
+TEST_F(MouseInputMapperTest, testProcessInput) {
     MockInputReportDefinition reportDef;
     MockInputDeviceNode deviceNode;
-    deviceNode.addSwitch(SW_LID);
+    deviceNode.addKeys(BTN_LEFT, BTN_RIGHT, BTN_MIDDLE);
+    deviceNode.addRelAxis(REL_X);
+    deviceNode.addRelAxis(REL_Y);
 
     EXPECT_CALL(reportDef, addCollection(_, _));
-    EXPECT_CALL(reportDef, declareUsages(_, _, _));
+    EXPECT_CALL(reportDef, declareUsage(_, _, _, _, _)).Times(2);
+    EXPECT_CALL(reportDef, declareUsages(_, _, 3));
 
     mMapper->configureInputReport(&deviceNode, &reportDef);
 
@@ -84,16 +94,23 @@ TEST_F(SwitchInputMapperTest, testProcessInput) {
     {
         // Test two switch events in order
         InSequence s;
-        EXPECT_CALL(report, setBoolUsage(INPUT_COLLECTION_ID_SWITCH, INPUT_USAGE_SWITCH_LID, 1, 0));
+        const auto id = INPUT_COLLECTION_ID_MOUSE;
+        EXPECT_CALL(report, setIntUsage(id, INPUT_USAGE_AXIS_X, 5, 0));
+        EXPECT_CALL(report, setIntUsage(id, INPUT_USAGE_AXIS_Y, -3, 0));
         EXPECT_CALL(report, reportEvent(_));
-        EXPECT_CALL(report, setBoolUsage(INPUT_COLLECTION_ID_SWITCH, INPUT_USAGE_SWITCH_LID, 0, 0));
+        EXPECT_CALL(report, setBoolUsage(id, INPUT_USAGE_BUTTON_PRIMARY, 1, 0));
+        EXPECT_CALL(report, reportEvent(_));
+        EXPECT_CALL(report, setBoolUsage(id, INPUT_USAGE_BUTTON_PRIMARY, 0, 0));
         EXPECT_CALL(report, reportEvent(_));
     }
 
     InputEvent events[] = {
-        {0, EV_SW, SW_LID, 1},
+        {0, EV_REL, REL_X, 5},
+        {1, EV_REL, REL_Y, -3},
+        {2, EV_SYN, SYN_REPORT, 0},
+        {0, EV_KEY, BTN_LEFT, 1},
         {1, EV_SYN, SYN_REPORT, 0},
-        {2, EV_SW, SW_LID, 0},
+        {2, EV_KEY, BTN_LEFT, 0},
         {3, EV_SYN, SYN_REPORT, 0},
     };
     for (auto e : events) {
