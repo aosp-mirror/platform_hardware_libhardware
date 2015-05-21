@@ -76,7 +76,7 @@ struct gatekeeper_device {
      * - enrolled_password_handle: on success, a buffer will be allocated with the
      *   new password handle referencing the password provided in desired_password.
      *   This buffer can be used on subsequent calls to enroll or verify.
-     *   The caller is responsible for deallocating this buffer via a call to free()
+     *   The caller is responsible for deallocating this buffer via a call to delete[]
      * - enrolled_password_handle_length: pointer to the length in bytes of the buffer allocated
      *   by this function and pointed to by *enrolled_password_handle_length.
      *
@@ -124,9 +124,12 @@ struct gatekeeper_device {
      *
      * - auth_token: on success, a buffer containing the authentication token
      *   resulting from this verification is assigned to *auth_token. The caller
-     *   is responsible for deallocating this memory via a call to free()
+     *   is responsible for deallocating this memory via a call to delete[]
      * - auth_token_length: on success, the length in bytes of the authentication
      *   token assigned to *auth_token will be assigned to *auth_token_length
+     *
+     * - request_reenroll: a request to the upper layers to re-enroll the verified
+     *   password due to a version change. Not set if verification fails.
      *
      * Returns:
      * - 0 on success
@@ -138,7 +141,7 @@ struct gatekeeper_device {
     int (*verify)(const struct gatekeeper_device *dev, uint32_t uid, uint64_t challenge,
             const uint8_t *enrolled_password_handle, uint32_t enrolled_password_handle_length,
             const uint8_t *provided_password, uint32_t provided_password_length,
-            uint8_t **auth_token, uint32_t *auth_token_length);
+            uint8_t **auth_token, uint32_t *auth_token_length, bool *request_reenroll);
 
 };
 typedef struct gatekeeper_device gatekeeper_device_t;
