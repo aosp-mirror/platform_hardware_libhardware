@@ -25,6 +25,7 @@
 #include <sys/time.h>
 #include <sys/limits.h>
 
+#include <cutils/compiler.h>
 #include <cutils/log.h>
 #include <cutils/properties.h>
 #include <cutils/str_parms.h>
@@ -178,6 +179,7 @@ struct submix_stream_out {
     struct submix_audio_device *dev;
     int route_handle;
     bool output_standby;
+    uint64_t write_counter_frames;
 #if LOG_STREAMS_TO_FILES
     int log_fd;
 #endif // LOG_STREAMS_TO_FILES
@@ -189,11 +191,10 @@ struct submix_stream_in {
     int route_handle;
     bool input_standby;
     bool output_standby_rec_thr; // output standby state as seen from record thread
-
     // wall clock when recording starts
     struct timespec record_start_time;
     // how many frames have been requested to be read
-    int64_t read_counter_frames;
+    uint64_t read_counter_frames;
 
 #if ENABLE_LEGACY_INPUT_OPEN
     // Number of references to this input stream.
@@ -699,6 +700,7 @@ static int out_standby(struct audio_stream *stream)
     pthread_mutex_lock(&rsxadev->lock);
 
     out->output_standby = true;
+    out->write_counter_frames = 0;
 
     pthread_mutex_unlock(&rsxadev->lock);
 
@@ -852,6 +854,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
     pthread_mutex_lock(&rsxadev->lock);
     sink.clear();
+    if (written_frames > 0) {
+        out->write_counter_frames += written_frames;
+    }
     pthread_mutex_unlock(&rsxadev->lock);
 
     if (written_frames < 0) {
@@ -863,12 +868,51 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     return written_bytes;
 }
 
+static int out_get_presentation_position(const struct audio_stream_out *stream,
+                                   uint64_t *frames, struct timespec *timestamp)
+{
+    const submix_stream_out * out = reinterpret_cast<const struct submix_stream_out *>
+            (reinterpret_cast<const uint8_t *>(stream) -
+                    offsetof(struct submix_stream_out, stream));
+    struct submix_audio_device * const rsxadev = out->dev;
+    int ret = 0;
+
+    pthread_mutex_lock(&rsxadev->lock);
+
+    if (frames) {
+        const ssize_t frames_in_pipe =
+                rsxadev->routes[out->route_handle].rsxSource->availableToRead();
+        if (CC_UNLIKELY(frames_in_pipe < 0)) {
+            *frames = out->write_counter_frames;
+        } else {
+            *frames = out->write_counter_frames > (uint64_t) frames_in_pipe ?
+                    out->write_counter_frames - frames_in_pipe : 0;
+        }
+    }
+    if (timestamp) {
+        clock_gettime(CLOCK_MONOTONIC, timestamp);
+    }
+
+    pthread_mutex_unlock(&rsxadev->lock);
+
+    SUBMIX_ALOGV("out_get_presentation_position() got frames=%llu timestamp sec=%llu",
+            frames ? *frames : -1, timestamp ? timestamp->tv_sec : -1);
+
+    return ret;
+}
+
 static int out_get_render_position(const struct audio_stream_out *stream,
                                    uint32_t *dsp_frames)
 {
-    (void)stream;
-    (void)dsp_frames;
-    return -EINVAL;
+    if (!dsp_frames) {
+        return -EINVAL;
+    }
+    uint64_t frames = 0;
+    int ret = out_get_presentation_position(stream, &frames, NULL);
+    if ((ret == 0) && dsp_frames) {
+        *dsp_frames = (uint32_t) frames;
+    }
+    return ret;
 }
 
 static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
@@ -1335,6 +1379,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.write = out_write;
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
+    out->stream.get_presentation_position = out_get_presentation_position;
+
+    out->write_counter_frames = 0;
 
 #if ENABLE_RESAMPLING
     // Recreate the pipe with the correct sample rate so that MonoPipe.write() rate limits
