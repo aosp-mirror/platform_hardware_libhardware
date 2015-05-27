@@ -62,7 +62,7 @@ namespace android {
 #endif // SUBMIX_VERBOSE_LOGGING
 
 // NOTE: This value will be rounded up to the nearest power of 2 by MonoPipe().
-#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*8)
+#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*4)
 // Value used to divide the MonoPipe() buffer into segments that are written to the source and
 // read from the sink.  The maximum latency of the device is the size of the MonoPipe's buffer
 // the minimum latency is the MonoPipe buffer size divided by this value.
