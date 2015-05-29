@@ -135,6 +135,8 @@
  *
  *   - Addition of rotation field to camera3_stream_t.
  *
+ *   - Addition of camera3 stream configuration operation mode to camera3_stream_configuration_t
+ *
  */
 
 /**
@@ -1391,6 +1393,83 @@ typedef enum camera3_stream_rotation {
 } camera3_stream_rotation_t;
 
 /**
+ * camera3_stream_configuration_mode_t:
+ *
+ * This defines the general operation mode for the HAL (for a given stream configuration), where
+ * modes besides NORMAL have different semantics, and usually limit the generality of the API in
+ * exchange for higher performance in some particular area.
+ */
+typedef enum camera3_stream_configuration_mode {
+    /**
+     * Normal stream configuration operation mode. This is the default camera operation mode,
+     * where all semantics of HAL APIs and metadata controls apply.
+     */
+    CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE = 0,
+
+    /**
+     * Special constrained high speed operation mode for devices that can not support high
+     * speed output in NORMAL mode. All streams in this configuration are operating at high speed
+     * mode and have different characteristics and limitations to achieve high speed output.
+     * The NORMAL mode can still be used for high speed output if the HAL can support high speed
+     * output while satisfying all the semantics of HAL APIs and metadata controls. It is
+     * recommended for the HAL to support high speed output in NORMAL mode (by advertising the high
+     * speed FPS ranges in android.control.aeAvailableTargetFpsRanges) if possible.
+     *
+     * This mode has below limitations/requirements:
+     *
+     *   1. The HAL must support up to 2 streams with sizes reported by
+     *      android.control.availableHighSpeedVideoConfigurations.
+     *   2. In this mode, the HAL is expected to output up to 120fps or higher. This mode must
+     *      support the targeted FPS range and size configurations reported by
+     *      android.control.availableHighSpeedVideoConfigurations.
+     *   3. The HAL must support HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED output stream format.
+     *   4. To achieve efficient high speed streaming, the HAL may have to aggregate
+     *      multiple frames together and send to camera device for processing where the request
+     *      controls are same for all the frames in this batch (batch mode). The HAL must support
+     *      max batch size and the max batch size requirements defined by
+     *      android.control.availableHighSpeedVideoConfigurations.
+     *   5. In this mode, the HAL must override aeMode, awbMode, and afMode to ON, ON, and
+     *      CONTINUOUS_VIDEO, respectively. All post-processing block mode controls must be
+     *      overridden to be FAST. Therefore, no manual control of capture and post-processing
+     *      parameters is possible. All other controls operate the same as when
+     *      android.control.mode == AUTO. This means that all other android.control.* fields
+     *      must continue to work, such as
+     *
+     *      android.control.aeTargetFpsRange
+     *      android.control.aeExposureCompensation
+     *      android.control.aeLock
+     *      android.control.awbLock
+     *      android.control.effectMode
+     *      android.control.aeRegions
+     *      android.control.afRegions
+     *      android.control.awbRegions
+     *      android.control.afTrigger
+     *      android.control.aePrecaptureTrigger
+     *
+     *      Outside of android.control.*, the following controls must work:
+     *
+     *      android.flash.mode (TORCH mode only, automatic flash for still capture will not work
+     *      since aeMode is ON)
+     *      android.lens.opticalStabilizationMode (if it is supported)
+     *      android.scaler.cropRegion
+     *      android.statistics.faceDetectMode (if it is supported)
+     *
+     * For more details about high speed stream requirements, see
+     * android.control.availableHighSpeedVideoConfigurations and CONSTRAINED_HIGH_SPEED_VIDEO
+     * capability defined in android.request.availableCapabilities.
+     *
+     * This mode only needs to be supported by HALs that include CONSTRAINED_HIGH_SPEED_VIDEO in
+     * the android.request.availableCapabilities static metadata.
+     */
+    CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE = 1,
+
+    /**
+     * First value for vendor-defined stream configuration modes.
+     */
+    CAMERA3_VENDOR_STREAM_CONFIGURATION_MODE_START = 0x8000
+} camera3_stream_configuration_mode_t;
+
+/**
  * camera3_stream_t:
  *
  * A handle to a single camera input or output stream. A stream is defined by
@@ -1592,6 +1671,19 @@ typedef struct camera3_stream_configuration {
      */
     camera3_stream_t **streams;
 
+    /**
+     * >= CAMERA_DEVICE_API_VERSION_3_3:
+     *
+     * The operation mode of streams in this configuration, one of the value defined in
+     * camera3_stream_configuration_mode_t.
+     * The HAL can use this mode as an indicator to set the stream property (e.g.,
+     * camera3_stream->max_buffers) appropriately. For example, if the configuration is
+     * CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE, the HAL may want to set aside more
+     * buffers for batch mode operation (see android.control.availableHighSpeedVideoConfigurations
+     * for batch mode definition).
+     *
+     */
+    uint32_t operation_mode;
 } camera3_stream_configuration_t;
 
 /**
@@ -2619,6 +2711,11 @@ typedef struct camera3_device_ops {
      *
      *          - Unsupported rotation configuration (only applies to
      *            devices with version >= CAMERA_DEVICE_API_VERSION_3_3)
+     *
+     *          - Stream sizes/formats don't satisfy the
+     *            camera3_stream_configuration_t->operation_mode requirements for non-NORMAL mode,
+     *            or the requested operation_mode is not supported by the HAL.
+     *            (only applies to devices with version >= CAMERA_DEVICE_API_VERSION_3_3)
      *
      *          Note that the framework submitting an invalid stream
      *          configuration is not normal operation, since stream
