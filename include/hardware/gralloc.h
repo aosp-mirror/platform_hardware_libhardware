@@ -127,6 +127,17 @@ enum {
     /* buffer may be used as a cursor */
     GRALLOC_USAGE_CURSOR                = 0x00008000,
 
+    /* Set by the consumer to indicate to the producer that they may attach a
+     * buffer that they did not detach from the BufferQueue. Will be filtered
+     * out by GRALLOC_USAGE_ALLOC_MASK, so gralloc modules will not need to
+     * handle this flag. */
+    GRALLOC_USAGE_FOREIGN_BUFFERS       = 0x00010000,
+
+    /* Mask of all flags which could be passed to a gralloc module for buffer
+     * allocation. Any flags not in this mask do not need to be handled by
+     * gralloc modules. */
+    GRALLOC_USAGE_ALLOC_MASK            = ~(GRALLOC_USAGE_FOREIGN_BUFFERS),
+
     /* implementation-specific private usage flags */
     GRALLOC_USAGE_PRIVATE_0             = 0x10000000,
     GRALLOC_USAGE_PRIVATE_1             = 0x20000000,
