@@ -196,8 +196,13 @@
  *    not-yet-registered streams.
  *
  * 9. When the capture of a request begins (sensor starts exposing for the
- *    capture), the HAL calls camera3_callback_ops_t->notify() with the SHUTTER
- *    event, including the frame number and the timestamp for start of exposure.
+ *    capture) or processing a reprocess request begins, the HAL
+ *    calls camera3_callback_ops_t->notify() with the SHUTTER event, including
+ *    the frame number and the timestamp for start of exposure. For a reprocess
+ *    request, the timestamp must be the start of exposure of the input image
+ *    which can be looked up with android.sensor.timestamp from
+ *    camera3_capture_request_t.settings when process_capture_request() is
+ *    called.
  *
  *    <= CAMERA_DEVICE_API_VERSION_3_1:
  *
@@ -209,7 +214,8 @@
  *    The camera3_callback_ops_t->notify() call with the SHUTTER event should
  *    be made as early as possible since the framework will be unable to
  *    deliver gralloc buffers to the application layer (for that frame) until
- *    it has a valid timestamp for the start of exposure.
+ *    it has a valid timestamp for the start of exposure (or the input image's
+ *    start of exposure for a reprocess request).
  *
  *    Both partial metadata results and the gralloc buffers may be sent to the
  *    framework at any time before or after the SHUTTER event.
@@ -1879,7 +1885,7 @@ typedef enum camera3_msg_type {
     CAMERA3_MSG_ERROR = 1,
 
     /**
-     * The exposure of a given request has
+     * The exposure of a given request or processing a reprocess request has
      * begun. camera3_notify_msg.message.shutter contains the information
      * the capture.
      */
@@ -1970,12 +1976,13 @@ typedef struct camera3_error_msg {
  */
 typedef struct camera3_shutter_msg {
     /**
-     * Frame number of the request that has begun exposure
+     * Frame number of the request that has begun exposure or reprocessing.
      */
     uint32_t frame_number;
 
     /**
-     * Timestamp for the start of capture. This must match the capture result
+     * Timestamp for the start of capture. For a reprocess request, this must
+     * be input image's start of capture. This must match the capture result
      * metadata's sensor exposure start timestamp.
      */
     uint64_t timestamp;
@@ -2449,9 +2456,10 @@ typedef struct camera3_callback_ops {
      * >= CAMERA_DEVICE_API_VERSION_3_2:
      *
      * Buffers delivered to the framework will not be dispatched to the
-     * application layer until a start of exposure timestamp has been received
-     * via a SHUTTER notify() call. It is highly recommended to
-     * dispatch this call as early as possible.
+     * application layer until a start of exposure timestamp (or input image's
+     * start of exposure timestamp for a reprocess request) has been received
+     * via a SHUTTER notify() call. It is highly recommended to dispatch this
+     * call as early as possible.
      *
      * ------------------------------------------------------------------------
      * Performance requirements:
