@@ -673,6 +673,12 @@ typedef struct {
     size_t (*get_internal_state)(char* buffer, size_t bufferSize);
 } GpsDebugInterface;
 
+#pragma pack(push,4)
+// We need to keep the alignment of this data structure to 4-bytes, to ensure that in 64-bit
+// environments the size of this legacy definition does not collide with _v2. Implementations should
+// be using _v2 and _v3, so it's OK to pay the 'unaligned' penalty in 64-bit if an old
+// implementation is still in use.
+
 /** Represents the status of AGPS. */
 typedef struct {
     /** set to sizeof(AGpsStatus_v1) */
@@ -681,6 +687,8 @@ typedef struct {
     AGpsType        type;
     AGpsStatusValue status;
 } AGpsStatus_v1;
+
+#pragma pack(pop)
 
 /** Represents the status of AGPS augmented with a IPv4 address field. */
 typedef struct {
