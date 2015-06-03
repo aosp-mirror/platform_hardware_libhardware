@@ -58,9 +58,7 @@ typedef enum {
     KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4,  /* keymaster_block_mode_t. */
     KM_TAG_DIGEST = KM_ENUM_REP | 5,      /* keymaster_digest_t. */
     KM_TAG_PADDING = KM_ENUM_REP | 6,     /* keymaster_padding_t. */
-    KM_TAG_RETURN_UNAUTHED = KM_BOOL | 7, /* Allow AEAD decryption to return plaintext before it has
-                                             been authenticated.  WARNING: Not recommended. */
-    KM_TAG_CALLER_NONCE = KM_BOOL | 8,    /* Allow caller to specify nonce or IV. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 7,    /* Allow caller to specify nonce or IV. */
 
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_LONG | 200, /* Defaults to 2^16+1 */
@@ -123,8 +121,9 @@ typedef enum {
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
-    KM_TAG_CHUNK_LENGTH = KM_INT | 1002,      /* AEAD mode chunk size, in bytes.  0 means no limit,
-                                                 which requires KM_TAG_RETURN_UNAUTHED. */
+    KM_TAG_AEAD_TAG = KM_BYTES | 1002,        /* AEAD tag data.  Returned from finish() during AEAD
+                                               * encryption and provided to begin() during AEAD
+                                               * decryption.*/
     KM_TAG_AUTH_TOKEN = KM_BYTES | 1003,      /* Authentication token that proves secure user
                                                  authentication has been performed.  Structure
                                                  defined in hw_auth_token_t in hw_auth_token.h. */
@@ -338,7 +337,7 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_EC_FIELD = -50,
     KM_ERROR_MISSING_NONCE = -51,
     KM_ERROR_INVALID_NONCE = -52,
-    KM_ERROR_UNSUPPORTED_CHUNK_LENGTH = -53,
+    KM_ERROR_MISSING_MAC_LENGTH = -53,
     KM_ERROR_CALLER_NONCE_PROHIBITED = -55,
 
     KM_ERROR_UNIMPLEMENTED = -100,
