@@ -30,6 +30,7 @@
 #include <utils/Timers.h>
 
 #include "InputHub.h"
+#include "InputHub-internal.h"
 #include "TestHelpers.h"
 
 // # of milliseconds to fudge stopwatch measurements
@@ -254,6 +255,64 @@ TEST_F(InputHubTest, DISABLED_testCallbackOrder) {
     EXPECT_NEAR(100, elapsedMillis, TIMING_TOLERANCE_MS);
     EXPECT_TRUE(inputCallbackFinished);
     EXPECT_TRUE(deviceCallbackFinished);
+}
+
+using internal::testBitInRange;
+
+TEST(BitInRange, testInvalidRange) {
+    uint8_t arr[2] = { 0xff, 0xff };
+    EXPECT_FALSE(testBitInRange(arr, 0, 0));
+    EXPECT_FALSE(testBitInRange(arr, 1, 0));
+}
+
+TEST(BitInRange, testNoBits) {
+    uint8_t arr[1];
+    arr[0] = 0;
+    EXPECT_FALSE(testBitInRange(arr, 0, 8));
+}
+
+TEST(BitInRange, testOneBit) {
+    uint8_t arr[1];
+    for (int i = 0; i < 8; ++i) {
+        arr[0] = 1 << i;
+        EXPECT_TRUE(testBitInRange(arr, 0, 8));
+    }
+}
+
+TEST(BitInRange, testZeroStart) {
+    uint8_t arr[1] = { 0x10 };
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_FALSE(testBitInRange(arr, 0, i));
+    }
+    for (int i = 5; i <= 8; ++i) {
+        EXPECT_TRUE(testBitInRange(arr, 0, i));
+    }
+}
+
+TEST(BitInRange, testByteBoundaryEnd) {
+    uint8_t arr[1] = { 0x10 };
+    for (int i = 0; i < 5; ++i) {
+        EXPECT_TRUE(testBitInRange(arr, i, 8));
+    }
+    for (int i = 5; i <= 8; ++i) {
+        EXPECT_FALSE(testBitInRange(arr, i, 8));
+    }
+}
+
+TEST(BitInRange, testMultiByteArray) {
+    // bits set: 11 and 16
+    uint8_t arr[3] = { 0x00, 0x08, 0x01 };
+    for (int start = 0; start < 24; ++start) {
+        for (int end = start + 1; end <= 24; ++end) {
+            if (start > 16 || end <= 11 || (start > 11 && end <= 16)) {
+                EXPECT_FALSE(testBitInRange(arr, start, end))
+                    << "range = (" << start << ", " << end << ")";
+            } else {
+                EXPECT_TRUE(testBitInRange(arr, start, end))
+                    << "range = (" << start << ", " << end << ")";
+            }
+        }
+    }
 }
 
 }  // namespace tests

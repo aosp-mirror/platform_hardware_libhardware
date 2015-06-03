@@ -15,7 +15,10 @@
  */
 
 #define LOG_TAG "InputHub"
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
+
+// Enables debug output for hasKeyInRange
+#define DEBUG_KEY_RANGE 0
 
 #include <dirent.h>
 #include <errno.h>
@@ -34,6 +37,7 @@
 #include <vector>
 
 #include "InputHub.h"
+#include "InputHub-internal.h"
 
 #include <android/input.h>
 #include <hardware_legacy/power.h>
@@ -56,6 +60,57 @@ static constexpr size_t sizeofBitArray(size_t bits) {
     return (bits + 7) / 8;
 }
 
+namespace internal {
+
+#if DEBUG_KEY_RANGE
+static const char* bitstrings[16] = {
+    "0000", "0001", "0010", "0011",
+    "0100", "0101", "0110", "0111",
+    "1000", "1001", "1010", "1011",
+    "1100", "1101", "1110", "1111",
+};
+#endif
+
+bool testBitInRange(const uint8_t arr[], size_t start, size_t end) {
+#if DEBUG_KEY_RANGE
+    ALOGD("testBitInRange(%d, %d)", start, end);
+#endif
+    // Invalid range! This is nonsense; just say no.
+    if (end <= start) return false;
+
+    // Find byte array indices. The end is not included in the range, nor is
+    // endIndex. Round up for endIndex.
+    size_t startIndex = start / 8;
+    size_t endIndex = (end + 7) / 8;
+#if DEBUG_KEY_RANGE
+    ALOGD("startIndex=%d, endIndex=%d", startIndex, endIndex);
+#endif
+    for (size_t i = startIndex; i < endIndex; ++i) {
+        uint8_t bits = arr[i];
+        uint8_t mask = 0xff;
+#if DEBUG_KEY_RANGE
+        ALOGD("block %04d: %s%s", i, bitstrings[bits >> 4], bitstrings[bits & 0x0f]);
+#endif
+        if (bits) {
+            // Mask off bits before our start bit
+            if (i == startIndex) {
+                mask &= 0xff << (start % 8);
+            }
+            // Mask off bits after our end bit
+            if (i == endIndex - 1 && (end % 8)) {
+                mask &= 0xff >> (8 - (end % 8));
+            }
+#if DEBUG_KEY_RANGE
+            ALOGD("mask: %s%s", bitstrings[mask >> 4], bitstrings[mask & 0x0f]);
+#endif
+            // Test the index against the mask
+            if (bits & mask) return true;
+        }
+    }
+    return false;
+}
+}  // namespace internal
+
 static void getLinuxRelease(int* major, int* minor) {
     struct utsname info;
     if (uname(&info) || sscanf(info.release, "%d.%d", major, minor) <= 0) {
@@ -74,7 +129,6 @@ static bool processHasCapability(int capability) {
     caphdr->version = _LINUX_CAPABILITY_VERSION_3;
     LOG_ALWAYS_FATAL_IF(capget(caphdr, capdata) != 0,
             "Could not get process capabilities. errno=%d", errno);
-    ALOGV("effective capabilities: %08x %08x", capdata[0].effective, capdata[1].effective);
     int idx = CAP_TO_INDEX(capability);
     return capdata[idx].effective & CAP_TO_MASK(capability);
 }
@@ -102,16 +156,20 @@ public:
     virtual uint16_t getVersion() const override { return mVersion; }
 
     virtual bool hasKey(int32_t key) const override;
-    virtual bool hasRelativeAxis(int axis) const override;
-    virtual const AbsoluteAxisInfo* getAbsoluteAxisInfo(int32_t axis) const override;
+    virtual bool hasKeyInRange(int32_t start, int32_t end) const override;
+    virtual bool hasRelativeAxis(int32_t axis) const override;
+    virtual bool hasAbsoluteAxis(int32_t axis) const override;
+    virtual bool hasSwitch(int32_t sw) const override;
+    virtual bool hasForceFeedback(int32_t ff) const override;
     virtual bool hasInputProperty(int property) const override;
 
     virtual int32_t getKeyState(int32_t key) const override;
     virtual int32_t getSwitchState(int32_t sw) const override;
+    virtual const AbsoluteAxisInfo* getAbsoluteAxisInfo(int32_t axis) const override;
     virtual status_t getAbsoluteAxisValue(int32_t axis, int32_t* outValue) const override;
 
     virtual void vibrate(nsecs_t duration) override;
-    virtual void cancelVibrate(int32_t deviceId) override;
+    virtual void cancelVibrate() override;
 
     virtual void disableDriverKeyRepeat() override;
 
@@ -272,9 +330,20 @@ bool EvdevDeviceNode::hasKey(int32_t key) const {
     return false;
 }
 
+bool EvdevDeviceNode::hasKeyInRange(int32_t startKey, int32_t endKey) const {
+    return internal::testBitInRange(mKeyBitmask, startKey, endKey);
+}
+
 bool EvdevDeviceNode::hasRelativeAxis(int axis) const {
     if (axis >= 0 && axis <= REL_MAX) {
         return testBit(axis, mRelBitmask);
+    }
+    return false;
+}
+
+bool EvdevDeviceNode::hasAbsoluteAxis(int axis) const {
+    if (axis >= 0 && axis <= ABS_MAX) {
+        return getAbsoluteAxisInfo(axis) != nullptr;
     }
     return false;
 }
@@ -289,6 +358,20 @@ const AbsoluteAxisInfo* EvdevDeviceNode::getAbsoluteAxisInfo(int32_t axis) const
         return absInfo->second.get();
     }
     return nullptr;
+}
+
+bool EvdevDeviceNode::hasSwitch(int32_t sw) const {
+    if (sw >= 0 && sw <= SW_MAX) {
+        return testBit(sw, mSwBitmask);
+    }
+    return false;
+}
+
+bool EvdevDeviceNode::hasForceFeedback(int32_t ff) const {
+    if (ff >= 0 && ff <= FF_MAX) {
+        return testBit(ff, mFfBitmask);
+    }
+    return false;
 }
 
 bool EvdevDeviceNode::hasInputProperty(int property) const {
@@ -371,7 +454,7 @@ void EvdevDeviceNode::vibrate(nsecs_t duration) {
     mFfEffectPlaying = true;
 }
 
-void EvdevDeviceNode::cancelVibrate(int32_t deviceId) {
+void EvdevDeviceNode::cancelVibrate() {
     if (mFfEffectPlaying) {
         mFfEffectPlaying = false;
 

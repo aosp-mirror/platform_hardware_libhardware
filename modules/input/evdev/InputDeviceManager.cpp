@@ -34,7 +34,7 @@ void InputDeviceManager::onInputEvent(const std::shared_ptr<InputDeviceNode>& no
 }
 
 void InputDeviceManager::onDeviceAdded(const std::shared_ptr<InputDeviceNode>& node) {
-    mDevices[node] = std::make_shared<EvdevDevice>(node);
+    mDevices[node] = std::make_shared<EvdevDevice>(mHost, node);
 }
 
 void InputDeviceManager::onDeviceRemoved(const std::shared_ptr<InputDeviceNode>& node) {

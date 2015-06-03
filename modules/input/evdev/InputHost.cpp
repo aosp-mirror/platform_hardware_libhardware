@@ -51,11 +51,16 @@ InputProperty::~InputProperty() {
     mCallbacks.input_free_device_property(mHost, mProperty);
 }
 
-const char* InputProperty::getKey() {
+InputProperty::InputProperty(InputProperty&& rhs) :
+    InputHostBase(rhs), mProperty(std::move(rhs.mProperty)) {
+    rhs.mProperty = nullptr;
+}
+
+const char* InputProperty::getKey() const {
     return mCallbacks.input_get_property_key(mHost, mProperty);
 }
 
-const char* InputProperty::getValue() {
+const char* InputProperty::getValue() const {
     return mCallbacks.input_get_property_value(mHost, mProperty);
 }
 
@@ -63,7 +68,12 @@ InputPropertyMap::~InputPropertyMap() {
     mCallbacks.input_free_device_property_map(mHost, mMap);
 }
 
-InputProperty InputPropertyMap::getDeviceProperty(const char* key) {
+InputPropertyMap::InputPropertyMap(InputPropertyMap&& rhs) :
+    InputHostBase(rhs), mMap(std::move(rhs.mMap)) {
+    rhs.mMap = nullptr;
+}
+
+InputProperty InputPropertyMap::getDeviceProperty(const char* key) const {
     return InputProperty(mHost, mCallbacks,
             mCallbacks.input_get_device_property(mHost, mMap, key));
 }

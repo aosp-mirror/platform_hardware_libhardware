@@ -55,7 +55,7 @@ static std::unique_ptr<EvdevModule> gEvdevModule;
 
 EvdevModule::EvdevModule(InputHost inputHost) :
     mInputHost(inputHost),
-    mDeviceManager(std::make_shared<InputDeviceManager>()),
+    mDeviceManager(std::make_shared<InputDeviceManager>(mInputHost)),
     mInputHub(std::make_unique<InputHub>(mDeviceManager)) {}
 
 void EvdevModule::init() {

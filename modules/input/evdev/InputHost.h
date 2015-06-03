@@ -43,6 +43,9 @@ protected:
     InputHostBase(input_host_t* host, input_host_callbacks_t cb) : mHost(host), mCallbacks(cb) {}
     virtual ~InputHostBase() = default;
 
+    InputHostBase(const InputHostBase& rhs) = default;
+    InputHostBase(InputHostBase&& rhs) = default;
+
     input_host_t* mHost;
     input_host_callbacks_t mCallbacks;
 };
@@ -117,12 +120,11 @@ public:
 
     operator input_property_t*() { return mProperty; }
 
-    const char* getKey();
-    const char* getValue();
+    const char* getKey() const;
+    const char* getValue() const;
 
-    // Default move constructor transfers ownership of the input_property_t
-    // pointer.
-    InputProperty(InputProperty&& rhs) = default;
+    // Transfers ownership of the input_property_t pointer.
+    InputProperty(InputProperty&& rhs);
 
     // Prevent copy/assign because of the ownership of the underlying
     // input_property_t pointer.
@@ -145,11 +147,10 @@ public:
 
     operator input_property_map_t*() { return mMap; }
 
-    InputProperty getDeviceProperty(const char* key);
+    InputProperty getDeviceProperty(const char* key) const;
 
-    // Default move constructor transfers ownership of the input_property_map_t
-    // pointer.
-    InputPropertyMap(InputPropertyMap&& rhs) = default;
+    // Transfers ownership of the input_property_map_t pointer.
+    InputPropertyMap(InputPropertyMap&& rhs);
 
     // Prevent copy/assign because of the ownership of the underlying
     // input_property_map_t pointer.

@@ -6,6 +6,7 @@ LOCAL_C_INCLUDES += hardware/libhardware/modules/input/evdev
 LOCAL_SRC_FILES:= \
     InputDevice_test.cpp \
     InputHub_test.cpp \
+    InputMocks.cpp \
     TestHelpers.cpp
 
 LOCAL_SHARED_LIBRARIES := \
