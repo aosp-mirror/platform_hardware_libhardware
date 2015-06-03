@@ -21,6 +21,7 @@ __BEGIN_DECLS
 #define BTSOCK_FLAG_ENCRYPT 1
 #define BTSOCK_FLAG_AUTH (1 << 1)
 #define BTSOCK_FLAG_NO_SDP (1 << 2)
+#define BTSOCK_FLAG_AUTH_MITM (1 << 3)
 
 typedef enum {
     BTSOCK_RFCOMM = 1,
@@ -34,11 +35,11 @@ typedef struct {
     bt_bdaddr_t bd_addr;
     int channel;
     int status;
-    
+
     // The writer must make writes using a buffer of this maximum size
     // to avoid loosing data. (L2CAP only)
     unsigned short max_tx_packet_size;
- 
+
     // The reader must read using a buffer of at least this size to avoid
     // loosing data. (L2CAP only)
     unsigned short max_rx_packet_size;
