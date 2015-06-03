@@ -150,22 +150,17 @@ typedef enum {
 
 /**
  * Symmetric block cipher modes provided by keymaster implementations.
- *
- * KM_MODE_FIRST_UNAUTHENTICATED and KM_MODE_FIRST_AUTHENTICATED are not modes but markers used to
- * separate the available modes into classes.
  */
 typedef enum {
     /* Unauthenticated modes, usable only for encryption/decryption and not generally recommended
      * except for compatibility with existing other protocols. */
-    KM_MODE_FIRST_UNAUTHENTICATED = 1,
-    KM_MODE_ECB = KM_MODE_FIRST_UNAUTHENTICATED,
+    KM_MODE_ECB = 1,
     KM_MODE_CBC = 2,
-    KM_MODE_CTR = 4,
+    KM_MODE_CTR = 3,
 
     /* Authenticated modes, usable for encryption/decryption and signing/verification.  Recommended
      * over unauthenticated modes for all purposes. */
-    KM_MODE_FIRST_AUTHENTICATED = 32,
-    KM_MODE_GCM = KM_MODE_FIRST_AUTHENTICATED,
+    KM_MODE_GCM = 32,
 } keymaster_block_mode_t;
 
 /**
