@@ -26,12 +26,13 @@ __BEGIN_DECLS
  * These events are handled by the state machine
  */
 typedef enum {
-    SDP_TYPE_RAW, // Used to carry raw SDP search data for unknown UUID's 
-    SDP_TYPE_MAP_MAS,
-    SDP_TYPE_MAP_MNS,
-    SDP_TYPE_PBAP_PSE,
-    SDP_TYPE_PBAP_PCE,
-    SDP_TYPE_OPP_SERVER
+    SDP_TYPE_RAW,        // Used to carry raw SDP search data for unknown UUIDs
+    SDP_TYPE_MAP_MAS,    // Message Access Profile - Server
+    SDP_TYPE_MAP_MNS,    // Message Access Profile - Client (Notification Server)
+    SDP_TYPE_PBAP_PSE,   // Phone Book Profile - Server
+    SDP_TYPE_PBAP_PCE,   // Phone Book Profile - Client
+    SDP_TYPE_OPP_SERVER, // Object Push Profile
+    SDP_TYPE_SAP_SERVER  // SIM Access Profile
 } bluetooth_sdp_types;
 
 typedef struct _bluetooth_sdp_hdr {
@@ -92,6 +93,10 @@ typedef struct _bluetooth_sdp_ops_record {
     uint8_t     supported_formats_list[SDP_OPP_SUPPORTED_FORMATS_MAX_LENGTH];
 } bluetooth_sdp_ops_record;
 
+typedef struct _bluetooth_sdp_sap_record {
+    bluetooth_sdp_hdr_overlay hdr;
+} bluetooth_sdp_sap_record;
+
 typedef union {
     bluetooth_sdp_hdr_overlay   hdr;
     bluetooth_sdp_mas_record    mas;
@@ -99,6 +104,7 @@ typedef union {
     bluetooth_sdp_pse_record    pse;
     bluetooth_sdp_pce_record    pce;
     bluetooth_sdp_ops_record    ops;
+    bluetooth_sdp_sap_record    sap;
 } bluetooth_sdp_record;
 
 
