@@ -298,7 +298,7 @@ struct keymaster1_device {
      * KM_TAG_APPLICATION_DATA are never returned.
      */
     keymaster_error_t (*generate_key)(const struct keymaster1_device* dev,
-                                      const keymaster_key_param_t* params, size_t params_count,
+                                      const keymaster_key_param_set_t* params,
                                       keymaster_key_blob_t* key_blob,
                                       keymaster_key_characteristics_t** characteristics);
 
@@ -381,9 +381,10 @@ struct keymaster1_device {
      * ownership and must deallocate with keymaster_free_characteristics().
      */
     keymaster_error_t (*import_key)(const struct keymaster1_device* dev,
-                                    const keymaster_key_param_t* params, size_t params_count,
-                                    keymaster_key_format_t key_format, const uint8_t* key_data,
-                                    size_t key_data_length, keymaster_key_blob_t* key_blob,
+                                    const keymaster_key_param_set_t* params,
+                                    keymaster_key_format_t key_format,
+                                    const keymaster_blob_t* key_data,
+                                    keymaster_key_blob_t* key_blob,
                                     keymaster_key_characteristics_t** characteristics);
 
     /**
@@ -403,8 +404,8 @@ struct keymaster1_device {
                                     keymaster_key_format_t export_format,
                                     const keymaster_key_blob_t* key_to_export,
                                     const keymaster_blob_t* client_id,
-                                    const keymaster_blob_t* app_data, uint8_t** export_data,
-                                    size_t* export_data_length);
+                                    const keymaster_blob_t* app_data,
+                                    keymaster_blob_t* export_data);
 
     /**
      * Deletes the key, or key pair, associated with the key blob.  After calling this function it
@@ -471,9 +472,9 @@ struct keymaster1_device {
      * update(), finish() or abort().
      */
     keymaster_error_t (*begin)(const struct keymaster1_device* dev, keymaster_purpose_t purpose,
-                               const keymaster_key_blob_t* key, const keymaster_key_param_t* params,
-                               size_t params_count, keymaster_key_param_t** out_params,
-                               size_t* out_params_count,
+                               const keymaster_key_blob_t* key,
+                               const keymaster_key_param_set_t* in_params,
+                               keymaster_key_param_set_t* out_params,
                                keymaster_operation_handle_t* operation_handle);
 
     /**
@@ -516,9 +517,9 @@ struct keymaster1_device {
      */
     keymaster_error_t (*update)(const struct keymaster1_device* dev,
                                 keymaster_operation_handle_t operation_handle,
-                                const keymaster_key_param_t* params, size_t params_count,
-                                const uint8_t* input, size_t input_length, size_t* input_consumed,
-                                uint8_t** output, size_t* output_length);
+                                const keymaster_key_param_set_t* in_params,
+                                const keymaster_blob_t* input, size_t* input_consumed,
+                                keymaster_key_param_set_t* out_params, keymaster_blob_t* output);
 
     /**
      * Finalizes a cryptographic operation begun with begin() and invalidates operation_handle
@@ -549,9 +550,9 @@ struct keymaster1_device {
      */
     keymaster_error_t (*finish)(const struct keymaster1_device* dev,
                                 keymaster_operation_handle_t operation_handle,
-                                const keymaster_key_param_t* params, size_t params_count,
-                                const uint8_t* signature, size_t signature_length, uint8_t** output,
-                                size_t* output_length);
+                                const keymaster_key_param_set_t* in_params,
+                                const keymaster_blob_t* signature,
+                                keymaster_key_param_set_t* out_params, keymaster_blob_t* output);
 
     /**
      * Aborts a cryptographic operation begun with begin(), freeing all internal resources and
