@@ -75,7 +75,7 @@ enum {
     GRALLOC_USAGE_SW_READ_OFTEN         = 0x00000003,
     /* mask for the software read values */
     GRALLOC_USAGE_SW_READ_MASK          = 0x0000000F,
-    
+
     /* buffer is never written in software */
     GRALLOC_USAGE_SW_WRITE_NEVER        = 0x00000000,
     /* buffer is rarely written in software */
@@ -95,6 +95,21 @@ enum {
     GRALLOC_USAGE_HW_COMPOSER           = 0x00000800,
     /* buffer will be used with the framebuffer device */
     GRALLOC_USAGE_HW_FB                 = 0x00001000,
+
+    /* buffer should be displayed full-screen on an external display when
+     * possible */
+    GRALLOC_USAGE_EXTERNAL_DISP         = 0x00002000,
+
+    /* Must have a hardware-protected path to external display sink for
+     * this buffer.  If a hardware-protected path is not available, then
+     * either don't composite only this buffer (preferred) to the
+     * external sink, or (less desirable) do not route the entire
+     * composition to the external sink.  */
+    GRALLOC_USAGE_PROTECTED             = 0x00004000,
+
+    /* buffer may be used as a cursor */
+    GRALLOC_USAGE_CURSOR                = 0x00008000,
+
     /* buffer will be used with the HW video encoder */
     GRALLOC_USAGE_HW_VIDEO_ENCODER      = 0x00010000,
     /* buffer will be written by the HW camera pipeline */
@@ -110,22 +125,6 @@ enum {
 
     /* buffer will be used as a RenderScript Allocation */
     GRALLOC_USAGE_RENDERSCRIPT          = 0x00100000,
-
-    /* buffer should be displayed full-screen on an external display when
-     * possible
-     */
-    GRALLOC_USAGE_EXTERNAL_DISP         = 0x00002000,
-
-    /* Must have a hardware-protected path to external display sink for
-     * this buffer.  If a hardware-protected path is not available, then
-     * either don't composite only this buffer (preferred) to the
-     * external sink, or (less desirable) do not route the entire
-     * composition to the external sink.
-     */
-    GRALLOC_USAGE_PROTECTED             = 0x00004000,
-
-    /* buffer may be used as a cursor */
-    GRALLOC_USAGE_CURSOR                = 0x00008000,
 
     /* Set by the consumer to indicate to the producer that they may attach a
      * buffer that they did not detach from the BufferQueue. Will be filtered
