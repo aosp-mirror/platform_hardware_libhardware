@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 extern "C" {
 #endif  // __cplusplus
 
@@ -510,7 +510,7 @@ inline void keymaster_free_characteristics(keymaster_key_characteristics_t* char
     }
 }
 
-#ifndef __cplusplus
+#ifdef __cplusplus
 }  // extern "C"
 #endif  // __cplusplus
 
