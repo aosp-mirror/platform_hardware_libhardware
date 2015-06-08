@@ -53,7 +53,7 @@ static int fingerprint_cancel(struct fingerprint_device __unused *dev) {
 }
 
 static int fingerprint_remove(struct fingerprint_device __unused *dev,
-                                fingerprint_finger_id_t __unused fingerprint_id) {
+                                uint32_t __unused gid, uint32_t __unused fid) {
     return FINGERPRINT_ERROR;
 }
 
