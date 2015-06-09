@@ -22,6 +22,7 @@ __BEGIN_DECLS
 #define BTSOCK_FLAG_AUTH (1 << 1)
 #define BTSOCK_FLAG_NO_SDP (1 << 2)
 #define BTSOCK_FLAG_AUTH_MITM (1 << 3)
+#define BTSOCK_FLAG_AUTH_16_DIGIT (1 << 4)
 
 typedef enum {
     BTSOCK_RFCOMM = 1,
