@@ -92,7 +92,7 @@ public:
     sp<SurfaceComposerClient> mComposerClient;
     sp<SurfaceControl> mSurfaceControl;
 
-    void CreateOnScreenSurface(sp<ANativeWindow>& surface) {
+    void CreateOnScreenSurface(sp<Surface>& surface) {
         mComposerClient = new SurfaceComposerClient;
         ASSERT_EQ(NO_ERROR, mComposerClient->initCheck());
 
@@ -175,7 +175,7 @@ public:
                 int width,
                 int height,
                 const sp<CameraDeviceBase>& device,
-                CameraStreamParams param, sp<ANativeWindow> surface,
+                CameraStreamParams param, sp<Surface> surface,
                 bool useCpuConsumer)
             : mDevice(device),
               mWidth(width),
@@ -188,11 +188,11 @@ public:
                 mCpuConsumer = new CpuConsumer(consumer, param.mHeapCount);
                 mCpuConsumer->setName(String8(
                         "CameraMultiStreamTest::mCpuConsumer"));
-                mNativeWindow = new Surface(producer);
+                mSurface = new Surface(producer);
             } else {
                 // Render the stream to screen.
                 mCpuConsumer = NULL;
-                mNativeWindow = surface;
+                mSurface = surface;
             }
 
             mFrameListener = new FrameListener();
@@ -207,7 +207,7 @@ public:
          */
         void SetUp() {
             ASSERT_EQ(OK,
-                mDevice->createStream(mNativeWindow,
+                mDevice->createStream(mSurface,
                     mWidth, mHeight, mFormat, HAL_DATASPACE_UNKNOWN,
                     CAMERA3_STREAM_ROTATION_0, &mStreamId));
 
@@ -225,14 +225,14 @@ public:
                 mDevice->deleteStream(mStreamId);
             }
             // Clear producer before consumer.
-            mNativeWindow.clear();
+            mSurface.clear();
             mCpuConsumer.clear();
         }
 
     private:
         sp<FrameListener>       mFrameListener;
         sp<CpuConsumer>         mCpuConsumer;
-        sp<ANativeWindow>       mNativeWindow;
+        sp<Surface>             mSurface;
         sp<CameraDeviceBase>    mDevice;
         int                     mStreamId;
         int                     mWidth;
@@ -334,7 +334,7 @@ public:
             int height,
             const sp<CameraDeviceBase>& device,
             CameraStreamParams param = DEFAULT_STREAM_PARAMETERS,
-            sp<ANativeWindow> surface = NULL,
+            sp<Surface> surface = NULL,
             bool useCpuConsumer = true) {
         param.mFormat = MapAutoFormat(param.mFormat);
         return new CameraStream(width, height, device,
@@ -583,7 +583,7 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
     // Preview stream: small resolution, render on the screen.
     sp<CameraStream> previewStream;
     {
-        sp<ANativeWindow> surface;
+        sp<Surface> surface;
         ASSERT_NO_FATAL_FAILURE(CreateOnScreenSurface(/*out*/surface));
         previewStream = CreateStream(
                 previewSize.width,
