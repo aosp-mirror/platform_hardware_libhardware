@@ -56,38 +56,12 @@ typedef struct fingerprint_finger_id {
     uint32_t fid;
 } fingerprint_finger_id_t;
 
-/* The progress indication may be augmented by a bitmap encoded indication
-* of what finger area is considered as collected.
-* Bit numbers mapped to physical location:
-*
-*             distal
-*        +--+--+--+--+--+
-*        | 4| 3| 2| 1| 0|
-*        | 9| 8| 7| 6| 5|
-* medial |14|13|12|11|10| lateral
-*        |19|18|17|16|15|
-*        |24|23|22|21|20|
-*        +--+--+--+--+--+
-*            proximal
-*
-*/
-typedef uint32_t finger_map_bmp;
-
-typedef enum fingerprint_enroll_msg_type {
-    FINGERPRINT_ENROLL_MSG_NONE = 0,
-    FINGERPRINT_ENROLL_MSG_PREDEFINED = 1,  /* TODO: define standard enroll cues */
-    FINGERPRINT_ENROLL_MSG_BITMAP = 2,  /* typeof(fingerprint_enroll.msg) == *finger_map_bmp */
-    FINGERPRINT_ENROLL_MSG_VENDOR = 3
-} fingerprint_enroll_msg_type_t;
-
 typedef struct fingerprint_enroll {
     fingerprint_finger_id_t finger;
     /* samples_remaining goes from N (no data collected, but N scans needed)
      * to 0 (no more data is needed to build a template). */
     uint32_t samples_remaining;
-    fingerprint_enroll_msg_type_t msg_type;
-    size_t msg_size;
-    void *msg;
+    uint64_t msg; /* Vendor specific message. Used for user guidance */
 } fingerprint_enroll_t;
 
 typedef struct fingerprint_removed {

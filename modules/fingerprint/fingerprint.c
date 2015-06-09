@@ -58,7 +58,7 @@ static int fingerprint_remove(struct fingerprint_device __unused *dev,
 }
 
 static int fingerprint_set_active_group(struct fingerprint_device __unused *dev,
-                                        uint32_t __unused gid) {
+                                        uint32_t __unused gid, const char __unused *store_path) {
     return FINGERPRINT_ERROR;
 }
 
