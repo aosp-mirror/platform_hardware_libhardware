@@ -152,6 +152,8 @@ typedef struct
     uint8_t activity_energy_info_supported;
     uint16_t scan_result_storage_size;
     uint16_t total_trackable_advertisers;
+    bool extended_scan_support;
+    bool debug_logging_supported;
 }bt_local_le_features_t;
 
 /* Bluetooth Adapter and Remote Device property types */
