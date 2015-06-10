@@ -43,7 +43,8 @@ void InputDeviceManager::onDeviceRemoved(const std::shared_ptr<InputDeviceNode>&
         return;
     }
     // TODO: tell the InputDevice and InputDeviceNode that they are being
-    // removed so they can run any cleanup.
+    // removed so they can run any cleanup, including unregistering from the
+    // host.
     mDevices.erase(node);
 }
 
