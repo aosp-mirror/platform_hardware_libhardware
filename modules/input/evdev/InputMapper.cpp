@@ -16,6 +16,8 @@
 
 #include "InputMapper.h"
 
+#include "InputHost.h"
+
 namespace android {
 
 InputReport* InputMapper::getInputReport() {

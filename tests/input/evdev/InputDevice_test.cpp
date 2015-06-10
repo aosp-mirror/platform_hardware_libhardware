@@ -14,8 +14,7 @@
  * limitations under the License.
  */
 
-#define LOG_TAG "InputHub_test"
-//#define LOG_NDEBUG 0
+#include "InputDevice.h"
 
 #include <memory>
 
@@ -25,7 +24,6 @@
 
 #include <utils/Timers.h>
 
-#include "InputDevice.h"
 #include "InputHub.h"
 #include "InputMocks.h"
 #include "MockInputHost.h"

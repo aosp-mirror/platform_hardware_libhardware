@@ -20,6 +20,8 @@
 // Enables debug output for processing input events
 #define DEBUG_INPUT_EVENTS 0
 
+#include "InputDevice.h"
+
 #include <linux/input.h>
 
 #define __STDC_FORMAT_MACROS
@@ -30,9 +32,8 @@
 #include <utils/Log.h>
 #include <utils/Timers.h>
 
+#include "InputHost.h"
 #include "InputHub.h"
-#include "InputDevice.h"
-#include "InputMapper.h"
 #include "SwitchInputMapper.h"
 
 #define MSC_ANDROID_TIME_SEC  0x6

@@ -17,6 +17,8 @@
 #define LOG_TAG "TestHelpers"
 #define LOG_NDEBUG 0
 
+#include "TestHelpers.h"
+
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -25,8 +27,6 @@
 #include <unistd.h>
 
 #include <utils/Log.h>
-
-#include "TestHelpers.h"
 
 namespace android {
 

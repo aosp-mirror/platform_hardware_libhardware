@@ -17,10 +17,11 @@
 #define LOG_TAG "InputDeviceManager"
 //#define LOG_NDEBUG 0
 
+#include "InputDeviceManager.h"
+
 #include <utils/Log.h>
 
 #include "InputDevice.h"
-#include "InputDeviceManager.h"
 
 namespace android {
 
