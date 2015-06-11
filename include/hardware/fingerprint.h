@@ -89,7 +89,7 @@ typedef struct fingerprint_msg {
 } fingerprint_msg_t;
 
 /* Callback function type */
-typedef void (*fingerprint_notify_t)(fingerprint_msg_t msg);
+typedef void (*fingerprint_notify_t)(const fingerprint_msg_t *msg);
 
 /* Synchronous operation */
 typedef struct fingerprint_device {
@@ -174,16 +174,16 @@ typedef struct fingerprint_device {
 
     /*
      * Fingerprint remove request:
-     * deletes a fingerprint template or a previously selected group.
-     * If the fingerprint id is 0 then the entire group is removed.
-     * notify() will be called for each template deleted with
+     * Deletes a fingerprint template.
+     * Works only within a path set by set_active_group().
+     * notify() will be called with details on the template deleted.
      * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
-     * fingerprint_msg.data.removed.id indicating each template id removed.
+     * fingerprint_msg.data.removed.id indicating the template id removed.
      *
      * Function return: 0 if fingerprint template(s) can be successfully deleted
      *                 -1 otherwise.
      */
-    int (*remove)(struct fingerprint_device *dev, fingerprint_finger_id_t finger);
+    int (*remove)(struct fingerprint_device *dev, uint32_t gid, uint32_t fid);
 
     /*
      * Restricts the HAL operation to a set of fingerprints belonging to a
