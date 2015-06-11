@@ -16,6 +16,8 @@
 
 #include <gtest/gtest.h>
 
+#include <stdlib.h>
+
 #include "TestExtensions.h"
 
 namespace android {
@@ -37,9 +39,7 @@ class DISABLED_ForkedTest : public ::testing::Test {
 // intentionally fail
 TEST_F(DISABLED_ForkedTest, FailCrash) {
     TEST_EXTENSION_FORKING_INIT;
-
-    //intentionally crash
-    *(int*)0 = 0xDEADBEEF;
+    abort();
 }
 
 TEST_F(DISABLED_ForkedTest, SucceedNormal) {
