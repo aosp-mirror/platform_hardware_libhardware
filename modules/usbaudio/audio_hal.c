@@ -55,6 +55,8 @@ static const unsigned k_force_channels = 0;
 
 #define DEFAULT_INPUT_BUFFER_SIZE_MS 20
 
+// stereo channel count
+#define FCC_2 2
 // fixed channel count of 8 limitation (for data processing in AudioFlinger)
 #define FCC_8 8
 
@@ -528,10 +530,14 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         proposed_channel_count =  profile_get_default_channel_count(out->profile);
     }
     if (proposed_channel_count != 0) {
-        config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
-        if (config->channel_mask == AUDIO_CHANNEL_INVALID)
+        if (proposed_channel_count <= FCC_2) {
+            // use channel position mask for mono and stereo
+            config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
+        } else {
+            // use channel index mask for multichannel
             config->channel_mask =
                     audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
+        }
         out->hal_channel_count = proposed_channel_count;
     } else {
         out->hal_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
