@@ -2958,6 +2958,14 @@ typedef struct camera3_device_ops {
      * interruptible hardware blocks should be stopped, and any uninterruptible
      * blocks should be waited on.
      *
+     * flush() may be called concurrently to process_capture_request(), with the expectation that
+     * process_capture_request will return quickly and the request submitted in that
+     * process_capture_request call is treated like all other in-flight requests.  Due to
+     * concurrency issues, it is possible that from the HAL's point of view, a
+     * process_capture_request() call may be started after flush has been invoked but has not
+     * returned yet. If such a call happens before flush() returns, the HAL should treat the new
+     * capture request like other in-flight pending requests (see #4 below).
+     *
      * More specifically, the HAL must follow below requirements for various cases:
      *
      * 1. For captures that are too late for the HAL to cancel/stop, and will be
@@ -3001,6 +3009,12 @@ typedef struct camera3_device_ops {
      *
      *    3.7. For fully-missing metadata, calling CAMERA3_MSG_ERROR_RESULT is sufficient, no
      *         need to call process_capture_result with NULL metadata or equivalent.
+     *
+     * 4. If a flush() is invoked while a process_capture_request() invocation is active, that
+     *    process call should return as soon as possible. In addition, if a process_capture_request()
+     *    call is made after flush() has been invoked but before flush() has returned, the
+     *    capture request provided by the late process_capture_request call should be treated like
+     *    a pending request in case #2 above.
      *
      * flush() should only return when there are no more outstanding buffers or
      * requests left in the HAL. The framework may call configure_streams (as
