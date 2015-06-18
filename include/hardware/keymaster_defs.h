@@ -84,9 +84,8 @@ typedef enum {
                                                            boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500,          /* If key is usable by all users. */
-    KM_TAG_USER_ID = KM_INT | 501,             /* ID of authorized user.  Disallowed if
-                                                  KM_TAG_ALL_USERS is present. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,          /* Reserved for future use -- ignore */
+    KM_TAG_USER_ID = KM_INT | 501,             /* Reserved for future use -- ignore */
     KM_TAG_USER_SECURE_ID = KM_LONG_REP | 502, /* Secure ID of authorized user or authenticator(s).
                                                   Disallowed if KM_TAG_ALL_USERS or
                                                   KM_TAG_NO_AUTH_REQUIRED is present. */
@@ -103,9 +102,8 @@ typedef enum {
                                                   device is powered off. */
 
     /* Application access control */
-    KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* If key is usable by all applications. */
-    KM_TAG_APPLICATION_ID = KM_BYTES | 601,  /* ID of authorized application. Disallowed if
-                                                KM_TAG_ALL_APPLICATIONS is present. */
+    KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* Reserved for future use -- ignore */
+    KM_TAG_APPLICATION_ID = KM_BYTES | 601,  /* Reserved for fugure use -- ignore */
 
     /*
      * Semantically unenforceable tags, either because they have no specific meaning or because
