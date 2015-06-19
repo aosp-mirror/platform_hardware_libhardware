@@ -121,13 +121,10 @@ typedef enum {
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
     KM_TAG_NONCE = KM_BYTES | 1001,           /* Nonce or Initialization Vector */
-    KM_TAG_AEAD_TAG = KM_BYTES | 1002,        /* AEAD tag data.  Returned from finish() during AEAD
-                                               * encryption and provided to begin() during AEAD
-                                               * decryption.*/
-    KM_TAG_AUTH_TOKEN = KM_BYTES | 1003,      /* Authentication token that proves secure user
+    KM_TAG_AUTH_TOKEN = KM_BYTES | 1002,      /* Authentication token that proves secure user
                                                  authentication has been performed.  Structure
                                                  defined in hw_auth_token_t in hw_auth_token.h. */
-    KM_TAG_MAC_LENGTH = KM_INT | 1004,        /* MAC or AEAD authentication tag length in bits. */
+    KM_TAG_MAC_LENGTH = KM_INT | 1003,        /* MAC or AEAD authentication tag length in bits. */
 } keymaster_tag_t;
 
 /**
