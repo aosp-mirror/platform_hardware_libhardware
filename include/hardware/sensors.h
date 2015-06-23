@@ -108,12 +108,12 @@ enum {
      */
     SENSOR_HAL_NORMAL_MODE        = 0,
 
-    /* 
-     * Loopback mode. In this mode, the device shall not source data from the
+    /*
+     * Data Injection mode. In this mode, the device shall not source data from the
      * physical sensors as it would in normal mode. Instead sensor data is
      * injected by the sensor service.
      */
-    SENSOR_HAL_LOOPBACK_MODE      = 0x1
+    SENSOR_HAL_DATA_INJECTION_MODE      = 0x1
 };
 
 /*
@@ -138,7 +138,16 @@ enum {
     SENSOR_FLAG_CONTINUOUS_MODE        = 0,    // 0000
     SENSOR_FLAG_ON_CHANGE_MODE         = 0x2,  // 0010
     SENSOR_FLAG_ONE_SHOT_MODE          = 0x4,  // 0100
-    SENSOR_FLAG_SPECIAL_REPORTING_MODE = 0x6   // 0110
+    SENSOR_FLAG_SPECIAL_REPORTING_MODE = 0x6,  // 0110
+
+    /*
+     * Set this flag if the sensor supports data_injection mode and allows data to be injected
+     * from the SensorService. When in data_injection ONLY sensors with this flag set are injected
+     * sensor data and only sensors with this flag set are activated. Eg: Accelerometer and Step
+     * Counter sensors can be set with this flag and SensorService will inject accelerometer data
+     * and read the corresponding step counts.
+     */
+    SENSOR_FLAG_SUPPORTS_DATA_INJECTION = 0x8  // 1000
 };
 
 /*
@@ -146,6 +155,12 @@ enum {
  */
 #define REPORTING_MODE_MASK              (0xE)
 #define REPORTING_MODE_SHIFT             (1)
+
+/*
+ * Mask and shift for data_injection mode sensor flags defined above.
+ */
+#define DATA_INJECTION_MASK              (0x10)
+#define DATA_INJECTION_SHIFT             (4)
 
 /*
  * Sensor type
@@ -838,9 +853,9 @@ struct sensors_module_t {
      *  0 - Normal operation. Default state of the module.
      *  1 - Loopback mode. Data is injected for the the supported
      *      sensors by the sensor service in this mode.
-     * @return 0 on success 
+     * @return 0 on success
      *         -EINVAL if requested mode is not supported
-     *         -EPERM if operation is not allowed 
+     *         -EPERM if operation is not allowed
      */
     int (*set_operation_mode)(unsigned int mode);
 };
@@ -1043,8 +1058,8 @@ typedef struct sensors_poll_device_1 {
     /*
      * Inject a single sensor sample to be to this device.
      * data points to the sensor event to be injected
-     * @return 0 on success 
-     *         -EPERM if operation is not allowed 
+     * @return 0 on success
+     *         -EPERM if operation is not allowed
      *         -EINVAL if sensor event cannot be injected
      */
     int (*inject_sensor_data)(struct sensors_poll_device_1 *dev, const sensors_event_t *data);
