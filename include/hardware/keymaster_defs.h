@@ -34,14 +34,14 @@ typedef enum {
     KM_INVALID = 0 << 28, /* Invalid type, used to designate a tag as uninitialized */
     KM_ENUM = 1 << 28,
     KM_ENUM_REP = 2 << 28, /* Repeatable enumeration value. */
-    KM_INT = 3 << 28,
-    KM_INT_REP = 4 << 28, /* Repeatable integer value */
-    KM_LONG = 5 << 28,
+    KM_UINT = 3 << 28,
+    KM_UINT_REP = 4 << 28, /* Repeatable integer value */
+    KM_ULONG = 5 << 28,
     KM_DATE = 6 << 28,
     KM_BOOL = 7 << 28,
     KM_BIGNUM = 8 << 28,
     KM_BYTES = 9 << 28,
-    KM_LONG_REP = 10 << 28, /* Repeatable long value */
+    KM_ULONG_REP = 10 << 28, /* Repeatable long value */
 } keymaster_tag_type_t;
 
 typedef enum {
@@ -54,14 +54,14 @@ typedef enum {
     /* Crypto parameters */
     KM_TAG_PURPOSE = KM_ENUM_REP | 1,     /* keymaster_purpose_t. */
     KM_TAG_ALGORITHM = KM_ENUM | 2,       /* keymaster_algorithm_t. */
-    KM_TAG_KEY_SIZE = KM_INT | 3,         /* Key size in bits. */
+    KM_TAG_KEY_SIZE = KM_UINT | 3,        /* Key size in bits. */
     KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4,  /* keymaster_block_mode_t. */
     KM_TAG_DIGEST = KM_ENUM_REP | 5,      /* keymaster_digest_t. */
     KM_TAG_PADDING = KM_ENUM_REP | 6,     /* keymaster_padding_t. */
     KM_TAG_CALLER_NONCE = KM_BOOL | 7,    /* Allow caller to specify nonce or IV. */
 
     /* Algorithm-specific. */
-    KM_TAG_RSA_PUBLIC_EXPONENT = KM_LONG | 200, /* Defaults to 2^16+1 */
+    KM_TAG_RSA_PUBLIC_EXPONENT = KM_ULONG | 200,
 
     /* Other hardware-enforced. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
@@ -78,28 +78,28 @@ typedef enum {
                                                            longer be created. */
     KM_TAG_USAGE_EXPIRE_DATETIME = KM_DATE | 402,       /* Date when existing "messages" should no
                                                            longer be trusted. */
-    KM_TAG_MIN_SECONDS_BETWEEN_OPS = KM_INT | 403,      /* Minimum elapsed time between
+    KM_TAG_MIN_SECONDS_BETWEEN_OPS = KM_UINT | 403,     /* Minimum elapsed time between
                                                            cryptographic operations with the key. */
-    KM_TAG_MAX_USES_PER_BOOT = KM_INT | 404,            /* Number of times the key can be used per
+    KM_TAG_MAX_USES_PER_BOOT = KM_UINT | 404,           /* Number of times the key can be used per
                                                            boot. */
 
     /* User authentication */
-    KM_TAG_ALL_USERS = KM_BOOL | 500,          /* Reserved for future use -- ignore */
-    KM_TAG_USER_ID = KM_INT | 501,             /* Reserved for future use -- ignore */
-    KM_TAG_USER_SECURE_ID = KM_LONG_REP | 502, /* Secure ID of authorized user or authenticator(s).
-                                                  Disallowed if KM_TAG_ALL_USERS or
-                                                  KM_TAG_NO_AUTH_REQUIRED is present. */
-    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 503,   /* If key is usable without authentication. */
-    KM_TAG_USER_AUTH_TYPE = KM_ENUM | 504,     /* Bitmask of authenticator types allowed when
-                                                * KM_TAG_USER_SECURE_ID contains a secure user ID,
-                                                * rather than a secure authenticator ID.  Defined in
-                                                * hw_authenticator_type_t in hw_auth_token.h. */
-    KM_TAG_AUTH_TIMEOUT = KM_INT | 505,        /* Required freshness of user authentication for
-                                                  private/secret key operations, in seconds.
-                                                  Public key operations require no authentication.
-                                                  If absent, authentication is required for every
-                                                  use.  Authentication state is lost when the
-                                                  device is powered off. */
+    KM_TAG_ALL_USERS = KM_BOOL | 500,           /* Reserved for future use -- ignore */
+    KM_TAG_USER_ID = KM_UINT | 501,             /* Reserved for future use -- ignore */
+    KM_TAG_USER_SECURE_ID = KM_ULONG_REP | 502, /* Secure ID of authorized user or authenticator(s).
+                                                   Disallowed if KM_TAG_ALL_USERS or
+                                                   KM_TAG_NO_AUTH_REQUIRED is present. */
+    KM_TAG_NO_AUTH_REQUIRED = KM_BOOL | 503,    /* If key is usable without authentication. */
+    KM_TAG_USER_AUTH_TYPE = KM_ENUM | 504,      /* Bitmask of authenticator types allowed when
+                                                 * KM_TAG_USER_SECURE_ID contains a secure user ID,
+                                                 * rather than a secure authenticator ID.  Defined in
+                                                 * hw_authenticator_type_t in hw_auth_token.h. */
+    KM_TAG_AUTH_TIMEOUT = KM_UINT | 505,        /* Required freshness of user authentication for
+                                                   private/secret key operations, in seconds.
+                                                   Public key operations require no authentication.
+                                                   If absent, authentication is required for every
+                                                   use.  Authentication state is lost when the
+                                                   device is powered off. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* Reserved for future use -- ignore */
@@ -122,7 +122,7 @@ typedef enum {
     KM_TAG_AUTH_TOKEN = KM_BYTES | 1002,      /* Authentication token that proves secure user
                                                  authentication has been performed.  Structure
                                                  defined in hw_auth_token_t in hw_auth_token.h. */
-    KM_TAG_MAC_LENGTH = KM_INT | 1003,        /* MAC or AEAD authentication tag length in bits. */
+    KM_TAG_MAC_LENGTH = KM_UINT | 1003,       /* MAC or AEAD authentication tag length in bits. */
 } keymaster_tag_t;
 
 /**
@@ -357,7 +357,7 @@ static inline uint32_t keymaster_tag_mask_type(keymaster_tag_t tag) {
 
 static inline bool keymaster_tag_type_repeatable(keymaster_tag_type_t type) {
     switch (type) {
-    case KM_INT_REP:
+    case KM_UINT_REP:
     case KM_ENUM_REP:
         return true;
     default:
@@ -440,11 +440,11 @@ inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymast
     case KM_ENUM:
     case KM_ENUM_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->enumerated, b->enumerated);
-    case KM_INT:
-    case KM_INT_REP:
+    case KM_UINT:
+    case KM_UINT_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->integer, b->integer);
-    case KM_LONG:
-    case KM_LONG_REP:
+    case KM_ULONG:
+    case KM_ULONG_REP:
         return KEYMASTER_SIMPLE_COMPARE(a->long_integer, b->long_integer);
     case KM_DATE:
         return KEYMASTER_SIMPLE_COMPARE(a->date_time, b->date_time);
