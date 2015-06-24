@@ -143,7 +143,36 @@ struct gatekeeper_device {
             const uint8_t *provided_password, uint32_t provided_password_length,
             uint8_t **auth_token, uint32_t *auth_token_length, bool *request_reenroll);
 
+    /*
+     * Deletes the enrolled_password_handle associated wth the uid. Once deleted
+     * the user cannot be verified anymore.
+     * This function is optional and should be set to NULL if it is not implemented.
+     *
+     * Parameters
+     * - dev: pointer to gatekeeper_device acquired via calls to gatekeeper_open
+     * - uid: the Android user identifier
+     *
+     * Returns:
+     * - 0 on success
+     * - An error code < 0 on failure
+     */
+    int (*delete_user)(const struct gatekeeper_device *dev,  uint32_t uid);
+
+    /*
+     * Deletes all the enrolled_password_handles for all uid's. Once called,
+     * no users will be enrolled on the device.
+     * This function is optional and should be set to NULL if it is not implemented.
+     *
+     * Parameters
+     * - dev: pointer to gatekeeper_device acquired via calls to gatekeeper_open
+     *
+     * Returns:
+     * - 0 on success
+     * - An error code < 0 on failure
+     */
+    int (*delete_all_users)(const struct gatekeeper_device *dev);
 };
+
 typedef struct gatekeeper_device gatekeeper_device_t;
 
 static inline int gatekeeper_open(const struct hw_module_t *module,
