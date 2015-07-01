@@ -102,21 +102,21 @@ typedef struct fingerprint_device {
     struct hw_device_t common;
 
     /*
-     * Fingerprint enroll request:
-     * Switches the HAL state machine to collect and store a new fingerprint
-     * template. Switches back as soon as enroll is complete
-     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
-     *  fingerprint_msg.data.enroll.samples_remaining == 0)
-     * or after timeout_sec seconds.
-     * The fingerprint template will be assigned to the group gid. User has a choice
-     * to supply the gid or set it to 0 in which case a unique group id will be generated.
-     *
-     * Function return: 0 if enrollment process can be successfully started
-     *                 -1 otherwise. A notify() function may be called
-     *                    indicating the error condition.
+     * Client provided callback function to receive notifications.
+     * Do not set by hand, use the function above instead.
      */
-    int (*enroll)(struct fingerprint_device *dev, const hw_auth_token_t *hat,
-                    uint32_t gid, uint32_t timeout_sec);
+    fingerprint_notify_t notify;
+
+    /*
+     * Set notification callback:
+     * Registers a user function that would receive notifications from the HAL
+     * The call will block if the HAL state machine is in busy state until HAL
+     * leaves the busy state.
+     *
+     * Function return: 0 if callback function is successfuly registered
+     *                  or a negative number in case of error, generally from the errno.h set.
+     */
+    int (*set_notify)(struct fingerprint_device *dev, fingerprint_notify_t notify);
 
     /*
      * Fingerprint pre-enroll enroll request:
@@ -131,22 +131,49 @@ typedef struct fingerprint_device {
     uint64_t (*pre_enroll)(struct fingerprint_device *dev);
 
     /*
+     * Fingerprint enroll request:
+     * Switches the HAL state machine to collect and store a new fingerprint
+     * template. Switches back as soon as enroll is complete
+     * (fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENROLLING &&
+     *  fingerprint_msg.data.enroll.samples_remaining == 0)
+     * or after timeout_sec seconds.
+     * The fingerprint template will be assigned to the group gid. User has a choice
+     * to supply the gid or set it to 0 in which case a unique group id will be generated.
+     *
+     * Function return: 0 if enrollment process can be successfully started
+     *                  or a negative number in case of error, generally from the errno.h set.
+     *                  A notify() function may be called indicating the error condition.
+     */
+    int (*enroll)(struct fingerprint_device *dev, const hw_auth_token_t *hat,
+                    uint32_t gid, uint32_t timeout_sec);
+
+    /*
+     * Finishes the enroll operation and invalidates the pre_enroll() generated challenge.
+     * This will be called at the end of a multi-finger enrollment session to indicate
+     * that no more fingers will be added.
+     *
+     * Function return: 0 if the request is accepted
+     *                  or a negative number in case of error, generally from the errno.h set.
+     */
+    int (*post_enroll)(struct fingerprint_device *dev);
+
+    /*
      * get_authenticator_id:
      * Returns a token associated with the current fingerprint set. This value will
      * change whenever a new fingerprint is enrolled, thus creating a new fingerprint
      * set.
      *
-     * Function return: current authenticator id.
+     * Function return: current authenticator id or 0 if function failed.
      */
     uint64_t (*get_authenticator_id)(struct fingerprint_device *dev);
 
     /*
      * Cancel pending enroll or authenticate, sending FINGERPRINT_ERROR_CANCELED
      * to all running clients. Switches the HAL state machine back to the idle state.
-     * will indicate switch back to the scan mode.
+     * Unlike enroll_done() doesn't invalidate the pre_enroll() challenge.
      *
      * Function return: 0 if cancel request is accepted
-     *                 -1 otherwise.
+     *                  or a negative number in case of error, generally from the errno.h set.
      */
     int (*cancel)(struct fingerprint_device *dev);
 
@@ -165,9 +192,8 @@ typedef struct fingerprint_device {
      * The caller of this function has a complete list of the templates when *max_size
      * is the same as the function return.
      *
-     * Function return: Total number of fingerprint templates in the current
-                        storage directory.
-     *                 -1 on error.
+     * Function return: Total number of fingerprint templates in the current storage directory.
+     *                  or a negative number in case of error, generally from the errno.h set.
      */
     int (*enumerate)(struct fingerprint_device *dev, fingerprint_finger_id_t *results,
         uint32_t *max_size);
@@ -181,7 +207,7 @@ typedef struct fingerprint_device {
      * fingerprint_msg.data.removed.id indicating the template id removed.
      *
      * Function return: 0 if fingerprint template(s) can be successfully deleted
-     *                 -1 otherwise.
+     *                  or a negative number in case of error, generally from the errno.h set.
      */
     int (*remove)(struct fingerprint_device *dev, uint32_t gid, uint32_t fid);
 
@@ -192,7 +218,7 @@ typedef struct fingerprint_device {
      * data directory.
      *
      * Function return: 0 on success
-     *                 -1 if the group does not exist.
+     *                  or a negative number in case of error, generally from the errno.h set.
      */
     int (*set_active_group)(struct fingerprint_device *dev, uint32_t gid,
                             const char *store_path);
@@ -201,26 +227,12 @@ typedef struct fingerprint_device {
      * Authenticates an operation identifed by operation_id
      *
      * Function return: 0 on success
-     *                 -1 if the operation cannot be completed
+     *                  or a negative number in case of error, generally from the errno.h set.
      */
     int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id, uint32_t gid);
 
-    /*
-     * Set notification callback:
-     * Registers a user function that would receive notifications from the HAL
-     * The call will block if the HAL state machine is in busy state until HAL
-     * leaves the busy state.
-     *
-     * Function return: 0 if callback function is successfuly registered
-     *                 -1 otherwise.
-     */
-    int (*set_notify)(struct fingerprint_device *dev, fingerprint_notify_t notify);
-
-    /*
-     * Client provided callback function to receive notifications.
-     * Do not set by hand, use the function above instead.
-     */
-    fingerprint_notify_t notify;
+    /* Reserved for backward binary compatibility */
+    void *reserved[4];
 } fingerprint_device_t;
 
 typedef struct fingerprint_module {
