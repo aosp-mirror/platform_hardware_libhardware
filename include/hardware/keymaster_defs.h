@@ -59,6 +59,8 @@ typedef enum {
     KM_TAG_DIGEST = KM_ENUM_REP | 5,      /* keymaster_digest_t. */
     KM_TAG_PADDING = KM_ENUM_REP | 6,     /* keymaster_padding_t. */
     KM_TAG_CALLER_NONCE = KM_BOOL | 7,    /* Allow caller to specify nonce or IV. */
+    KM_TAG_MIN_MAC_LENGTH = KM_UINT | 8,  /* Minimum length of MAC or AEAD authentication tag in
+                                           * bits. */
 
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_ULONG | 200,
@@ -336,6 +338,9 @@ typedef enum {
     KM_ERROR_KEY_RATE_LIMIT_EXCEEDED = -54,
     KM_ERROR_CALLER_NONCE_PROHIBITED = -55,
     KM_ERROR_KEY_MAX_OPS_EXCEEDED = -56,
+    KM_ERROR_INVALID_MAC_LENGTH = -57,
+    KM_ERROR_MISSING_MIN_MAC_LENGTH = -58,
+    KM_ERROR_UNSUPPORTED_MIN_MAC_LENGTH = -59,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
