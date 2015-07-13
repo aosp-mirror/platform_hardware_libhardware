@@ -2,7 +2,6 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-	camera2.cpp \
 	camera2_utils.cpp \
 	main.cpp \
 	CameraMetadataTests.cpp \
