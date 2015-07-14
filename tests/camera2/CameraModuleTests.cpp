@@ -120,7 +120,7 @@ TEST_F(CameraModuleTest, GetCameraInfoBadIndices) {
     for (unsigned i = 0; i < sizeof(idx)/sizeof(idx[0]); ++i) {
         struct camera_info info;
         EXPECT_NE(OK, mModule->getCameraInfo(idx[i], &info));
-        EXPECT_EQ(-ENODEV, mModule->getCameraInfo(idx[i], &info))
+        EXPECT_EQ(-EINVAL, mModule->getCameraInfo(idx[i], &info))
             << "Incorrect error code for get_camera_info idx= "
             << idx[i];
     }
