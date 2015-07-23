@@ -34,6 +34,8 @@
 #include <dlfcn.h>
 #include <SensorEventQueue.h>
 
+#include <limits.h>
+#include <stdlib.h>
 
 static const char* CONFIG_FILENAME = "/system/etc/sensors/hals.conf";
 static const char* LEGAL_SUBHAL_PATH_PREFIX = "/system/lib/hw/";
