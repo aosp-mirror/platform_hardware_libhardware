@@ -115,8 +115,7 @@ typedef enum {
     KM_TAG_CREATION_DATETIME = KM_DATE | 701,  /* Key creation time */
     KM_TAG_ORIGIN = KM_ENUM | 702,             /* keymaster_key_origin_t. */
     KM_TAG_ROLLBACK_RESISTANT = KM_BOOL | 703, /* Whether key is rollback-resistant. */
-    KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,     /* Root of trust ID.  Empty array means usable by all
-                                                  roots. */
+    KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,     /* Root of trust ID. */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
