@@ -250,11 +250,8 @@ struct keymaster1_device {
      * of useful keys are:
      *
      * - KM_TAG_ALGORITHM;
-     * - KM_TAG_PURPOSE;
-     * - KM_TAG_USER_ID or KM_TAG_ALL_USERS;
-     * - KM_TAG_USER_AUTH_ID or KM_TAG_NO_AUTH_REQUIRED;
-     * - KM_TAG_APPLICATION_ID or KM_TAG_ALL_APPLICATIONS; and
-     * - KM_TAG_ORIGINATION_EXPIRE_DATETIME
+     * - KM_TAG_PURPOSE; and
+     * - (KM_TAG_USER_SECURE_ID and KM_TAG_USER_AUTH_TYPE) or KM_TAG_NO_AUTH_REQUIRED.
      *
      * KM_TAG_AUTH_TIMEOUT should generally be specified unless KM_TAG_NO_AUTH_REQUIRED is present,
      * or the user will have to authenticate for every use.
@@ -262,25 +259,11 @@ struct keymaster1_device {
      * KM_TAG_BLOCK_MODE, KM_TAG_PADDING, KM_TAG_MAC_LENGTH and KM_TAG_DIGEST must be specified for
      * algorithms that require them.
      *
-     * The following tags will take default values if unspecified:
-     *
-     * - KM_TAG_KEY_SIZE defaults to a recommended key size for the  specified algorithm.
-     *
-     * - KM_TAG_USAGE_EXPIRE_DATETIME defaults to the value of KM_TAG_ORIGINATION_EXPIRE_DATETIME.
-     *
-     * - KM_TAG_ACTIVE_DATETIME will default to the value of KM_TAG_CREATION_DATETIME
-     *
-     * - KM_TAG_ROOT_OF_TRUST will default to the current root of trust.
-     *
-     * - KM_TAG_{RSA|DSA|DH}_* will default to values appropriate for the specified key size.
-     *
      * The following tags may not be specified; their values will be provided by the implementation.
      *
      * - KM_TAG_ORIGIN,
-     *
      * - KM_TAG_ROLLBACK_RESISTANT,
-     *
-     * - KM_TAG_CREATION_DATETIME,
+     * - KM_TAG_CREATION_DATETIME
      *
      * \param[in] dev The keymaster device structure.
      *
@@ -288,12 +271,11 @@ struct keymaster1_device {
      *
      * \param[in] params_count Length of \p params.
      *
-     * \param[out] key_blob returns the generated key. If \p key_blob is NULL, no key is generated,
-     * but the characteristics of the key that would be generated are returned.  The caller assumes
-     * ownership key_blob->key_material and must free() it.
+     * \param[out] key_blob returns the generated key. \p key_blob must not be NULL.  The caller
+     * assumes ownership key_blob->key_material and must free() it.
      *
-     * \param[out] characteristics returns the characteristics of the key that was, or would be,
-     * generated, if non-NULL.  The caller assumes ownership, and the object must be freed with
+     * \param[out] characteristics returns the characteristics of the key that was, generated, if
+     * non-NULL.  If non-NULL, the caller assumes ownership and must deallocate with
      * keymaster_free_characteristics().  Note that KM_TAG_ROOT_OF_TRUST, KM_TAG_APPLICATION_ID and
      * KM_TAG_APPLICATION_DATA are never returned.
      */
@@ -303,11 +285,13 @@ struct keymaster1_device {
                                       keymaster_key_characteristics_t** characteristics);
 
     /**
-     * Returns the characteristics of the specified key, or NULL if the key_blob is invalid
-     * (implementations must fully validate the integrity of the key).  client_id and app_data must
-     * be the ID and data provided when the key was generated or imported.  Those values are not
-     * included in the returned characteristics.  Caller assumes ownership of the allocated
-     * characteristics object, which must be deallocated with keymaster_free_characteristics().
+     * Returns the characteristics of the specified key, or KM_ERROR_INVALID_KEY_BLOB if the
+     * key_blob is invalid (implementations must fully validate the integrity of the key).
+     * client_id and app_data must be the ID and data provided when the key was generated or
+     * imported, or empty if KM_TAG_APPLICATION_ID and/or KM_TAG_APPLICATION_DATA were not provided
+     * during generation.  Those values are not included in the returned characteristics.  The
+     * caller assumes ownership of the allocated characteristics object, which must be deallocated
+     * with keymaster_free_characteristics().
      *
      * Note that KM_TAG_ROOT_OF_TRUST, KM_TAG_APPLICATION_ID and KM_TAG_APPLICATION_DATA are never
      * returned.
@@ -332,38 +316,26 @@ struct keymaster1_device {
      * Imports a key, or key pair, returning a key blob and/or a description of the key.
      *
      * Most key import parameters are defined as keymaster tag/value pairs, provided in "params".
-     * See keymaster_tag_t for the full list.  Some values that are always required for import of
-     * useful keys are:
+     * See keymaster_tag_t for the full list.  Values that are always required for import of useful
+     * keys are:
      *
-     * - KM_TAG_PURPOSE;
-     *
-     * - KM_TAG_USER_ID
-     *
-     * - KM_TAG_USER_AUTH_ID;
-     *
-     * - KM_TAG_APPLICATION_ID or KM_TAG_ALL_APPLICATIONS;
-     *
-     * - KM_TAG_PRIVKEY_EXPIRE_DATETIME.
+     * - KM_TAG_ALGORITHM;
+     * - KM_TAG_PURPOSE; and
+     * - (KM_TAG_USER_SECURE_ID and KM_TAG_USER_AUTH_TYPE) or KM_TAG_NO_AUTH_REQUIRED.
      *
      * KM_TAG_AUTH_TIMEOUT should generally be specified. If unspecified, the user will have to
-     * authenticate for every use, unless KM_TAG_USER_AUTH_ID is set to
-     * KM_NO_AUTHENTICATION_REQUIRED.
+     * authenticate for every use.
      *
      * The following tags will take default values if unspecified:
      *
-     * - KM_TAG_PUBKEY_EXPIRE_DATETIME will default to the value for KM_TAG_PRIVKEY_EXPIRE_DATETIME.
-     *
-     * - KM_TAG_ACTIVE_DATETIME will default to the value of KM_TAG_CREATION_DATETIME
-     *
-     * - KM_TAG_ROOT_OF_TRUST will default to the current root of trust.
+     * - KM_TAG_KEY_SIZE will default to the size of the key provided.
+     * - KM_TAG_RSA_PUBLIC_EXPONENT will default to the value in the key provided (for RSA keys)
      *
      * The following tags may not be specified; their values will be provided by the implementation.
      *
      * - KM_TAG_ORIGIN,
-     *
      * - KM_TAG_ROLLBACK_RESISTANT,
-     *
-     * - KM_TAG_CREATION_DATETIME,
+     * - KM_TAG_CREATION_DATETIME
      *
      * \param[in] dev The keymaster device structure.
      *
@@ -378,7 +350,9 @@ struct keymaster1_device {
      *
      * \param[out] characteristics Used to return the characteristics of the imported key.  May be
      * NULL, in which case no characteristics will be returned.  If non-NULL, the caller assumes
-     * ownership and must deallocate with keymaster_free_characteristics().
+     * ownership and must deallocate with keymaster_free_characteristics().  Note that
+     * KM_TAG_ROOT_OF_TRUST, KM_TAG_APPLICATION_ID and
+     * KM_TAG_APPLICATION_DATA are never returned.
      */
     keymaster_error_t (*import_key)(const struct keymaster1_device* dev,
                                     const keymaster_key_param_set_t* params,
@@ -439,37 +413,40 @@ struct keymaster1_device {
      *
      * It is critical that each call to begin() be paired with a subsequent call to finish() or
      * abort(), to allow the keymaster implementation to clean up any internal operation state.
-     * Failure to do this will leak internal state space or other internal resources and will
+     * Failure to do this may leak internal state space or other internal resources and may
      * eventually cause begin() to return KM_ERROR_TOO_MANY_OPERATIONS when it runs out of space for
-     * operations.
+     * operations.  Any result other than KM_ERROR_OK from begin(), update() or finish() implicitly
+     * aborts the operation, in which case abort() need not be called (and will return
+     * KM_ERROR_INVALID_OPERATION_HANDLE if called).
      *
      * \param[in] dev The keymaster device structure.
      *
      * \param[in] purpose The purpose of the operation, one of KM_PURPOSE_ENCRYPT,
      * KM_PURPOSE_DECRYPT, KM_PURPOSE_SIGN or KM_PURPOSE_VERIFY. Note that for AEAD modes,
-     * encryption and decryption imply signing and verification, respectively.
+     * encryption and decryption imply signing and verification, respectively, but should be
+     * specified as KM_PURPOSE_ENCRYPT and KM_PURPOSE_DECRYPT.
      *
      * \param[in] key The key to be used for the operation. \p key must have a purpose compatible
      * with \p purpose and all of its usage requirements must be satisfied, or begin() will return
      * an appropriate error code.
      *
-     * \param[in] params Additional parameters for the operation.  This is typically used to provide
-     * client ID information, with tags KM_TAG_APPLICATION_ID and KM_TAG_APPLICATION_DATA.  If the
-     * client information associated with the key is not provided, begin() will fail and return
-     * KM_ERROR_INVALID_KEY_BLOB.  For operations that require a nonce or IV, this must contain a
-     * tag KM_TAG_NONCE.  For AEAD operations KM_TAG_CHUNK_SIZE is specified here.
+     * \param[in] in_params Additional parameters for the operation.  This is typically used to
+     * provide authentication data, with KM_TAG_AUTH_TOKEN.  If KM_TAG_APPLICATION_ID or
+     * KM_TAG_APPLICATION_DATA were provided during generation, they must be provided here, or the
+     * operation will fail with KM_ERROR_INVALID_KEY_BLOB.  For operations that require a nonce or
+     * IV, on keys that were generated with KM_TAG_CALLER_NONCE, in_params may contain a tag
+     * KM_TAG_NONCE.  For AEAD operations KM_TAG_CHUNK_SIZE is specified here.
      *
-     * \param[in] params_count The number of entries in \p params.
-     *
-     * \param[out] out_params Array of output parameters.  The caller takes ownership of the output
-     * parametes array and must free it.  out_params may be set to NULL if no output parameters are
-     * expected.  If NULL, and output paramaters are generated, begin() will return
+     * \param[out] out_params Output parameters.  Used to return additional data from the operation
+     * initialization, notably to return the IV or nonce from operations that generate an IV or
+     * nonce.  The caller takes ownership of the output parameters array and must free it with
+     * keymaster_free_param_set().  out_params may be set to NULL if no output parameters are
+     * expected.  If out_params is NULL, and output paramaters are generated, begin() will return
      * KM_ERROR_OUTPUT_PARAMETER_NULL.
      *
-     * \param[out] out_params_count The length of out_params.
-     *
      * \param[out] operation_handle The newly-created operation handle which must be passed to
-     * update(), finish() or abort().
+     * update(), finish() or abort().  If operation_handle is NULL, begin() will return
+     * KM_ERROR_OUTPUT_PARAMETER_NULL.
      */
     keymaster_error_t (*begin)(const struct keymaster1_device* dev, keymaster_purpose_t purpose,
                                const keymaster_key_blob_t* key,
@@ -483,37 +460,37 @@ struct keymaster1_device {
      *
      * If operation_handle is invalid, update() will return KM_ERROR_INVALID_OPERATION_HANDLE.
      *
-     * Not all of the data provided in the data buffer may be consumed.  update() will return the
-     * amount consumed in *data_consumed.  The caller should provide the unconsumed data in a
+     * update() may not consume all of the data provided in the data buffer.  update() will return
+     * the amount consumed in *data_consumed.  The caller should provide the unconsumed data in a
      * subsequent call.
      *
      * \param[in] dev The keymaster device structure.
      *
      * \param[in] operation_handle The operation handle returned by begin().
      *
-     * \param[in] params Additional parameters for the operation.  For AEAD modes, this is used to
-     * specify KM_TAG_ADDITIONAL_DATA.
-     *
-     * \param[in] params_count Length of \p params.
+     * \param[in] in_params Additional parameters for the operation.  For AEAD modes, this is used
+     * to specify KM_TAG_ADDITIONAL_DATA.  Note that additional data may be provided in multiple
+     * calls to update(), but only until input data has been provided.
      *
      * \param[in] input Data to be processed, per the parameters established in the call to begin().
-     * Note that update() may or may not consume all of the data provided.  See \p data_consumed.
-     *
-     * \param[in] input_length Length of \p input.
+     * Note that update() may or may not consume all of the data provided.  See \p input_consumed.
      *
      * \param[out] input_consumed Amount of data that was consumed by update().  If this is less
      * than the amount provided, the caller should provide the remainder in a subsequent call to
      * update().
      *
+     * \param[out] out_params Output parameters.  Used to return additional data from the operation
+     * The caller takes ownership of the output parameters array and must free it with
+     * keymaster_free_param_set().  out_params may be set to NULL if no output parameters are
+     * expected.  If out_params is NULL, and output paramaters are generated, begin() will return
+     * KM_ERROR_OUTPUT_PARAMETER_NULL.
+     *
      * \param[out] output The output data, if any.  The caller assumes ownership of the allocated
-     * buffer.  If output is NULL then NO input data is consumed and no output is produced, but
-     * *output_length is set to an estimate of the size that would have been produced by this
-     * update() and a subsequent finish().
+     * buffer.  output must not be NULL.
      *
-     * \param[out] output_length The length of the output buffer.
-     *
-     * Note that update() may not provide any output, in which case *output_length will be zero, and
-     * *output may be either NULL or zero-length (so the caller should always free() it).
+     * Note that update() may not provide any output, in which case output->data_length will be
+     * zero, and output->data may be either NULL or zero-length (so the caller should always free()
+     * it).
      */
     keymaster_error_t (*update)(const struct keymaster1_device* dev,
                                 keymaster_operation_handle_t operation_handle,
@@ -522,8 +499,7 @@ struct keymaster1_device {
                                 keymaster_key_param_set_t* out_params, keymaster_blob_t* output);
 
     /**
-     * Finalizes a cryptographic operation begun with begin() and invalidates operation_handle
-     * (except in the insufficient buffer case, detailed below).
+     * Finalizes a cryptographic operation begun with begin() and invalidates \p operation_handle.
      *
      * \param[in] dev The keymaster device structure.
      *
@@ -531,19 +507,13 @@ struct keymaster1_device {
      * invalidated.
      *
      * \param[in] params Additional parameters for the operation.  For AEAD modes, this is used to
-     * specify KM_TAG_ADDITIONAL_DATA.
-     *
-     * \param[in] params_count Length of \p params.
+     * specify KM_TAG_ADDITIONAL_DATA, but only if no input data was provided to update().
      *
      * \param[in] signature The signature to be verified if the purpose specified in the begin()
      * call was KM_PURPOSE_VERIFY.
      *
-     * \param[in] signature_length The length of \p signature.
-     *
      * \param[out] output The output data, if any.  The caller assumes ownership of the allocated
      * buffer.
-     *
-     * \param[out] output_length The length of the output buffer.
      *
      * If the operation being finished is a signature verification or an AEAD-mode decryption and
      * verification fails then finish() will return KM_ERROR_VERIFICATION_FAILED.
@@ -556,7 +526,7 @@ struct keymaster1_device {
 
     /**
      * Aborts a cryptographic operation begun with begin(), freeing all internal resources and
-     * invalidating operation_handle.
+     * invalidating \p operation_handle.
      */
     keymaster_error_t (*abort)(const struct keymaster1_device* dev,
                                keymaster_operation_handle_t operation_handle);
