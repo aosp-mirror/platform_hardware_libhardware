@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_SWITCH_INPUT_MAPPER_H_
-#define ANDROID_SWITCH_INPUT_MAPPER_H_
+#ifndef ANDROID_MOUSE_INPUT_MAPPER_H_
+#define ANDROID_MOUSE_INPUT_MAPPER_H_
 
 #include <cstdint>
 
@@ -26,23 +26,31 @@
 
 namespace android {
 
-class SwitchInputMapper : public InputMapper {
+class MouseInputMapper : public InputMapper {
 public:
-    SwitchInputMapper();
-    virtual ~SwitchInputMapper() = default;
+    virtual ~MouseInputMapper() = default;
 
     virtual bool configureInputReport(InputDeviceNode* devNode,
             InputReportDefinition* report) override;
     virtual void process(const InputEvent& event) override;
 
 private:
-    void processSwitch(int32_t switchCode, int32_t switchValue);
+    void processMotion(int32_t code, int32_t value);
+    void processButton(int32_t code, int32_t value);
     void sync(nsecs_t when);
 
-    BitSet32 mSwitchValues;
-    BitSet32 mUpdatedSwitchMask;
+    BitSet32 mButtonValues;
+    BitSet32 mUpdatedButtonMask;
+
+    int32_t mRelX = 0;
+    int32_t mRelY = 0;
+
+    bool mHaveRelWheel = false;
+    bool mHaveRelHWheel = false;
+    int32_t mRelWheel = 0;
+    int32_t mRelHWheel = 0;
 };
 
 }  // namespace android
 
-#endif  // ANDROID_SWITCH_INPUT_MAPPER_H_
+#endif  // ANDROID_MOUSE_INPUT_MAPPER_H_

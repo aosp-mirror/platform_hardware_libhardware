@@ -24,6 +24,7 @@ LOCAL_SRC_FILES := \
     InputDeviceManager.cpp \
     InputHost.cpp \
     InputMapper.cpp \
+    MouseInputMapper.cpp \
     SwitchInputMapper.cpp
 
 LOCAL_SHARED_LIBRARIES := \

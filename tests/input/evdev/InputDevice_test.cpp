@@ -146,6 +146,8 @@ TEST_F(EvdevDeviceTest, testN7v2HeadsetJack) {
     // only the SwitchInputMapper has been implemented.
     // TODO: move this expectation out to a common function
     EXPECT_CALL(mHost, createInputReportDefinition());
+    EXPECT_CALL(mHost, createOutputReportDefinition());
+    EXPECT_CALL(mHost, freeReportDefinition(_));
     EXPECT_CALL(mHost, registerDevice(_, _));
 
     auto node = std::shared_ptr<MockInputDeviceNode>(MockNexus7v2::getHeadsetJack());
