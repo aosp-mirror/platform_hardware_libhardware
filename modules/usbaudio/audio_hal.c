@@ -442,8 +442,16 @@ static int out_get_render_position(const struct audio_stream_out *stream, uint32
 static int out_get_presentation_position(const struct audio_stream_out *stream,
                                          uint64_t *frames, struct timespec *timestamp)
 {
-    /* FIXME - This needs to be implemented */
-    return -EINVAL;
+    struct stream_out *out = (struct stream_out *)stream; // discard const qualifier
+    lock_output_stream(out);
+
+    const alsa_device_proxy *proxy = &out->proxy;
+    const int ret = proxy_get_presentation_position(proxy, frames, timestamp);
+
+    pthread_mutex_unlock(&out->lock);
+    ALOGV("out_get_presentation_position() status:%d  frames:%llu",
+            ret, (unsigned long long)*frames);
+    return ret;
 }
 
 static int out_add_audio_effect(const struct audio_stream *stream, effect_handle_t effect)
