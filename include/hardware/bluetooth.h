@@ -542,6 +542,12 @@ typedef struct {
      * Function is synchronous and |fd| is owned by caller.
      */
     void (*dump)(int fd);
+
+    /**
+     * Clear /data/misc/bt_config.conf and erase all stored connections
+     */
+    int (*config_clear)(void);
+
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
