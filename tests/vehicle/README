@@ -1,0 +1,73 @@
+What does this document tell?
+
+This document details how to use the vehicle service if you are implementhing
+HAL. It lists the various places to look for code and how to build and test the
+code on your own dev device.
+
+This code also provides a simple command line utility for the target to test the
+vehicle HAL.
+
+What is the code?
+
+The code is split into folowing logical components:
+a) hardware/libhardware/include/hardware/vehicle.h - this is the main HAL
+interface that will be required to be implemented by the OEMs. It includes all
+documentation necessary to understand what vehicle subsystems are exposed,
+various units, capabilities and any other relevant details about the HAL design
+itself.
+
+b) hardware/libhardware/modules/vehicle/vehicle.c
+This is a reference implementation for the OEMs to have a peek into getting
+started with a barebones structure. There are implementation for each of the
+critical HAL functions such as, get(), set() and subscribe().
+
+c) hardware/libhardware/tests/vehicle/vehicle_test.cpp & vehicle_test_fixtures.h
+These are native tests that can be run on the target to validate basic
+features of HAL implementation. Things such as loading of HAL and
+basic functions are implemented (by check if the returned functions are not NULL
+pointers) can be asserted. It also checks if the subscribe function is doing its
+job by spitting out data at continuous intervals and printed on the stdout.
+
+d) hardware/libhardware/tests/vehicle/vehicle-hal-tool.c
+This tool will provide you with a simple utility which can set commands to the
+HAL such as:
+i) Getting a property (and printing its value).
+ii) Setting a property (and the HAL will take some setting action).
+iii) Subscribe to a property (and the HAL should send you values at some certain
+intevals).
+
+See the usage() function in vehicle-hal-tool.c for details on how to use the
+binary.
+
+How to build and run?
+
+You can build everything by issuing the following from the top of directory. It
+is assumed that you have done a first run of make from the top level so that
+intermediates are generated.
+
+$ croot
+$ mmm hardware/libhardware
+
+This will generate the following binaries that we care about:
+i) out/target/product/XXX/system/lib/hw/vehicle.default.so
+ii) out/target/product/XXX/data/nativetest/vehicle_tests
+iii) out/target/product/XXX/system/bin/vehicle-hal-tool
+
+The location for the first shared library would be:
+$ adb push out/target/product/XXX/system/lib/hw/vehicle.default.so
+/system/lib/hw
+You can also use 'adb sync' if you like, although this is the easiest least
+hassle way of putting it in place.
+
+The second binary is a native test - which is nothing but an executable for the
+target device. You can load it anywhere in your /data directory and run it as:
+$ adb push out/target/product/XXX/data/nativetest/vehicle_tests
+/data/tmp/vehicle_tests
+$ adb shell
+$ ./data/tmp/vehicle_tests
+<...output should be spitted with passing tests for atleast the reference
+implementation ...>
+
+The last binary is the command line tool, to push the binary on your target do:
+$ adb push out/target/product/XXX/system/bin/vehicle-hal-tool
+/data/tmp/vehicle-hal-tool
