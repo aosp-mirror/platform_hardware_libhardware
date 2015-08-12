@@ -33,7 +33,7 @@
 #include <cutils/log.h>
 #include <cutils/atomic.h>
 
-#if HAVE_ANDROID_OS
+#ifdef __ANDROID__
 #include <linux/fb.h>
 #endif
 
