@@ -481,7 +481,8 @@ inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymast
 #undef KEYMASTER_SIMPLE_COMPARE
 
 inline void keymaster_free_param_values(keymaster_key_param_t* param, size_t param_count) {
-    while (param_count-- > 0) {
+    while (param_count > 0) {
+        param_count--;
         switch (keymaster_tag_get_type(param->tag)) {
         case KM_BIGNUM:
         case KM_BYTES:
