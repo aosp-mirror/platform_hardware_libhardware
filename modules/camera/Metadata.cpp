@@ -52,7 +52,7 @@ int Metadata::init(const camera_metadata_t *metadata)
 {
     camera_metadata_t* tmp;
 
-    if (!validate_camera_metadata_structure(metadata, NULL))
+    if (validate_camera_metadata_structure(metadata, NULL))
         return -EINVAL;
 
     tmp = clone_camera_metadata(metadata);
@@ -130,16 +130,23 @@ bool Metadata::validate(uint32_t tag, int tag_type, int count)
 int Metadata::add(uint32_t tag, int count, const void *tag_data)
 {
     int res;
+    size_t entry_capacity = 0;
+    size_t data_capacity = 0;
     camera_metadata_t* tmp;
     int tag_type = get_camera_metadata_tag_type(tag);
     size_t size = calculate_camera_metadata_entry_data_size(tag_type, count);
-    size_t entry_capacity = get_camera_metadata_entry_count(mData) + 1;
-    size_t data_capacity = get_camera_metadata_data_count(mData) + size;
 
-    // Opportunistically attempt to add if metadata has room for it
-    if (!add_camera_metadata_entry(mData, tag, tag_data, count))
+    if (NULL == mData) {
+        entry_capacity = 1;
+        data_capacity = size;
+    } else {
+        entry_capacity = get_camera_metadata_entry_count(mData) + 1;
+        data_capacity = get_camera_metadata_data_count(mData) + size;
+    }
+
+    // Opportunistically attempt to add if metadata exists and has room for it
+    if (mData && !add_camera_metadata_entry(mData, tag, tag_data, count))
         return 0;
-
     // Double new dimensions to minimize future reallocations
     tmp = allocate_camera_metadata(entry_capacity * 2, data_capacity * 2);
     if (tmp == NULL) {
@@ -147,22 +154,24 @@ int Metadata::add(uint32_t tag, int count, const void *tag_data)
                 __func__, entry_capacity, data_capacity);
         return -ENOMEM;
     }
-    // Append the current metadata to the new (empty) metadata
-    res = append_camera_metadata(tmp, mData);
-    if (res) {
-        ALOGE("%s: Failed to append old metadata %p to new %p",
-                __func__, mData, tmp);
-        return res;
+    // Append the current metadata to the new (empty) metadata, if any
+    if (NULL != mData) {
+      res = append_camera_metadata(tmp, mData);
+      if (res) {
+          ALOGE("%s: Failed to append old metadata %p to new %p",
+                  __func__, mData, tmp);
+          return res;
+      }
     }
-    // Add the remaining new item
+    // Add the remaining new item to tmp and replace mData
     res = add_camera_metadata_entry(tmp, tag, tag_data, count);
     if (res) {
         ALOGE("%s: Failed to add new entry (%d, %p, %d) to metadata %p",
                 __func__, tag, tag_data, count, tmp);
         return res;
     }
-
     replace(tmp);
+
     return 0;
 }
 
