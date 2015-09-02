@@ -26,7 +26,7 @@
 
 __BEGIN_DECLS
 
-/*****************************************************************************/
+/* Shared by HWC1 and HWC2 */
 
 #define HWC_HEADER_VERSION          1
 
@@ -38,6 +38,69 @@ __BEGIN_DECLS
 #define HWC_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_4  HARDWARE_DEVICE_API_VERSION_2(1, 4, HWC_HEADER_VERSION)
 #define HWC_DEVICE_API_VERSION_1_5  HARDWARE_DEVICE_API_VERSION_2(1, 5, HWC_HEADER_VERSION)
+
+#define HWC_DEVICE_API_VERSION_2_0  HARDWARE_DEVICE_API_VERSION_2(2, 0, HWC_HEADER_VERSION)
+
+/**
+ * The id of this module
+ */
+#define HWC_HARDWARE_MODULE_ID "hwcomposer"
+
+/**
+ * Name of the sensors device to open
+ */
+#define HWC_HARDWARE_COMPOSER "composer"
+
+typedef struct hwc_color {
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t a;
+} hwc_color_t;
+
+typedef struct hwc_frect {
+    float left;
+    float top;
+    float right;
+    float bottom;
+} hwc_frect_t;
+
+typedef struct hwc_rect {
+    int left;
+    int top;
+    int right;
+    int bottom;
+} hwc_rect_t;
+
+typedef struct hwc_region {
+    size_t numRects;
+    hwc_rect_t const* rects;
+} hwc_region_t;
+
+/*
+ * hwc_layer_t::transform values
+ */
+typedef enum {
+    /* flip source image horizontally */
+    HWC_TRANSFORM_FLIP_H = HAL_TRANSFORM_FLIP_H,
+    /* flip source image vertically */
+    HWC_TRANSFORM_FLIP_V = HAL_TRANSFORM_FLIP_V,
+    /* rotate source image 90 degrees clock-wise */
+    HWC_TRANSFORM_ROT_90 = HAL_TRANSFORM_ROT_90,
+    /* rotate source image 180 degrees */
+    HWC_TRANSFORM_ROT_180 = HAL_TRANSFORM_ROT_180,
+    /* rotate source image 270 degrees clock-wise */
+    HWC_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
+    /* flip source image horizontally, the rotate 90 degrees clock-wise */
+    HWC_TRANSFORM_FLIP_H_ROT_90 = HAL_TRANSFORM_FLIP_H | HAL_TRANSFORM_ROT_90,
+    /* flip source image vertically, the rotate 90 degrees clock-wise */
+    HWC_TRANSFORM_FLIP_V_ROT_90 = HAL_TRANSFORM_FLIP_V | HAL_TRANSFORM_ROT_90,
+} hwc_transform_t;
+
+/*******************************************************************************
+ * Beyond this point are things only used by HWC1, which should be ignored when
+ * implementing a HWC2 device
+ ******************************************************************************/
 
 enum {
     /* hwc_composer_device_t::set failed in EGL */
@@ -130,22 +193,6 @@ enum {
 
     /* SRC_ALPHA / ONE_MINUS_SRC_ALPHA */
     HWC_BLENDING_COVERAGE = 0x0405
-};
-
-/*
- * hwc_layer_t::transform values
- */
-enum {
-    /* flip source image horizontally */
-    HWC_TRANSFORM_FLIP_H = HAL_TRANSFORM_FLIP_H,
-    /* flip source image vertically */
-    HWC_TRANSFORM_FLIP_V = HAL_TRANSFORM_FLIP_V,
-    /* rotate source image 90 degrees clock-wise */
-    HWC_TRANSFORM_ROT_90 = HAL_TRANSFORM_ROT_90,
-    /* rotate source image 180 degrees */
-    HWC_TRANSFORM_ROT_180 = HAL_TRANSFORM_ROT_180,
-    /* rotate source image 270 degrees clock-wise */
-    HWC_TRANSFORM_ROT_270 = HAL_TRANSFORM_ROT_270,
 };
 
 /* attributes queriable with query() */
