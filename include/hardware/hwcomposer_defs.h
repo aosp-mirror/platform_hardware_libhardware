@@ -192,6 +192,10 @@ enum {
      */
     HWC_DISPLAY_DPI_X                       = 4,
     HWC_DISPLAY_DPI_Y                       = 5,
+
+    /* Indicates which of the vendor-defined color transforms is provided by
+     * this configuration. */
+    HWC_DISPLAY_COLOR_TRANSFORM             = 6,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
