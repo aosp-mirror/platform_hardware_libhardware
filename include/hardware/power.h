@@ -116,7 +116,8 @@ typedef struct power_module {
      *     User is interacting with the device, for example, touchscreen
      *     events are incoming.  CPU and GPU load may be expected soon,
      *     and it may be appropriate to raise speeds of CPU, memory bus,
-     *     etc.  The data parameter is unused.
+     *     etc.  The data parameter is the estimated length of the interaction
+     *     in milliseconds, or 0 if unknown.
      *
      * POWER_HINT_LOW_POWER
      *
