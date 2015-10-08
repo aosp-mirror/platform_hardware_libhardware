@@ -58,6 +58,7 @@ static const radio_hal_properties_t hw_properties = {
                 .rds = RADIO_RDS_US,
                 .ta = false,
                 .af = false,
+                .ea = true,
             }
         },
         {
@@ -72,6 +73,11 @@ static const radio_hal_properties_t hw_properties = {
             }
         }
     }
+};
+
+static const radio_metadata_clock_t hw_clock = {
+    .utc_seconds_since_epoch = 1234567890,
+    .timezone_offset_in_minutes = (-8 * 60),
 };
 
 struct stub_radio_tuner {
@@ -103,6 +109,7 @@ typedef enum {
     CMD_TUNE,
     CMD_CANCEL,
     CMD_METADATA,
+    CMD_ANNOUNCEMENTS,
 } thread_cmd_type_t;
 
 struct thread_command {
@@ -215,6 +222,9 @@ static int prepare_metadata(struct stub_radio_tuner *tuner,
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ICON, BITMAP_FILE_PATH);
         if (ret != 0)
             goto exit;
+        ret = radio_metadata_add_clock(metadata, RADIO_METADATA_KEY_CLOCK, &hw_clock);
+        if (ret != 0)
+            goto exit;
     } else {
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ART, BITMAP_FILE_PATH);
         if (ret != 0)
@@ -251,6 +261,10 @@ static void *callback_thread_loop(void *context)
 
     pthread_mutex_lock(&tuner->lock);
 
+    // Fields which are used to toggle the state of traffic announcements and
+    // ea announcements at random. They are access protected by tuner->lock.
+    bool ea_state = false;
+
     while (true) {
         struct thread_command *cmd = NULL;
         struct listnode *item;
@@ -278,7 +292,8 @@ static void *callback_thread_loop(void *context)
             cmd = node_to_item(item, struct thread_command, node);
 
             if (got_cancel && (cmd->type == CMD_STEP || cmd->type == CMD_SCAN ||
-                    cmd->type == CMD_TUNE || cmd->type == CMD_METADATA)) {
+                    cmd->type == CMD_TUNE || cmd->type == CMD_METADATA ||
+                    cmd->type == CMD_ANNOUNCEMENTS)) {
                  list_remove(item);
                  free(cmd);
                  continue;
@@ -309,9 +324,11 @@ static void *callback_thread_loop(void *context)
                           __func__, tuner->config.type,
                           tuner->config.lower_limit, tuner->config.upper_limit);
                     if (tuner->config.type == RADIO_BAND_FM) {
-                        ALOGV("  - stereo %d\n  - rds %d\n  - ta %d\n  - af %d",
+                        ALOGV("  - stereo %d\n  - rds %d\n  - ta %d\n  - af %d\n"
+                              "  - ea %d\n",
                               tuner->config.fm.stereo, tuner->config.fm.rds,
-                              tuner->config.fm.ta, tuner->config.fm.af);
+                              tuner->config.fm.ta, tuner->config.fm.af,
+                              tuner->config.fm.ea);
                     } else {
                         ALOGV("  - stereo %d", tuner->config.am.stereo);
                     }
@@ -377,7 +394,7 @@ static void *callback_thread_loop(void *context)
 
                     if (tuner->program.tuned) {
                         prepare_metadata(tuner, &tuner->program.metadata, true);
-                        send_command_l(tuner, CMD_METADATA, 5000, NULL);
+                        send_command_l(tuner, CMD_ANNOUNCEMENTS, 1000, NULL);
                     } else {
                         if (tuner->program.metadata != NULL)
                             radio_metadata_deallocate(tuner->program.metadata);
@@ -408,6 +425,28 @@ static void *callback_thread_loop(void *context)
                     got_cancel = true;
                 } break;
 
+                // Fire emergency announcements if they are enabled in the config. Stub
+                // implementation simply fires an announcement for 5 second
+                // duration with a gap of 5 seconds.
+                case CMD_ANNOUNCEMENTS: {
+                    ALOGV("In annoucements. %d %d %d\n",
+                          ea_state, tuner->config.type, tuner->config.fm.ea);
+                    if (tuner->config.type == RADIO_BAND_FM ||
+                        tuner->config.type == RADIO_BAND_FM_HD) {
+                        if (ea_state) {
+                            ea_state = false;
+                            event.type = RADIO_EVENT_EA;
+                        } else if (tuner->config.fm.ea) {
+                            ea_state = true;
+                            event.type = RADIO_EVENT_EA;
+                        }
+                        event.on = ea_state;
+
+                        if (tuner->config.fm.ea) {
+                            send_command_l(tuner, CMD_ANNOUNCEMENTS, 5000, NULL);
+                        }
+                    }
+                } break;
                 }
                 if (event.type != RADIO_EVENT_HW_FAILURE && tuner->callback != NULL) {
                     pthread_mutex_unlock(&tuner->lock);
@@ -438,7 +477,7 @@ static void *callback_thread_loop(void *context)
                     free(cmd);
                 }
             }
-            send_command_l(tuner, CMD_METADATA, 100, NULL);
+            send_command_l(tuner, CMD_METADATA, 1000, NULL);
         }
     }
 
@@ -472,7 +511,7 @@ exit:
 }
 
 static int tuner_get_configuration(const struct radio_tuner *tuner,
-                         radio_hal_band_config_t *config)
+                                   radio_hal_band_config_t *config)
 {
     struct stub_radio_tuner *stub_tuner = (struct stub_radio_tuner *)tuner;
     int status = 0;
