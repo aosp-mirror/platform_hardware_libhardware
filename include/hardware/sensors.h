@@ -147,7 +147,7 @@ enum {
      * Counter sensors can be set with this flag and SensorService will inject accelerometer data
      * and read the corresponding step counts.
      */
-    SENSOR_FLAG_SUPPORTS_DATA_INJECTION = 0x8  // 1000
+    SENSOR_FLAG_SUPPORTS_DATA_INJECTION = 0x10  // 1 0000
 };
 
 /*
