@@ -25,3 +25,12 @@ LOCAL_MODULE_TAGS := optional
 LOCAL_32_BIT_ONLY := true
 
 include $(BUILD_SHARED_LIBRARY)
+
+# Stub radio tool that can be run in native.
+include $(CLEAR_VARS)
+LOCAL_MODULE := radio_hal_tool
+LOCAL_SRC_FILES := radio_hal_tool.c
+LOCAL_CFLAGS := -Wall -Wno-unused-parameter -Werror
+LOCAL_SHARED_LIBRARIES := libcutils libhardware liblog libradio_metadata
+
+include $(BUILD_EXECUTABLE)
