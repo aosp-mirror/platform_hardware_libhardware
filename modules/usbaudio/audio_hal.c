@@ -449,8 +449,6 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
     const int ret = proxy_get_presentation_position(proxy, frames, timestamp);
 
     pthread_mutex_unlock(&out->lock);
-    ALOGV("out_get_presentation_position() status:%d  frames:%llu",
-            ret, (unsigned long long)*frames);
     return ret;
 }
 
@@ -560,6 +558,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     } else if (config->channel_mask == AUDIO_CHANNEL_NONE) {
         proposed_channel_count =  profile_get_default_channel_count(out->profile);
     }
+
     if (proposed_channel_count != 0) {
         if (proposed_channel_count <= FCC_2) {
             // use channel position mask for mono and stereo
@@ -569,17 +568,17 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
             config->channel_mask =
                     audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
         }
-        out->hal_channel_count = proposed_channel_count;
     } else {
-        out->hal_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
+        proposed_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
     }
+    out->hal_channel_count = proposed_channel_count;
+
     /* we can expose any channel mask, and emulate internally based on channel count. */
     out->hal_channel_mask = config->channel_mask;
 
     /* no validity checks are needed as proxy_prepare() forces channel_count to be valid.
      * and we emulate any channel count discrepancies in out_write(). */
-    proxy_config.channels = proposed_channel_count;
-
+    proxy_config.channels = out->hal_channel_count;
     proxy_prepare(&out->proxy, out->profile, &proxy_config);
 
     /* TODO The retry mechanism isn't implemented in AudioPolicyManager/AudioFlinger. */
