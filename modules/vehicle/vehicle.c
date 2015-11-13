@@ -290,13 +290,11 @@ static int vdev_set(vehicle_hw_device_t* device, const vehicle_prop_value_t* dat
 }
 
 void print_subscribe_info(vehicle_device_impl_t* impl) {
-    char buf[100];
     int i;
     for (i = 0; i < sizeof(CONFIGS) / sizeof(vehicle_prop_config_t); i++) {
         subscription_t* sub = (subscription_t*)CONFIGS[i].hal_data;
         if (sub != NULL) {
-            sprintf(buf, "prop: %d rate: %f", sub->prop, sub->sample_rate);
-            ALOGD(buf);
+            ALOGD("prop: %d rate: %f", sub->prop, sub->sample_rate);
         }
     }
 }
@@ -391,7 +389,7 @@ void fake_event_thread(struct subscription *sub) {
             ALOGD("exiting subscription request here.");
             // Do any cleanup here.
             pthread_mutex_unlock(&sub->lock);
-            return 0;
+            return;
         }
         struct timespec now;
         clock_gettime(CLOCK_REALTIME, &now);
