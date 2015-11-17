@@ -45,8 +45,8 @@ typedef struct vibrator_device {
 
     /** Turn on vibrator
      *
-     * What happens when this function is called while the the timeout of a
-     * previous call has not expired is implementation dependent.
+     * This function must only be called after the previous timeout has expired or
+     * was canceled (through vibrator_off()).
      *
      * @param timeout_ms number of milliseconds to vibrate
      *
@@ -56,8 +56,7 @@ typedef struct vibrator_device {
 
     /** Turn off vibrator
      *
-     * It is not guaranteed that the vibrator will be immediately stopped: the
-     * behaviour is implementation dependent.
+     * Cancel a previously-started vibration, if any.
      *
      * @return 0 in case of success, negative errno code else
      */
