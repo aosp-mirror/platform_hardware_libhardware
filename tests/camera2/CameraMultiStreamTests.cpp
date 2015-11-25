@@ -495,9 +495,6 @@ TEST_F(CameraMultiStreamTest, DISABLED_MultiBurst) {
         jpegData = availableJpegSizes.data.i32;
         jpegCount = availableJpegSizes.count;
     } else {
-        const int32_t *implDefResolutions;
-        size_t   implDefResolutionsCount;
-
         getResolutionList(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED, &implDefData, &implDefCount);
         ASSERT_NE(0u, implDefCount)
             << "Missing implementation defined sizes";

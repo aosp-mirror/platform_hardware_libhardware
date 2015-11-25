@@ -23,7 +23,6 @@
 #include "hardware/camera2.h"
 
 #include <common/CameraModule.h>
-#include <device2/Camera2Device.h>
 #include <device3/Camera3Device.h>
 
 #include "camera2_utils.h"
@@ -92,14 +91,10 @@ struct CameraModuleFixture {
         struct camera_info info;
         ASSERT_EQ(OK, mModule->getCameraInfo(cameraID, &info));
 
-        ASSERT_GE((int)info.device_version, CAMERA_DEVICE_API_VERSION_2_0) <<
+        ASSERT_GE((int)info.device_version, CAMERA_DEVICE_API_VERSION_3_0) <<
                 "Device version too old for camera " << cameraID << ". Version: " <<
                 info.device_version;
         switch(info.device_version) {
-            case CAMERA_DEVICE_API_VERSION_2_0:
-            case CAMERA_DEVICE_API_VERSION_2_1:
-                *device = new Camera2Device(cameraID);
-                break;
             case CAMERA_DEVICE_API_VERSION_3_0:
             case CAMERA_DEVICE_API_VERSION_3_1:
             case CAMERA_DEVICE_API_VERSION_3_2:
