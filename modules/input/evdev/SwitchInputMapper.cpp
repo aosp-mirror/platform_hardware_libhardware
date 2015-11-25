@@ -19,6 +19,7 @@
 
 #include "SwitchInputMapper.h"
 
+#include <inttypes.h>
 #include <linux/input.h>
 #include <hardware/input.h>
 #include <utils/Log.h>
@@ -75,8 +76,6 @@ bool SwitchInputMapper::configureInputReport(InputDeviceNode* devNode,
 }
 
 void SwitchInputMapper::process(const InputEvent& event) {
-    ALOGD("processing switch event. type=%d code=%d value=%d",
-            event.type, event.code, event.value);
     switch (event.type) {
         case EV_SW:
             processSwitch(event.code, event.value);
@@ -87,11 +86,12 @@ void SwitchInputMapper::process(const InputEvent& event) {
             }
             break;
         default:
-            ALOGD("unknown switch event type: %d", event.type);
+            ALOGV("unknown switch event type: %d", event.type);
     }
 }
 
 void SwitchInputMapper::processSwitch(int32_t switchCode, int32_t switchValue) {
+    ALOGV("processing switch event. code=%" PRId32 ", value=%" PRId32, switchCode, switchValue);
     if (switchCode >= 0 && switchCode < SW_CNT) {
         if (switchValue) {
             mSwitchValues.markBit(switchCode);

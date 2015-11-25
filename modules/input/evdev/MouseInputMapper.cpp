@@ -88,7 +88,7 @@ bool MouseInputMapper::configureInputReport(InputDeviceNode* devNode,
 }
 
 void MouseInputMapper::process(const InputEvent& event) {
-    ALOGD("processing mouse event. type=%d code=%d value=%d",
+    ALOGV("processing mouse event. type=%d code=%d value=%d",
             event.type, event.code, event.value);
     switch (event.type) {
         case EV_KEY:
@@ -103,7 +103,7 @@ void MouseInputMapper::process(const InputEvent& event) {
             }
             break;
         default:
-            ALOGD("unknown mouse event type: %d", event.type);
+            ALOGV("unknown mouse event type: %d", event.type);
     }
 }
 

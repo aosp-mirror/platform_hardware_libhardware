@@ -15,7 +15,7 @@
  */
 
 #define LOG_TAG "InputDevice"
-#define LOG_NDEBUG 0
+//#define LOG_NDEBUG 0
 
 // Enables debug output for processing input events
 #define DEBUG_INPUT_EVENTS 0
@@ -219,7 +219,7 @@ void EvdevDevice::createMappers() {
         //mMappers.push_back(std::make_unique<VibratorInputMapper>());
     }
 
-    ALOGD("device %s classes=0x%x %d mappers", mDeviceNode->getPath().c_str(), mClasses,
+    ALOGD("device %s classes=0x%x %zu mappers", mDeviceNode->getPath().c_str(), mClasses,
             mMappers.size());
 }
 
