@@ -33,14 +33,18 @@ __BEGIN_DECLS
  *
  * Version History:
  *
- * TV_INPUT_MODULE_API_VERSION_0_1:
- * Initial TV input hardware module API.
+ * TV_INPUT_DEVICE_API_VERSION_0_1:
+ * Initial TV input hardware device API.
+ *
+ * TV_INPUT_DEVICE_API_VERSION_0_2:
+ * Minor revision --- add video detection flag in stream configs.
  *
  */
 
 #define TV_INPUT_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 
 #define TV_INPUT_DEVICE_API_VERSION_0_1  HARDWARE_DEVICE_API_VERSION(0, 1)
+#define TV_INPUT_DEVICE_API_VERSION_0_2  HARDWARE_DEVICE_API_VERSION(0, 2)
 
 /*
  * The id of this module
@@ -164,7 +168,8 @@ enum {
      * port. the framework regards input devices with no available streams as
      * disconnected, so the implementation can generate this event with no
      * available streams to indicate that this device is disconnected, and vice
-     * versa.
+     * versa. In addition, streams have signal detection flag to denote if
+     * signal is detected for sure.
      */
     TV_INPUT_EVENT_STREAM_CONFIGURATIONS_CHANGED = 3,
     /*
@@ -263,6 +268,33 @@ typedef struct tv_stream_config {
     uint32_t max_video_width;
     uint32_t max_video_height;
 } tv_stream_config_t;
+
+enum {
+    /*
+     * Set if signal is detected on this stream. Note that even if this mask is
+     * unset it does not necessarily mean no signal --- it denotes that HAL is
+     * unsure of the signal status.
+     */
+    TV_STREAM_FLAG_MASK_SIGNAL_DETECTION = 0x1,
+};
+
+/*
+ * >= TV_INPUT_DEVICE_API_VERSION_0_2
+ *
+ * tv_stream_config_t extended in a way that allows extension without breaking
+ * binary compatibility
+ */
+typedef struct tv_stream_config_ext {
+    tv_stream_config_t config;
+
+    /*
+     * Flags to show the status of this stream. See TV_STREAM_FLAG_* for
+     * details.
+     */
+    uint32_t flags;
+
+    int32_t reserved[16 - 1];
+} tv_stream_config_ext_t;
 
 typedef struct buffer_producer_stream {
     /*
@@ -397,7 +429,22 @@ typedef struct tv_input_device {
     int (*cancel_capture)(struct tv_input_device* dev, int device_id,
             int stream_id, uint32_t seq);
 
-    void* reserved[16];
+    /*
+     * get_stream_configurations_ext:
+     *
+     * Get stream configurations for a specific device. An input device may have
+     * multiple configurations.
+     *
+     * The configs object is guaranteed to be valid only until the next call to
+     * get_stream_configurations_ext() or STREAM_CONFIGURATIONS_CHANGED event.
+     *
+     * Return 0 on success.
+     */
+    int (*get_stream_configurations_ext)(const struct tv_input_device* dev,
+            int device_id, int* num_configurations,
+            const tv_stream_config_ext_t** configs);
+
+    void* reserved[16 - 1];
 } tv_input_device_t;
 
 __END_DECLS
