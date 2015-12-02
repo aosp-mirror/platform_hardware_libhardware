@@ -35,8 +35,7 @@ __BEGIN_DECLS
 #define SENSORS_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION_2(1, 1, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_2  HARDWARE_DEVICE_API_VERSION_2(1, 2, SENSORS_HEADER_VERSION)
 #define SENSORS_DEVICE_API_VERSION_1_3  HARDWARE_DEVICE_API_VERSION_2(1, 3, SENSORS_HEADER_VERSION)
-#define SENSORS_DEVICE_API_VERSION_1_3_5 HARDWARE_DEVICE_API_VERSION_2(1, 4, SENSORS_HEADER_VERSION)
-#define SENSORS_DEVICE_API_VERSION_1_4  HARDWARE_DEVICE_API_VERSION_2(1, 5, SENSORS_HEADER_VERSION)
+#define SENSORS_DEVICE_API_VERSION_1_4  HARDWARE_DEVICE_API_VERSION_2(1, 4, SENSORS_HEADER_VERSION)
 
 /**
  * Please see the Sensors section of source.android.com for an
@@ -859,13 +858,6 @@ struct sensors_module_t {
      *         -EPERM if operation is not allowed
      */
     int (*set_operation_mode)(unsigned int mode);
-
-     /**
-     *  Set string to sensor HAL, which includes physical settings.
-     *  Content of string is hardware/vendor specific.
-     *  Availability: SENSORS_DEVICE_API_VERSION_1_3_5
-     **/
-    int (*set_sensor_physical_data)(const char* physicaldata);
 };
 
 struct sensor_t {
