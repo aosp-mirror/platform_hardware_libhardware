@@ -21,6 +21,7 @@
 
 #define FINGERPRINT_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
 #define FINGERPRINT_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
+#define FINGERPRINT_MODULE_API_VERSION_2_1 HARDWARE_MODULE_API_VERSION(2, 1)
 #define FINGERPRINT_HARDWARE_MODULE_ID "fingerprint"
 
 typedef enum fingerprint_msg_type {
@@ -28,7 +29,8 @@ typedef enum fingerprint_msg_type {
     FINGERPRINT_ACQUIRED = 1,
     FINGERPRINT_TEMPLATE_ENROLLING = 3,
     FINGERPRINT_TEMPLATE_REMOVED = 4,
-    FINGERPRINT_AUTHENTICATED = 5
+    FINGERPRINT_AUTHENTICATED = 5,
+    FINGERPRINT_TEMPLATE_ENUMERATING = 6,
 } fingerprint_msg_type_t;
 
 /*
@@ -82,6 +84,11 @@ typedef struct fingerprint_enroll {
     uint64_t msg; /* Vendor specific message. Used for user guidance */
 } fingerprint_enroll_t;
 
+typedef struct fingerprint_enumerated {
+    fingerprint_finger_id_t finger;
+    uint32_t remaining_templates;
+} fingerprint_enumerated_t;
+
 typedef struct fingerprint_removed {
     fingerprint_finger_id_t finger;
 } fingerprint_removed_t;
@@ -100,6 +107,7 @@ typedef struct fingerprint_msg {
     union {
         fingerprint_error_t error;
         fingerprint_enroll_t enroll;
+        fingerprint_enumerated_t enumerated;
         fingerprint_removed_t removed;
         fingerprint_acquired_t acquired;
         fingerprint_authenticated_t authenticated;
@@ -198,31 +206,24 @@ typedef struct fingerprint_device {
     /*
      * Enumerate all the fingerprint templates found in the directory set by
      * set_active_group()
-     * This is a synchronous call. The function takes:
-     * - A pointer to an array of fingerprint_finger_id_t.
-     * - The size of the array provided, in fingerprint_finger_id_t elements.
-     * Max_size is a bi-directional parameter and returns the actual number
-     * of elements copied to the caller supplied array.
-     * In the absence of errors the function returns the total number of templates
-     * in the user directory.
-     * If the caller has no good guess on the size of the array he should call this
-     * function witn *max_size == 0 and use the return value for the array allocation.
-     * The caller of this function has a complete list of the templates when *max_size
-     * is the same as the function return.
+     * For each template found notify() will be called with:
+     * fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENUMERATED
+     * fingerprint_msg.data.enumerated.finger indicating a template id
+     * fingerprint_msg.data.enumerated.remaining_templates indicating how many more
+     * enumeration messages to expect.
      *
-     * Function return: Total number of fingerprint templates in the current storage directory.
+     * Function return: 0 if enumerate request is accepted
      *                  or a negative number in case of error, generally from the errno.h set.
      */
-    int (*enumerate)(struct fingerprint_device *dev, fingerprint_finger_id_t *results,
-        uint32_t *max_size);
+    int (*enumerate)(struct fingerprint_device *dev);
 
     /*
      * Fingerprint remove request:
      * Deletes a fingerprint template.
-     * Works only within a path set by set_active_group().
+     * Works only within the path set by set_active_group().
      * notify() will be called with details on the template deleted.
      * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
-     * fingerprint_msg.data.removed.id indicating the template id removed.
+     * fingerprint_msg.data.removed.finger indicating the template id removed.
      *
      * Function return: 0 if fingerprint template(s) can be successfully deleted
      *                  or a negative number in case of error, generally from the errno.h set.
