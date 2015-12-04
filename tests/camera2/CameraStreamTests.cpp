@@ -29,8 +29,6 @@
 #include <gui/CpuConsumer.h>
 #include <gui/Surface.h>
 
-#include <device2/Camera2Device.h>
-
 #include "CameraStreamFixture.h"
 #include "TestExtensions.h"
 
