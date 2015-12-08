@@ -101,10 +101,11 @@ typedef struct boot_control_module {
     int (*setSlotAsUnbootable)(struct boot_control_module *module, unsigned slot);
 
     /*
-     * (*isSlotBootable)() returns if the slot passed in parameter has
-     * booted successfully in the past.
-     * Returns 1 if the slot has booted successfully, 0 if it has not,
-     * and -errno on error.
+     * (*isSlotBootable)() returns if the slot passed in parameter is
+     * bootable. Note that slots can be made unbootable by both the
+     * bootloader and by the OS using setSlotAsUnbootable.
+     * Returns 1 if the slot is bootable, 0 if it's not, and -errno on
+     * error.
      */
     int (*isSlotBootable)(struct boot_control_module *module, unsigned slot);
 
