@@ -117,7 +117,15 @@ typedef struct boot_control_module {
      */
     const char* (*getSuffix)(struct boot_control_module *module, unsigned slot);
 
-    void* reserved[32];
+    /*
+     * (*isSlotMarkedSucessful)() returns if the slot passed in parameter has
+     * been marked as successful using markBootSuccessful.
+     * Returns 1 if the slot has been marked as successful, 0 if it's
+     * not the case, and -errno on error.
+     */
+    int (*isSlotMarkedSuccessful)(struct boot_control_module *module, unsigned slot);
+
+    void* reserved[31];
 } boot_control_module_t;
 
 
