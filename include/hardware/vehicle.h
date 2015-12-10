@@ -353,7 +353,7 @@ enum vehicle_radio_consts {
  * per stream characteristics and global characteristics.
  *
  * Focus request (get of this property) will take the following form in int32_vec4:
- *   int32_array[0]: vehicle_audio_focus_request_type
+ *   int32_array[0]: vehicle_audio_focus_request type
  *   int32_array[1]: bit flags of streams requested by this focus request. There can be up to
  *                   32 streams.
  *   int32_array[2]: External focus state flags. For request, only flag like
@@ -366,7 +366,7 @@ enum vehicle_radio_consts {
  * android before this focus request should not be affected by focus request.
  *
  * Focus response (set and subscription callback for this property) will take the following form:
- *   int32_array[0]: vehicle_audio_focus_state_type
+ *   int32_array[0]: vehicle_audio_focus_state type
  *   int32_array[1]: bit flags of streams allowed.
  *   int32_array[2]: External focus state: bit flags of currently active audio focus in car
  *                   side (outside Android). Active audio focus does not necessarily mean currently
@@ -1452,7 +1452,8 @@ typedef struct vehicle_hw_device {
      * Get a vehicle property value immediately. data should be allocated
      * properly.
      * The caller of the API OWNS the data field.
-     * Caller will only set data->prop and HAL implementation needs to fill all entries properly.
+     * Caller will set data->prop, data->value_type, and optionally zone value for zoned property.
+     * But HAL implementation needs to fill all entries properly when returning.
      * For pointer type, HAL implementation should allocate necessary memory and caller is
      * responsible for freeing memory for the pointer.
      * For VEHICLE_PROP_CHANGE_MODE_STATIC type of property, get should return the same value

@@ -18,7 +18,10 @@
 #define LOG_NDEBUG 1
 #define RADIO_PRESET_NUM 6
 
+#define UNUSED __attribute__((__unused__))
+
 #include <errno.h>
+#include <inttypes.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdint.h>
@@ -120,7 +123,7 @@ static vehicle_prop_config_t CONFIGS[] = {
 };
 
 vehicle_prop_config_t* find_config(int prop) {
-    int i;
+    unsigned int i;
     for (i = 0; i < sizeof(CONFIGS) / sizeof(vehicle_prop_config_t); i++) {
         if (CONFIGS[i].prop == prop) {
             return &CONFIGS[i];
@@ -140,7 +143,7 @@ static int alloc_vehicle_str_from_cstr(const char* string, vehicle_str_t* vehicl
     return 0;
 }
 
-static vehicle_prop_config_t const * vdev_list_properties(vehicle_hw_device_t* device,
+static vehicle_prop_config_t const * vdev_list_properties(vehicle_hw_device_t* device UNUSED,
         int* num_properties) {
     ALOGD("vdev_list_properties.");
 
@@ -180,7 +183,7 @@ static int vdev_release(vehicle_hw_device_t* device) {
     return 0;
 }
 
-static int vdev_get(vehicle_hw_device_t* device, vehicle_prop_value_t* data) {
+static int vdev_get(vehicle_hw_device_t* device UNUSED, vehicle_prop_value_t* data) {
     ALOGD("vdev_get.");
     //TODO all data supporting read should support get
     if (!data) {
@@ -237,12 +240,12 @@ static int vdev_get(vehicle_hw_device_t* device, vehicle_prop_value_t* data) {
             memset(&(data->value), 0, sizeof(data->value));
             break;
     }
-    ALOGI("vdev_get, type 0x%x, time %ld, value_type %d", data->prop, data->timestamp,
+    ALOGI("vdev_get, type 0x%x, time %" PRId64 ", value_type %d", data->prop, data->timestamp,
             data->value_type);
     return 0;
 }
 
-static int vdev_set(vehicle_hw_device_t* device, const vehicle_prop_value_t* data) {
+static int vdev_set(vehicle_hw_device_t* device UNUSED, const vehicle_prop_value_t* data) {
     ALOGD("vdev_set.");
     // Just print what data will be setting here.
     ALOGD("Setting property %d with value type %d\n", data->prop, data->value_type);
@@ -289,8 +292,8 @@ static int vdev_set(vehicle_hw_device_t* device, const vehicle_prop_value_t* dat
     return 0;
 }
 
-void print_subscribe_info(vehicle_device_impl_t* impl) {
-    int i;
+void print_subscribe_info(vehicle_device_impl_t* impl UNUSED) {
+    unsigned int i;
     for (i = 0; i < sizeof(CONFIGS) / sizeof(vehicle_prop_config_t); i++) {
         subscription_t* sub = (subscription_t*)CONFIGS[i].hal_data;
         if (sub != NULL) {
@@ -457,7 +460,7 @@ static int vdev_subscribe(vehicle_hw_device_t* device, int32_t prop, float sampl
         return 0;
     }
     int ret_code = pthread_create(
-        &sub->thread, NULL, fake_event_thread, sub);
+                                  &sub->thread, NULL, (void *(*)(void*))fake_event_thread, sub);
     print_subscribe_info(impl);
     pthread_mutex_unlock(&lock_);
     return 0;
@@ -509,7 +512,7 @@ static int vdev_close(hw_device_t* device) {
  * informations in hw_device_t structure. After calling open() the client should
  * use the hw_device_t to execute any Vehicle HAL device specific functions.
  */
-static int vdev_open(const hw_module_t* module, const char* __unused name,
+static int vdev_open(const hw_module_t* module, const char* name UNUSED,
                      hw_device_t** device) {
     ALOGD("vdev_open");
 
