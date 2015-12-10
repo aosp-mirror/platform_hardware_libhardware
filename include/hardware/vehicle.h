@@ -268,6 +268,14 @@ __BEGIN_DECLS
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION                         (0x00000501)
 
+/*
+ * Bit flags for fan direction
+ */
+enum vehicle_hvac_fan_direction_flags {
+    VEHICLE_HVAC_FAN_DIRECTION_FACE_FLAG    = 0x1,
+    VEHICLE_HVAC_FAN_DIRECTION_FLOOR_FLAG   = 0x2
+};
+
 /**
  * HVAC current temperature.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
@@ -303,6 +311,42 @@ __BEGIN_DECLS
  * @data_member hvac.ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_AC_ON                                 (0x00000505)
+
+/**
+ * On/off max AC
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member hvac.max_ac_on
+ */
+#define VEHICLE_PROPERTY_HVAC_MAX_AC_ON                             (0x00000506)
+
+/**
+ * On/off max defrost
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member hvac.max_defrost_on
+ */
+#define VEHICLE_PROPERTY_HVAC_MAX_DEFROST_ON                        (0x00000507)
+
+/**
+ * On/off re-circulation
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member hvac.max_recirc_on
+ */
+#define VEHICLE_PROPERTY_HVAC_RECIRC_ON                             (0x00000508)
+
+/**
+ * On/off dual
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member hvac.dual_on
+ */
+#define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
 
 /**
  * Outside temperature
@@ -1242,6 +1286,14 @@ typedef vehicle_zoned_boolean_t vehicle_hvac_defrost_on_t;
 
 typedef vehicle_zoned_boolean_t vehicle_hvac_ac_on_t;
 
+typedef vehicle_boolean_t vehicle_hvac_max_ac_on_t;
+
+typedef vehicle_boolean_t vehicle_hvac_max_defrost_on_t;
+
+typedef vehicle_boolean_t vehicle_hvac_recirc_on_t;
+
+typedef vehicle_boolean_t vehicle_hvac_dual_on_t;
+
 typedef struct vehicle_hvac {
     /**
      * Define one structure for each possible HVAC property.
@@ -1258,6 +1310,10 @@ typedef struct vehicle_hvac {
         vehicle_hvac_fan_speed_t fan_speed;
         vehicle_hvac_fan_direction_t fan_direction;
         vehicle_hvac_ac_on_t ac_on;
+        vehicle_hvac_max_ac_on_t max_ac_on;
+        vehicle_hvac_max_defrost_on_t max_defrost_on;
+        vehicle_hvac_recirc_on_t recirc_on;
+        vehicle_hvac_dual_on_t dual_on;
 
         vehicle_hvac_zone_temperature_t temperature_current;
         vehicle_hvac_zone_temperature_t temperature_set;
