@@ -55,11 +55,6 @@ static const unsigned k_force_channels = 0;
 
 #define DEFAULT_INPUT_BUFFER_SIZE_MS 20
 
-// stereo channel count
-#define FCC_2 2
-// fixed channel count of 8 limitation (for data processing in AudioFlinger)
-#define FCC_8 8
-
 struct audio_device {
     struct audio_hw_device hw_device;
 
