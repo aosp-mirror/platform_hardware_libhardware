@@ -186,7 +186,6 @@ protected:
     void getResolutionList(int32_t format,
             const int32_t **list,
             size_t *count) {
-        status_t res;
         ALOGV("Getting resolutions for format %x", format);
         if (getDeviceVersion() < CAMERA_DEVICE_API_VERSION_3_2) {
             return;
