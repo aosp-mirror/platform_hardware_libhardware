@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <inttypes.h>
 #include <string.h>
 #include <stdint.h>
 #include <string.h>
@@ -57,7 +58,7 @@ char const* getSensorName(int type) {
     return "ukn";
 }
 
-int main(int argc, char** argv)
+int main(int /* argc */, char** /* argv */)
 {
     int err;
     struct sensors_poll_device_t* device;
@@ -131,7 +132,7 @@ int main(int argc, char** argv)
             const sensors_event_t& data = buffer[i];
 
             if (data.version != sizeof(sensors_event_t)) {
-                printf("incorrect event version (version=%d, expected=%d",
+                printf("incorrect event version (version=%d, expected=%zu",
                         data.version, sizeof(sensors_event_t));
                 break;
             }
@@ -144,7 +145,7 @@ int main(int argc, char** argv)
                 case SENSOR_TYPE_GRAVITY:
                 case SENSOR_TYPE_LINEAR_ACCELERATION:
                 case SENSOR_TYPE_ROTATION_VECTOR:
-                    printf("sensor=%s, time=%lld, value=<%5.1f,%5.1f,%5.1f>\n",
+                    printf("sensor=%s, time=%" PRId64 ", value=<%5.1f,%5.1f,%5.1f>\n",
                             getSensorName(data.type),
                             data.timestamp,
                             data.data[0],
@@ -158,14 +159,14 @@ int main(int argc, char** argv)
                 case SENSOR_TYPE_PROXIMITY:
                 case SENSOR_TYPE_RELATIVE_HUMIDITY:
                 case SENSOR_TYPE_AMBIENT_TEMPERATURE:
-                    printf("sensor=%s, time=%lld, value=%f\n",
+                    printf("sensor=%s, time=%" PRId64 ", value=%f\n",
                             getSensorName(data.type),
                             data.timestamp,
                             data.data[0]);
                     break;
 
                 default:
-                    printf("sensor=%d, time=%lld, value=<%f,%f,%f, ...>\n",
+                    printf("sensor=%d, time=% " PRId64 ", value=<%f,%f,%f, ...>\n",
                             data.type,
                             data.timestamp,
                             data.data[0],
