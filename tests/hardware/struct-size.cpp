@@ -27,11 +27,11 @@
 
 template<size_t> static constexpr size_t CheckSizeHelper(size_t, size_t);
 
-template<> constexpr size_t CheckSizeHelper<4>(size_t size32, size_t size64) {
+template<> constexpr size_t CheckSizeHelper<4>(size_t size32, size_t /* size64 */) {
     return size32;
 }
 
-template<> constexpr size_t CheckSizeHelper<8>(size_t size32, size_t size64) {
+template<> constexpr size_t CheckSizeHelper<8>(size_t /* size32 */, size_t size64) {
     return size64;
 }
 

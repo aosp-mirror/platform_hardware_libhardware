@@ -208,13 +208,13 @@ int MetadataQueue::consumer_dequeue(const camera2_request_queue_src_ops_t *q,
     return queue->dequeue(buffer, true);
 }
 
-int MetadataQueue::consumer_free(const camera2_request_queue_src_ops_t *q,
+int MetadataQueue::consumer_free(const camera2_request_queue_src_ops_t * /* q */,
         camera_metadata_t *old_buffer) {
     free_camera_metadata(old_buffer);
     return OK;
 }
 
-int MetadataQueue::producer_dequeue(const camera2_frame_queue_dst_ops_t *q,
+int MetadataQueue::producer_dequeue(const camera2_frame_queue_dst_ops_t * /* q */,
         size_t entries, size_t bytes,
         camera_metadata_t **buffer) {
     camera_metadata_t *new_buffer =
@@ -224,7 +224,7 @@ int MetadataQueue::producer_dequeue(const camera2_frame_queue_dst_ops_t *q,
         return OK;
 }
 
-int MetadataQueue::producer_cancel(const camera2_frame_queue_dst_ops_t *q,
+int MetadataQueue::producer_cancel(const camera2_frame_queue_dst_ops_t * /* q */,
         camera_metadata_t *old_buffer) {
     free_camera_metadata(old_buffer);
     return OK;
@@ -386,12 +386,21 @@ status_t StreamAdapter::connectToDevice(camera2_device_t *d,
         return res;
     }
 
-    res = native_window_set_buffers_geometry(mConsumerInterface.get(),
-            mWidth, mHeight, mFormat);
+    res = native_window_set_buffers_dimensions(mConsumerInterface.get(),
+            mWidth, mHeight);
     if (res != OK) {
-        ALOGE("%s: Unable to configure buffer geometry"
-                " %d x %d, format 0x%x for stream %d",
-                __FUNCTION__, mWidth, mHeight, mFormat, mId);
+        ALOGE("%s: Unable to configure buffer dimensions"
+                " %d x %d for stream %d",
+                __FUNCTION__, mWidth, mHeight, mId);
+        mState = CONNECTED;
+        return res;
+    }
+    res = native_window_set_buffers_format(mConsumerInterface.get(),
+            mFormat);
+    if (res != OK) {
+        ALOGE("%s: Unable to configure buffer format"
+                " 0x%x for stream %d",
+                __FUNCTION__, mFormat, mId);
         mState = CONNECTED;
         return res;
     }
@@ -454,8 +463,8 @@ cleanUpBuffers:
         res = mConsumerInterface->cancelBuffer(mConsumerInterface.get(),
                 anwBuffers[i], -1);
     }
-    delete anwBuffers;
-    delete buffers;
+    delete[] anwBuffers;
+    delete[] buffers;
 
     return res;
 }
