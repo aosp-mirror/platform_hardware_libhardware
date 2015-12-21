@@ -67,6 +67,9 @@ __BEGIN_DECLS
  * @data_member: Name of member from vehicle_value union to access this data.
  * @data_enum: enum type that should be used for the data.
  * @unit: Unit of data. Should be from vehicle_unit_type.
+ * @config_flags: Usage of config_flags in vehicle_prop_config
+ * @config_array: Usage of config_array in vehicle_prop_config. When this is specified,
+ *                @config_flags will not be used.
  * @config_string: Explains the usage of config_string in vehicle_prop_config. Property with
  *                 this annotation is expected to have additional information in config_string
  *                 for that property to work.
@@ -253,6 +256,7 @@ __BEGIN_DECLS
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Supported zones
  * @data_member hvac.fan_speed
  * @data_enum TODO
  */
@@ -263,6 +267,7 @@ __BEGIN_DECLS
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Supported zones
  * @data_member hvac.fan_direction
  * @data_enum TODO
  */
@@ -282,6 +287,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Supported zones
  * @data_member hvac.temperature_current
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_CURRENT                   (0x00000502)
@@ -290,6 +296,7 @@ enum vehicle_hvac_fan_direction_flags {
  * HVAC, target temperature set.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @config_flags Supported zones
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.temperature_set
  */
@@ -300,6 +307,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Supported zones
  * @data_member hvac.defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_DEFROSTER                             (0x00000504)
@@ -309,6 +317,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Supported zones
  * @data_member hvac.ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_AC_ON                                 (0x00000505)
@@ -380,6 +389,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Number of presets supported
  * @data_member int32_array
  */
 #define VEHICLE_PROPERTY_RADIO_PRESET                               (0x0000801)
@@ -530,10 +540,10 @@ enum vehicle_audio_focus_index {
 };
 
 /**
- * Property to control audio volume of each stream.
+ * Property to control audio volume of each audio context.
  *
  * Data type looks like:
- *   int32_array[0] : stream number (not bit flag) like VEHICLE_AUDIO_STREAM0.
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
  *   int32_array[1] : volume level, valid range is 0 to int32_max_value defined in config.
  *                    0 will be mute state. int32_min_value in config should be always 0.
  *   int32_array[2] : One of vehicle_audio_volume_state.
@@ -544,6 +554,7 @@ enum vehicle_audio_focus_index {
  * @value_type VEHICLE_VALUE_TYPE_INT32_VEC3
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
 #define VEHICLE_PROPERTY_AUDIO_VOLUME                                 (0x00000901)
@@ -571,8 +582,8 @@ enum vehicle_audio_volume_index {
 
 /**
  * Property for handling volume limit set by user. This limits maximum volume that can be set
- * per each volume.
- *   int32_array[0] : stream number (not bit flag) like VEHICLE_AUDIO_STREAM0.
+ * per each context.
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
  *   int32_array[1] : maximum volume set to the stream. If there is no restriction, this value
  *                    will be  bigger than VEHICLE_PROPERTY_AUDIO_VOLUME's max value.
  *
@@ -583,6 +594,7 @@ enum vehicle_audio_volume_index {
  * @value_type VEHICLE_VALUE_TYPE_INT32_VEC2
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
 #define VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT                           (0x00000902)
@@ -603,8 +615,8 @@ enum vehicle_audio_volume_limit_index {
  *   int32_array[0] : audio stream where the audio for the application context will be routed
  *                    by default. Note that this is the default setting from system, but each app
  *                    may still use different audio stream for whatever reason.
- *   int32_array[1] : All application contexts that will be sent through the physical stream. Flag
- *                    is defined in vehicle_app_context_flag.
+ *   int32_array[1] : All audio contexts that will be sent through the physical stream. Flag
+ *                    is defined in vehicle_audio_context_flag.
 
  * Setting of this property will be done for all available physical streams based on audio H/W
  * variant information acquired from VEHICLE_PROPERTY_AUDIO_HW_VARIANT property.
@@ -633,6 +645,8 @@ enum vehicle_audio_routing_policy_index {
 * @value_type VEHICLE_VALUE_TYPE_INT32
 * @change_mode VEHICLE_PROP_CHANGE_MODE_STATIC
 * @access VEHICLE_PROP_ACCESS_READ
+* @config_flags Additional info on audio H/W. Should use vehicle_audio_hw_variant_config_flag for
+*               this.
 * @data_member int32_value
 */
 #define VEHICLE_PROPERTY_AUDIO_HW_VARIANT                             (0x00000904)
@@ -670,6 +684,7 @@ enum vehicle_audio_hw_variant_config_flag {
  * @value_type VEHICLE_VALUE_TYPE_INT32_VEC2
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_flags Additional info on power state. Should use vehicle_ap_power_state_config_flag.
  * @data_member int32_array
  */
 #define VEHICLE_PROPERTY_AP_POWER_STATE                               (0x00000A00)
@@ -825,7 +840,7 @@ enum vehicle_ap_power_bootup_reason {
 };
 
 /**
- * Property to share currently active application context in android side.
+ * Property to share currently active audio context in android side.
  * This can be used as a hint to adjust audio policy or other policy decision. Note that there
  * can be multiple context active at the same time.
  *
@@ -834,30 +849,36 @@ enum vehicle_ap_power_bootup_reason {
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @data_member int32
  */
-#define VEHICLE_PROPERTY_APP_CONTEXT                        (0x00000B00)
+#define VEHICLE_PROPERTY_AUDIO_CONTEXT                        (0x00000B00)
 /**
- * Flags to tell the current application context. The same flag is used in
+ * Flags to tell the current audio context.
  */
-enum vehicle_app_context_flag {
+enum vehicle_audio_context_flag {
     /** Music playback is currently active. */
-    VEHICLE_APP_CONTEXT_MUSIC_FLAG = 0x1,
+    VEHICLE_AUDIO_CONTEXT_MUSIC_FLAG                      = 0x1,
     /** Navigation is currently running. */
-    VEHICLE_APP_CONTEXT_NAVIGATION_FLAG = 0x2,
+    VEHICLE_AUDIO_CONTEXT_NAVIGATION_FLAG                 = 0x2,
     /** Voice command session is currently running. */
-    VEHICLE_APP_CONTEXT_VOICE_COMMAND_FLAG = 0x4,
+    VEHICLE_AUDIO_CONTEXT_VOICE_COMMAND_FLAG              = 0x4,
     /** Voice call is currently active. */
-    VEHICLE_APP_CONTEXT_CALL_FLAG = 0x8,
+    VEHICLE_AUDIO_CONTEXT_CALL_FLAG                       = 0x8,
     /** Alarm is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY. */
-    VEHICLE_APP_CONTEXT_ALARM_FLAG = 0x10,
+    VEHICLE_AUDIO_CONTEXT_ALARM_FLAG                      = 0x10,
     /**
      * Notification sound is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY.
      */
-    VEHICLE_APP_CONTEXT_NOTIFICATION_FLAG = 0x20,
+    VEHICLE_AUDIO_CONTEXT_NOTIFICATION_FLAG               = 0x20,
     /**
      * Context unknown. Only used for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY to represent default
      * stream for unknown contents.
      */
-    VEHICLE_APP_CONTEXT_UNKNOWN_FLAG = 0x40,
+    VEHICLE_AUDIO_CONTEXT_UNKNOWN_FLAG                    = 0x40,
+    /** Safety alert / warning is played. */
+    VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
+    /** CD / DVD kind of audio is played */
+    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
+    /** Aux audio input is played */
+    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
 };
 
 /**
@@ -1219,6 +1240,7 @@ typedef struct vehicle_prop_config {
          * from 1 (see VEHICLE_RADIO_PRESET_MIN_VALUE) to vehicle_radio_num_presets.
          */
         int32_t vehicle_radio_num_presets;
+        int32_t config_array[4];
     };
 
     /**
@@ -1538,8 +1560,11 @@ typedef struct vehicle_hw_device {
      * @param device
      * @param prop
      * @param sample_rate
+     * @param zones All subscribed zones for zoned property. can be ignored for non-zoned property.
+     *              0 means all zones supported instead of no zone.
      */
-    int (*subscribe)(struct vehicle_hw_device* device, int32_t prop, float sample_rate);
+    int (*subscribe)(struct vehicle_hw_device* device, int32_t prop, float sample_rate,
+            int32_t zones);
 
     /** Cancel subscription on a property. */
     int (*unsubscribe)(struct vehicle_hw_device* device, int32_t prop);

@@ -372,6 +372,10 @@ void fake_event_thread(struct subscription *sub) {
                 }
                 break;
             default: // unsupported
+                if (sub->impl == NULL) {
+                    ALOGE("subscription impl NULL");
+                    return;
+                }
                 if (sub->impl->error_fn_ != NULL) {
                     sub->impl->error_fn_(VEHICLE_ERROR_UNKNOWN, VEHICLE_PROPERTY_INVALID,
                             VEHICLE_OPERATION_GENERIC);
@@ -402,7 +406,8 @@ void fake_event_thread(struct subscription *sub) {
     }
 }
 
-static int vdev_subscribe(vehicle_hw_device_t* device, int32_t prop, float sample_rate) {
+static int vdev_subscribe(vehicle_hw_device_t* device, int32_t prop, float sample_rate,
+        int32_t zones) {
     ALOGD("vdev_subscribe 0x%x, %f", prop, sample_rate);
     vehicle_device_impl_t* impl = (vehicle_device_impl_t*)device;
     // Check that the device is initialized.

@@ -99,7 +99,7 @@ TEST_F(VehicleDevice, initTest) {
 TEST_F(VehicleDevice, subscribeTest) {
     // If the device is not init subscribe should fail off the bat.
     int ret_code = vehicle_device()->subscribe(vehicle_device(), VEHICLE_PROPERTY_DRIVING_STATUS,
-            0);
+            0, 0);
     ASSERT_EQ(ret_code, -EINVAL) << "Return code is: " << ret_code;
 
     // Let's init the device.
@@ -107,7 +107,7 @@ TEST_F(VehicleDevice, subscribeTest) {
     ASSERT_EQ(ret_code, 0) << "Return code is: " << ret_code;
 
     // Subscribe should now go through.
-    ret_code = vehicle_device()->subscribe(vehicle_device(), VEHICLE_PROPERTY_DRIVING_STATUS, 0);
+    ret_code = vehicle_device()->subscribe(vehicle_device(), VEHICLE_PROPERTY_DRIVING_STATUS, 0, 0);
     ASSERT_EQ(ret_code, 0) << "Return code is: " << ret_code;
 
     // We should start getting some messages thrown from the callback. Let's

@@ -292,7 +292,7 @@ void subscribe_to_property(
     uint32_t wait_in_seconds) {
     // Init the device with a callback.
     device->init(device, vehicle_event_callback, vehicle_error_callback);
-    int ret_code = device->subscribe(device, prop, 0);
+    int ret_code = device->subscribe(device, prop, 0, 0);
     if (ret_code != 0) {
         printf("Could not subscribe: %d\n", ret_code);
         exit(1);
@@ -355,6 +355,7 @@ int main(int argc, char* argv[]) {
     char int_array_string[1000]; int_array_string[0] = '\0';
 
     int opt;
+    //TODO allow passing zone
     while ((opt = getopt(argc, argv, "lm:p:t:v:w:s:")) != -1) {
         switch (opt) {
             case 'l':
