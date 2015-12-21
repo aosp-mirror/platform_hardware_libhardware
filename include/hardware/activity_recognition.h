@@ -179,9 +179,27 @@ typedef struct activity_recognition_device {
      * independently of the other. The HAL implementation needs to keep track of which pairs are
      * currently active and needs to detect only those pairs.
      *
+     * At the first detection after this function gets called, the hardware should know whether the
+     * user is in the activity.
+     * - If event_type is ACTIVITY_EVENT_ENTER and the user is in the activity, then an
+     *   (ACTIVITY_EVENT_ENTER, activity) event should be added to the FIFO.
+     * - If event_type is ACTIVITY_EVENT_EXIT and the user is not in the activity, then an
+     *   (ACTIVITY_EVENT_EXIT, activity) event should be added to the FIFO.
+     * For example, suppose get_supported_activities_list contains on_bicyle and running, and the
+     * user is biking. Consider the following four calls that could happen in any order.
+     * - When enable_activity_event(on_bicycle, ACTIVITY_EVENT_ENTER) is called,
+     *   (ACTIVITY_EVENT_ENTER, on_bicycle) should be added to the FIFO.
+     * - When enable_activity_event(on_bicycle, ACTIVITY_EVENT_EXIT) is called, nothing should be
+     *   added to the FIFO.
+     * - When enable_activity_event(running, ACTIVITY_EVENT_ENTER) is called, nothing should be
+     *   added to the FIFO.
+     * - When enable_activity_event(running, ACTIVITY_EVENT_EXIT) is called,
+     *   (ACTIVITY_EVENT_EXIT, running) should be added to the FIFO.
+     *
      * activity_handle - Index of the specific activity that needs to be detected in the list
      *                   returned by get_supported_activities_list.
-     * event_type - Specific transition of the activity that needs to be detected.
+     * event_type - Specific transition of the activity that needs to be detected. It should be
+     *              either ACTIVITY_EVENT_ENTER or ACTIVITY_EVENT_EXIT.
      * max_batch_report_latency_ns - a transition can be delayed by at most
      *                               “max_batch_report_latency” nanoseconds.
      * Return 0 on success, negative errno code otherwise.
@@ -190,7 +208,8 @@ typedef struct activity_recognition_device {
             uint32_t activity_handle, uint32_t event_type, int64_t max_batch_report_latency_ns);
 
     /*
-     * Disables detection of a specific (activity, event_type) pair.
+     * Disables detection of a specific (activity, event_type) pair. All the (activity, event_type)
+     * events in the FIFO are discarded.
      */
     int (*disable_activity_event)(const struct activity_recognition_device* dev,
             uint32_t activity_handle, uint32_t event_type);
@@ -199,6 +218,7 @@ typedef struct activity_recognition_device {
      * Flush all the batch FIFOs. Report all the activities that were stored in the FIFO so far as
      * if max_batch_report_latency had expired. This shouldn't change the latency in any way. Add
      * a flush_complete_event to indicate the end of the FIFO after all events are delivered.
+     * activity_callback should be called before this function returns successfully.
      * See ACTIVITY_EVENT_FLUSH_COMPLETE for more details.
      * Return 0 on success, negative errno code otherwise.
      */
