@@ -144,6 +144,9 @@ __BEGIN_DECLS
 /* Set the HW synchronization source for an output stream. */
 #define AUDIO_PARAMETER_STREAM_HW_AV_SYNC "hw_av_sync"
 
+/* Enable mono audio playback if 1, else should be 0. */
+#define AUDIO_PARAMETER_MONO_OUTPUT "mono_output"
+
 /**
  * audio codec parameters
  */
