@@ -823,7 +823,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                 const size_t flush_size = min(frames_to_flush_from_source, flushBufferSizeFrames);
                 frames_to_flush_from_source -= flush_size;
                 // read does not block
-                source->read(flush_buffer, flush_size, AudioBufferProvider::kInvalidPTS);
+                source->read(flush_buffer, flush_size);
             }
         }
     }
@@ -1192,7 +1192,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 
             SUBMIX_ALOGV("in_read(): frames available to read %zd", source->availableToRead());
 
-            frames_read = source->read(buff, read_frames, AudioBufferProvider::kInvalidPTS);
+            frames_read = source->read(buff, read_frames);
 
             SUBMIX_ALOGV("in_read(): frames read %zd", frames_read);
 
