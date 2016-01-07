@@ -256,6 +256,19 @@ typedef struct
     void *val;
 } bt_property_t;
 
+/** Bluetooth Out Of Band data for bonding */
+typedef struct
+{
+   uint8_t c192[16]; /* Simple Pairing Hash C-192 */
+   uint8_t r192[16]; /* Simple Pairing Randomizer R-192 */
+   uint8_t c256[16]; /* Simple Pairing Hash C-256 */
+   uint8_t r256[16]; /* Simple Pairing Randomizer R-256 */
+   uint8_t sm_tk[16]; /* Security Manager TK Value */
+   uint8_t le_sc_c[16]; /* LE Secure Connections Random Value */
+   uint8_t le_sc_r[16]; /* LE Secure Connections Random Value */
+} bt_out_of_band_data_t;
+
+
 
 /** Bluetooth Device Type */
 typedef enum {
@@ -484,6 +497,10 @@ typedef struct {
 
     /** Create Bluetooth Bonding */
     int (*create_bond)(const bt_bdaddr_t *bd_addr, int transport);
+
+    /** Create Bluetooth Bond using out of band data */
+    int (*create_bond_out_of_band)(const bt_bdaddr_t *bd_addr, int transport,
+                                   const bt_out_of_band_data_t *oob_data);
 
     /** Remove Bond */
     int (*remove_bond)(const bt_bdaddr_t *bd_addr);
