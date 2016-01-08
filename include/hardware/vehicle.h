@@ -667,6 +667,48 @@ enum vehicle_audio_hw_variant_config_flag {
 };
 
 /**
+ * Property to share currently active audio context in android side.
+ * This can be used as a hint to adjust audio policy or other policy decision. Note that there
+ * can be multiple context active at the same time.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @data_member int32
+ */
+#define VEHICLE_PROPERTY_AUDIO_CONTEXT                        (0x00000905)
+/**
+ * Flags to tell the current audio context.
+ */
+enum vehicle_audio_context_flag {
+    /** Music playback is currently active. */
+    VEHICLE_AUDIO_CONTEXT_MUSIC_FLAG                      = 0x1,
+    /** Navigation is currently running. */
+    VEHICLE_AUDIO_CONTEXT_NAVIGATION_FLAG                 = 0x2,
+    /** Voice command session is currently running. */
+    VEHICLE_AUDIO_CONTEXT_VOICE_COMMAND_FLAG              = 0x4,
+    /** Voice call is currently active. */
+    VEHICLE_AUDIO_CONTEXT_CALL_FLAG                       = 0x8,
+    /** Alarm is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY. */
+    VEHICLE_AUDIO_CONTEXT_ALARM_FLAG                      = 0x10,
+    /**
+     * Notification sound is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY.
+     */
+    VEHICLE_AUDIO_CONTEXT_NOTIFICATION_FLAG               = 0x20,
+    /**
+     * Context unknown. Only used for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY to represent default
+     * stream for unknown contents.
+     */
+    VEHICLE_AUDIO_CONTEXT_UNKNOWN_FLAG                    = 0x40,
+    /** Safety alert / warning is played. */
+    VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
+    /** CD / DVD kind of audio is played */
+    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
+    /** Aux audio input is played */
+    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
+};
+
+/**
  * Property to control power state of application processor.
  *
  * It is assumed that AP's power state is controller by separate power controller.
@@ -837,48 +879,6 @@ enum vehicle_ap_power_bootup_reason {
      * certain time through time specified in VEHICLE_AP_POWER_SET_SHUTDOWN_START.
      */
     VEHICLE_AP_POWER_BOOTUP_REASON_TIMER         = 2,
-};
-
-/**
- * Property to share currently active audio context in android side.
- * This can be used as a hint to adjust audio policy or other policy decision. Note that there
- * can be multiple context active at the same time.
- *
- * @value_type VEHICLE_VALUE_TYPE_INT32
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
- * @access VEHICLE_PROP_ACCESS_WRITE
- * @data_member int32
- */
-#define VEHICLE_PROPERTY_AUDIO_CONTEXT                        (0x00000B00)
-/**
- * Flags to tell the current audio context.
- */
-enum vehicle_audio_context_flag {
-    /** Music playback is currently active. */
-    VEHICLE_AUDIO_CONTEXT_MUSIC_FLAG                      = 0x1,
-    /** Navigation is currently running. */
-    VEHICLE_AUDIO_CONTEXT_NAVIGATION_FLAG                 = 0x2,
-    /** Voice command session is currently running. */
-    VEHICLE_AUDIO_CONTEXT_VOICE_COMMAND_FLAG              = 0x4,
-    /** Voice call is currently active. */
-    VEHICLE_AUDIO_CONTEXT_CALL_FLAG                       = 0x8,
-    /** Alarm is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY. */
-    VEHICLE_AUDIO_CONTEXT_ALARM_FLAG                      = 0x10,
-    /**
-     * Notification sound is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY.
-     */
-    VEHICLE_AUDIO_CONTEXT_NOTIFICATION_FLAG               = 0x20,
-    /**
-     * Context unknown. Only used for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY to represent default
-     * stream for unknown contents.
-     */
-    VEHICLE_AUDIO_CONTEXT_UNKNOWN_FLAG                    = 0x40,
-    /** Safety alert / warning is played. */
-    VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
-    /** CD / DVD kind of audio is played */
-    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
-    /** Aux audio input is played */
-    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
 };
 
 /**
