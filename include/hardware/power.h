@@ -28,6 +28,7 @@ __BEGIN_DECLS
 #define POWER_MODULE_API_VERSION_0_1  HARDWARE_MODULE_API_VERSION(0, 1)
 #define POWER_MODULE_API_VERSION_0_2  HARDWARE_MODULE_API_VERSION(0, 2)
 #define POWER_MODULE_API_VERSION_0_3  HARDWARE_MODULE_API_VERSION(0, 3)
+#define POWER_MODULE_API_VERSION_0_4  HARDWARE_MODULE_API_VERSION(0, 4)
 
 /**
  * The id of this module
@@ -46,7 +47,8 @@ typedef enum {
      */
     POWER_HINT_VIDEO_ENCODE = 0x00000003,
     POWER_HINT_VIDEO_DECODE = 0x00000004,
-    POWER_HINT_LOW_POWER = 0x00000005
+    POWER_HINT_LOW_POWER = 0x00000005,
+    POWER_HINT_SUSTAINED_PERFORMANCE = 0x00000006
 } power_hint_t;
 
 typedef enum {
@@ -124,6 +126,14 @@ typedef struct power_module {
      *     Low power mode is activated or deactivated. Low power mode
      *     is intended to save battery at the cost of performance. The data
      *     parameter is non-zero when low power mode is activated, and zero
+     *     when deactivated.
+     *
+     * POWER_HINT_SUSTAINED_PERFORMANCE
+     *
+     *     Sustained Performance mode is actived or deactivated. Sustained
+     *     performance mode is intended to provide a consistent level of
+     *     performance for a prolonged amount of time. The data parameter is
+     *     non-zero when sustained performance mode is activated, and zero
      *     when deactivated.
      *
      * A particular platform may choose to ignore any hint.
