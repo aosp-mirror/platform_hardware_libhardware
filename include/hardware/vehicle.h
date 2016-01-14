@@ -913,10 +913,8 @@ enum vehicle_value_type {
     VEHICLE_VALUE_TYPE_STRING                   = 0x01,
     VEHICLE_VALUE_TYPE_BYTES                    = 0x02,
     VEHICLE_VALUE_TYPE_BOOLEAN                  = 0x03,
-    VEHICLE_VALUE_TYPE_ZONED_INT32              = 0x04,
-    VEHICLE_VALUE_TYPE_ZONED_FLOAT              = 0x05,
-    VEHICLE_VALUE_TYPE_ZONED_BOOLEAN            = 0x06,
-    VEHICLE_VALUE_TYPE_INT64                    = 0x07,
+    VEHICLE_VALUE_TYPE_ZONED_BOOLEAN            = 0x04,
+    VEHICLE_VALUE_TYPE_INT64                    = 0x05,
     VEHICLE_VALUE_TYPE_FLOAT                    = 0x10,
     VEHICLE_VALUE_TYPE_FLOAT_VEC2               = 0x11,
     VEHICLE_VALUE_TYPE_FLOAT_VEC3               = 0x12,
@@ -925,6 +923,12 @@ enum vehicle_value_type {
     VEHICLE_VALUE_TYPE_INT32_VEC2               = 0x21,
     VEHICLE_VALUE_TYPE_INT32_VEC3               = 0x22,
     VEHICLE_VALUE_TYPE_INT32_VEC4               = 0x23,
+    VEHICLE_VALUE_TYPE_ZONED_FLOAT              = 0x30,
+    VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC2         = 0x31,
+    VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC3         = 0x32,
+    VEHICLE_VALUE_TYPE_ZONED_INT32              = 0x40,
+    VEHICLE_VALUE_TYPE_ZONED_INT32_VEC2         = 0x41,
+    VEHICLE_VALUE_TYPE_ZONED_INT32_VEC3         = 0x42,
 };
 
 /**
@@ -1172,6 +1176,15 @@ typedef struct vehicle_zoned_int32 {
     int32_t value;
 } vehicle_zoned_int32_t;
 
+typedef struct vehicle_zoned_int32_array {
+    union {
+        int32_t zone;
+        int32_t seat;
+        int32_t window;
+    };
+    int32_t values[3];
+} vehicle_zoned_int32_array_t;
+
 typedef struct vehicle_zoned_float {
     union {
         int32_t zone;
@@ -1180,6 +1193,15 @@ typedef struct vehicle_zoned_float {
     };
     float value;
 } vehicle_zoned_float_t;
+
+typedef struct vehicle_zoned_float_array {
+    union {
+        int32_t zone;
+        int32_t seat;
+        int32_t window;
+    };
+    float values[3];
+} vehicle_zoned_float_array_t;
 
 typedef struct vehicle_zoned_boolean {
     union {
@@ -1376,7 +1398,9 @@ typedef union vehicle_value {
     vehicle_bytes_t bytes_value;
     vehicle_boolean_t boolean_value;
     vehicle_zoned_int32_t zoned_int32_value;
+    vehicle_zoned_int32_array_t zoned_int32_array;
     vehicle_zoned_float_t zoned_float_value;
+    vehicle_zoned_float_array_t zoned_float_array;
     vehicle_zoned_boolean_t zoned_boolean_value;
 
     // Vehicle Information.
