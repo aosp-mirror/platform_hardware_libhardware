@@ -657,6 +657,40 @@ enum {
 #define SENSOR_TYPE_WRIST_TILT_GESTURE                         (26)
 #define SENSOR_STRING_TYPE_WRIST_TILT_GESTURE                  "android.sensor.wrist_tilt_gesture"
 
+/*
+ * SENSOR_TYPE_DEVICE_ORIENTATION
+ * reporting-mode: on-change
+ *
+ * The current orientation of the device. The value should be reported in the
+ * first element of the 'data' member variable in sensors_event_t. The only
+ * values that can be reported are (please refer to Android Sensor Coordinate
+ * System to understand the X and Y axis direction with respect to default
+ * orientation):
+ *  - 0: device is in default orientation (Y axis is vertical and points up)
+ *  - 1: device is rotated 90 degrees counter-clockwise from default
+ *       orientation (X axis is vertical and points up)
+ *  - 2: device is rotated 180 degrees from default orientation (Y axis is
+ *       vertical and points down)
+ *  - 3: device is rotated 90 degrees clockwise from default orientation (X axis
+ *       is vertical and points down)
+ *
+ * Moving the device to an orientation where the Z axis is vertical (either up
+ * or down) should not cause a new event to be reported.
+ *
+ * To improve the user experience of this sensor, it is recommended to implement
+ * some physical (i.e., rotation angle) and temporal (i.e., delay) hysteresis.
+ * In other words, minor or transient rotations should not cause a new event to
+ * be reported.
+ *
+ * This sensor should only be implemented with the help of an accelerometer.
+ * This is a low power sensor that should reduce the number of interrupts of the
+ * AP. Do not emulate this sensor in the HAL.
+ *
+ * Both wake-up and non wake-up versions are useful.
+ */
+#define SENSOR_TYPE_DEVICE_ORIENTATION                 (27)
+#define SENSOR_STRING_TYPE_DEVICE_ORIENTATION          "android.sensor.device_orientation"
+
 /**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
