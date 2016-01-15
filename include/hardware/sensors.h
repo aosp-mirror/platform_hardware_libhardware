@@ -691,6 +691,26 @@ enum {
 #define SENSOR_TYPE_DEVICE_ORIENTATION                 (27)
 #define SENSOR_STRING_TYPE_DEVICE_ORIENTATION          "android.sensor.device_orientation"
 
+/*
+ * SENSOR_TYPE_POSE_6DOF
+ * trigger-mode: continuous
+ *
+ * A sensor of this type returns the pose of the device.
+ * Pose of the device is defined as the orientation of the device from a
+ * Earth Centered Earth Fixed frame and the translation from an arbitrary
+ * point at subscription.
+ *
+ * This sensor can be high power. It can use any and all of the following
+ *           . Accelerometer
+ *           . Gyroscope
+ *           . Camera
+ *           . Depth Camera
+ *
+ * Implement only the wake-up version of this sensor.
+ */
+#define SENSOR_TYPE_POSE_6DOF                         (28)
+#define SENSOR_STRING_TYPE_POSE_6DOF                  "android.sensor.pose_6dof"
+
 /**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
