@@ -431,6 +431,23 @@ struct audio_stream_in {
      * Unit: the number of input audio frames
      */
     uint32_t (*get_input_frames_lost)(struct audio_stream_in *stream);
+
+    /**
+     * Return a recent count of the number of audio frames received and
+     * the clock time associated with that frame count.
+     *
+     * frames is the total frame count received. This should be as early in
+     *     the capture pipeline as possible. In general,
+     *     frames should be non-negative and should not go "backwards".
+     *
+     * time is the clock MONOTONIC time when frames was measured. In general,
+     *     time should be a positive quantity and should not go "backwards".
+     *
+     * The status returned is 0 on success, -ENOSYS if the device is not
+     * ready/available, or -EINVAL if the arguments are null or otherwise invalid.
+     */
+    int (*get_capture_position)(const struct audio_stream_in *stream,
+                                int64_t *frames, int64_t *time);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
