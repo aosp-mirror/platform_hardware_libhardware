@@ -706,7 +706,6 @@ enum {
  *           . Camera
  *           . Depth Camera
  *
- * Implement only the wake-up version of this sensor.
  */
 #define SENSOR_TYPE_POSE_6DOF                         (28)
 #define SENSOR_STRING_TYPE_POSE_6DOF                  "android.sensor.pose_6dof"
@@ -752,7 +751,7 @@ enum {
  * detected.
  *
  * Peak here ideally corresponds to the positive peak in the QRS complex of
- * and ECG signal. 
+ * and ECG signal.
  *
  * The sensor is not expected to be optimized for latency. As a guide, a
  * latency of up to 10 seconds is acceptable. However the timestamp attached
@@ -765,6 +764,44 @@ enum {
  */
 #define SENSOR_TYPE_HEART_BEAT                          (31)
 #define SENSOR_STRING_TYPE_HEART_BEAT                   "android.sensor.heart_beat"
+
+/**
+ * SENSOR_TYPE_DYNAMIC_SENSOR_META
+ * trigger-mode: special
+ *
+ * A sensor event of this type is received when a dynamic sensor is added to or removed from the
+ * system. At most one sensor of this type can be present in one sensor HAL implementation and
+ * presence of a sensor of this type in sensor HAL implementation indicates that this sensor HAL
+ * supports dynamic sensor feature. Operations, such as batch, activate and setDelay, to this
+ * special purpose sensor should be treated as no-op and return successful.
+ *
+ * A dynamic sensor connection indicates connection of a physical device or instantiation of a
+ * virtual sensor backed by algorithm; and a dynamic sensor disconnection indicates the the
+ * opposite. A sensor event of SENSOR_TYPE_DYNAMIC_SENSOR_META type should be delivered regardless
+ * of the activation status of the sensor in the event of dynamic sensor connection and
+ * disconnection. In the sensor event, besides the common data entries, "dynamic_sensor_meta", which
+ * includes fields for connection status, handle of the sensor involved, pointer to sensor_t
+ * structure and a uuid field, should be populated.
+ *
+ * At a dynamic sensor connection event, fields of sensor_t structure referenced by a pointer in
+ * dynamic_sensor_meta should be filled as if it was regular sensors. Sensor HAL is responsible for
+ * recovery of memory if the corresponding data is dynamicially allocated. However, the the pointer
+ * must be valid until the first activate call to the sensor reported in this connection event. At a
+ * dynamic sensor disconnection, the sensor_t pointer should be NULL.
+ *
+ * The sensor handle assigned to dynamic sensors should never be the same as that of any regular
+ * static sensors, and should be unique until next boot. In another word, if a handle h is used for
+ * a dynamic sensor A, that same number cannot be used for the same dynamic sensor A or another
+ * dynamic sensor B even after disconnection of A until reboot.
+ *
+ * The UUID field will be used for identifying the sensor in addition to name, vendor and version
+ * and type. For physical sensors of the same model, all sensors will have the same values in
+ * sensor_t, but the UUID should be unique and persistent for each individual unit. An all zero UUID
+ * indicates it is not possible to differentiate individual sensor unit.
+ *
+ */
+#define SENSOR_TYPE_DYNAMIC_SENSOR_META                         (32)
+#define SENSOR_STRING_TYPE_DYNAMIC_SENSOR_META                  "android.sensor.dynamic_sensor_meta"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -787,6 +824,9 @@ enum {
 #define SENSOR_STATUS_ACCURACY_LOW      1
 #define SENSOR_STATUS_ACCURACY_MEDIUM   2
 #define SENSOR_STATUS_ACCURACY_HIGH     3
+
+
+struct sensor_t;
 
 /**
  * sensor event data
@@ -838,6 +878,17 @@ typedef struct meta_data_event {
     int32_t what;
     int32_t sensor;
 } meta_data_event_t;
+
+/**
+ * Dynamic sensor meta event. See the description of SENSOR_TYPE_DYNAMIC_SENSOR_META type for
+ * details.
+ */
+typedef struct dynamic_sensor_meta_event {
+    bool  connected;
+    int   handle;
+    const struct sensor_t * sensor; // should be NULL if connected == false
+    uint8_t uuid[16];               // UUID of a dynamic sensor (use platform endianess).
+} dynamic_sensor_meta_event_t;
 
 /**
  * Heart rate event data
@@ -918,6 +969,9 @@ typedef struct sensors_event_t {
              * SENSOR_TYPE_META_DATA. The handle is ignored and must be zero.
              */
             meta_data_event_t meta_data;
+
+            /* dynamic sensor meta event. See SENSOR_TYPE_DYNAMIC_SENSOR_META type for details */
+            dynamic_sensor_meta_event_t dynamic_sensor_meta;
         };
 
         union {
@@ -938,8 +992,6 @@ typedef struct sensors_event_t {
 /* see SENSOR_TYPE_META_DATA */
 typedef sensors_event_t sensors_meta_data_event_t;
 
-
-struct sensor_t;
 
 /**
  * Every hardware module must have a data structure named HAL_MODULE_INFO_SYM
