@@ -103,6 +103,36 @@ typedef struct {
     uint8_t attr_values[BTRC_MAX_APP_SETTINGS];
 } btrc_player_settings_t;
 
+typedef struct {
+    uint8_t   val;
+    uint16_t  charset_id;
+    uint16_t  str_len;
+    uint8_t   *p_str;
+} btrc_player_app_ext_attr_val_t;
+
+typedef struct {
+    uint8_t   attr_id;
+    uint16_t  charset_id;
+    uint16_t  str_len;
+    uint8_t   *p_str;
+    uint8_t   num_val;
+    btrc_player_app_ext_attr_val_t ext_attr_val[BTRC_MAX_APP_ATTR_SIZE];
+} btrc_player_app_ext_attr_t;
+
+typedef struct {
+    uint8_t attr_id;
+    uint8_t num_val;
+    uint8_t attr_val[BTRC_MAX_APP_ATTR_SIZE];
+} btrc_player_app_attr_t;
+
+typedef struct {
+    uint32_t start_item;
+    uint32_t end_item;
+    uint32_t size;
+    uint32_t attrs[BTRC_MAX_ELEM_ATTR_SIZE];
+    uint8_t  attr_count;
+} btrc_getfolderitem_t;
+
 typedef union
 {
     btrc_play_status_t play_status;
@@ -264,14 +294,53 @@ typedef struct {
 
 typedef void (* btrc_passthrough_rsp_callback) (int id, int key_state);
 
+typedef void (* btrc_groupnavigation_rsp_callback) (int id, int key_state);
+
 typedef void (* btrc_connection_state_callback) (bool state, bt_bdaddr_t *bd_addr);
+
+typedef void (* btrc_ctrl_getrcfeatures_callback) (bt_bdaddr_t *bd_addr, int features);
+
+typedef void (* btrc_ctrl_setabsvol_cmd_callback) (bt_bdaddr_t *bd_addr, uint8_t abs_vol, uint8_t label);
+
+typedef void (* btrc_ctrl_registernotification_abs_vol_callback) (bt_bdaddr_t *bd_addr, uint8_t label);
+
+typedef void (* btrc_ctrl_setplayerapplicationsetting_rsp_callback) (bt_bdaddr_t *bd_addr,
+                                                                          uint8_t accepted);
+
+typedef void (* btrc_ctrl_playerapplicationsetting_callback)(bt_bdaddr_t *bd_addr,
+                                                                 uint8_t num_attr,
+                                                                 btrc_player_app_attr_t *app_attrs,
+                                                                 uint8_t num_ext_attr,
+                                                                 btrc_player_app_ext_attr_t *ext_attrs);
+
+typedef void (* btrc_ctrl_playerapplicationsetting_changed_callback)(bt_bdaddr_t *bd_addr,
+                                                                          btrc_player_settings_t *p_vals);
+
+typedef void (* btrc_ctrl_track_changed_callback)(bt_bdaddr_t *bd_addr, uint8_t num_attr,
+                                                     btrc_element_attr_val_t *p_attrs);
+
+typedef void (* btrc_ctrl_play_position_changed_callback)(bt_bdaddr_t *bd_addr,
+                                                              uint32_t song_len, uint32_t song_pos);
+
+typedef void (* btrc_ctrl_play_status_changed_callback)(bt_bdaddr_t *bd_addr,
+                                                            btrc_play_status_t play_status);
 
 /** BT-RC Controller callback structure. */
 typedef struct {
     /** set to sizeof(BtRcCallbacks) */
     size_t      size;
-    btrc_passthrough_rsp_callback               passthrough_rsp_cb;
-    btrc_connection_state_callback              connection_state_cb;
+    btrc_passthrough_rsp_callback                               passthrough_rsp_cb;
+    btrc_groupnavigation_rsp_callback                           groupnavigation_rsp_cb;
+    btrc_connection_state_callback                              connection_state_cb;
+    btrc_ctrl_getrcfeatures_callback                            getrcfeatures_cb;
+    btrc_ctrl_setplayerapplicationsetting_rsp_callback          setplayerappsetting_rsp_cb;
+    btrc_ctrl_playerapplicationsetting_callback                 playerapplicationsetting_cb;
+    btrc_ctrl_playerapplicationsetting_changed_callback         playerapplicationsetting_changed_cb;
+    btrc_ctrl_setabsvol_cmd_callback                            setabsvol_cmd_cb;
+    btrc_ctrl_registernotification_abs_vol_callback             registernotification_absvol_cb;
+    btrc_ctrl_track_changed_callback                            track_changed_cb;
+    btrc_ctrl_play_position_changed_callback                    play_position_changed_cb;
+    btrc_ctrl_play_status_changed_callback                      play_status_changed_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -285,7 +354,23 @@ typedef struct {
     bt_status_t (*init)( btrc_ctrl_callbacks_t* callbacks );
 
     /** send pass through command to target */
-    bt_status_t (*send_pass_through_cmd) ( bt_bdaddr_t *bd_addr, uint8_t key_code, uint8_t key_state );
+    bt_status_t (*send_pass_through_cmd) (bt_bdaddr_t *bd_addr, uint8_t key_code,
+            uint8_t key_state );
+
+    /** send group navigation command to target */
+    bt_status_t (*send_group_navigation_cmd) (bt_bdaddr_t *bd_addr, uint8_t key_code,
+            uint8_t key_state );
+
+    /** send command to set player applicaiton setting attributes to target */
+    bt_status_t (*set_player_app_setting_cmd) (bt_bdaddr_t *bd_addr, uint8_t num_attrib,
+            uint8_t* attrib_ids, uint8_t* attrib_vals);
+
+    /** send rsp to set_abs_vol received from target */
+    bt_status_t (*set_volume_rsp) (bt_bdaddr_t *bd_addr, uint8_t abs_vol, uint8_t label);
+
+    /** send notificaiton rsp for abs vol to target */
+    bt_status_t (*register_abs_vol_rsp) (bt_bdaddr_t *bd_addr, btrc_notification_type_t rsp_type,
+            uint8_t abs_vol, uint8_t label);
 
     /** Closes the interface. */
     void  (*cleanup)( void );
