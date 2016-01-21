@@ -56,16 +56,20 @@ typedef struct {
      * If neither a UUID nor a channel is provided, a channel will be allocated
      * and a service record can be created providing the channel number to
      * create_sdp_record(...) in bt_sdp.
+     * The callingUid is the UID of the application which is requesting the socket. This is
+     * used for traffic accounting purposes.
      */
     bt_status_t (*listen)(btsock_type_t type, const char* service_name,
-            const uint8_t* service_uuid, int channel, int* sock_fd, int flags);
+            const uint8_t* service_uuid, int channel, int* sock_fd, int flags, int callingUid);
 
     /**
      * Connect to a RFCOMM UUID channel of remote device, It returns the socket fd from which
-     * the btsock_connect_signal and a new socket fd to be accepted can be read out when connected
+     * the btsock_connect_signal and a new socket fd to be accepted can be read out when connected.
+     * The callingUid is the UID of the application which is requesting the socket. This is
+     * used for traffic accounting purposes.
      */
     bt_status_t (*connect)(const bt_bdaddr_t *bd_addr, btsock_type_t type, const uint8_t* uuid,
-            int channel, int* sock_fd, int flags);
+            int channel, int* sock_fd, int flags, int callingUid);
 } btsock_interface_t;
 
 __END_DECLS
