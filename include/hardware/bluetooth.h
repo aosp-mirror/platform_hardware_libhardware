@@ -107,6 +107,12 @@ typedef struct {
     uint64_t energy_used;   /* a product of mA, V and ms */
 } __attribute__((packed))bt_activity_energy_info;
 
+typedef struct {
+    int32_t app_uid;
+    uint64_t tx_bytes;
+    uint64_t rx_bytes;
+} __attribute__((packed))bt_uid_traffic_t;
+
 /** Bluetooth Adapter Discovery state */
 typedef enum {
     BT_DISCOVERY_STOPPED,
@@ -378,8 +384,12 @@ typedef void (*le_test_mode_callback)(bt_status_t status, uint16_t num_packets);
  * If the ctrl_state value is 0, it means the API call failed
  * Time values-In milliseconds as returned by the controller
  * Energy used-Value as returned by the controller
- * Status-Provides the status of the read_energy_info API call */
-typedef void (*energy_info_callback)(bt_activity_energy_info *energy_info);
+ * Status-Provides the status of the read_energy_info API call
+ * uid_data provides an array of bt_uid_traffic_t, where the array is terminated by an element with
+ * app_uid set to -1.
+ */
+typedef void (*energy_info_callback)(bt_activity_energy_info *energy_info,
+                                     bt_uid_traffic_t *uid_data);
 
 /** TODO: Add callbacks for Link Up/Down and other generic
   *  notifications/callbacks */
