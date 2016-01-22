@@ -804,6 +804,36 @@ enum {
 #define SENSOR_STRING_TYPE_DYNAMIC_SENSOR_META                  "android.sensor.dynamic_sensor_meta"
 
 /**
+ * SENSOR_TYPE_ADDITIONAL_INFO
+ * reporting-mode: N/A
+ *
+ * This sensor type is for delivering additional sensor information aside from sensor event data.
+ * Additional information may include sensor front-end group delay, internal calibration parameters,
+ * noise level metrics, device internal temperature, etc.
+ *
+ * This type will never bind to a sensor. In other words, no sensor in the sensor list should be of
+ * the type SENSOR_TYPE_ADDITIONAL_INFO. If a sensor HAL supports sensor additional information
+ * feature, it reports sensor_event_t with "sensor" field set to handle of the reporting sensor and
+ * "type" field set to SENSOR_TYPE_ADDITIONAL_INFO. Delivery of additional information events is
+ * triggered under two conditions: an enable activate() call or a flush() call to the corresponding
+ * sensor.
+ *
+ * A single additional information report consists of multiple frames. Sequences of these frames are
+ * ordered using timestamps, which means the timestamps of sequential frames have to be at least 1
+ * nanosecond apart from each other. Each frame is a sensor_event_t delivered through the HAL
+ * interface, with related data stored in the "additional_info" field, which is of type
+ * additional_info_event_t.  The "type" field of additional_info_event_t denotes the nature of the
+ * payload data (see additional_info_type_t).  The "serial" field is used to keep the sequence of
+ * payload data that spans multiple frames. The first frame of the entire report is always of type
+ * AINFO_BEGIN, and the last frame is always AINFO_END.
+ *
+ * All additional information frames have to be delivered after flush complete event if flush() was
+ * triggering the report.
+ */
+#define SENSOR_TYPE_ADDITIONAL_INFO                       (33)
+#define SENSOR_STRING_TYPE_ADDITIONAL_INFO                "android.sensor.additional_info"
+
+/**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
  */
@@ -904,6 +934,85 @@ typedef struct {
   int8_t status;
 } heart_rate_event_t;
 
+typedef struct {
+    int32_t type;                           // type of payload data, see additional_info_type_t
+    int32_t serial;                         // sequence number of this frame for this type
+    union {
+        // for each frame, a single data type, either int32_t or float, should be used.
+        int32_t data_int32[14];
+        float   data_float[14];
+    };
+} additional_info_event_t;
+
+typedef enum additional_info_type {
+    //
+    AINFO_BEGIN = 0x0,                      // Marks the beginning of additional information frames
+    AINFO_END   = 0x1,                      // Marks the end of additional information frames
+    // Basic information
+    AINFO_UNTRACKED_DELAY =  0x10000,       // Estimation of the delay that is not tracked by sensor
+                                            // timestamps. This includes delay introduced by
+                                            // sensor front-end filtering, data transport, etc.
+                                            // float[2]: delay in seconds
+                                            //           standard deviation of estimated value
+                                            //
+    AINFO_INTERNAL_TEMPERATURE,             // float: Celsius temperature.
+                                            //
+    AINFO_VEC3_CALIBRATION,                 // First three rows of a homogeneous matrix, which
+                                            // represents calibration to a three-element vector
+                                            // raw sensor reading.
+                                            // float[12]: 3x4 matrix in row major order
+                                            //
+    AINFO_SENSOR_PLACEMENT,                 // Location and orientation of sensor element in the
+                                            // device frame: origin is the geometric center of the
+                                            // mobile device screen surface; the axis definition
+                                            // corresponds to Android sensor definitions.
+                                            // float[12]: 3x4 matrix in row major order
+                                            //
+    AINFO_SAMPLING,                         // float[2]: raw sample period in seconds,
+                                            //           standard deviation of sampling period
+
+    // Sampling channel modeling information
+    AINFO_CHANNEL_NOISE = 0x20000,          // int32_t: noise type
+                                            // float[n]: parameters
+                                            //
+    AINFO_CHANNEL_SAMPLER,                  // float[3]: sample period
+                                            //           standard deviation of sample period,
+                                            //           quantization unit
+                                            //
+    AINFO_CHANNEL_FILTER,                   // Represents a filter:
+                                            //      \sum_j a_j y[n-j] == \sum_i b_i x[n-i]
+                                            //
+                                            // int32_t[3]: number of feedforward coefficients, M,
+                                            //             number of feedback coefficients, N, for
+                                            //               FIR filter, N=1.
+                                            //             bit mask that represents which element to
+                                            //               which the filter is applied, bit 0 == 1
+                                            //               means this filter applies to vector
+                                            //               element 0.
+                                            // float[M+N]: filter coefficients (b0, b1, ..., BM-1),
+                                            //             then (a0, a1, ..., aN-1), a0 is always 1.
+                                            //             Multiple frames may be needed for higher
+                                            //             number of taps.
+                                            //
+    AINFO_CHANNEL_LINEAR_TRANSFORM,         // int32_t[2]: size in (row, column) ... 1st frame
+                                            // float[n]: matrix element values in row major order.
+                                            //
+    AINFO_CHANNEL_NONLINEAR_MAP,            // int32_t[2]: extrapolate method
+                                            //             interpolate method
+                                            // float[n]: mapping key points in pairs, (in, out)...
+                                            //           (may be used to model saturation)
+                                            //
+    AINFO_CHANNEL_RESAMPLER,                // int32_t:  resample method (0-th order, 1st order...)
+                                            // float[1]: resample ratio (upsampling if < 1.0;
+                                            //           downsampling if > 1.0).
+                                            //
+
+    // Custom information
+    AINFO_CUSTOM_START =    0x10000000,     //
+    // Debugging
+    AINFO_DEBUGGING_START = 0x40000000,     //
+} additional_info_type_t;
+
 /**
  * Union of the various types of sensor data
  * that can be returned.
@@ -972,6 +1081,12 @@ typedef struct sensors_event_t {
 
             /* dynamic sensor meta event. See SENSOR_TYPE_DYNAMIC_SENSOR_META type for details */
             dynamic_sensor_meta_event_t dynamic_sensor_meta;
+
+            /*
+             * special additional sensor information frame, see
+             * SENSOR_TYPE_ADDITIONAL_INFO for details.
+             */
+            additional_info_event_t additional_info;
         };
 
         union {
@@ -1012,7 +1127,7 @@ struct sensors_module_t {
      *  Place the module in a specific mode. The following modes are defined
      *
      *  0 - Normal operation. Default state of the module.
-     *  1 - Loopback mode. Data is injected for the the supported
+     *  1 - Loopback mode. Data is injected for the supported
      *      sensors by the sensor service in this mode.
      * @return 0 on success
      *         -EINVAL if requested mode is not supported
