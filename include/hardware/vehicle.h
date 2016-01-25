@@ -890,20 +890,20 @@ enum vehicle_ap_power_bootup_reason {
  *  include config_string of "com.XYZ.some_further_details".
  *  @range_start
  */
-#define VEHICLE_PROPERTY_CUSTOM_START                       (0xf0000000)
+#define VEHICLE_PROPERTY_CUSTOM_START                       (0x70000000)
 /** @range_end */
-#define VEHICLE_PROPERTY_CUSTOM_END                         (0xf7ffffff)
+#define VEHICLE_PROPERTY_CUSTOM_END                         (0x73ffffff)
 
 /**
  * Property range allocated for system's internal usage like testing. HAL should never declare
  * property in this range.
  * @range_start
  */
-#define VEHICLE_PROPERTY_INTERNAL_START                     (0xf8000000)
+#define VEHICLE_PROPERTY_INTERNAL_START                     (0x74000000)
 /**
  * @range_end
  */
-#define VEHICLE_PROPERTY_INTERNAL_END                       (0xf8ffffff)
+#define VEHICLE_PROPERTY_INTERNAL_END                       (0x74ffffff)
 
 /**
  * Value types for various properties.
