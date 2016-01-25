@@ -54,6 +54,12 @@ __BEGIN_DECLS
 #define KEYMASTER_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
 #define KEYMASTER_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
 
+/**
+ * Keymaster 2.0 module version provides third API, slightly modified and extended from 1.0.
+ */
+#define KEYMASTER_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
+#define KEYMASTER_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
+
 struct keystore_module {
     /**
      * Common methods of the keystore module.  This *must* be the first member of keystore_module as
