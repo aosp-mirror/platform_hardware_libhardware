@@ -52,22 +52,25 @@ typedef enum {
      */
 
     /* Crypto parameters */
-    KM_TAG_PURPOSE = KM_ENUM_REP | 1,      /* keymaster_purpose_t. */
-    KM_TAG_ALGORITHM = KM_ENUM | 2,        /* keymaster_algorithm_t. */
-    KM_TAG_KEY_SIZE = KM_UINT | 3,         /* Key size in bits. */
-    KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4,   /* keymaster_block_mode_t. */
-    KM_TAG_DIGEST = KM_ENUM_REP | 5,       /* keymaster_digest_t. */
-    KM_TAG_PADDING = KM_ENUM_REP | 6,      /* keymaster_padding_t. */
-    KM_TAG_CALLER_NONCE = KM_BOOL | 7,     /* Allow caller to specify nonce or IV. */
-    KM_TAG_MIN_MAC_LENGTH = KM_UINT | 8,   /* Minimum length of MAC or AEAD authentication tag in
-                                            * bits. */
-    KM_TAG_KDF = KM_ENUM | 9,              /* keymaster_kdf_t */
-    KM_TAG_EC_CURVE = KM_ENUM | 10,        /* keymaster_ec_curve_t */
+    KM_TAG_PURPOSE = KM_ENUM_REP | 1,    /* keymaster_purpose_t. */
+    KM_TAG_ALGORITHM = KM_ENUM | 2,      /* keymaster_algorithm_t. */
+    KM_TAG_KEY_SIZE = KM_UINT | 3,       /* Key size in bits. */
+    KM_TAG_BLOCK_MODE = KM_ENUM_REP | 4, /* keymaster_block_mode_t. */
+    KM_TAG_DIGEST = KM_ENUM_REP | 5,     /* keymaster_digest_t. */
+    KM_TAG_PADDING = KM_ENUM_REP | 6,    /* keymaster_padding_t. */
+    KM_TAG_CALLER_NONCE = KM_BOOL | 7,   /* Allow caller to specify nonce or IV. */
+    KM_TAG_MIN_MAC_LENGTH = KM_UINT | 8, /* Minimum length of MAC or AEAD authentication tag in
+                                          * bits. */
+    KM_TAG_KDF = KM_ENUM_REP | 9,        /* keymaster_kdf_t (keymaster2) */
+    KM_TAG_EC_CURVE = KM_ENUM | 10,      /* keymaster_ec_curve_t (keymaster2) */
 
     /* Algorithm-specific. */
     KM_TAG_RSA_PUBLIC_EXPONENT = KM_ULONG | 200,
     KM_TAG_ECIES_SINGLE_HASH_MODE = KM_BOOL | 201, /* Whether the ephemeral public key is fed into
-                                                    *  the KDF, see 10.2 in http://goo.gl/WbmSSO */
+                                                    * the KDF */
+    KM_TAG_INCLUDE_UNIQUE_ID = KM_BOOL | 202,      /* If true, attestation certificates for this key
+                                                    * will contain an application-scoped and
+                                                    * time-bounded device-unique ID. (keymaster2) */
 
     /* Other hardware-enforced. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
@@ -108,8 +111,13 @@ typedef enum {
                                                    device is powered off. */
 
     /* Application access control */
-    KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* Reserved for future use -- ignore */
-    KM_TAG_APPLICATION_ID = KM_BYTES | 601,  /* Reserved for fugure use -- ignore */
+    KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* Specified to indicate key is usable by all
+                                              * applications. */
+    KM_TAG_APPLICATION_ID = KM_BYTES | 601,  /* Byte string identifying the authorized
+                                              * application. */
+    KM_TAG_EXPORTABLE = KM_BOOL | 602,       /* If true, private/secret key can be exported, but
+                                              * only if all access control requirements for use are
+                                              * met. (keymaster2) */
 
     /*
      * Semantically unenforceable tags, either because they have no specific meaning or because
@@ -120,6 +128,9 @@ typedef enum {
     KM_TAG_ORIGIN = KM_ENUM | 702,             /* keymaster_key_origin_t. */
     KM_TAG_ROLLBACK_RESISTANT = KM_BOOL | 703, /* Whether key is rollback-resistant. */
     KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,     /* Root of trust ID. */
+    KM_TAG_OS_VERSION = KM_UINT | 705,         /* Version of system (keymaster2) */
+    KM_TAG_OS_PATCHLEVEL = KM_UINT | 706,      /* Patch level of system (keymaster2) */
+    KM_TAG_UNIQUE_ID = KM_BYTES | 707,         /* Used to provide unique ID in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -127,7 +138,12 @@ typedef enum {
     KM_TAG_AUTH_TOKEN = KM_BYTES | 1002,      /* Authentication token that proves secure user
                                                  authentication has been performed.  Structure
                                                  defined in hw_auth_token_t in hw_auth_token.h. */
-    KM_TAG_MAC_LENGTH = KM_UINT | 1003,       /* MAC or AEAD authentication tag length in bits. */
+    KM_TAG_MAC_LENGTH = KM_UINT | 1003,       /* MAC or AEAD authentication tag length in
+                                               * bits. */
+
+    KM_TAG_RESET_SINCE_ID_ROTATION = KM_BOOL | 1004, /* Whether the device has beeen factory reset
+                                                        since the last unique ID rotation.  Used for
+                                                        key attestation. */
 } keymaster_tag_t;
 
 /**
@@ -195,16 +211,18 @@ typedef enum {
  * Key derivation functions, mostly used in ECIES.
  */
 typedef enum {
+    /* Do not apply a key derivation function; use the raw agreed key */
+    KM_KDF_NONE = 0,
     /* HKDF defined in RFC 5869 with SHA256 */
-    KM_KDF_RFC5869_SHA256 = 0,
+    KM_KDF_RFC5869_SHA256 = 1,
     /* KDF1 defined in ISO 18033-2 with SHA1 */
-    KM_KDF_ISO18033_1_KDF2_SHA1 = 1,
+    KM_KDF_ISO18033_2_KDF1_SHA1 = 2,
     /* KDF1 defined in ISO 18033-2 with SHA256 */
-    KM_KDF_ISO18033_1_KDF1_SHA256 = 2,
+    KM_KDF_ISO18033_2_KDF1_SHA256 = 3,
     /* KDF2 defined in ISO 18033-2 with SHA1 */
-    KM_KDF_ISO18033_2_KDF2_SHA1 = 3,
+    KM_KDF_ISO18033_2_KDF2_SHA1 = 4,
     /* KDF2 defined in ISO 18033-2 with SHA256 */
-    KM_KDF_ISO18033_2_KDF2_SHA256 = 4,
+    KM_KDF_ISO18033_2_KDF2_SHA256 = 5,
 } keymaster_kdf_t;
 
 /**
@@ -224,8 +242,9 @@ typedef enum {
  * hardware-enforced list is guaranteed never to have existed outide the secure hardware.
  */
 typedef enum {
-    KM_ORIGIN_GENERATED = 0, /* Generated in keymaster */
-    KM_ORIGIN_IMPORTED = 2,  /* Imported, origin unknown */
+    KM_ORIGIN_GENERATED = 0, /* Generated in keymaster.  Should not exist outside the TEE. */
+    KM_ORIGIN_DERIVED = 1,   /* Derived inside keymaster.  Likely exists off-device. */
+    KM_ORIGIN_IMPORTED = 2,  /* Imported into keymaster.  Existed as cleartext in Android. */
     KM_ORIGIN_UNKNOWN = 3,   /* Keymaster did not record origin.  This value can only be seen on
                               * keys in a keymaster0 implementation.  The keymaster0 adapter uses
                               * this value to document the fact that it is unkown whether the key
@@ -237,7 +256,7 @@ typedef enum {
  * for the key to function.  For example, key "blobs" which are actually handles referencing
  * encrypted key material stored in the file system cannot be used until the file system is
  * available, and should have BLOB_REQUIRES_FILE_SYSTEM.  Other requirements entries will be added
- * as needed for implementations.  This type is new in 0_4.
+ * as needed for implementations.
  */
 typedef enum {
     KM_BLOB_STANDALONE = 0,
@@ -245,13 +264,14 @@ typedef enum {
 } keymaster_key_blob_usage_requirements_t;
 
 /**
- * Possible purposes of a key (or pair). This type is new in 0_4.
+ * Possible purposes of a key (or pair).
  */
 typedef enum {
-    KM_PURPOSE_ENCRYPT = 0,
-    KM_PURPOSE_DECRYPT = 1,
-    KM_PURPOSE_SIGN = 2,
-    KM_PURPOSE_VERIFY = 3,
+    KM_PURPOSE_ENCRYPT = 0,    /* Usable with RSA, EC and AES keys. */
+    KM_PURPOSE_DECRYPT = 1,    /* Usable with RSA, EC and AES keys. */
+    KM_PURPOSE_SIGN = 2,       /* Usable with RSA, EC and HMAC keys. */
+    KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
+    KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
 } keymaster_purpose_t;
 
 typedef struct {
@@ -293,14 +313,18 @@ typedef struct {
     size_t key_material_size;
 } keymaster_key_blob_t;
 
+typedef struct {
+    keymaster_blob_t* entries;
+    size_t entry_count;
+} keymaster_cert_chain_t;
+
 /**
- * Formats for key import and export.  At present, only asymmetric key import/export is supported.
- * In the future this list will expand greatly to accommodate asymmetric key import/export.
+ * Formats for key import and export.
  */
 typedef enum {
     KM_KEY_FORMAT_X509 = 0,  /* for public key export */
     KM_KEY_FORMAT_PKCS8 = 1, /* for asymmetric key pair import */
-    KM_KEY_FORMAT_RAW = 3,   /* for symmetric key import */
+    KM_KEY_FORMAT_RAW = 3,   /* for symmetric key import and export*/
 } keymaster_key_format_t;
 
 /**
@@ -372,6 +396,7 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_MIN_MAC_LENGTH = -59,
     KM_ERROR_UNSUPPORTED_KDF = -60,
     KM_ERROR_UNSUPPORTED_EC_CURVE = -61,
+    KM_ERROR_KEY_REQUIRES_UPGRADE = -62,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
@@ -538,6 +563,19 @@ inline void keymaster_free_characteristics(keymaster_key_characteristics_t* char
     if (characteristics) {
         keymaster_free_param_set(&characteristics->hw_enforced);
         keymaster_free_param_set(&characteristics->sw_enforced);
+    }
+}
+
+inline void keymaster_free_cert_chain(keymaster_cert_chain_t* chain) {
+    if (chain) {
+        for (size_t i = 0; i < chain->entry_count; ++i) {
+            free((uint8_t*)chain->entries[i].data);
+            chain->entries[i].data = NULL;
+            chain->entries[i].data_length = 0;
+        }
+        free(chain->entries);
+        chain->entries = NULL;
+        chain->entry_count = 0;
     }
 }
 
