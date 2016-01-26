@@ -15,6 +15,11 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define LOG_TAG "HardwarePropertiesHAL"
+#include <utils/Log.h>
 
 #include <hardware/hardware.h>
 #include <hardware/hardware_properties.h>
