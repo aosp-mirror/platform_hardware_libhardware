@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <errno.h>
+
 #include <hardware/hardware.h>
 #include <hardware/hardware_properties.h>
 
