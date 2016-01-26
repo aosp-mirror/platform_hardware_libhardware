@@ -109,6 +109,9 @@ typedef enum {
                                                    If absent, authentication is required for every
                                                    use.  Authentication state is lost when the
                                                    device is powered off. */
+    KM_TAG_ALLOW_WHILE_ON_BODY = KM_BOOL | 506, /* Allow key to be used after authentication timeout
+                                                 * if device is still on-body (requires secure
+                                                 * on-body sensor. */
 
     /* Application access control */
     KM_TAG_ALL_APPLICATIONS = KM_BOOL | 600, /* Specified to indicate key is usable by all
