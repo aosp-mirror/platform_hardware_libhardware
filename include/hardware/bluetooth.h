@@ -567,8 +567,10 @@ typedef struct {
     /**
      * Native support for dumpsys function
      * Function is synchronous and |fd| is owned by caller.
+     * |arguments| are arguments which may affect the output, encoded as
+     * UTF-8 strings.
      */
-    void (*dump)(int fd);
+    void (*dump)(int fd, const char **arguments);
 
     /**
      * Clear /data/misc/bt_config.conf and erase all stored connections
