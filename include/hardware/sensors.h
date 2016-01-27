@@ -711,6 +711,61 @@ enum {
 #define SENSOR_TYPE_POSE_6DOF                         (28)
 #define SENSOR_STRING_TYPE_POSE_6DOF                  "android.sensor.pose_6dof"
 
+/*
+ * SENSOR_TYPE_STATIONARY_DETECT
+ * trigger mode: one shot
+ *
+ * A sensor of this type returns an event if the device is still/stationary for
+ * a while. The period of time to monitor for statinarity should be greater than
+ * 5 seconds, and less than 10 seconds.
+ *
+ * Stationarity here refers to absolute stationarity. eg: device on desk.
+ *
+ * The only allowed value to return is 1.0.
+ */
+#define SENSOR_TYPE_STATIONARY_DETECT                   (29)
+#define SENSOR_STRING_TYPE_STATIONARY_DETECT            "android.sensor.stationary_detect"
+
+/*
+ * SENSOR_TYPE_MOTION_DETECT
+ * trigger mode: one shot
+ *
+ * A sensor of this type returns an event if the device is not still for
+ * a while. The period of time to monitor for statinarity should be greater than
+ * 5 seconds, and less than 10 seconds.
+ *
+ * Motion here refers to any mechanism in which the device is causes to be
+ * moved in its inertial frame. eg: Pickin up the device and walking with it
+ * to a nearby room may trigger motion wherewas keeping the device on a table
+ * on a smooth train moving at constant velocity may not trigger motion.
+ *
+ * The only allowed value to return is 1.0.
+ */
+#define SENSOR_TYPE_MOTION_DETECT                       (30)
+#define SENSOR_STRING_TYPE_MOTION_DETECT                "android.sensor.motion_detect"
+
+/*
+ * SENSOR_TYPE_HEART_BEAT
+ * trigger mode: continuous
+ *
+ * A sensor of this type returns an event everytime a hear beat peak is
+ * detected.
+ *
+ * Peak here ideally corresponds to the positive peak in the QRS complex of
+ * and ECG signal. 
+ *
+ * The sensor is not expected to be optimized for latency. As a guide, a
+ * latency of up to 10 seconds is acceptable. However the timestamp attached
+ * to the event should be accurate and should correspond to the time the peak
+ * occured.
+ *
+ * The sensor event contains a parameter for the confidence in the detection
+ * of the peak where 0.0 represent no information at all, and 1.0 represents
+ * certainty.
+ */
+#define SENSOR_TYPE_HEART_BEAT                          (31)
+#define SENSOR_STRING_TYPE_HEART_BEAT                   "android.sensor.heart_beat"
+
 /**
  * Values returned by the accelerometer in various locations in the universe.
  * all values are in SI units (m/s^2)
