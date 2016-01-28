@@ -884,8 +884,8 @@ typedef struct meta_data_event {
  * details.
  */
 typedef struct dynamic_sensor_meta_event {
-    bool  connected;
-    int   handle;
+    int32_t  connected;
+    int32_t  handle;
     const struct sensor_t * sensor; // should be NULL if connected == false
     uint8_t uuid[16];               // UUID of a dynamic sensor (use platform endianess).
 } dynamic_sensor_meta_event_t;
