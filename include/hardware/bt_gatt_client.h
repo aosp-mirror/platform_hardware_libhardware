@@ -245,6 +245,9 @@ typedef void (*track_adv_event_callback)(btgatt_track_adv_info_t *p_track_adv_in
 typedef void (*scan_parameter_setup_completed_callback)(int client_if,
                                                         btgattc_error_t status);
 
+/** GATT get database callback */
+typedef void (*get_gatt_db_callback)(int conn_id, btgatt_db_element_t *db, int count);
+
 typedef struct {
     register_client_callback            register_client_cb;
     scan_result_callback                scan_result_cb;
@@ -279,6 +282,7 @@ typedef struct {
     batchscan_threshold_callback        batchscan_threshold_cb;
     track_adv_event_callback            track_adv_event_cb;
     scan_parameter_setup_completed_callback scan_parameter_setup_completed_cb;
+    get_gatt_db_callback                get_gatt_db_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
@@ -447,6 +451,9 @@ typedef struct {
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
+
+    /** Get gatt db content */
+    bt_status_t (*get_gatt_db)( int conn_id);
 
 } btgatt_client_interface_t;
 
