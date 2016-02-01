@@ -25,10 +25,8 @@
  * model, you can also send $'\002' etc. $'\000' is the kill
  * signal for the trigger listening thread.
  *
- * To enable this file, you must change the src file in this
- * directory's Android.mk file, then change the sound_trigger
- * product package in the device-specific device.mk file,
- * for example, in device/htc/flounder
+ * To enable this file, you can make with command line parameter
+ * SOUND_TRIGGER_USE_STUB_MODULE=1
  */
 
 #define LOG_TAG "sound_trigger_hw_default"
@@ -83,14 +81,14 @@ struct recognition_context {
     struct sound_trigger_recognition_config *config;
     recognition_callback_t recognition_callback;
     void *recognition_cookie;
-}
+};
 
 struct stub_sound_trigger_device {
     struct sound_trigger_hw_device device;
     pthread_mutex_t lock;
     pthread_t callback_thread;
 
-    struct recognition_context re_context[MAX_MAX_SOUND_MODELS];
+    struct recognition_context model_context[MAX_MAX_SOUND_MODELS];
 
     int next_sound_model_id;
 };
@@ -117,7 +115,7 @@ static char *sound_trigger_event_alloc(struct stub_sound_trigger_device *stdev,
     unsigned int model_index;
     bool found = false;
     for(model_index = 0; model_index < hw_properties.max_sound_models; model_index++) {
-        if (stdev->re_context[model_index]->loaded_sound_model == handle) {
+        if (stdev->model_context[model_index].loaded_sound_model == handle) {
             found = true;
             break;
         }
@@ -132,14 +130,14 @@ static char *sound_trigger_event_alloc(struct stub_sound_trigger_device *stdev,
     event->common.type = SOUND_MODEL_TYPE_KEYPHRASE;
     event->common.model = handle;
 
-    if (stdev->re_context[model_index]->config) {
+    if (stdev->model_context[model_index].config) {
         unsigned int i;
 
-        event->num_phrases = stdev->re_context[model_index]->config->num_phrases;
+        event->num_phrases = stdev->model_context[model_index].config->num_phrases;
         if (event->num_phrases > SOUND_TRIGGER_MAX_PHRASES)
             event->num_phrases = SOUND_TRIGGER_MAX_PHRASES;
         for (i=0; i < event->num_phrases; i++)
-            memcpy(&event->phrase_extras[i], &stdev->re_context[model_index]->config->phrases[i],
+            memcpy(&event->phrase_extras[i], &stdev->model_context[model_index].config->phrases[i],
                    sizeof(struct sound_trigger_phrase_recognition_extra));
     }
 
@@ -218,8 +216,8 @@ static void *callback_thread_loop(void *context) {
                     exit = true;
                 } else if (index < hw_properties.max_sound_models) {
                     ALOGI("Going to send trigger for model #%d", index );
-                    if (stdev->re_context[index]->recognition_callback != NULL) {
-                        sound_model_handle_t handle = stdev->re_context[index]->loaded_sound_model;
+                    if (stdev->model_context[index].recognition_callback != NULL) {
+                        sound_model_handle_t handle = stdev->model_context[index].loaded_sound_model;
                         if (handle == 0) {
                             ALOGW("This trigger is not loaded");
                         } else {
@@ -228,10 +226,10 @@ static void *callback_thread_loop(void *context) {
                                    sound_trigger_event_alloc(stdev, handle);
                             if (event) {
                                ALOGI("%s send callback model %d", __func__, index);
-                               stdev->re_context[index]->recognition_callback(&event->common,
-                                                     stdev->re_context[index]->recognition_cookie);
+                               stdev->model_context[index].recognition_callback(&event->common,
+                                                     stdev->model_context[index].recognition_cookie);
                                free(event);
-                               stdev->re_context[index]->recognition_callback = NULL;
+                               stdev->model_context[index].recognition_callback = NULL;
                             }
                             exit = true;
                         }
@@ -308,7 +306,7 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
     unsigned int model_index;
     bool found = false;
     for(model_index = 0; model_index < hw_properties.max_sound_models; model_index++) {
-        if (stdev->re_context[model_index]->loaded_sound_model == 0) {
+        if (stdev->model_context[model_index].loaded_sound_model == 0) {
             found = true;
             break;
         }
@@ -319,14 +317,14 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
         return -ENOSYS;
     }
 
-    stdev->re_context[model_index]->loaded_sound_model = generate_sound_model_id(dev);
-    *handle = stdev->re_context[model_index]->loaded_sound_model;
+    stdev->model_context[model_index].loaded_sound_model = generate_sound_model_id(dev);
+    *handle = stdev->model_context[model_index].loaded_sound_model;
 
     char *data = (char *)sound_model + sound_model->data_offset;
     ALOGI("%s data size %d data %d - %d", __func__,
           sound_model->data_size, data[0], data[sound_model->data_size - 1]);
-    stdev->re_context[model_index]->sound_model_callback = callback;
-    stdev->re_context[model_index]->sound_model_cookie = cookie;
+    stdev->model_context[model_index].sound_model_callback = callback;
+    stdev->model_context[model_index].sound_model_cookie = cookie;
 
     pthread_mutex_unlock(&stdev->lock);
     return status;
@@ -344,11 +342,11 @@ static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
     bool found = false;
     bool other_callbacks_found = false;
     for(i = 0; i < hw_properties.max_sound_models; i++) {
-        if (stdev->re_context[i]->loaded_sound_model == handle) {
+        if (stdev->model_context[i].loaded_sound_model == handle) {
             found = true;
             model_index = i;
             break;
-        } else if (stdev->re_context[i]->recognition_callback != NULL) {
+        } else if (stdev->model_context[i].recognition_callback != NULL) {
             other_callbacks_found = true;
         }
     }
@@ -358,14 +356,14 @@ static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
         return -ENOSYS;
     }
 
-    stdev->re_context[i]->loaded_sound_model = 0;
-    stdev->re_context[i]->sound_model_callback = NULL;
-    stdev->re_context[i]->sound_model_cookie = NULL;
+    stdev->model_context[i].loaded_sound_model = 0;
+    stdev->model_context[i].sound_model_callback = NULL;
+    stdev->model_context[i].sound_model_cookie = NULL;
 
-    free(stdev->re_context[i]->config);
-    stdev->re_context[i]->config = NULL;
-    stdev->re_context[i]->recognition_callback = NULL;
-    stdev->re_context[i]->recognition_cookie = NULL;
+    free(stdev->model_context[i].config);
+    stdev->model_context[i].config = NULL;
+    stdev->model_context[i].recognition_callback = NULL;
+    stdev->model_context[i].recognition_cookie = NULL;
 
     /* If no more models running with callbacks, stop trigger thread */
     if (!other_callbacks_found) {
@@ -390,7 +388,7 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
     unsigned int i;
     bool found = false;
     for(i = 0; i < hw_properties.max_sound_models; i++) {
-        if (stdev->re_context[i]->loaded_sound_model == handle) {
+        if (stdev->model_context[i].loaded_sound_model == handle) {
             found = true;
             break;
         }
@@ -401,18 +399,18 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
         return -ENOSYS;
     }
 
-    free(stdev->re_context[i]->config);
-    stdev->re_context[i]->config = NULL;
+    free(stdev->model_context[i].config);
+    stdev->model_context[i].config = NULL;
     if (config) {
-        stdev->re_context[i]->config = malloc(sizeof(*config));
-        if (!stdev->re_context[i]->config) {
+        stdev->model_context[i].config = malloc(sizeof(*config));
+        if (!stdev->model_context[i].config) {
             pthread_mutex_unlock(&stdev->lock);
             return -ENOMEM;
         }
-        memcpy(stdev->re_context[i]->config, config, sizeof(*config));
+        memcpy(stdev->model_context[i].config, config, sizeof(*config));
     }
-    stdev->re_context[i]->recognition_callback = callback;
-    stdev->re_context[i]->recognition_cookie = cookie;
+    stdev->model_context[i].recognition_callback = callback;
+    stdev->model_context[i].recognition_cookie = cookie;
 
     pthread_create(&stdev->callback_thread, (const pthread_attr_t *) NULL,
                         callback_thread_loop, stdev);
@@ -429,7 +427,7 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
     unsigned int i;
     bool found = false;
     for(i = 0; i < hw_properties.max_sound_models; i++) {
-        if (stdev->re_context[i]->loaded_sound_model == handle) {
+        if (stdev->model_context[i].loaded_sound_model == handle) {
             found = true;
             break;
         }
@@ -440,14 +438,34 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
         return -ENOSYS;
     }
 
-    free(stdev->re_context[i]->config);
-    stdev->re_context[i]->config = NULL;
-    stdev->re_context[i]->recognition_callback = NULL;
-    stdev->re_context[i]->recognition_cookie = NULL;
+    free(stdev->model_context[i].config);
+    stdev->model_context[i].config = NULL;
+    stdev->model_context[i].recognition_callback = NULL;
+    stdev->model_context[i].recognition_cookie = NULL;
 
     send_loop_kill_signal();
     pthread_mutex_unlock(&stdev->lock);
     pthread_join(stdev->callback_thread, (void **) NULL);
+    return 0;
+}
+
+__attribute__ ((visibility ("default")))
+int sound_trigger_open_for_streaming()
+{
+    int ret = 0;
+    return ret;
+}
+
+__attribute__ ((visibility ("default")))
+size_t sound_trigger_read_samples(int audio_handle, void *buffer, size_t  buffer_len)
+{
+    size_t ret = 0;
+    return ret;
+}
+
+__attribute__ ((visibility ("default")))
+int sound_trigger_close_for_streaming(int audio_handle __unused)
+{
     return 0;
 }
 
@@ -476,12 +494,12 @@ static int stdev_open(const hw_module_t* module, const char* name,
     stdev->next_sound_model_id = 1;
     unsigned int i;
     for(i = 0; i < hw_properties.max_sound_models; i++) {
-        stdev->re_context[i]->loaded_sound_model = 0;
-        stdev->re_context[i]->sound_model_callback = NULL;
-        stdev->re_context[i]->sound_model_cookie = NULL;
-        stdev->re_context[i]->config = NULL;
-        stdev->re_context[i]->recognition_callback = NULL;
-        stdev->re_context[i]->recognition_cookie = NULL;
+        stdev->model_context[i].loaded_sound_model = 0;
+        stdev->model_context[i].sound_model_callback = NULL;
+        stdev->model_context[i].sound_model_cookie = NULL;
+        stdev->model_context[i].config = NULL;
+        stdev->model_context[i].recognition_callback = NULL;
+        stdev->model_context[i].recognition_cookie = NULL;
     }
 
     stdev->device.common.tag = HARDWARE_DEVICE_TAG;
