@@ -126,14 +126,15 @@ typedef enum {
      * Semantically unenforceable tags, either because they have no specific meaning or because
      * they're informational only.
      */
-    KM_TAG_APPLICATION_DATA = KM_BYTES | 700,  /* Data provided by authorized application. */
-    KM_TAG_CREATION_DATETIME = KM_DATE | 701,  /* Key creation time */
-    KM_TAG_ORIGIN = KM_ENUM | 702,             /* keymaster_key_origin_t. */
-    KM_TAG_ROLLBACK_RESISTANT = KM_BOOL | 703, /* Whether key is rollback-resistant. */
-    KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,     /* Root of trust ID. */
-    KM_TAG_OS_VERSION = KM_UINT | 705,         /* Version of system (keymaster2) */
-    KM_TAG_OS_PATCHLEVEL = KM_UINT | 706,      /* Patch level of system (keymaster2) */
-    KM_TAG_UNIQUE_ID = KM_BYTES | 707,         /* Used to provide unique ID in attestation */
+    KM_TAG_APPLICATION_DATA = KM_BYTES | 700,      /* Data provided by authorized application. */
+    KM_TAG_CREATION_DATETIME = KM_DATE | 701,      /* Key creation time */
+    KM_TAG_ORIGIN = KM_ENUM | 702,                 /* keymaster_key_origin_t. */
+    KM_TAG_ROLLBACK_RESISTANT = KM_BOOL | 703,     /* Whether key is rollback-resistant. */
+    KM_TAG_ROOT_OF_TRUST = KM_BYTES | 704,         /* Root of trust ID. */
+    KM_TAG_OS_VERSION = KM_UINT | 705,             /* Version of system (keymaster2) */
+    KM_TAG_OS_PATCHLEVEL = KM_UINT | 706,          /* Patch level of system (keymaster2) */
+    KM_TAG_UNIQUE_ID = KM_BYTES | 707,             /* Used to provide unique ID in attestation */
+    KM_TAG_ATTESTATION_CHALLENGE = KM_BYTES | 708, /* Used to provide challenge in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -400,6 +401,7 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_KDF = -60,
     KM_ERROR_UNSUPPORTED_EC_CURVE = -61,
     KM_ERROR_KEY_REQUIRES_UPGRADE = -62,
+    KM_ERROR_ATTESTATION_CHALLENGE_MISSING = -63,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
