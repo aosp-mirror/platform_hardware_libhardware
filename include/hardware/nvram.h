@@ -21,6 +21,7 @@
 #include <sys/cdefs.h>
 
 #include <hardware/hardware.h>
+#include <hardware/nvram_defs.h>
 
 __BEGIN_DECLS
 
@@ -31,29 +32,6 @@ __BEGIN_DECLS
 /* The version of this module. */
 #define NVRAM_MODULE_API_VERSION_0_1 HARDWARE_MODULE_API_VERSION(0, 1)
 #define NVRAM_DEVICE_API_VERSION_0_1 HARDWARE_DEVICE_API_VERSION(0, 1)
-
-/* Values returned by nvram_device methods. */
-typedef uint32_t nvram_result_t;
-
-const nvram_result_t NV_RESULT_SUCCESS = 0;
-const nvram_result_t NV_RESULT_INTERNAL_ERROR = 1;
-const nvram_result_t NV_RESULT_ACCESS_DENIED = 2;
-const nvram_result_t NV_RESULT_INVALID_PARAMETER = 3;
-const nvram_result_t NV_RESULT_SPACE_DOES_NOT_EXIST = 4;
-const nvram_result_t NV_RESULT_SPACE_ALREADY_EXISTS = 5;
-const nvram_result_t NV_RESULT_OPERATION_DISABLED = 6;
-
-/* Values describing available access controls. */
-typedef uint32_t nvram_control_t;
-
-const nvram_control_t NV_CONTROL_PERSISTENT_WRITE_LOCK = 1;
-const nvram_control_t NV_CONTROL_BOOT_WRITE_LOCK = 2;
-const nvram_control_t NV_CONTROL_BOOT_READ_LOCK = 3;
-const nvram_control_t NV_CONTROL_WRITE_AUTHORIZATION = 4;
-const nvram_control_t NV_CONTROL_READ_AUTHORIZATION = 5;
-const nvram_control_t NV_CONTROL_WRITE_EXTEND = 6;
-
-const uint32_t NV_UNLIMITED_SPACES = 0xFFFFFFFF;
 
 struct nvram_module {
     /**
