@@ -197,9 +197,9 @@ struct nvram_device {
      */
     nvram_result_t (*create_space)(const struct nvram_device* device,
                                    uint32_t index, uint64_t size_in_bytes,
-                                   nvram_control_t* control_list,
+                                   const nvram_control_t* control_list,
                                    uint32_t list_size,
-                                   uint8_t* authorization_value,
+                                   const uint8_t* authorization_value,
                                    uint32_t authorization_value_size);
 
     /**
@@ -216,7 +216,8 @@ struct nvram_device {
      *                              |authorization_value|.
      */
     nvram_result_t (*delete_space)(const struct nvram_device* device,
-                                   uint32_t index, uint8_t* authorization_value,
+                                   uint32_t index,
+                                   const uint8_t* authorization_value,
                                    uint32_t authorization_value_size);
 
     /**
@@ -251,7 +252,7 @@ struct nvram_device {
     nvram_result_t (*write_space)(const struct nvram_device* device,
                                   uint32_t index, const uint8_t* buffer,
                                   uint64_t buffer_size,
-                                  uint8_t* authorization_value,
+                                  const uint8_t* authorization_value,
                                   uint32_t authorization_value_size);
 
     /**
@@ -281,7 +282,7 @@ struct nvram_device {
      */
     nvram_result_t (*read_space)(const struct nvram_device* device,
                                  uint32_t index, uint64_t num_bytes_to_read,
-                                 uint8_t* authorization_value,
+                                 const uint8_t* authorization_value,
                                  uint32_t authorization_value_size,
                                  uint8_t* buffer, uint64_t* bytes_read);
 
@@ -303,7 +304,7 @@ struct nvram_device {
      */
     nvram_result_t (*enable_write_lock)(const struct nvram_device* device,
                                         uint32_t index,
-                                        uint8_t* authorization_value,
+                                        const uint8_t* authorization_value,
                                         uint32_t authorization_value_size);
 
     /**
@@ -326,7 +327,7 @@ struct nvram_device {
      */
     nvram_result_t (*enable_read_lock)(const struct nvram_device* device,
                                        uint32_t index,
-                                       uint8_t* authorization_value,
+                                       const uint8_t* authorization_value,
                                        uint32_t authorization_value_size);
 };
 
