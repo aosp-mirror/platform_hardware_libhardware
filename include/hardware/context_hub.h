@@ -262,7 +262,7 @@ struct context_hub_module_t {
 
     /**
      * Enumerate all available hubs.The list is returned in "list".
-     * @return result : 0 if successful, error code otherwise
+     * @return result : number of hubs in list or error  (negative)
      *
      * This method shall be called at device bootup.
      */
