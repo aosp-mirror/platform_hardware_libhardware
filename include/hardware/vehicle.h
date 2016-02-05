@@ -73,6 +73,7 @@ __BEGIN_DECLS
  * @config_string: Explains the usage of config_string in vehicle_prop_config. Property with
  *                 this annotation is expected to have additional information in config_string
  *                 for that property to work.
+ * @zone_type type of zoned used. defined for zoned property
  * @range_start, @range_end : define range of specific property values.
  */
 //===== Vehicle Information ====
@@ -258,6 +259,7 @@ __BEGIN_DECLS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
  * @data_member hvac.fan_speed
+ * @zone_type VEHICLE_ZONE
  * @data_enum TODO
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_SPEED                             (0x00000500)
@@ -269,6 +271,7 @@ __BEGIN_DECLS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
  * @data_member hvac.fan_direction
+ * @zone_type VEHICLE_ZONE
  * @data_enum TODO
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION                         (0x00000501)
@@ -288,6 +291,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_current
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_CURRENT                   (0x00000502)
@@ -298,6 +302,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
  * @config_flags Supported zones
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_set
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_SET                       (0x00000503)
@@ -318,6 +323,7 @@ enum vehicle_hvac_fan_direction_flags {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_AC_ON                                 (0x00000505)
