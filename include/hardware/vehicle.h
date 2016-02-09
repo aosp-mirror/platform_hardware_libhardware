@@ -372,7 +372,18 @@ enum vehicle_hvac_fan_direction_flags {
  * @data_member outside_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
-#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMP                           (0x00000703)
+#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                   (0x00000703)
+
+
+/**
+ * Cabin temperature
+ * @value_type VEHICLE_VALUE_TYPE_FLOAT
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_member cabin_temperature
+ * @unit VEHICLE_UNIT_TYPE_CELCIUS
+ */
+#define VEHICLE_PROPERTY_ENV_CABIN_TEMPERATURE                  (0x00000704)
 
 
 /*
@@ -459,7 +470,13 @@ enum vehicle_audio_focus_request {
     VEHICLE_AUDIO_FOCUS_REQUEST_GAIN = 0x1,
     VEHICLE_AUDIO_FOCUS_REQUEST_GAIN_TRANSIENT = 0x2,
     VEHICLE_AUDIO_FOCUS_REQUEST_GAIN_TRANSIENT_MAY_DUCK = 0x3,
-    VEHICLE_AUDIO_FOCUS_REQUEST_RELEASE = 0x4,
+    /**
+     * This is for the case where android side plays sound like UI feedback
+     * and car side does not need to duck existing playback as long as
+     * requested stream is available.
+     */
+    VEHICLE_AUDIO_FOCUS_REQUEST_GAIN_TRANSIENT_NO_DUCK  = 0x4,
+    VEHICLE_AUDIO_FOCUS_REQUEST_RELEASE = 0x5,
 };
 
 enum vehicle_audio_focus_state {
@@ -887,6 +904,36 @@ enum vehicle_ap_power_bootup_reason {
     VEHICLE_AP_POWER_BOOTUP_REASON_TIMER         = 2,
 };
 
+
+/**
+ * Property to feed H/W input events to android
+ *
+ * int32_array[0] : action defined by vehicle_hw_key_input_action
+ * int32_array[1] : key code, should use standard android key code
+ * int32_array[2] : target display defined in vehicle_display. Events not tied
+ *                  to specific display should be sent to DISPLAY_MAIN.
+ * int32_array[3] : reserved for now. should be zero
+ * @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @config_flags
+ * @data_member int32_array
+ */
+#define VEHICLE_PROPERTY_HW_KEY_INPUT                               (0x00000A10)
+
+enum vehicle_hw_key_input_action {
+    /** Key down */
+    VEHICLE_HW_KEY_INPUT_ACTION_DOWN = 0,
+    /** Key up */
+    VEHICLE_HW_KEY_INPUT_ACTION_UP = 1,
+};
+
+enum vehicle_display {
+    /** center console */
+    VEHICLE_DISPLAY_MAIN               = 0,
+    VEHICLE_DISPLAY_INSTRUMENT_CLUSTER = 1,
+};
+
 /**
  *  H/W specific, non-standard property can be added as necessary. Such property should use
  *  property number in range of [VEHICLE_PROPERTY_CUSTOM_START, VEHICLE_PROPERTY_CUSTOM_END].
@@ -1139,6 +1186,22 @@ enum vehicle_window {
     VEHICLE_WINDOW_ROW_3_RIGHT      = 0x2000,
 };
 
+enum vehicle_door {
+    VEHICLE_DOOR_ROW_1_LEFT    = 0x00000001,
+    VEHICLE_DOOR_ROW_1_RIGHT   = 0x00000004,
+    VEHICLE_DOOR_ROW_2_LEFT    = 0x00000010,
+    VEHICLE_DOOR_ROW_2_RIGHT   = 0x00000040,
+    VEHICLE_DOOR_ROW_3_LEFT    = 0x00000100,
+    VEHICLE_DOOR_ROW_3_RIGHT   = 0x00000400,
+    VEHICLE_DOOR_HOOD          = 0x10000000,
+    VEHICLE_DOOR_REAR          = 0x20000000,
+};
+
+enum vehicle_mirror {
+    VEHICLE_MIRROR_DRIVER_LEFT   = 0x00000001,
+    VEHICLE_MIRROR_DRIVER_RIGHT  = 0x00000002,
+    VEHICLE_MIRROR_DRIVER_CENTER = 0x00000004,
+};
 enum vehicle_turn_signal {
     VEHICLE_SIGNAL_NONE         = 0x00,
     VEHICLE_SIGNAL_RIGHT        = 0x01,
@@ -1457,6 +1520,8 @@ typedef union vehicle_value {
     vehicle_hvac_t hvac;
 
     float outside_temperature;
+    float cabin_temperature;
+
 } vehicle_value_t;
 
 /*
