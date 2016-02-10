@@ -729,6 +729,8 @@ enum vehicle_audio_context_flag {
     VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
     /** Aux audio input is played */
     VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
+    /** system sound like UI feedback */
+    VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND                   = 0x400,
 };
 
 /**
