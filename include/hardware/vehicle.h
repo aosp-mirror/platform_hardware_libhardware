@@ -279,10 +279,12 @@ __BEGIN_DECLS
 /*
  * Bit flags for fan direction
  */
-enum vehicle_hvac_fan_direction_flags {
-    VEHICLE_HVAC_FAN_DIRECTION_FACE_FLAG            = 0x1,
-    VEHICLE_HVAC_FAN_DIRECTION_FLOOR_FLAG           = 0x2,
-    VEHICLE_HVAC_FAN_DIRECTION_FACE_AND_FLOOR_FLAG  = 0x3
+enum vehicle_hvac_fan_direction {
+    VEHICLE_HVAC_FAN_DIRECTION_FACE                 = 0x1,
+    VEHICLE_HVAC_FAN_DIRECTION_FLOOR                = 0x2,
+    VEHICLE_HVAC_FAN_DIRECTION_FACE_AND_FLOOR       = 0x3,
+    VEHICLE_HVAC_FAN_DIRECTION_DEFROST              = 0x4,
+    VEHICLE_HVAC_FAN_DIRECTION_DEFROST_AND_FLOOR    = 0x5
 };
 
 /**
