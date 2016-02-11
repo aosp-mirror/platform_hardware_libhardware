@@ -39,9 +39,14 @@ typedef int64_t GpsUtcTime;
 
 /** Maximum number of SVs for gps_sv_status_callback(). */
 #define GPS_MAX_SVS 32
+/** Maximum number of SVs for gps_sv_status_callback(). */
+#define GNSS_MAX_SVS 64
 
 /** Maximum number of Measurements in gps_measurement_callback(). */
 #define GPS_MAX_MEASUREMENT   32
+
+/** Maximum number of Measurements in gnss_measurement_callback(). */
+#define GNSS_MAX_MEASUREMENT   64
 
 /** Requested operational mode for GPS operation. */
 typedef uint32_t GpsPositionMode;
@@ -524,7 +529,7 @@ typedef struct {
      * - Galileo: 1-25
      * - Beidou:  1-35
      */
-    int prn;
+    int16_t svid;
 
     /** Signal to noise ratio. */
     float snr;
@@ -550,63 +555,36 @@ typedef struct {
 } GnssSvInfo;
 
 /**
- * Represents SV status.
- *
- * When switching from pre-N to N version of GpsSvStatus:
- *
- * 1) Fill in the fields from num_svs through used_in_fix_mask the same way as
- * was done before, e.g. using the range of 65-88 to report Glonass info,
- * 201-235 for Beidou, etc. (but with no used_in_fix_mask info - those are
- * index by prn, and thus for GPS only). This will help ensure compatibility
- * when a newer GPS HAL is used with an older version of Android.
- *
- * 2) Fill in the gnss_sv_list with information about SVs from all
- * constellations (GPS & other GNSS's) - when this is filled in, this will be
- * the only source of information about satellite status (e.g. for working with
- * GpsStatus facing applications), the earlier fields will be ignored.
+ * Legacy struct to represents SV status.
+ * Deprecated, to be removed in the next Android release.
+ * Use GnssSvStatus instead.
  */
 typedef struct {
     /** set to sizeof(GpsSvStatus) */
     size_t size;
+    int num_svs;
+    GpsSvInfo sv_list[GPS_MAX_SVS];
+    uint32_t ephemeris_mask;
+    uint32_t almanac_mask;
+    uint32_t used_in_fix_mask;
+} GpsSvStatus;
+
+/**
+ * Represents SV status.
+ */
+typedef struct {
+    /** set to sizeof(GnssSvStatus) */
+    size_t size;
 
     /** Number of GPS SVs currently visible, refers to the SVs stored in sv_list */
     int num_svs;
-
-    /** Contains an array of GPS SV information in legacy GPS format. */
-    GpsSvInfo sv_list[GPS_MAX_SVS];
-
-    /**
-     * Represents a bit mask indicating which GPS SVs have ephemeris data,
-     * refers to sv_list.
-     */
-    uint32_t ephemeris_mask;
-
-    /**
-     * Represents a bit mask indicating which GPS SVs have almanac data, refers
-     * to sv_list.
-     */
-    uint32_t almanac_mask;
-
-    /**
-     * Represents a bit mask indicating which GPS SVs
-     * were used for computing the most recent position fix,
-     * refers to sv_list.
-     */
-    uint32_t used_in_fix_mask;
-
-    /**
-     * Size of the array which contains SV info for all GNSS constellation
-     * except for GPS.
-     */
-    size_t gnss_sv_list_size;
-
     /**
      * Pointer to an array of SVs information for all GNSS constellations,
      * except GPS, which is reported using sv_list
      */
-    GnssSvInfo* gnss_sv_list;
+    GnssSvInfo gnss_sv_list[GNSS_MAX_SVS];
 
-} GpsSvStatus;
+} GnssSvStatus;
 
 /* CellID for 2G, 3G and LTE, used in AGPS. */
 typedef struct {
@@ -658,6 +636,12 @@ typedef void (* gps_status_callback)(GpsStatus* status);
  * Can only be called from a thread created by create_thread_cb.
  */
 typedef void (* gps_sv_status_callback)(GpsSvStatus* sv_info);
+
+/**
+ * Callback with SV status information.
+ * Can only be called from a thread created by create_thread_cb.
+ */
+typedef void (* gnss_sv_status_callback)(GnssSvStatus* sv_info);
 
 /**
  * Callback for reporting NMEA sentences. Can only be called from a thread
@@ -715,24 +699,6 @@ typedef struct {
  */
 typedef void (*gps_set_system_info)(const GpsSystemInfo* info);
 
-/**
- * Legacy GPS callback structure.
- * See GpsCallbacks for more information.
- */
-typedef struct {
-    /** set to sizeof(GpsCallbacks_v1) */
-    size_t      size;
-    gps_location_callback location_cb;
-    gps_status_callback status_cb;
-    gps_sv_status_callback sv_status_cb;
-    gps_nmea_callback nmea_cb;
-    gps_set_capabilities set_capabilities_cb;
-    gps_acquire_wakelock acquire_wakelock_cb;
-    gps_release_wakelock release_wakelock_cb;
-    gps_create_thread create_thread_cb;
-    gps_request_utc_time request_utc_time_cb;
-} GpsCallbacks_v1;
-
 /** New GPS callback structure. */
 typedef struct {
     /** set to sizeof(GpsCallbacks) */
@@ -747,15 +713,8 @@ typedef struct {
     gps_create_thread create_thread_cb;
     gps_request_utc_time request_utc_time_cb;
 
-    /**
-     * Callback for the chipset to report system information.
-     *
-     * This field is newly introduced since N. The driver implementation must
-     * check 'size' field against 'sizeof(GpsCallbacks)' and
-     * 'sizeof(GpsCallbacks_v1)' to decide whether the new field is valid before
-     * calling it.
-     */
     gps_set_system_info set_system_info_cb;
+    gnss_sv_status_callback gnss_sv_status_cb;
 } GpsCallbacks;
 
 /** Represents the standard GPS interface. */
@@ -1402,10 +1361,30 @@ typedef struct {
 } GpsGeofencingInterface;
 
 /**
- * Represents an estimate of the GPS clock time.
+ * Legacy struct to represent an estimate of the GPS clock time.
+ * Deprecated, to be removed in the next Android release.
+ * Use GnssClock instead.
  */
 typedef struct {
     /** set to sizeof(GpsClock) */
+    size_t size;
+    GpsClockFlags flags;
+    int16_t leap_second;
+    GpsClockType type;
+    int64_t time_ns;
+    double time_uncertainty_ns;
+    int64_t full_bias_ns;
+    double bias_ns;
+    double bias_uncertainty_ns;
+    double drift_nsps;
+    double drift_uncertainty_nsps;
+} GpsClock;
+
+/**
+ * Represents an estimate of the GPS clock time.
+ */
+typedef struct {
+    /** set to sizeof(GnssClock) */
     size_t size;
 
     /** A set of flags indicating the validity of the fields in this data structure. */
@@ -1538,10 +1517,53 @@ typedef struct {
      * re-solve for the clock bias and drift.
      */
     int64_t time_of_last_hw_clock_discontinuity_ns;
-} GpsClock;
+} GnssClock;
 
 /**
- * Represents a GPS Measurement, it contains raw and computed information.
+ * Legacy struct to represent a GPS Measurement, it contains raw and computed
+ * information.
+ * Deprecated, to be removed in the next Android release.
+ * Use GnssMeasurement instead.
+ */
+typedef struct {
+    /** set to sizeof(GpsMeasurement) */
+    size_t size;
+    GpsMeasurementFlags flags;
+    int8_t prn;
+    double time_offset_ns;
+    GpsMeasurementState state;
+    int64_t received_gps_tow_ns;
+    int64_t received_gps_tow_uncertainty_ns;
+    double c_n0_dbhz;
+    double pseudorange_rate_mps;
+    double pseudorange_rate_uncertainty_mps;
+    GpsAccumulatedDeltaRangeState accumulated_delta_range_state;
+    double accumulated_delta_range_m;
+    double accumulated_delta_range_uncertainty_m;
+    double pseudorange_m;
+    double pseudorange_uncertainty_m;
+    double code_phase_chips;
+    double code_phase_uncertainty_chips;
+    float carrier_frequency_hz;
+    int64_t carrier_cycles;
+    double carrier_phase;
+    double carrier_phase_uncertainty;
+    GpsLossOfLock loss_of_lock;
+    int32_t bit_number;
+    int16_t time_from_last_bit_ms;
+    double doppler_shift_hz;
+    double doppler_shift_uncertainty_hz;
+    GpsMultipathIndicator multipath_indicator;
+    double snr_db;
+    double elevation_deg;
+    double elevation_uncertainty_deg;
+    double azimuth_deg;
+    double azimuth_uncertainty_deg;
+    bool used_in_fix;
+} GpsMeasurement;
+
+/**
+ * Represents a GNSS Measurement, it contains raw and computed information.
  */
 typedef struct {
     /** set to sizeof(GpsMeasurement) */
@@ -1551,10 +1573,10 @@ typedef struct {
     GpsMeasurementFlags flags;
 
     /**
-     * Pseudo-random number in the range of [1, 32]
+     * Satellite vehicle ID number, as defined in GnssSvInfo::svid
      * This is a mandatory value.
      */
-    int8_t prn;
+    int16_t svid;
 
     /**
      * Time offset at which the measurement was taken in nanoseconds.
@@ -1858,22 +1880,37 @@ typedef struct {
      */
     double pseudorange_rate_carrier_uncertainty_mps;
 
-} GpsMeasurement;
+} GnssMeasurement;
+
+/**
+ * Legacy struct to represents a reading of GPS measurements.
+ * Deprecated, to be removed in the next Android release.
+ * Use GnssData instead.
+ */
+typedef struct {
+    /** set to sizeof(GpsData) */
+    size_t size;
+    size_t measurement_count;
+    GpsMeasurement measurements[GPS_MAX_MEASUREMENT];
+
+    /** The GPS clock time reading. */
+    GpsClock clock;
+} GpsData;
 
 /** Represents a reading of GPS measurements. */
 typedef struct {
-    /** set to sizeof(GpsData) */
+    /** set to sizeof(GnssData) */
     size_t size;
 
     /** Number of measurements. */
     size_t measurement_count;
 
     /** The array of measurements. */
-    GpsMeasurement measurements[GPS_MAX_MEASUREMENT];
+    GnssMeasurement measurements[GNSS_MAX_MEASUREMENT];
 
     /** The GPS clock time reading. */
-    GpsClock clock;
-} GpsData;
+    GnssClock clock;
+} GnssData;
 
 /**
  * The callback for to report measurements from the HAL.
@@ -1883,10 +1920,19 @@ typedef struct {
  */
 typedef void (*gps_measurement_callback) (GpsData* data);
 
+/**
+ * The callback for to report measurements from the HAL.
+ *
+ * Parameters:
+ *    data - A data structure containing the measurements.
+ */
+typedef void (*gnss_measurement_callback) (GnssData* data);
+
 typedef struct {
     /** set to sizeof(GpsMeasurementCallbacks) */
     size_t size;
     gps_measurement_callback measurement_callback;
+    gnss_measurement_callback gnss_measurement_callback;
 } GpsMeasurementCallbacks;
 
 #define GPS_MEASUREMENT_OPERATION_SUCCESS          0
@@ -1923,17 +1969,32 @@ typedef struct {
 
 } GpsMeasurementInterface;
 
-
-/** Represents a GPS navigation message (or a fragment of it). */
+/**
+ * Legacy struct to represents a GPS navigation message (or a fragment of it).
+ * Deprecated, to be removed in the next Android release.
+ * Use GnssNavigationMessage instead.
+ */
 typedef struct {
     /** set to sizeof(GpsNavigationMessage) */
     size_t size;
+    int8_t prn;
+    GpsNavigationMessageType type;
+    NavigationMessageStatus status;
+    int16_t message_id;
+    int16_t submessage_id;
+    size_t data_length;
+    uint8_t* data;
+} GpsNavigationMessage;
+
+/** Represents a GPS navigation message (or a fragment of it). */
+typedef struct {
+    /** set to sizeof(GnssNavigationMessage) */
+    size_t size;
 
     /**
-     * Pseudo-random number in the range of [1, 32]
      * This is a mandatory value.
      */
-    int8_t prn;
+    int16_t svid;
 
     /**
      * The type of message contained in the structure.
@@ -1982,7 +2043,7 @@ typedef struct {
      */
     uint8_t* data;
 
-} GpsNavigationMessage;
+} GnssNavigationMessage;
 
 /**
  * The callback to report an available fragment of a GPS navigation messages from the HAL.
@@ -1992,10 +2053,19 @@ typedef struct {
  */
 typedef void (*gps_navigation_message_callback) (GpsNavigationMessage* message);
 
+/**
+ * The callback to report an available fragment of a GPS navigation messages from the HAL.
+ *
+ * Parameters:
+ *      message - The GPS navigation submessage/subframe representation.
+ */
+typedef void (*gnss_navigation_message_callback) (GnssNavigationMessage* message);
+
 typedef struct {
     /** set to sizeof(GpsNavigationMessageCallbacks) */
     size_t size;
     gps_navigation_message_callback navigation_message_callback;
+    gnss_navigation_message_callback gnss_navigation_message_callback;
 } GpsNavigationMessageCallbacks;
 
 #define GPS_NAVIGATION_MESSAGE_OPERATION_SUCCESS             0
