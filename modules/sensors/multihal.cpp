@@ -129,7 +129,7 @@ static int get_global_handle(FullHandle* full_handle) {
     return global_handle;
 }
 
-static const int SENSOR_EVENT_QUEUE_CAPACITY = 20;
+static const int SENSOR_EVENT_QUEUE_CAPACITY = 36;
 
 struct TaskContext {
   sensors_poll_device_t* device;
