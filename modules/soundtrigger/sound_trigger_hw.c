@@ -25,6 +25,13 @@
  * model, you can also send $'\002' etc. $'\000' is the kill
  * signal for the trigger listening thread.
  *
+ * The default event type is a Recognition event, to specify a
+ * type of event, you can send another byte. $'\000' corresponds
+ * to a recognition event, $'\001' is a sound model event.
+ *
+ * adb forward tcp:14035 tcp:14035
+ * echo $'\001'$'\001' | nc -q -1 localhost 14035
+ *
  * To enable this file, you can make with command line parameter
  * SOUND_TRIGGER_USE_STUB_MODULE=1
  */
@@ -179,7 +186,7 @@ static void send_recognition_event(sound_model_handle_t model_handle,
         event = (struct sound_trigger_phrase_recognition_event *)
                sound_trigger_event_alloc(model_handle, model_type, config);
         if (event) {
-            recognition_callback(&event->common, recognition_cookie);
+            recognition_callback(event, recognition_cookie);
             free(event);
         }
     } else if (model_type == SOUND_MODEL_TYPE_GENERIC) {
@@ -187,12 +194,69 @@ static void send_recognition_event(sound_model_handle_t model_handle,
         event = (struct sound_trigger_generic_recognition_event *)
                 sound_trigger_event_alloc(model_handle, model_type, config);
         if (event) {
-            recognition_callback(&event->common, recognition_cookie);
+            recognition_callback(event, recognition_cookie);
             free(event);
         }
     } else {
         ALOGI("Unknown Sound Model Type, No Event to Send");
     }
+}
+
+static void send_model_event(sound_model_handle_t model_handle,
+            sound_model_callback_t model_callback, void *model_cookie) {
+
+    if (model_callback == NULL) {
+        ALOGI("%s No matching callback for handle %d", __func__, model_handle);
+        return;
+    }
+
+    char *data;
+    data = (char *)calloc(1, sizeof(struct sound_trigger_model_event));
+    if (!data) {
+        ALOGW("%s Could not allocate event %d", __func__, model_handle);
+        return;
+    }
+
+    struct sound_trigger_model_event *event;
+    event = (struct sound_trigger_model_event *)data;
+    event->status = SOUND_MODEL_STATUS_UPDATED;
+    event->model = model_handle;
+
+    if (event) {
+        model_callback(&event, model_cookie);
+        free(event);
+    }
+}
+
+static bool recognition_callback_exists(struct stub_sound_trigger_device *stdev) {
+    bool callback_found = false;
+    if (stdev->root_model_context) {
+        struct recognition_context *current_model_context = stdev->root_model_context;
+        while(current_model_context) {
+            if (current_model_context->recognition_callback != NULL) {
+                callback_found = true;
+                break;
+            }
+            current_model_context = current_model_context->next;
+        }
+    }
+    return callback_found;
+}
+
+static struct recognition_context * get_model_context(struct stub_sound_trigger_device *stdev,
+            sound_model_handle_t handle) {
+    struct recognition_context *model_context = NULL;
+    if (stdev->root_model_context) {
+        struct recognition_context *current_model_context = stdev->root_model_context;
+        while(current_model_context) {
+            if (current_model_context->model_handle == handle) {
+                model_context = current_model_context;
+                break;
+            }
+            current_model_context = current_model_context->next;
+        }
+    }
+    return model_context;
 }
 
 static void *callback_thread_loop(void *context) {
@@ -209,7 +273,7 @@ static void *callback_thread_loop(void *context) {
     bool exit = false;
     while(!exit) {
         int received_count;
-        int requested_count = 1;
+        int requested_count = 2;
         char buffer[requested_count];
         ALOGE("Opening socket");
         self_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -245,34 +309,61 @@ static void *callback_thread_loop(void *context) {
             }
             ALOGI("Connection from %s", inet_ntoa(incoming_info.sin_addr));
             received_count = recv(con_socket, buffer, requested_count, 0);
-            unsigned int index = buffer[0] - 1;
-            ALOGI("Received data");
             pthread_mutex_lock(&stdev->lock);
             if (received_count > 0) {
+                unsigned int index = buffer[0] - 1;
+                ALOGI("Received data");
                 if (buffer[0] == 0) {
                     ALOGI("Received kill signal: stop listening to incoming server messages");
                     exit = true;
                 } else if (index < hw_properties.max_sound_models) {
-                    ALOGI("Going to send trigger for model index #%d", index );
+                    int TYPE_RECOGNITION = 0;
+                    int TYPE_MODEL_UPDATE = 1;
+                    int action = TYPE_RECOGNITION;
+
+                    if (received_count > 1) {
+                        // got a second instruction
+                        action = buffer[1];
+                        ALOGI("Got action instruction: %d", action);
+                    }
+
                     struct recognition_context *model_context = NULL;
-                    struct recognition_context *last_model_context = stdev->root_model_context;
+                    struct recognition_context *current_model_context = stdev->root_model_context;
                     int model_index = 0;
-                    while(last_model_context) {
+                    while(current_model_context) {
                         if (model_index == index) {
-                            model_context = last_model_context;
+                            model_context = current_model_context;
                             break;
                         }
-                        last_model_context = last_model_context->next;
+                        current_model_context = current_model_context->next;
                         model_index++;
                     }
-                    if (model_context) {
+
+                    if (!model_context) {
+                        ALOGI("Sound Model Does Not Exist at this Index: %d", index);
+                    } else if (action == TYPE_RECOGNITION) {
+                        ALOGI("Going to send trigger for model index #%d", index );
                         send_recognition_event(model_context->model_handle,
                                   model_context->model_type,
                                   model_context->recognition_callback,
                                   model_context->recognition_cookie,
                                   model_context->config);
+
+                        // After recognition callback, stop recognition
+                        free(model_context->config);
+                        model_context->config = NULL;
+                        model_context->recognition_callback = NULL;
+                        model_context->recognition_cookie = NULL;
+                        if (!recognition_callback_exists(stdev)) {
+                            exit = true;
+                        }
+                    } else if (action == TYPE_MODEL_UPDATE) {
+                        ALOGI("Going to send sound model update for model index #%d", index );
+                        send_model_event(model_context->model_handle,
+                                  model_context->model_callback,
+                                  model_context->model_cookie);
                     } else {
-                        ALOGI("Sound Model Does Not Exist at this Index: %d", index);
+                        ALOGI("Action/event type is not recognized: %d", action);
                     }
                 } else {
                     ALOGI("Data is not recognized: %d", index);
@@ -351,10 +442,10 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
     // Add the new model context to the recognition_context linked list
     if (stdev->root_model_context) {
         // Find the tail
-        struct recognition_context *last_model_context = stdev->root_model_context;
+        struct recognition_context *current_model_context = stdev->root_model_context;
         int model_count = 0;
-        while(last_model_context->next) {
-            last_model_context = last_model_context->next;
+        while(current_model_context->next) {
+            current_model_context = current_model_context->next;
             model_count++;
             if (model_count >= hw_properties.max_sound_models) {
                 ALOGW("Can't load model: reached max sound model limit");
@@ -363,7 +454,7 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
                 return -ENOSYS;
             }
         }
-        last_model_context->next = model_context;
+        current_model_context->next = model_context;
     } else {
         stdev->root_model_context = model_context;
     }
@@ -387,23 +478,23 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
 
 static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
                                     sound_model_handle_t handle) {
+    // If recognizing, stop_recognition must be called for a sound model before unload_sound_model
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     int status = 0;
     ALOGI("unload_sound_model");
     pthread_mutex_lock(&stdev->lock);
 
-
     struct recognition_context *model_context = NULL;
     struct recognition_context *previous_model_context = NULL;
     if (stdev->root_model_context) {
-        struct recognition_context *last_model_context = stdev->root_model_context;
-        while(last_model_context) {
-            if (last_model_context->model_handle == handle) {
-                model_context = last_model_context;
+        struct recognition_context *current_model_context = stdev->root_model_context;
+        while(current_model_context) {
+            if (current_model_context->model_handle == handle) {
+                model_context = current_model_context;
                 break;
             }
-            previous_model_context = last_model_context;
-            last_model_context = last_model_context->next;
+            previous_model_context = current_model_context;
+            current_model_context = current_model_context->next;
         }
     }
     if (!model_context) {
@@ -420,25 +511,7 @@ static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
     free(model_context->config);
     free(model_context);
 
-    /* If no more models running with callbacks, stop trigger thread */
-    bool other_callbacks_found = false;
-    if (stdev->root_model_context) {
-        struct recognition_context *last_model_context = stdev->root_model_context;
-        while(last_model_context) {
-            if (last_model_context->recognition_callback != NULL) {
-                other_callbacks_found = true;
-                break;
-            }
-            last_model_context = last_model_context->next;
-        }
-    }
-    if (!other_callbacks_found) {
-        send_loop_kill_signal();
-        pthread_mutex_unlock(&stdev->lock);
-        pthread_join(stdev->callback_thread, (void **)NULL);
-    } else {
-        pthread_mutex_unlock(&stdev->lock);
-    }
+    pthread_mutex_unlock(&stdev->lock);
 
     return status;
 }
@@ -452,17 +525,10 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     pthread_mutex_lock(&stdev->lock);
 
-    struct recognition_context *model_context = NULL;
-    if (stdev->root_model_context) {
-        struct recognition_context *last_model_context = stdev->root_model_context;
-        while(last_model_context) {
-            if (last_model_context->model_handle == handle) {
-                model_context = last_model_context;
-                break;
-            }
-            last_model_context = last_model_context->next;
-        }
-    }
+    /* If other models running with callbacks, don't start trigger thread */
+    bool other_callbacks_found = recognition_callback_exists(stdev);
+
+    struct recognition_context *model_context = get_model_context(stdev, handle);
     if (!model_context) {
         ALOGW("Can't find sound model handle %d in registered list", handle);
         pthread_mutex_unlock(&stdev->lock);
@@ -482,31 +548,22 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
     model_context->recognition_callback = callback;
     model_context->recognition_cookie = cookie;
 
-    pthread_create(&stdev->callback_thread, (const pthread_attr_t *) NULL,
-                        callback_thread_loop, stdev);
+    if (!other_callbacks_found) {
+        pthread_create(&stdev->callback_thread, (const pthread_attr_t *) NULL,
+                callback_thread_loop, stdev);
+    }
+
     pthread_mutex_unlock(&stdev->lock);
     return 0;
 }
 
 static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
-                                 sound_model_handle_t handle) {
+            sound_model_handle_t handle) {
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     ALOGI("%s", __func__);
     pthread_mutex_lock(&stdev->lock);
 
-    struct recognition_context *model_context = NULL;
-    bool other_callbacks_found = false;
-    if (stdev->root_model_context) {
-        struct recognition_context *last_model_context = stdev->root_model_context;
-        while(last_model_context) {
-            if (last_model_context->model_handle == handle) {
-                model_context = last_model_context;
-            } else if (last_model_context->recognition_callback != NULL) {
-                other_callbacks_found = true;
-            }
-            last_model_context = last_model_context->next;
-        }
-    }
+    struct recognition_context *model_context = get_model_context(stdev, handle);
     if (!model_context) {
         ALOGW("Can't find sound model handle %d in registered list", handle);
         pthread_mutex_unlock(&stdev->lock);
@@ -519,7 +576,7 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
     model_context->recognition_cookie = NULL;
 
     /* If no more models running with callbacks, stop trigger thread */
-    if (!other_callbacks_found) {
+    if (!recognition_callback_exists(stdev)) {
         send_loop_kill_signal();
         pthread_mutex_unlock(&stdev->lock);
         pthread_join(stdev->callback_thread, (void **)NULL);
