@@ -111,14 +111,14 @@ struct stub_sound_trigger_device {
 };
 
 /* Will reuse ids when overflow occurs */
-static unsigned int generate_sound_model_id(const struct sound_trigger_hw_device *dev) {
+static sound_model_handle_t generate_sound_model_handle(const struct sound_trigger_hw_device *dev) {
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     int new_id = stdev->next_sound_model_id;
     ++stdev->next_sound_model_id;
     if (stdev->next_sound_model_id == 0) {
         stdev->next_sound_model_id = 1;
     }
-    return new_id;
+    return (sound_model_handle_t) new_id;
 }
 
 bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev);
@@ -360,7 +360,7 @@ void list_models(int conn_socket, char* buffer,
                  struct stub_sound_trigger_device* stdev) {
     ALOGI("%s", __func__);
     struct recognition_context *last_model_context = stdev->root_model_context;
-    int model_index = 0;
+    unsigned int model_index = 0;
     if (!last_model_context) {
         ALOGI("ZERO Models exist.");
         write_string(conn_socket, "Zero models exist.\n");
@@ -398,7 +398,7 @@ struct recognition_context* fetch_model_at_index(
     ALOGI("%s", __func__);
     struct recognition_context *model_context = NULL;
     struct recognition_context *last_model_context = stdev->root_model_context;
-    int model_index = 0;
+    unsigned int model_index = 0;
     while(last_model_context) {
         if (model_index == index) {
             model_context = last_model_context;
@@ -530,7 +530,7 @@ static void send_loop_kill_signal() {
     remote_info.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     remote_info.sin_port = htons(14035);
     if (connect(self_socket, (struct sockaddr *)&remote_info, sizeof(struct sockaddr)) == 0) {
-        send(self_socket, COMMAND_END, 1, 0);
+        send(self_socket, COMMAND_END, 3, 0);
     } else {
         ALOGI("Could not connect");
     }
@@ -583,7 +583,7 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
     if (stdev->root_model_context) {
         // Find the tail
         struct recognition_context *current_model_context = stdev->root_model_context;
-        int model_count = 0;
+        unsigned int model_count = 0;
         while(current_model_context->next) {
             current_model_context = current_model_context->next;
             model_count++;
@@ -599,7 +599,7 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
         stdev->root_model_context = model_context;
     }
 
-    model_context->model_handle = generate_sound_model_id(dev);
+    model_context->model_handle = generate_sound_model_handle(dev);
     *handle = model_context->model_handle;
     model_context->model_type = sound_model->type;
 
@@ -611,6 +611,7 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
     model_context->config = NULL;
     model_context->recognition_callback = NULL;
     model_context->recognition_cookie = NULL;
+    model_context->next = NULL;
     ALOGI("Sound model loaded: Handle %d ", *handle);
 
     pthread_mutex_unlock(&stdev->lock);
