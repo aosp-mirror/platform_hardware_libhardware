@@ -19,18 +19,14 @@
  * To send a trigger from the command line you can type:
  *
  * adb forward tcp:14035 tcp:14035
- * echo $'\001' | nc -q -1 localhost 14035
  *
- * $'\001' corresponds to the index_position of loaded sound
- * model, you can also send $'\002' etc. $'\000' is the kill
- * signal for the trigger listening thread.
+ * telnet localhost 14035
  *
- * The default event type is a Recognition event, to specify a
- * type of event, you can send another byte. $'\000' corresponds
- * to a recognition event, $'\001' is a sound model event.
- *
- * adb forward tcp:14035 tcp:14035
- * echo $'\001'$'\001' | nc -q -1 localhost 14035
+ * Commands include:
+ * ls : Lists all models that have been loaded.
+ * trig <index> : Sends a recognition event for the model at the given index.
+ * update <index> : Sends a model update event for the model at the given index.
+ * close : Closes the network connection.
  *
  * To enable this file, you can make with command line parameter
  * SOUND_TRIGGER_USE_STUB_MODULE=1
@@ -43,7 +39,7 @@
 // The following commands work with the network port:
 #define COMMAND_LS "ls"
 #define COMMAND_TRIGGER "trig"  // Argument: model index.
-#define COMMAND_MODEL_EVENT "model_event"  // Argument: model index.
+#define COMMAND_UPDATE "update"  // Argument: model index.
 #define COMMAND_CLOSE "close" // Close just closes the network port, keeps thread running.
 #define COMMAND_END "end" // Closes connection and stops the thread.
 
@@ -124,6 +120,8 @@ static unsigned int generate_sound_model_id(const struct sound_trigger_hw_device
     }
     return new_id;
 }
+
+bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev);
 
 static char *sound_trigger_event_alloc(sound_model_handle_t handle,
             sound_trigger_sound_model_type_t model_type,
@@ -489,10 +487,10 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
     bool input_done = false;
     char buffer[PARSE_BUF_LEN];
     FILE* input_fp = fdopen(conn_socket, "r");
-    pthread_mutex_lock(&stdev->lock);
     bool continue_listening = true;
     while(!input_done) {
         if (fgets(buffer, PARSE_BUF_LEN, input_fp) != NULL) {
+            pthread_mutex_lock(&stdev->lock);
             char* command = strtok(buffer, "  \n");
             if (command == NULL) {
                 write_bad_command_error(conn_socket, command);
@@ -500,8 +498,8 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
                 list_models(conn_socket, buffer, stdev);
             } else if (strcmp(command, COMMAND_TRIGGER) == 0) {
                 send_trigger(conn_socket, buffer, stdev);
-            } else if (strcmp(command, COMMAND_MODEL_EVENT) == 0) {
-                send_model_event(conn_socket, buffer, stdev);
+            } else if (strcmp(command, COMMAND_UPDATE) == 0) {
+                process_send_model_event(conn_socket, buffer, stdev);
             } else if (strncmp(command, COMMAND_CLOSE, 5) == 0) {
                 ALOGI("Closing this connection.");
                 write_string(conn_socket, "Closing this connection.");
@@ -511,13 +509,15 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
                 write_string(conn_socket, "End command received. Stopping connection.");
                 continue_listening = false;
                 break;
+            } else {
+                write_vastr(conn_socket, "Bad command %s.\n", command);
             }
+            pthread_mutex_unlock(&stdev->lock);
         } else {
             ALOGI("parse_socket_data done (got null)");
             input_done = true;  // break.
         }
     }
-    pthread_mutex_unlock(&stdev->lock);
     return continue_listening;
 }
 
