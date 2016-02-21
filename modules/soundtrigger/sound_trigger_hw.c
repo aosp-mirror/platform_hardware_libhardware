@@ -488,6 +488,9 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
     char buffer[PARSE_BUF_LEN];
     FILE* input_fp = fdopen(conn_socket, "r");
     bool continue_listening = true;
+
+    // Note: Since we acquire a lock inside this loop, do not use break or other
+    // exit methods without releasing this lock.
     while(!input_done) {
         if (fgets(buffer, PARSE_BUF_LEN, input_fp) != NULL) {
             pthread_mutex_lock(&stdev->lock);
@@ -503,12 +506,12 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
             } else if (strncmp(command, COMMAND_CLOSE, 5) == 0) {
                 ALOGI("Closing this connection.");
                 write_string(conn_socket, "Closing this connection.");
-                break;
+                input_done = true;
             } else if (strncmp(command, COMMAND_END, 3) == 0) {
                 ALOGI("End command received.");
                 write_string(conn_socket, "End command received. Stopping connection.");
                 continue_listening = false;
-                break;
+                input_done = true;
             } else {
                 write_vastr(conn_socket, "Bad command %s.\n", command);
             }
