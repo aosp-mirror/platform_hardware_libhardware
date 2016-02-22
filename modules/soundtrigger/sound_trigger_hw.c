@@ -102,7 +102,10 @@ char tmp_write_buffer[PARSE_BUF_LEN];
 struct stub_sound_trigger_device {
     struct sound_trigger_hw_device device;
     pthread_mutex_t lock;
-    pthread_t callback_thread;
+
+    // This thread opens a port that can be used to monitor and inject events
+    // into the stub HAL.
+    pthread_t control_thread;
 
     // Recognition contexts are stored as a linked list
     struct recognition_context *root_model_context;
@@ -270,7 +273,7 @@ static struct recognition_context * get_model_context(struct stub_sound_trigger_
     return model_context;
 }
 
-static void *callback_thread_loop(void *context) {
+static void *control_thread_loop(void *context) {
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)context;
     struct sockaddr_in incoming_info;
     struct sockaddr_in self_info;
@@ -692,12 +695,8 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
     model_context->recognition_callback = callback;
     model_context->recognition_cookie = cookie;
 
-    if (!other_callbacks_found) {
-        pthread_create(&stdev->callback_thread, (const pthread_attr_t *) NULL,
-                callback_thread_loop, stdev);
-    }
-
     pthread_mutex_unlock(&stdev->lock);
+    ALOGI("%s done for handle %d", __func__, handle);
     return 0;
 }
 
@@ -719,14 +718,8 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
     model_context->recognition_callback = NULL;
     model_context->recognition_cookie = NULL;
 
-    /* If no more models running with callbacks, stop trigger thread */
-    if (!recognition_callback_exists(stdev)) {
-        send_loop_kill_signal();
-        pthread_mutex_unlock(&stdev->lock);
-        pthread_join(stdev->callback_thread, (void **)NULL);
-    } else {
-        pthread_mutex_unlock(&stdev->lock);
-    }
+    pthread_mutex_unlock(&stdev->lock);
+    ALOGI("%s done for handle %d", __func__, handle);
 
     return 0;
 }
@@ -749,6 +742,11 @@ int sound_trigger_close_for_streaming(int audio_handle __unused) {
 }
 
 static int stdev_close(hw_device_t *device) {
+    // TODO: Implement the ability to stop the control thread. Since this is a
+    // test hal, we have skipped implementing this for now. A possible method
+    // would register a signal handler for the control thread so that any
+    // blocking socket calls can be interrupted. We would send that signal here
+    // to interrupt and quit the thread.
     free(device);
     return 0;
 }
@@ -781,6 +779,10 @@ static int stdev_open(const hw_module_t* module, const char* name,
     pthread_mutex_init(&stdev->lock, (const pthread_mutexattr_t *) NULL);
 
     *device = &stdev->device.common;
+
+    pthread_create(&stdev->control_thread, (const pthread_attr_t *) NULL,
+                control_thread_loop, stdev);
+    ALOGI("Starting control thread for the stub hal.");
 
     return 0;
 }
