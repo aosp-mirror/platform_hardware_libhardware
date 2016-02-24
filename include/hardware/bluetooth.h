@@ -548,6 +548,17 @@ typedef struct {
      */
     int (*config_clear)(void);
 
+    /**
+     * Clear (reset) the dynamic portion of the device interoperability database.
+     */
+    void (*interop_database_clear)(void);
+
+    /**
+     * Add a new device interoperability workaround for a remote device whose
+     * first |len| bytes of the its device address match |addr|.
+     * NOTE: |feature| has to match an item defined in interop_feature_t (interop.h).
+     */
+    void (*interop_database_add)(uint16_t feature, const bt_bdaddr_t *addr, size_t len);
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
