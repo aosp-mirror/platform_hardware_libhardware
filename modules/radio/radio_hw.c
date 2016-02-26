@@ -159,7 +159,7 @@ static int send_command_l(struct stub_radio_tuner *tuner,
     return 0;
 }
 
-#define BITMAP_FILE_PATH "/data/misc/media/android.png"
+#define BITMAP_FILE_PATH "/data/misc/audioserver/android.png"
 
 static int add_bitmap_metadata(radio_metadata_t **metadata, radio_metadata_key_t key,
                                const char *source)
