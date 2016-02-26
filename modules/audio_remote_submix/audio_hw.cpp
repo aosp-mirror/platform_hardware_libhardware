@@ -89,7 +89,7 @@ namespace android {
 #define ENABLE_RESAMPLING            1
 #if LOG_STREAMS_TO_FILES
 // Folder to save stream log files to.
-#define LOG_STREAM_FOLDER "/data/misc/media"
+#define LOG_STREAM_FOLDER "/data/misc/audioserver"
 // Log filenames for input and output streams.
 #define LOG_STREAM_OUT_FILENAME LOG_STREAM_FOLDER "/r_submix_out.raw"
 #define LOG_STREAM_IN_FILENAME LOG_STREAM_FOLDER "/r_submix_in.raw"
