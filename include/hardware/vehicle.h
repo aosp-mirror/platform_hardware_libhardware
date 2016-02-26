@@ -434,6 +434,11 @@ enum vehicle_radio_consts {
  *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG can be used.
  *                   This is for case like radio where android side app still needs to hold focus
  *                   but playback is done outside Android.
+ *   int32_array[3]: Currently active audio contexts in android side. Use combination of flags from
+ *                   vehicle_audio_context_flag.
+ *                   This can be used as a hint to adjust audio policy or other policy decision.
+ *                   Note that there can be multiple context active at the same time. And android
+ *                   can send the same focus request type gain due to change in audio contexts.
  * Note that each focus request can request multiple streams that is expected to be used for
  * the current request. But focus request itself is global behavior as GAIN or GAIN_TRANSIENT
  * expects all sounds played by car's audio module to stop. Note that stream already allocated to
@@ -458,10 +463,11 @@ enum vehicle_radio_consts {
  *                       VEHICLE_AUDIO_EXT_FOCUS_CAR_PERMANENT when car side is playing something
  *                       permanent.
  *                   LOSS_TRANSIENT: always should be VEHICLE_AUDIO_EXT_FOCUS_CAR_TRANSIENT
+ *   int32_array[3]: should be zero.
  *
  * If car does not support VEHICLE_PROPERTY_AUDIO_FOCUS, focus is assumed to be granted always.
  *
- * @value_type VEHICLE_VALUE_TYPE_INT32_VEC3
+ * @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_array
@@ -562,6 +568,42 @@ enum vehicle_audio_focus_index {
     VEHICLE_AUDIO_FOCUS_INDEX_FOCUS = 0,
     VEHICLE_AUDIO_FOCUS_INDEX_STREAMS = 1,
     VEHICLE_AUDIO_FOCUS_INDEX_EXTERNAL_FOCUS_STATE = 2,
+    VEHICLE_AUDIO_FOCUS_INDEX_AUDIO_CONTEXTS = 3,
+};
+
+/**
+ * Flags to tell the current audio context.
+ */
+enum vehicle_audio_context_flag {
+    /** Music playback is currently active. */
+    VEHICLE_AUDIO_CONTEXT_MUSIC_FLAG                      = 0x1,
+    /** Navigation is currently running. */
+    VEHICLE_AUDIO_CONTEXT_NAVIGATION_FLAG                 = 0x2,
+    /** Voice command session is currently running. */
+    VEHICLE_AUDIO_CONTEXT_VOICE_COMMAND_FLAG              = 0x4,
+    /** Voice call is currently active. */
+    VEHICLE_AUDIO_CONTEXT_CALL_FLAG                       = 0x8,
+    /** Alarm is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY. */
+    VEHICLE_AUDIO_CONTEXT_ALARM_FLAG                      = 0x10,
+    /**
+     * Notification sound is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY.
+     */
+    VEHICLE_AUDIO_CONTEXT_NOTIFICATION_FLAG               = 0x20,
+    /**
+     * Context unknown. Only used for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY to represent default
+     * stream for unknown contents.
+     */
+    VEHICLE_AUDIO_CONTEXT_UNKNOWN_FLAG                    = 0x40,
+    /** Safety alert / warning is played. */
+    VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
+    /** CD / DVD kind of audio is played */
+    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
+    /** Aux audio input is played */
+    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
+    /** system sound like UI feedback */
+    VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND                   = 0x400,
+    /** Radio is played */
+    VEHICLE_AUDIO_CONTEXT_RADIO                          = 0x800,
 };
 
 /**
@@ -691,49 +733,6 @@ enum vehicle_audio_hw_variant_config_flag {
     VEHICLE_AUDIO_HW_VARIANT_FLAG_PASS_RADIO_AUDIO_FOCUS_FLAG = 0x1,
 };
 
-/**
- * Property to share currently active audio context in android side.
- * This can be used as a hint to adjust audio policy or other policy decision. Note that there
- * can be multiple context active at the same time.
- *
- * @value_type VEHICLE_VALUE_TYPE_INT32
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
- * @access VEHICLE_PROP_ACCESS_WRITE
- * @data_member int32
- */
-#define VEHICLE_PROPERTY_AUDIO_CONTEXT                        (0x00000905)
-/**
- * Flags to tell the current audio context.
- */
-enum vehicle_audio_context_flag {
-    /** Music playback is currently active. */
-    VEHICLE_AUDIO_CONTEXT_MUSIC_FLAG                      = 0x1,
-    /** Navigation is currently running. */
-    VEHICLE_AUDIO_CONTEXT_NAVIGATION_FLAG                 = 0x2,
-    /** Voice command session is currently running. */
-    VEHICLE_AUDIO_CONTEXT_VOICE_COMMAND_FLAG              = 0x4,
-    /** Voice call is currently active. */
-    VEHICLE_AUDIO_CONTEXT_CALL_FLAG                       = 0x8,
-    /** Alarm is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY. */
-    VEHICLE_AUDIO_CONTEXT_ALARM_FLAG                      = 0x10,
-    /**
-     * Notification sound is active. This may be only used in VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY.
-     */
-    VEHICLE_AUDIO_CONTEXT_NOTIFICATION_FLAG               = 0x20,
-    /**
-     * Context unknown. Only used for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY to represent default
-     * stream for unknown contents.
-     */
-    VEHICLE_AUDIO_CONTEXT_UNKNOWN_FLAG                    = 0x40,
-    /** Safety alert / warning is played. */
-    VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
-    /** CD / DVD kind of audio is played */
-    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
-    /** Aux audio input is played */
-    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
-    /** system sound like UI feedback */
-    VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND                   = 0x400,
-};
 
 /**
  * Property to control power state of application processor.
@@ -936,6 +935,54 @@ enum vehicle_display {
     /** center console */
     VEHICLE_DISPLAY_MAIN               = 0,
     VEHICLE_DISPLAY_INSTRUMENT_CLUSTER = 1,
+};
+
+/**
+ * Property to define instrument cluster information.
+ * For CLUSTER_TYPE_EXTERNAL_DISPLAY:
+ *  READ:
+ *   int32_array[0] : The current screen mode index. Screen mode is defined
+ *                     as a configuration in car service and represents which
+ *                     area of screen is renderable.
+ *   int32_array[1] : Android can render to instrument cluster (=1) or not(=0). When this is 0,
+ *                    instrument cluster may be rendering some information in the area
+ *                    allocated for android and android side rendering is invisible. *
+ *   int32_array[2..3] : should be zero
+ *  WRITE from android:
+ *   int32_array[0] : Preferred mode for android side. Depending on the app rendering to instrument
+ *                    cluster, preferred mode can change. Instrument cluster still needs to send
+ *                    event with new mode to trigger actual mode change.
+ *   int32_array[1] : The current app context relevant for instrument cluster. Use the same flag
+ *                    with vehicle_audio_context_flag but this context represents active apps, not
+ *                    active audio. Instrument cluster side may change mode depending on the
+ *                    currently active contexts.
+ *   int32_array[2..3] : should be zero
+ *  When system boots up, Android side will write {0, 0, 0, 0} when it is ready to render to
+ *  instrument cluster. Before this message, rendering from android should not be visible in the
+ *  cluster.
+ * @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_array 0:vehicle_instument_cluster_type 1:hw type
+ * @data_member int32_array
+ */
+#define VEHICLE_PROPERTY_INSTRUMENT_CLUSTER_INFO                     (0x00000A20)
+
+/**
+ * Represents instrument cluster type available in system
+ */
+enum vehicle_instument_cluster_type {
+    /** Android has no access to instument cluster */
+    VEHICLE_INSTRUMENT_CLUSTER_TYPE_NONE = 0,
+    /**
+     * Instrument cluster can communicate through vehicle hal with additional
+     * properties to exchange meta-data
+     */
+    VEHICLE_INSTRUMENT_CLUSTER_TYPE_HAL_INTERFACE = 1,
+    /**
+     * Instrument cluster is external display where android can render contents
+     */
+    VEHICLE_INSTRUMENT_CLUSTER_TYPE_EXTERNAL_DISPLAY = 2,
 };
 
 /**
@@ -1363,6 +1410,29 @@ typedef struct vehicle_prop_config {
         float float_max_value;
         int32_t int32_max_value;
         int64_t int64_max_value;
+    };
+
+    /**
+     * Array of min values for zoned properties. Zoned property can specify min / max value in two
+     * different ways:
+     *   1. All zones having the same min / max value: *_min/max_value should be set and this
+     *      array should be set to NULL.
+     *   2. All zones having separate min / max value: *_min/max_values array should be populated
+     *      and its length should be the same as number of active zones specified by *_zone_flags.
+     */
+    union {
+        float* float_min_values;
+        int32_t* int32_min_values;
+        int64_t* int64_min_values;
+    };
+
+    /**
+     * Array of max values for zoned properties. See above for its usage.
+     */
+    union {
+        float* float_max_values;
+        int32_t* int32_max_values;
+        int64_t* int64_max_values;
     };
 
     /**
