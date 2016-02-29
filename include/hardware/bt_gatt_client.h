@@ -137,23 +137,6 @@ typedef void (*disconnect_callback)(int conn_id, int status,
  */
 typedef void (*search_complete_callback)(int conn_id, int status);
 
-/** Reports GATT services on a remote device */
-typedef void (*search_result_callback)( int conn_id, btgatt_srvc_id_t *srvc_id);
-
-/** GATT characteristic enumeration result callback */
-typedef void (*get_characteristic_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                int char_prop);
-
-/** GATT descriptor enumeration result callback */
-typedef void (*get_descriptor_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                btgatt_gatt_id_t *descr_id);
-
-/** GATT included service enumeration result callback */
-typedef void (*get_included_service_callback)(int conn_id, int status,
-                btgatt_srvc_id_t *srvc_id, btgatt_srvc_id_t *incl_srvc_id);
-
 /** Callback invoked in response to [de]register_for_notification */
 typedef void (*register_for_notification_callback)(int conn_id,
                 int registered, int status, btgatt_srvc_id_t *srvc_id,
@@ -260,10 +243,6 @@ typedef struct {
     connect_callback                    open_cb;
     disconnect_callback                 close_cb;
     search_complete_callback            search_complete_cb;
-    search_result_callback              search_result_cb;
-    get_characteristic_callback         get_characteristic_cb;
-    get_descriptor_callback             get_descriptor_cb;
-    get_included_service_callback       get_included_service_cb;
     register_for_notification_callback  register_for_notification_cb;
     notify_callback                     notify_cb;
     read_characteristic_callback        read_characteristic_cb;
@@ -324,28 +303,6 @@ typedef struct {
      * Optionally, the results can be filtered for a given UUID.
      */
     bt_status_t (*search_service)(int conn_id, bt_uuid_t *filter_uuid );
-
-    /**
-     * Enumerate included services for a given service.
-     * Set start_incl_srvc_id to NULL to get the first included service.
-     */
-    bt_status_t (*get_included_service)( int conn_id, btgatt_srvc_id_t *srvc_id,
-                                         btgatt_srvc_id_t *start_incl_srvc_id);
-
-    /**
-     * Enumerate characteristics for a given service.
-     * Set start_char_id to NULL to get the first characteristic.
-     */
-    bt_status_t (*get_characteristic)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *start_char_id);
-
-    /**
-     * Enumerate descriptors for a given characteristic.
-     * Set start_descr_id to NULL to get the first descriptor.
-     */
-    bt_status_t (*get_descriptor)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *start_descr_id);
 
     /** Read a characteristic on a remote device */
     bt_status_t (*read_characteristic)( int conn_id,
