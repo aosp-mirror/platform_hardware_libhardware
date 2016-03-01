@@ -38,7 +38,9 @@
 
 // The following commands work with the network port:
 #define COMMAND_LS "ls"
-#define COMMAND_TRIGGER "trig"  // Argument: model index.
+#define COMMAND_RECOGNITION_TRIGGER "trig"  // Argument: model index.
+#define COMMAND_RECOGNITION_ABORT "abort"  // Argument: model index.
+#define COMMAND_RECOGNITION_FAILURE "fail"  // Argument: model index.
 #define COMMAND_UPDATE "update"  // Argument: model index.
 #define COMMAND_CLOSE "close" // Close just closes the network port, keeps thread running.
 #define COMMAND_END "end" // Closes connection and stops the thread.
@@ -76,7 +78,7 @@ static const struct sound_trigger_properties hw_properties = {
         RECOGNITION_MODE_VOICE_TRIGGER, // recognition_modes
         false, // capture_transition
         0, // max_buffer_ms
-        false, // concurrent_capture
+        true, // concurrent_capture
         false, // trigger_in_event
         0 // power_consumption_mw
 };
@@ -113,6 +115,25 @@ struct stub_sound_trigger_device {
     int next_sound_model_id;
 };
 
+// Returns model at the given index, null otherwise (error, doesn't exist, etc).
+// Note that here index starts from zero.
+struct recognition_context* fetch_model_at_index(
+        struct stub_sound_trigger_device* stdev, int index) {
+    ALOGI("%s", __func__);
+    struct recognition_context *model_context = NULL;
+    struct recognition_context *last_model_context = stdev->root_model_context;
+    unsigned int model_index = 0;
+    while(last_model_context) {
+        if (model_index == index) {
+            model_context = last_model_context;
+            break;
+        }
+        last_model_context = last_model_context->next;
+        model_index++;
+    }
+    return model_context;
+}
+
 /* Will reuse ids when overflow occurs */
 static sound_model_handle_t generate_sound_model_handle(const struct sound_trigger_hw_device *dev) {
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
@@ -126,93 +147,142 @@ static sound_model_handle_t generate_sound_model_handle(const struct sound_trigg
 
 bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev);
 
-static char *sound_trigger_event_alloc(sound_model_handle_t handle,
-            sound_trigger_sound_model_type_t model_type,
-            struct sound_trigger_recognition_config *config) {
+static char *sound_trigger_keyphrase_event_alloc(sound_model_handle_t handle,
+                                                 struct sound_trigger_recognition_config *config,
+                                                 int recognition_status) {
     char *data;
-    if (model_type == SOUND_MODEL_TYPE_KEYPHRASE) {
-        struct sound_trigger_phrase_recognition_event *event;
-        data = (char *)calloc(1, sizeof(struct sound_trigger_phrase_recognition_event));
-        if (!data)
-            return NULL;
-        event = (struct sound_trigger_phrase_recognition_event *)data;
-        event->common.status = RECOGNITION_STATUS_SUCCESS;
-        event->common.type = SOUND_MODEL_TYPE_KEYPHRASE;
-        event->common.model = handle;
-
-        if (config) {
-            unsigned int i;
-
-            event->num_phrases = config->num_phrases;
-            if (event->num_phrases > SOUND_TRIGGER_MAX_PHRASES)
-                event->num_phrases = SOUND_TRIGGER_MAX_PHRASES;
-            for (i=0; i < event->num_phrases; i++)
-                memcpy(&event->phrase_extras[i],
-                       &config->phrases[i],
-                       sizeof(struct sound_trigger_phrase_recognition_extra));
-        }
-
-        event->num_phrases = 1;
-        event->phrase_extras[0].confidence_level = 100;
-        event->phrase_extras[0].num_levels = 1;
-        event->phrase_extras[0].levels[0].level = 100;
-        event->phrase_extras[0].levels[0].user_id = 0;
-        // Signify that all the data is comming through streaming, not through the buffer.
-        event->common.capture_available = true;
-        event->common.audio_config = AUDIO_CONFIG_INITIALIZER;
-        event->common.audio_config.sample_rate = 16000;
-        event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
-        event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
-    } else if (model_type == SOUND_MODEL_TYPE_GENERIC) {
-        struct sound_trigger_generic_recognition_event *event;
-        data = (char *)calloc(1, sizeof(struct sound_trigger_generic_recognition_event));
-        if (!data)
-            return NULL;
-        event = (struct sound_trigger_generic_recognition_event *)data;
-        event->common.status = RECOGNITION_STATUS_SUCCESS;
-        event->common.type = SOUND_MODEL_TYPE_GENERIC;
-        event->common.model = handle;
-
-        // Signify that all the data is comming through streaming, not through the buffer.
-        event->common.capture_available = true;
-        event->common.audio_config = AUDIO_CONFIG_INITIALIZER;
-        event->common.audio_config.sample_rate = 16000;
-        event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
-        event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
-    } else {
-        ALOGW("No Valid Event Type Known");
+    struct sound_trigger_phrase_recognition_event *event;
+    data = (char *)calloc(1, sizeof(struct sound_trigger_phrase_recognition_event));
+    if (!data)
         return NULL;
+    event = (struct sound_trigger_phrase_recognition_event *)data;
+    event->common.status = recognition_status;
+    event->common.type = SOUND_MODEL_TYPE_KEYPHRASE;
+    event->common.model = handle;
+
+    if (config) {
+        unsigned int i;
+
+        event->num_phrases = config->num_phrases;
+        if (event->num_phrases > SOUND_TRIGGER_MAX_PHRASES)
+            event->num_phrases = SOUND_TRIGGER_MAX_PHRASES;
+        for (i=0; i < event->num_phrases; i++)
+            memcpy(&event->phrase_extras[i],
+                   &config->phrases[i],
+                   sizeof(struct sound_trigger_phrase_recognition_extra));
     }
+
+    event->num_phrases = 1;
+    event->phrase_extras[0].confidence_level = 100;
+    event->phrase_extras[0].num_levels = 1;
+    event->phrase_extras[0].levels[0].level = 100;
+    event->phrase_extras[0].levels[0].user_id = 0;
+    // Signify that all the data is comming through streaming, not through the buffer.
+    event->common.capture_available = true;
+    event->common.audio_config = AUDIO_CONFIG_INITIALIZER;
+    event->common.audio_config.sample_rate = 16000;
+    event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
+    event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
     return data;
 }
 
-static void send_recognition_event(sound_model_handle_t model_handle,
-            sound_trigger_sound_model_type_t model_type,
-            recognition_callback_t recognition_callback, void *recognition_cookie,
-            struct sound_trigger_recognition_config *config) {
-    if (recognition_callback == NULL) {
-        ALOGI("%s No matching callback for handle %d", __func__, model_handle);
+static char *sound_trigger_generic_event_alloc(sound_model_handle_t handle,
+                                               struct sound_trigger_recognition_config *config,
+                                               int recognition_status) {
+    char *data;
+    struct sound_trigger_generic_recognition_event *event;
+    data = (char *)calloc(1, sizeof(struct sound_trigger_generic_recognition_event));
+    if (!data)
+        return NULL;
+    event = (struct sound_trigger_generic_recognition_event *)data;
+    event->common.status = recognition_status;
+    event->common.type = SOUND_MODEL_TYPE_GENERIC;
+    event->common.model = handle;
+
+    // Signify that all the data is comming through streaming, not through the buffer.
+    event->common.capture_available = true;
+    event->common.audio_config = AUDIO_CONFIG_INITIALIZER;
+    event->common.audio_config.sample_rate = 16000;
+    event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
+    event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
+    return data;
+}
+
+void write_bad_command_error(int conn_socket, char* command) {
+    int num = snprintf(tmp_write_buffer, PARSE_BUF_LEN, "Bad command received: %s", command);
+    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';  // Just to be sure.
+    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
+    write(conn_socket, tmp_write_buffer, num);
+}
+
+void write_string(int conn_socket, char* str) {
+    int num = snprintf(tmp_write_buffer, PARSE_BUF_LEN, "%s", str);
+    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';
+    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
+    write(conn_socket, tmp_write_buffer, num);
+}
+
+void write_vastr(int conn_socket, char* format, ...) {
+    va_list argptr;
+    va_start(argptr, format);
+    int num = vsnprintf(tmp_write_buffer, PARSE_BUF_LEN, format, argptr);
+    va_end(argptr);
+    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';
+    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
+    write(conn_socket, tmp_write_buffer, num);
+}
+
+void send_recognition_event(int conn_socket, char* buffer, struct stub_sound_trigger_device* stdev,
+                            int recognition_status) {
+    ALOGI("%s", __func__);
+    char* model_handle_str = strtok(NULL, " ");
+    if (model_handle_str == NULL) {
+        write_string(conn_socket, "Bad sound model id.\n");
+        return;
+    }
+    int index = -1;
+    if (sscanf(model_handle_str, "%d", &index) <= 0) {
+        write_vastr(conn_socket, "Unable to parse sound model index: %s\n", model_handle_str);
         return;
     }
 
-    if (model_type == SOUND_MODEL_TYPE_KEYPHRASE) {
-        struct sound_trigger_phrase_recognition_event *event;
-        event = (struct sound_trigger_phrase_recognition_event *)
-               sound_trigger_event_alloc(model_handle, model_type, config);
-        if (event) {
-            recognition_callback(event, recognition_cookie);
-            free(event);
+    if (index < (int)hw_properties.max_sound_models) {
+        ALOGI("Going to send trigger for model index #%d", index );
+        struct recognition_context *model_context = fetch_model_at_index(stdev, index);
+        if (model_context) {
+            if (model_context->recognition_callback == NULL) {
+                ALOGI("%s No matching callback for handle %d", __func__,
+                      model_context->model_handle);
+                return;
+            }
+
+            if (model_context->model_type == SOUND_MODEL_TYPE_KEYPHRASE) {
+                struct sound_trigger_phrase_recognition_event *event;
+                event = (struct sound_trigger_phrase_recognition_event *)
+                        sound_trigger_keyphrase_event_alloc(model_context->model_handle,
+                                                            model_context->config,
+                                                            recognition_status);
+                if (event) {
+                    model_context->recognition_callback(event, model_context->recognition_cookie);
+                    free(event);
+                }
+            } else if (model_context->model_type == SOUND_MODEL_TYPE_GENERIC) {
+                struct sound_trigger_generic_recognition_event *event;
+                event = (struct sound_trigger_generic_recognition_event *)
+                        sound_trigger_generic_event_alloc(model_context->model_handle,
+                                                          model_context->config,
+                                                          recognition_status);
+                if (event) {
+                    model_context->recognition_callback(event, model_context->recognition_cookie);
+                    free(event);
+                }
+            } else {
+                ALOGI("Unknown Sound Model Type, No Event to Send");
+            }
+        } else {
+            ALOGI("Sound Model Does Not Exist at this Index: %d", index);
+            write_string(conn_socket, "Sound Model Does Not Exist at given Index.\n");
         }
-    } else if (model_type == SOUND_MODEL_TYPE_GENERIC) {
-        struct sound_trigger_generic_recognition_event *event;
-        event = (struct sound_trigger_generic_recognition_event *)
-                sound_trigger_event_alloc(model_handle, model_type, config);
-        if (event) {
-            recognition_callback(event, recognition_cookie);
-            free(event);
-        }
-    } else {
-        ALOGI("Unknown Sound Model Type, No Event to Send");
     }
 }
 
@@ -335,30 +405,6 @@ static void *control_thread_loop(void *context) {
     return NULL;
 }
 
-void write_bad_command_error(int conn_socket, char* command) {
-    int num = snprintf(tmp_write_buffer, PARSE_BUF_LEN, "Bad command received: %s", command);
-    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';  // Just to be sure.
-    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
-    write(conn_socket, tmp_write_buffer, num);
-}
-
-void write_string(int conn_socket, char* str) {
-    int num = snprintf(tmp_write_buffer, PARSE_BUF_LEN, "%s", str);
-    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';
-    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
-    write(conn_socket, tmp_write_buffer, num);
-}
-
-void write_vastr(int conn_socket, char* format, ...) {
-    va_list argptr;
-    va_start(argptr, format);
-    int num = vsnprintf(tmp_write_buffer, PARSE_BUF_LEN, format, argptr);
-    va_end(argptr);
-    tmp_write_buffer[PARSE_BUF_LEN - 1] = '\0';
-    tmp_write_buffer[PARSE_BUF_LEN - 2] = '\n';
-    write(conn_socket, tmp_write_buffer, num);
-}
-
 void list_models(int conn_socket, char* buffer,
                  struct stub_sound_trigger_device* stdev) {
     ALOGI("%s", __func__);
@@ -391,55 +437,6 @@ void list_models(int conn_socket, char* buffer,
         ALOGI("----\n\n");
         last_model_context = last_model_context->next;
         model_index++;
-    }
-}
-
-// Returns model at the given index, null otherwise (error, doesn't exist, etc).
-// Note that here index starts from zero.
-struct recognition_context* fetch_model_at_index(
-        struct stub_sound_trigger_device* stdev, int index) {
-    ALOGI("%s", __func__);
-    struct recognition_context *model_context = NULL;
-    struct recognition_context *last_model_context = stdev->root_model_context;
-    unsigned int model_index = 0;
-    while(last_model_context) {
-        if (model_index == index) {
-            model_context = last_model_context;
-            break;
-        }
-        last_model_context = last_model_context->next;
-        model_index++;
-    }
-    return model_context;
-}
-
-void send_trigger(int conn_socket, char* buffer,
-                  struct stub_sound_trigger_device* stdev) {
-    ALOGI("%s", __func__);
-    char* model_handle_str = strtok(NULL, " ");
-    if (model_handle_str == NULL) {
-        write_string(conn_socket, "Bad sound model id.\n");
-        return;
-    }
-    int index = -1;
-    if (sscanf(model_handle_str, "%d", &index) <= 0) {
-        write_vastr(conn_socket, "Unable to parse sound model index: %s\n", model_handle_str);
-        return;
-    }
-
-    if (index < (int)hw_properties.max_sound_models) {
-        ALOGI("Going to send trigger for model index #%d", index );
-        struct recognition_context *model_context = fetch_model_at_index(stdev, index);
-        if (model_context) {
-            send_recognition_event(model_context->model_handle,
-                                   model_context->model_type,
-                                   model_context->recognition_callback,
-                                   model_context->recognition_cookie,
-                                   model_context->config);
-        } else {
-            ALOGI("Sound Model Does Not Exist at this Index: %d", index);
-            write_string(conn_socket, "Sound Model Does Not Exist at given Index.\n");
-        }
     }
 }
 
@@ -502,8 +499,12 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
                 write_bad_command_error(conn_socket, command);
             } else if (strncmp(command, COMMAND_LS, 2) == 0) {
                 list_models(conn_socket, buffer, stdev);
-            } else if (strcmp(command, COMMAND_TRIGGER) == 0) {
-                send_trigger(conn_socket, buffer, stdev);
+            } else if (strcmp(command, COMMAND_RECOGNITION_TRIGGER) == 0) {
+                send_recognition_event(conn_socket, buffer, stdev, RECOGNITION_STATUS_SUCCESS);
+            } else if (strcmp(command, COMMAND_RECOGNITION_ABORT) == 0) {
+                send_recognition_event(conn_socket, buffer, stdev, RECOGNITION_STATUS_ABORT);
+            } else if (strcmp(command, COMMAND_RECOGNITION_FAILURE) == 0) {
+                send_recognition_event(conn_socket, buffer, stdev, RECOGNITION_STATUS_FAILURE);
             } else if (strcmp(command, COMMAND_UPDATE) == 0) {
                 process_send_model_event(conn_socket, buffer, stdev);
             } else if (strncmp(command, COMMAND_CLOSE, 5) == 0) {
