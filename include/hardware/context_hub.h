@@ -153,9 +153,9 @@ struct physical_sensor_description_t {
     const char *name;               // Identifier eg: "Bosch BMI160"
     const char *vendor;             // Vendor : eg "STM"
     uint32_t version;               // Version : eg 0x1001
-    uint32_t fifo_reserverd_count;  // Batching possible in hardware. Please
+    uint32_t fifo_reserved_count;   // Batching possible in hardware. Please
                                     // note that here hardware does not include
-                                    // the context hub itslef. Thus, this
+                                    // the context hub itself. Thus, this
                                     // definition may be different from say the
                                     // number advertised in the sensors HAL
                                     // which allows for batching in a hub.
