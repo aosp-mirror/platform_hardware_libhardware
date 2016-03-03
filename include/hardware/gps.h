@@ -119,12 +119,7 @@ typedef uint16_t GpsLocationFlags;
 #define GPS_CAPABILITY_ON_DEMAND_TIME   (1 << 4)
 /** GPS supports Geofencing  */
 #define GPS_CAPABILITY_GEOFENCING       (1 << 5)
-/**
- * GPS supports Measurements.
- * All hardware with GnssSystemInfo::year_of_hw greater or equal to 2016 must
- * support raw-measurement. Thus this flag is deprecated, and will be removed in
- * the next release.
- */
+/** GPS supports Measurements. */
 #define GPS_CAPABILITY_MEASUREMENTS     (1 << 6)
 /** GPS supports Navigation Messages */
 #define GPS_CAPABILITY_NAV_MESSAGES     (1 << 7)
@@ -304,22 +299,6 @@ typedef uint32_t GpsMeasurementFlags;
 typedef uint32_t GnssMeasurementFlags;
 /** A valid 'snr' is stored in the data structure. */
 #define GNSS_MEASUREMENT_HAS_SNR                               (1<<0)
-/** A valid 'elevation' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_ELEVATION                         (1<<1)
-/** A valid 'elevation uncertainty' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_ELEVATION_UNCERTAINTY             (1<<2)
-/** A valid 'azimuth' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_AZIMUTH                           (1<<3)
-/** A valid 'azimuth uncertainty' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_AZIMUTH_UNCERTAINTY               (1<<4)
-/** A valid 'pseudorange' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_PSEUDORANGE                       (1<<5)
-/** A valid 'pseudorange uncertainty' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_PSEUDORANGE_UNCERTAINTY           (1<<6)
-/** A valid 'code phase' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_CODE_PHASE                        (1<<7)
-/** A valid 'code phase uncertainty' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_CODE_PHASE_UNCERTAINTY            (1<<8)
 /** A valid 'carrier frequency' is stored in the data structure. */
 #define GNSS_MEASUREMENT_HAS_CARRIER_FREQUENCY                 (1<<9)
 /** A valid 'carrier cycles' is stored in the data structure. */
@@ -328,16 +307,6 @@ typedef uint32_t GnssMeasurementFlags;
 #define GNSS_MEASUREMENT_HAS_CARRIER_PHASE                     (1<<11)
 /** A valid 'carrier phase uncertainty' is stored in the data structure. */
 #define GNSS_MEASUREMENT_HAS_CARRIER_PHASE_UNCERTAINTY         (1<<12)
-/** A valid 'bit number' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_BIT_NUMBER                        (1<<13)
-/** A valid 'time from last bit' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_TIME_FROM_LAST_BIT                (1<<14)
-/** A valid 'doppler shift' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_DOPPLER_SHIFT                     (1<<15)
-/** A valid 'doppler shift uncertainty' is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_DOPPLER_SHIFT_UNCERTAINTY         (1<<16)
-/** A valid 'used in fix' flag is stored in the data structure. */
-#define GNSS_MEASUREMENT_HAS_USED_IN_FIX                       (1<<17)
 /**
  * The value of 'pseudorange rate' is uncorrected.
  * This is a mandatory flag. See comments of
@@ -353,7 +322,8 @@ typedef uint8_t GpsLossOfLock;
 #define GPS_LOSS_OF_LOCK_CYCLE_SLIP                         2
 
 /* The following typedef together with its constants below are deprecated, and
- * will be removed in the next release. */
+ * will be removed in the next release. Use GnssMultipathIndicator instead.
+ */
 typedef uint8_t GpsMultipathIndicator;
 #define GPS_MULTIPATH_INDICATOR_UNKNOWN                 0
 #define GPS_MULTIPATH_INDICATOR_DETECTED                1
@@ -367,9 +337,9 @@ typedef uint8_t GnssMultipathIndicator;
 /** The indicator is not available or unknown. */
 #define GNSS_MULTIPATH_INDICATOR_UNKNOWN                 0
 /** The measurement is indicated to be affected by multipath. */
-#define GNSS_MULTIPATH_INDICATOR_DETECTED                1
+#define GNSS_MULTIPATH_INDICATOR_PRESENT                 1
 /** The measurement is indicated to be not affected by multipath. */
-#define GNSS_MULTIPATH_INDICATOR_NOT_USED                2
+#define GNSS_MULTIPATH_INDICATOR_NOT_PRESENT             2
 
 /* The following typedef together with its constants below are deprecated, and
  * will be removed in the next release. */
@@ -402,6 +372,7 @@ typedef uint16_t GnssMeasurementState;
 #define GNSS_MEASUREMENT_STATE_SUBFRAME_SYNC         (1<<2)
 #define GNSS_MEASUREMENT_STATE_TOW_DECODED           (1<<3)
 #define GNSS_MEASUREMENT_STATE_MSEC_AMBIGUOUS        (1<<4)
+#define GNSS_MEASUREMENT_STATE_SYMBOL_SYNC           (1<<5)
 
 /* The following typedef together with its constants below are deprecated, and
  * will be removed in the next release. */
@@ -468,12 +439,15 @@ typedef int16_t GnssNavigationMessageType;
  * corrected.
  */
 typedef uint16_t NavigationMessageStatus;
-#define NAV_MESSAGE_STATUS_UNKONW              0
+#define NAV_MESSAGE_STATUS_UNKNOWN              0
 #define NAV_MESSAGE_STATUS_PARITY_PASSED   (1<<0)
 #define NAV_MESSAGE_STATUS_PARITY_REBUILT  (1<<1)
 
+/* This constant is deprecated, and will be removed in the next release. */
+#define NAV_MESSAGE_STATUS_UNKONW              0
+
 /**
- * Flag that indicates which extra data GnssSvInfo includes.
+ * Flags that indicate information about the satellite
  */
 typedef uint8_t                                 GnssSvFlags;
 #define GNSS_SV_FLAGS_NONE                      0
@@ -598,16 +572,22 @@ typedef struct {
     size_t size;
 
     /**
-     * Pseudo-random number for the SV, or Amanac/slot number for Glonass. The
+     * Pseudo-random number for the SV, or FCN/OSN number for Glonass. The
      * distinction is made by looking at constellation field. Values should be
      * in the range of:
      *
      * - GPS:     1-32
      * - SBAS:    120-151, 183-192
-     * - GLONASS: 1-24 (slot number)
+     * - GLONASS: Set the upper 8 bits, signed, to the frequency channel number
+     *            (FCN) in the range from -7 to +6, if known, and -127, if
+     *            unknown
+     *            Set the lower 8 bits, signed, to the orbital slot number (OSN)
+     *            in the range from 1-24, if known, or -127 if unknown
+     *            At least one of the two (FCN & OSN) must be set to a known
+     *            value
      * - QZSS:    193-200
-     * - Galileo: 1-25
-     * - Beidou:  1-35
+     * - Galileo: 1-36
+     * - Beidou:  1-37
      */
     int16_t svid;
 
@@ -617,8 +597,13 @@ typedef struct {
      */
     GnssConstellationType constellation;
 
-    /** Signal to noise ratio. */
-    float snr;
+    /**
+     * Carrier-to-noise density in dB-Hz, typically in the range [0, 63].
+     * It contains the measured C/N0 value for the signal at the antenna port.
+     *
+     * This is a mandatory value.
+     */
+    float c_n0_dbhz;
 
     /** Elevation of SV in degrees. */
     float elevation;
@@ -1656,6 +1641,12 @@ typedef struct {
 
 /**
  * Represents a GNSS Measurement, it contains raw and computed information.
+ *
+ * Independence - All signal measurement information (e.g. sv_time,
+ * pseudorange_rate, multipath_indicator) reported in this struct should be
+ * based on GNSS signal measurements only. You may not synthesize measurements
+ * by calculating or reporting expected measurements based on known or estimated
+ * position, velocity, or time.
  */
 typedef struct {
     /** set to sizeof(GpsMeasurement) */
@@ -1699,6 +1690,8 @@ typedef struct {
 
     /**
      * The received GNSS Time-of-Week at the measurement time, in nanoseconds.
+     * Ensure that this field is independent (see comment at top of
+     * GnssMeasurement struct.)
      *
      * For GPS & QZSS, this is:
      *   Received GPS Time-of-Week at the measurement time, in nanoseconds.
@@ -1772,17 +1765,18 @@ typedef struct {
     int64_t received_sv_time_uncertainty_in_ns;
 
     /**
-     * Carrier-to-noise density in dB-Hz, in the range [0, 63].
-     * It contains the measured C/N0 value for the signal at the antenna input.
+     * Carrier-to-noise density in dB-Hz, typically in the range [0, 63].
+     * It contains the measured C/N0 value for the signal at the antenna port.
      *
      * This is a mandatory value.
      */
     double c_n0_dbhz;
 
     /**
-     * Pseudorange rate at the timestamp in m/s.
-     * The correction of a given Pseudorange Rate value includes corrections for receiver and
-     * satellite clock frequency errors.
+     * Pseudorange rate at the timestamp in m/s. The correction of a given
+     * Pseudorange Rate value includes corrections for receiver and satellite
+     * clock frequency errors. Ensure that this field is independent (see
+     * comment at top of GnssMeasurement struct.)
      *
      * It is mandatory to provide the 'uncorrected' 'pseudorange rate', and provide GpsClock's
      * 'drift' field as well, and
@@ -1796,10 +1790,6 @@ typedef struct {
      * The sign of the 'uncorrected' 'pseudorange rate' and its relation to the sign of 'doppler
      * shift' is given by the equation:
      *      pseudorange rate = -k * doppler shift   (where k is a constant)
-     *
-     * This field should be based on the signal energy doppler measurement. (See
-     * also pseudorate_rate_carrier_mps for a similar field, based on carrier
-     * phase changes.)
      *
      * This should be the most accurate pseudorange rate available, based on
      * fresh signal measurements from this channel.
@@ -1848,46 +1838,6 @@ typedef struct {
     double accumulated_delta_range_uncertainty_m;
 
     /**
-     * Best derived Pseudorange by the chip-set, in meters.
-     * The value contains the 'pseudorange uncertainty' in it.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_PSEUDORANGE.
-     */
-    double pseudorange_m;
-
-    /**
-     * 1-Sigma uncertainty of the pseudorange in meters.
-     * The value contains the 'pseudorange' and 'clock' uncertainty in it.
-     * The uncertainty is represented as an absolute (single sided) value.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_PSEUDORANGE_UNCERTAINTY.
-     */
-    double pseudorange_uncertainty_m;
-
-    /**
-     * A fraction of the current C/A code cycle, in the range [0.0, 1023.0]
-     * This value contains the time (in Chip units) since the last C/A code cycle (GPS Msec epoch).
-     *
-     * The reference frequency is given by the field 'carrier_frequency_hz'.
-     * The value contains the 'code-phase uncertainty' in it.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_CODE_PHASE.
-     */
-    double code_phase_chips;
-
-    /**
-     * 1-Sigma uncertainty of the code-phase, in a fraction of chips.
-     * The uncertainty is represented as an absolute (single sided) value.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_CODE_PHASE_UNCERTAINTY.
-     */
-    double code_phase_uncertainty_chips;
-
-    /**
      * Carrier frequency at which codes and messages are modulated, it can be L1 or L2.
      * If the field is not set, the carrier frequency is assumed to be L1.
      *
@@ -1925,89 +1875,33 @@ typedef struct {
     double carrier_phase_uncertainty;
 
     /**
-     * The number of GPS bits transmitted since Sat-Sun midnight (GPS week).
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_BIT_NUMBER.
-     */
-    int32_t bit_number;
-
-    /**
-     * The elapsed time since the last received bit in milliseconds, in the range [0, 20]
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_TIME_FROM_LAST_BIT.
-     */
-    int16_t time_from_last_bit_ms;
-
-    /**
-     * Doppler shift in Hz.
-     * A positive value indicates that the SV is moving toward the receiver.
-     *
-     * The reference frequency is given by the field 'carrier_frequency_hz'.
-     * The value contains the 'doppler shift uncertainty' in it.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_DOPPLER_SHIFT.
-     */
-    double doppler_shift_hz;
-
-    /**
-     * 1-Sigma uncertainty of the doppler shift in Hz.
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_DOPPLER_SHIFT_UNCERTAINTY.
-     */
-    double doppler_shift_uncertainty_hz;
-
-    /**
      * An enumeration that indicates the 'multipath' state of the event.
+     *
+     * The multipath Indicator is intended to report the presence of overlapping
+     * signals that manifest as distorted correlation peaks.
+     *
+     * - if there is a distorted correlation peak shape, report that multipath
+     *   is GNSS_MULTIPATH_INDICATOR_PRESENT.
+     * - if there is not a distorted correlation peak shape, report
+     *   GNSS_MULTIPATH_INDICATOR_NOT_PRESENT
+     * - if signals are too weak to discern this information, report
+     *   GNSS_MULTIPATH_INDICATOR_UNKNOWN
+     *
+     * Example: when doing the standardized overlapping Multipath Performance
+     * test (3GPP TS 34.171) the Multipath indicator should report
+     * GNSS_MULTIPATH_INDICATOR_PRESENT for those signals that are tracked, and
+     * contain multipath, and GNSS_MULTIPATH_INDICATOR_NOT_PRESENT for those
+     * signals that are tracked and do not contain multipath.
      */
     GnssMultipathIndicator multipath_indicator;
 
     /**
-     * Signal-to-noise ratio in dB.
+     * Signal-to-noise ratio at correlator output in dB.
      * If the data is available, 'flags' must contain GNSS_MEASUREMENT_HAS_SNR.
+     * This is the power ratio of the "correlation peak height above the
+     * observed noise floor" to "the noise RMS".
      */
     double snr_db;
-
-    /**
-     * Elevation in degrees, the valid range is [-90, 90].
-     * The value contains the 'elevation uncertainty' in it.
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_ELEVATION.
-     */
-    double elevation_deg;
-
-    /**
-     * 1-Sigma uncertainty of the elevation in degrees, the valid range is [0, 90].
-     * The uncertainty is represented as the absolute (single sided) value.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_ELEVATION_UNCERTAINTY.
-     */
-    double elevation_uncertainty_deg;
-
-    /**
-     * Azimuth in degrees, in the range [0, 360).
-     * The value contains the 'azimuth uncertainty' in it.
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_AZIMUTH.
-     */
-    double azimuth_deg;
-
-    /**
-     * 1-Sigma uncertainty of the azimuth in degrees, the valid range is [0, 180].
-     * The uncertainty is represented as an absolute (single sided) value.
-     *
-     * If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_AZIMUTH_UNCERTAINTY.
-     */
-    double azimuth_uncertainty_deg;
-
-    /**
-     * Whether the GPS represented by the measurement was used for computing the
-     * most recent fix. If the data is available, 'flags' must contain
-     * GNSS_MEASUREMENT_HAS_USED_IN_FIX.
-     */
-    bool used_in_fix;
 } GnssMeasurement;
 
 /**
