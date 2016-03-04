@@ -597,13 +597,13 @@ enum vehicle_audio_context_flag {
     /** Safety alert / warning is played. */
     VEHICLE_AUDIO_CONTEXT_SAFETY_ALERT_FLAG               = 0x80,
     /** CD / DVD kind of audio is played */
-    VEHICLE_AUDIO_CONTEXT_CD_ROM                         = 0x100,
+    VEHICLE_AUDIO_CONTEXT_CD_ROM_FLAG                     = 0x100,
     /** Aux audio input is played */
-    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO                      = 0x200,
+    VEHICLE_AUDIO_CONTEXT_AUX_AUDIO_FLAG                  = 0x200,
     /** system sound like UI feedback */
-    VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND                   = 0x400,
+    VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND_FLAG               = 0x400,
     /** Radio is played */
-    VEHICLE_AUDIO_CONTEXT_RADIO                          = 0x800,
+    VEHICLE_AUDIO_CONTEXT_RADIO_FLAG                      = 0x800,
 };
 
 /**
