@@ -21,21 +21,21 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.3 [ CAMERA_DEVICE_API_VERSION_3_3 ]
+ * Camera device HAL 3.4 [ CAMERA_DEVICE_API_VERSION_3_4 ]
  *
  * This is the current recommended version of the camera device HAL.
  *
  * Supports the android.hardware.Camera API, and as of v3.2, the
- * android.hardware.camera2 API in LIMITED or FULL modes.
+ * android.hardware.camera2 API as LIMITED or above hardware level.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_3 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_4 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
  *
- * CAMERA_DEVICE_API_VERSION_3_3:
- *    Camera modules that may contain version 3.3 devices must implement at
- *    least version 2.2 of the camera module interface (as defined by
- *    camera_module_t.common.module_api_version).
+ * CAMERA_DEVICE_API_VERSION_3_3 and above:
+ *    Camera modules that may contain version 3.3 or above devices must
+ *    implement at least version 2.2 of the camera module interface (as defined
+ *    by camera_module_t.common.module_api_version).
  *
  * CAMERA_DEVICE_API_VERSION_3_2:
  *    Camera modules that may contain version 3.2 devices must implement at
@@ -137,6 +137,26 @@
  *
  *   - Addition of camera3 stream configuration operation mode to camera3_stream_configuration_t
  *
+ * 3.4: Minor additions to supported metadata and changes to data_space support
+ *
+ *   - Add ANDROID_SENSOR_OPAQUE_RAW_SIZE static metadata as mandatory if
+ *     RAW_OPAQUE format is supported.
+ *
+ *   - Add ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE static metadata as
+ *     mandatory if any RAW format is supported
+ *
+ *   - Switch camera3_stream_t data_space field to a more flexible definition,
+ *     using the version 0 definition of dataspace encoding.
+ *
+ *   - General metadata additions which are available to use for HALv3.2 or
+ *     newer:
+ *     - ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_3
+ *     - ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST
+ *     - ANDROID_CONTROL_POST_RAW_SENSITIVITY_BOOST_RANGE
+ *     - ANDROID_SENSOR_DYNAMIC_BLACK_LEVEL
+ *     - ANDROID_SENSOR_DYNAMIC_WHITE_LEVEL
+ *     - ANDROID_SENSOR_OPAQUE_RAW_SIZE
+ *     - ANDROID_SENSOR_OPTICAL_BLACK_REGIONS
  */
 
 /**
@@ -1611,11 +1631,19 @@ typedef struct camera3_stream {
      *   be HAL_DATASPACE_UNKNOWN, and the appropriate color space, etc, should
      *   be determined from the usage flags and the format.
      *
-     * >= CAMERA_DEVICE_API_VERSION_3_3:
+     * = CAMERA_DEVICE_API_VERSION_3_3:
      *
      *   Always set by the camera service. HAL must use this dataSpace to
      *   configure the stream to the correct colorspace, or to select between
-     *   color and depth outputs if supported.
+     *   color and depth outputs if supported. The dataspace values are the
+     *   legacy definitions in graphics.h
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_4:
+     *
+     *   Always set by the camera service. HAL must use this dataSpace to
+     *   configure the stream to the correct colorspace, or to select between
+     *   color and depth outputs if supported. The dataspace values are set
+     *   using the V0 dataspace definitions in graphics.h
      */
     android_dataspace_t data_space;
 
@@ -1680,13 +1708,15 @@ typedef struct camera3_stream_configuration {
     /**
      * >= CAMERA_DEVICE_API_VERSION_3_3:
      *
-     * The operation mode of streams in this configuration, one of the value defined in
-     * camera3_stream_configuration_mode_t.
-     * The HAL can use this mode as an indicator to set the stream property (e.g.,
-     * camera3_stream->max_buffers) appropriately. For example, if the configuration is
-     * CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE, the HAL may want to set aside more
-     * buffers for batch mode operation (see android.control.availableHighSpeedVideoConfigurations
-     * for batch mode definition).
+     * The operation mode of streams in this configuration, one of the value
+     * defined in camera3_stream_configuration_mode_t.  The HAL can use this
+     * mode as an indicator to set the stream property (e.g.,
+     * camera3_stream->max_buffers) appropriately. For example, if the
+     * configuration is
+     * CAMERA3_STREAM_CONFIGURATION_CONSTRAINED_HIGH_SPEED_MODE, the HAL may
+     * want to set aside more buffers for batch mode operation (see
+     * android.control.availableHighSpeedVideoConfigurations for batch mode
+     * definition).
      *
      */
     uint32_t operation_mode;
@@ -1933,7 +1963,7 @@ typedef enum camera3_error_msg_code {
      * available. Subsequent requests are unaffected, and the device remains
      * operational. The frame_number field specifies the request for which the
      * buffer was dropped, and error_stream contains a pointer to the stream
-     * that dropped the frame.u
+     * that dropped the frame.
      */
     CAMERA3_MSG_ERROR_BUFFER = 4,
 
