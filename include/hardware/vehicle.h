@@ -1161,9 +1161,9 @@ enum vehicle_gear {
     VEHICLE_GEAR_REVERSE    = 0x0002,
 
     // Gear selections (mostly) present only in automatic cars.
-    VEHICLE_GEAR_PARKING    = 0x0004,
+    VEHICLE_GEAR_PARK       = 0x0004,
     VEHICLE_GEAR_DRIVE      = 0x0008,
-    VEHICLE_GEAR_L          = 0x0010,
+    VEHICLE_GEAR_LOW        = 0x0010,
 
     // Other possible gear selections (maybe present in manual or automatic
     // cars).

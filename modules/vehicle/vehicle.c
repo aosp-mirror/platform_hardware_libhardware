@@ -336,7 +336,7 @@ void fake_event_thread(struct subscription *sub) {
                 event.value_type = VEHICLE_VALUE_TYPE_INT32;
                 switch ((event.timestamp & 0x30000000)>>28) {
                     case 0:
-                        event.value.gear_selection = VEHICLE_GEAR_PARKING;
+                        event.value.gear_selection = VEHICLE_GEAR_PARK;
                         break;
                     case 1:
                         event.value.gear_selection = VEHICLE_GEAR_NEUTRAL;
@@ -407,7 +407,7 @@ void fake_event_thread(struct subscription *sub) {
 }
 
 static int vdev_subscribe(vehicle_hw_device_t* device, int32_t prop, float sample_rate,
-        int32_t zones) {
+        int32_t zones UNUSED) {
     ALOGD("vdev_subscribe 0x%x, %f", prop, sample_rate);
     vehicle_device_impl_t* impl = (vehicle_device_impl_t*)device;
     // Check that the device is initialized.
