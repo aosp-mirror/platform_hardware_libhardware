@@ -55,7 +55,7 @@ int VehicleEventCallback(const vehicle_prop_value_t* event_data) {
     return 0;
 }
 
-int VehicleErrorCallback(int32_t error_code, int32_t property, int32_t operation) {
+ int VehicleErrorCallback(int32_t /*error_code*/, int32_t /*property*/, int32_t /*operation*/) {
     // Do nothing.
     return 0;
 }
