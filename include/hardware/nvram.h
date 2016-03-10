@@ -31,7 +31,7 @@ __BEGIN_DECLS
 
 /* The version of this module. */
 #define NVRAM_MODULE_API_VERSION_0_1 HARDWARE_MODULE_API_VERSION(0, 1)
-#define NVRAM_DEVICE_API_VERSION_0_1 HARDWARE_DEVICE_API_VERSION(0, 1)
+#define NVRAM_DEVICE_API_VERSION_1_1 HARDWARE_DEVICE_API_VERSION(1, 1)
 
 struct nvram_module {
     /**
@@ -75,6 +75,17 @@ struct nvram_device {
      */
     nvram_result_t (*get_available_size_in_bytes)(
         const struct nvram_device* device, uint64_t* available_size);
+
+    /**
+     * Outputs the maximum number of bytes that can be allocated for a single
+     * space. This will always be at least 32. If an implementation does not
+     * limit the maximum size it may provide the total size.
+     *
+     *   device - The nvram_device instance.
+     *   max_space_size - Receives the output. Cannot be NULL.
+     */
+    nvram_result_t (*get_max_space_size_in_bytes)(
+        const struct nvram_device* device, uint64_t* max_space_size);
 
     /**
      * Outputs the maximum total number of spaces that may be allocated.
