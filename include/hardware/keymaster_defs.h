@@ -322,6 +322,25 @@ typedef struct {
     size_t entry_count;
 } keymaster_cert_chain_t;
 
+typedef enum {
+    KM_VERIFIED_BOOT_VERIFIED = 0,    /* Full chain of trust extending from the bootloader to
+                                       * verified partitions, including the bootloader, boot
+                                       * partition, and all verified partitions*/
+    KM_VERIFIED_BOOT_SELF_SIGNED = 1, /* The boot partition has been verified using the embedded
+                                       * certificate, and the signature is valid. The bootloader
+                                       * displays a warning and the fingerprint of the public
+                                       * key before allowing the boot process to continue.*/
+    KM_VERIFIED_BOOT_UNVERIFIED = 2,  /* The device may be freely modified. Device integrity is left
+                                       * to the user to verify out-of-band. The bootloader
+                                       * displays a warning to the user before allowing the boot
+                                       * process to continue */
+    KM_VERIFIED_BOOT_FAILED = 3,      /* The device failed verification. The bootloader displays a
+                                       * warning and stops the boot process, so no keymaster
+                                       * implementation should ever actually return this value,
+                                       * since it should not run.  Included here only for
+                                       * completeness. */
+} keymaster_verified_boot_t;
+
 /**
  * Formats for key import and export.
  */
@@ -402,6 +421,7 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_EC_CURVE = -61,
     KM_ERROR_KEY_REQUIRES_UPGRADE = -62,
     KM_ERROR_ATTESTATION_CHALLENGE_MISSING = -63,
+    KM_ERROR_KEYMASTER_NOT_CONFIGURED = -64,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
