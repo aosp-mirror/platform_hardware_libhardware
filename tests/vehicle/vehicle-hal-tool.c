@@ -268,6 +268,15 @@ int vehicle_event_callback(const vehicle_prop_value_t *event_data) {
             printf("Value type: ZONED_FLOAT\nZone: %d\n", event_data->value.zoned_float_value.zone);
             printf("Value type: ZONED_FLOAT\nValue: %f\n", event_data->value.zoned_float_value.value);
             break;
+        case VEHICLE_VALUE_TYPE_INT32_VEC2:
+            printf("Value type: INT32_VEC2\nValue[0]: %d Value[1] %d\n",
+                  event_data->value.int32_array[0], event_data->value.int32_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32_VEC3:
+            printf("Value type: INT32_VEC3\nValue[0]: %d Value[1] %d Value[2] %d\n",
+                  event_data->value.int32_array[0], event_data->value.int32_array[1],
+                  event_data->value.int32_array[2]);
+            break;
         case VEHICLE_VALUE_TYPE_INT32_VEC4:
             printf("Value type: INT32_VEC4\nValue[0]: %d Value[1] %d Value[2] %d Value[3] %d\n",
                   event_data->value.int32_array[0], event_data->value.int32_array[1],
