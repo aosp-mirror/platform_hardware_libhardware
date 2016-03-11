@@ -144,8 +144,8 @@ void get_property(
             printf("Value: %s\n", ascii_out);
             break;
         case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", data->value.zoned_float_value.zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", data->value.zoned_float_value.value);
+            printf("Value type: ZONED_FLOAT\nZone: %d\n", data->zone);
+            printf("Value type: ZONED_FLOAT\nValue: %f\n", data->value.float_value);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC3:
             printf("Value type: INT32_VEC3\nValue[0]: %d\n", data->value.int32_array[0]);
@@ -195,10 +195,10 @@ void set_property(vehicle_hw_device_t *device,
             break;
         case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
             sscanf(data, "%d %f", &zone, &value);
-            vehicle_data.value.zoned_float_value.zone = zone;
-            vehicle_data.value.zoned_float_value.value = value;
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", vehicle_data.value.zoned_float_value.zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", vehicle_data.value.zoned_float_value.value);
+            vehicle_data.zone = zone;
+            vehicle_data.value.float_value = value;
+            printf("Value type: ZONED_FLOAT\nZone: %d\n", vehicle_data.zone);
+            printf("Value type: ZONED_FLOAT\nValue: %f\n", vehicle_data.value.float_value);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC2:
             sscanf(data, "%d %d", &vehicle_data.value.int32_array[0],
@@ -265,8 +265,8 @@ int vehicle_event_callback(const vehicle_prop_value_t *event_data) {
             printf("Ascii value: %s\n", ascii_out);
             break;
         case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", event_data->value.zoned_float_value.zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", event_data->value.zoned_float_value.value);
+            printf("Value type: ZONED_FLOAT\nZone: %d\n", event_data->zone);
+            printf("Value type: ZONED_FLOAT\nValue: %f\n", event_data->value.float_value);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC2:
             printf("Value type: INT32_VEC2\nValue[0]: %d Value[1] %d\n",
