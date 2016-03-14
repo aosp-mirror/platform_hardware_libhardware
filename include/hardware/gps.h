@@ -221,8 +221,11 @@ typedef uint16_t AGpsStatusValue;
 typedef uint16_t AGpsRefLocationType;
 #define AGPS_REF_LOCATION_TYPE_GSM_CELLID   1
 #define AGPS_REF_LOCATION_TYPE_UMTS_CELLID  2
-#define AGPS_REG_LOCATION_TYPE_MAC          3
+#define AGPS_REF_LOCATION_TYPE_MAC          3
 #define AGPS_REF_LOCATION_TYPE_LTE_CELLID   4
+
+/* Deprecated, to be removed in the next Android release. */
+#define AGPS_REG_LOCATION_TYPE_MAC          3
 
 /** Network types for update_network_state "type" parameter */
 #define AGPS_RIL_NETWORK_TYPE_MOBILE        0
@@ -359,7 +362,7 @@ typedef uint16_t GpsMeasurementState;
  * If GNSS is still searching for a satellite, the corresponding state should be
  * set to GNSS_MEASUREMENT_STATE_UNKNOWN(0).
  */
-typedef uint16_t GnssMeasurementState;
+typedef uint32_t GnssMeasurementState;
 #define GNSS_MEASUREMENT_STATE_UNKNOWN                   0
 #define GNSS_MEASUREMENT_STATE_CODE_LOCK             (1<<0)
 #define GNSS_MEASUREMENT_STATE_BIT_SYNC              (1<<1)
@@ -367,6 +370,14 @@ typedef uint16_t GnssMeasurementState;
 #define GNSS_MEASUREMENT_STATE_TOW_DECODED           (1<<3)
 #define GNSS_MEASUREMENT_STATE_MSEC_AMBIGUOUS        (1<<4)
 #define GNSS_MEASUREMENT_STATE_SYMBOL_SYNC           (1<<5)
+#define GNSS_MEASUREMENT_STATE_GLO_STRING_SYNC       (1<<6)
+#define GNSS_MEASUREMENT_STATE_GLO_TOD_DECODED       (1<<7)
+#define GNSS_MEASUREMENT_STATE_BDS_D2_BIT_SYNC       (1<<8)
+#define GNSS_MEASUREMENT_STATE_BDS_D2_SUBFRAME_SYNC  (1<<9)
+#define GNSS_MEASUREMENT_STATE_GAL_E1BC_CODE_LOCK    (1<<10)
+#define GNSS_MEASUREMENT_STATE_GAL_E1C_2ND_CODE_LOCK (1<<11)
+#define GNSS_MEASUREMENT_STATE_GAL_E1B_PAGE_SYNC     (1<<12)
+#define GNSS_MEASUREMENT_STATE_SBAS_SYNC             (1<<13)
 
 /* The following typedef together with its constants below are deprecated, and
  * will be removed in the next release. */
@@ -1711,10 +1722,10 @@ typedef struct {
      *   this field can be:
      *     Searching       : [ 0       ]   : GNSS_MEASUREMENT_STATE_UNKNOWN
      *     C/A code lock   : [ 0   1ms ]   : GNSS_MEASUREMENT_STATE_CODE_LOCK is set
-     *     Symbol sync    : [ 0  10ms ]   : GNSS_MEASUREMENT_STATE_SYMBOL_SYNC is set
-     *     Bit sync       : [ 0  20ms ]   : GNSS_MEASUREMENT_STATE_BIT_SYNC is set
-     *     String sync     : [ 0    2s ]   :  GNSS_MEASUREMENT_STATE_GLO_STRING_SYNC is set
-     *     Time of day      : [ 0  1day ]   : GNSS_MEASUREMENT_STATE_GLO_TOD_DECODED is set
+     *     Symbol sync     : [ 0  10ms ]   : GNSS_MEASUREMENT_STATE_SYMBOL_SYNC is set
+     *     Bit sync        : [ 0  20ms ]   : GNSS_MEASUREMENT_STATE_BIT_SYNC is set
+     *     String sync     : [ 0    2s ]   : GNSS_MEASUREMENT_STATE_GLO_STRING_SYNC is set
+     *     Time of day     : [ 0  1day ]   : GNSS_MEASUREMENT_STATE_GLO_TOD_DECODED is set
      *
      * For Beidou, this is:
      *   Received Beidou time of week, at the measurement time in nanoseconds.
@@ -1737,7 +1748,7 @@ typedef struct {
      *     GNSS_MEASUREMENT_STATE_GAL_E1C_2ND_CODE_LOCK is set
      *
      *     E1B page    : [ 0    2s ] : GNSS_MEASUREMENT_STATE_GAL_E1B_PAGE_SYNC is set
-     *     Time of week: [ 0 1week ] : GNSS_MEASUREMENT_STATE_GAL_TOW_DECODED is set
+     *     Time of week: [ 0 1week ] : GNSS_MEASUREMENT_STATE_TOW_DECODED is set
      *
      * For SBAS, this is:
      *   Received SBAS time, at the measurement time in nanoseconds.
@@ -1773,9 +1784,7 @@ typedef struct {
      * comment at top of GnssMeasurement struct.)
      *
      * It is mandatory to provide the 'uncorrected' 'pseudorange rate', and provide GpsClock's
-     * 'drift' field as well, and
-     * GPS_MEASUREMENT_HAS_UNCORRECTED_PSEUDORANGE_RATE must be set in 'flags'
-     * field. (When providing the uncorrected pseudorange rate, do not apply the
+     * 'drift' field as well (When providing the uncorrected pseudorange rate, do not apply the
      * corrections described above.)
      *
      * The value includes the 'pseudorange rate uncertainty' in it.
@@ -1843,6 +1852,8 @@ typedef struct {
     /**
      * The number of full carrier cycles between the satellite and the receiver.
      * The reference frequency is given by the field 'carrier_frequency_hz'.
+     * Indications of possible cycle slips and resets in the accumulation of
+     * this value can be inferred from the accumulated_delta_range_state flags.
      *
      * If the data is available, 'flags' must contain
      * GNSS_MEASUREMENT_HAS_CARRIER_CYCLES.
@@ -2050,9 +2061,11 @@ typedef struct {
      *
      * - For Beidou D2, this refers to the frame number, in the range of 1-120
      *
-     * - For Galileo F/NAV, this refers to the frame number, in the range of 1-N
+     * - For Galileo F/NAV nominal frame structure, this refers to the subframe
+     *   number, in the range of 1-12
      *
-     * - For Galileo I/NAV, this refers to the frame number in the range of 1-N
+     * - For Galileo I/NAV nominal frame structure, this refers to the subframe
+     *   number in the range of 1-24
      */
     int16_t message_id;
 
@@ -2067,9 +2080,9 @@ typedef struct {
      * - For Glonass L1 C/A, this refers to the String number, in the range from
      *   1-15
      *
-     * - For Galileo F/NAV, this refers to the subframe number in the range 1-12
+     * - For Galileo F/NAV, this refers to the page type in the range 1-6
      *
-     * - For Galileo I/NAV, this refers to the subframe number in the range 1-24
+     * - For Galileo I/NAV, this refers to the word type in the range 1-10+
      */
     int16_t submessage_id;
 
@@ -2095,13 +2108,13 @@ typedef struct {
      *   checksum.  These bits should be fit into 11 bytes, with MSB first (skip
      *   B86-B88), covering a time period of 2 seconds.
      *
-     * - For Galileo F/NAV, each subframe contains 5 238-bit word (sync & tail
-     *   symbols excluded). Each word should be fit into 30-bytes, with MSB
-     *   first (skip B239, B240), covering a time period of 10 seconds.
+     * - For Galileo F/NAV, each word consists of 238-bit (sync & tail symbols
+     *   excluded). Each word should be fit into 30-bytes, with MSB first (skip
+     *   B239, B240), covering a time period of 10 seconds.
      *
-     * - For Galileo I/NAV, each subframe contains 15 114-bit word (sync & tail
-     *   symbols excluded). Each word should be fit into 15-bytes, with MSB
-     *   first (skip B115-B120), covering a time period of 2 seconds.
+     * - For Galileo I/NAV, each page contains 2 page parts, even and odd, with
+     *   a total of 2x114 = 228 bits, (sync & tail excluded) that should be fit
+     *   into 29 bytes, with MSB first (skip B229-B232).
      */
     uint8_t* data;
 
