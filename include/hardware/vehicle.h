@@ -1030,9 +1030,11 @@ enum vehicle_value_type {
     VEHICLE_VALUE_TYPE_ZONED_FLOAT              = 0x30,
     VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC2         = 0x31,
     VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC3         = 0x32,
+    VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC4         = 0x33,
     VEHICLE_VALUE_TYPE_ZONED_INT32              = 0x40,
     VEHICLE_VALUE_TYPE_ZONED_INT32_VEC2         = 0x41,
     VEHICLE_VALUE_TYPE_ZONED_INT32_VEC3         = 0x42,
+    VEHICLE_VALUE_TYPE_ZONED_INT32_VEC4         = 0x43,
 };
 
 /**
@@ -1058,30 +1060,6 @@ enum vehicle_unit_type {
     VEHICLE_UNIT_TYPE_NANO_SECS             = 0x00000050,
     VEHICLE_UNOT_TYPE_SECS                  = 0x00000053,
     VEHICLE_UNIT_TYPE_YEAR                  = 0x00000059,
-};
-
-/**
- * Error code used in HAL implemnentation. Follows utils/Errors.h
- */
-enum vehicle_error_code {
-    VEHICLE_NO_ERROR    = 0x0,
-    VEHICLE_ERROR_UNKNOWN       = (-2147483647 - 1), // INT32_MIN value
-    VEHICLE_ERROR_NO_MEMORY           = -12, //ENOMEM
-    VEHICLE_ERROR_INVALID_OPERATION   = -38, //ENOSYS
-    VEHICLE_ERROR_BAD_VALUE           = -22, //EINVAL
-    VEHICLE_ERROR_BAD_TYPE            = (VEHICLE_ERROR_UNKNOWN + 1),
-    VEHICLE_ERROR_NAME_NOT_FOUND      = -2, //ENOENT
-    VEHICLE_ERROR_PERMISSION_DENIED   = -1, //EPERM
-    VEHICLE_ERROR_NO_INIT             = -19, //ENODEV
-    VEHICLE_ERROR_ALREADY_EXISTS      = -17, //EEXIST
-    VEHICLE_ERROR_DEAD_OBJECT         = -32, //EPIPE
-    VEHICLE_ERROR_FAILED_TRANSACTION  = (VEHICLE_ERROR_UNKNOWN + 2),
-    VEHICLE_ERROR_BAD_INDEX           = -75, //EOVERFLOW
-    VEHICLE_ERROR_NOT_ENOUGH_DATA     = -61, //ENODATA
-    VEHICLE_ERROR_WOULD_BLOCK         = -11, //EWOULDBLOCK
-    VEHICLE_ERROR_TIMED_OUT           = -110, //ETIMEDOUT
-    VEHICLE_ERROR_UNKNOWN_TRANSACTION = -74, //EBADMSG
-    VEHICLE_FDS_NOT_ALLOWED     = (VEHICLE_ERROR_UNKNOWN + 7),
 };
 
 /**
@@ -1287,52 +1265,6 @@ typedef struct vehicle_str {
  */
 typedef vehicle_str_t vehicle_bytes_t;
 
-typedef struct vehicle_zoned_int32 {
-    union {
-        int32_t zone;
-        int32_t seat;
-        int32_t window;
-    };
-    int32_t value;
-} vehicle_zoned_int32_t;
-
-typedef struct vehicle_zoned_int32_array {
-    union {
-        int32_t zone;
-        int32_t seat;
-        int32_t window;
-    };
-    int32_t values[3];
-} vehicle_zoned_int32_array_t;
-
-typedef struct vehicle_zoned_float {
-    union {
-        int32_t zone;
-        int32_t seat;
-        int32_t window;
-    };
-    float value;
-} vehicle_zoned_float_t;
-
-typedef struct vehicle_zoned_float_array {
-    union {
-        int32_t zone;
-        int32_t seat;
-        int32_t window;
-    };
-    float values[3];
-} vehicle_zoned_float_array_t;
-
-typedef struct vehicle_zoned_boolean {
-    union {
-        int32_t zone;
-        int32_t seat;
-        int32_t window;
-    };
-    vehicle_boolean_t value;
-} vehicle_zoned_boolean_t;
-
-
 typedef struct vehicle_prop_config {
     int32_t prop;
 
@@ -1358,16 +1290,12 @@ typedef struct vehicle_prop_config {
      * Define necessary permission model to access the data.
      */
     int32_t permission_model;
+
     /**
      * Some of the properties may have associated zones (such as hvac), in these
      * cases the config should contain an ORed value for the associated zone.
      */
     union {
-        /**
-         * For generic configuration information
-         */
-        int32_t config_flags;
-
         /**
          * The value is derived by ORing one or more of enum vehicle_zone members.
          */
@@ -1376,7 +1304,16 @@ typedef struct vehicle_prop_config {
         int32_t vehicle_seat_flags;
         /** The value is derived by ORing one or more of enum vehicle_window members. */
         int32_t vehicle_window_flags;
+    };
 
+    /**
+     * Property specific configuration information. Usage of this will be defined per each property.
+     */
+    union {
+        /**
+         * For generic configuration information
+         */
+        int32_t config_flags;
         /** The number of presets that are stored by the radio module. Pass 0 if
          * there are no presets available. The range of presets is defined to be
          * from 1 (see VEHICLE_RADIO_PRESET_MIN_VALUE) to vehicle_radio_num_presets.
@@ -1419,6 +1356,8 @@ typedef struct vehicle_prop_config {
      *      array should be set to NULL.
      *   2. All zones having separate min / max value: *_min/max_values array should be populated
      *      and its length should be the same as number of active zones specified by *_zone_flags.
+     *
+     * Should be NULL if each zone does not have separate max values.
      */
     union {
         float* float_min_values;
@@ -1428,6 +1367,8 @@ typedef struct vehicle_prop_config {
 
     /**
      * Array of max values for zoned properties. See above for its usage.
+     * Should be NULL if each zone does not have separate max values.
+     * If not NULL, length of array should match that of min_values.
      */
     union {
         float* float_max_values;
@@ -1457,59 +1398,30 @@ typedef struct vehicle_prop_config {
  * below). We define these properties outside in global scope so that HAL
  * implementation and HAL users (JNI) can typecast vehicle_hvac correctly.
  */
-typedef vehicle_zoned_int32_t vehicle_hvac_fan_speed_t;
-
-typedef vehicle_zoned_int32_t vehicle_hvac_fan_direction_t;
-
-typedef vehicle_zoned_float_t vehicle_hvac_zone_temperature_t;
-
-//TODO Typical seat heat/cooling is done in fixed steps. Needs better definition.
-//typedef struct vehicle_hvac_seat_temperature {
-//    // Value should be one of enum vehicle_seat.
-//    int32_t seat;
-//    float temperature;
-//} vehicle_hvac_heated_seat_temperature_t;
-
-typedef vehicle_zoned_boolean_t vehicle_hvac_defrost_on_t;
-
-typedef vehicle_zoned_boolean_t vehicle_hvac_ac_on_t;
-
-typedef vehicle_boolean_t vehicle_hvac_max_ac_on_t;
-
-typedef vehicle_boolean_t vehicle_hvac_max_defrost_on_t;
-
-typedef vehicle_boolean_t vehicle_hvac_recirc_on_t;
-
-typedef vehicle_boolean_t vehicle_hvac_dual_on_t;
-
 typedef struct vehicle_hvac {
     /**
      * Define one structure for each possible HVAC property.
      * NOTES:
-     * a) Zone is defined in enum vehicle_zone.
-     * b) Fan speed is a number from (0 - 6) where 6 is the highest speed. (TODO define enum)
-     * c) Temperature is a floating point Celcius scale.
-     * d) Direction is defined in enum vehicle_fan_direction.
+     * a) Fan speed is a number from (0 - 6) where 6 is the highest speed. (TODO define enum)
+     * b) Temperature is a floating point Celcius scale.
+     * c) Direction is defined in enum vehicle_fan_direction.
      *
      * The HAL should create #entries number of vehicle_hvac_properties and
      * assign it to "properties" variable below.
      */
     union {
-        vehicle_hvac_fan_speed_t fan_speed;
-        vehicle_hvac_fan_direction_t fan_direction;
-        vehicle_hvac_ac_on_t ac_on;
-        vehicle_hvac_max_ac_on_t max_ac_on;
-        vehicle_hvac_max_defrost_on_t max_defrost_on;
-        vehicle_hvac_recirc_on_t recirc_on;
-        vehicle_hvac_dual_on_t dual_on;
+        int32_t fan_speed;
+        int32_t fan_direction;
+        vehicle_boolean_t ac_on;
+        vehicle_boolean_t max_ac_on;
+        vehicle_boolean_t max_defrost_on;
+        vehicle_boolean_t recirc_on;
+        vehicle_boolean_t dual_on;
 
-        vehicle_hvac_zone_temperature_t temperature_current;
-        vehicle_hvac_zone_temperature_t temperature_set;
+        float temperature_current;
+        float temperature_set;
 
-        //TODO Heated seat.
-        //vehicle_hvac_heated_seat_t heated_seat;
-
-        vehicle_hvac_defrost_on_t defrost_on;
+        vehicle_boolean_t defrost_on;
     };
 } vehicle_hvac_t;
 
@@ -1540,11 +1452,6 @@ typedef union vehicle_value {
     vehicle_str_t str_value;
     vehicle_bytes_t bytes_value;
     vehicle_boolean_t boolean_value;
-    vehicle_zoned_int32_t zoned_int32_value;
-    vehicle_zoned_int32_array_t zoned_int32_array;
-    vehicle_zoned_float_t zoned_float_value;
-    vehicle_zoned_float_array_t zoned_float_array;
-    vehicle_zoned_boolean_t zoned_boolean_value;
 
     // Vehicle Information.
     vehicle_str_t info_vin;
@@ -1615,6 +1522,15 @@ typedef struct vehicle_prop_value {
     /** time is elapsed nanoseconds since boot */
     int64_t timestamp;
 
+    /**
+     * Zone information for zoned property. For non-zoned property, this should be ignored.
+     */
+    union {
+        int32_t zone;
+        int32_t seat;
+        int32_t window;
+    };
+
     vehicle_value_t value;
 } vehicle_prop_value_t;
 
@@ -1645,11 +1561,10 @@ enum vehicle_property_operation {
 };
 
 /*
- * Suggests that an error condition has occured. error_code should be one of
- * enum vehicle_error_code.
+ * Suggests that an error condition has occurred.
  *
- * @param error_code Error code. It should be one of enum vehicle_error_code.
- *                   See error code for details.
+ * @param error_code Error code. error_code should be standard error code with
+ *                negative value like -EINVAL.
  * @parm property Note a property where error has happened. If this is generic error, property
  *                should be VEHICLE_PROPERTY_INVALID.
  * @param operation Represent the operation where the error has happened. Should be one of
@@ -1703,12 +1618,27 @@ typedef struct vehicle_hw_device {
      * Caller will set data->prop, data->value_type, and optionally zone value for zoned property.
      * But HAL implementation needs to fill all entries properly when returning.
      * For pointer type, HAL implementation should allocate necessary memory and caller is
-     * responsible for freeing memory for the pointer.
+     * responsible for calling release_memory_from_get, which allows HAL to release allocated
+     * memory.
      * For VEHICLE_PROP_CHANGE_MODE_STATIC type of property, get should return the same value
      * always.
      * For VEHICLE_PROP_CHANGE_MODE_ON_CHANGE type of property, it should return the latest value.
+     * If there is no data available yet, which can happen during initial stage, this call should
+     * return immediately with error code of -EAGAIN.
      */
     int (*get)(struct vehicle_hw_device* device, vehicle_prop_value_t *data);
+
+    /**
+     * Release memory allocated to data in previous get call. get call for byte or string involves
+     * allocating necessary memory from vehicle hal.
+     * To be safe, memory allocated by vehicle hal should be released by vehicle hal and vehicle
+     * network service will call this when data from vehicle hal is no longer necessary.
+     * vehicle hal implementation should only release member of vehicle_prop_value_t like
+     * data->str_value.data or data->bytes_value.data but not data itself as data itself is
+     * allocated from vehicle network service. Once memory is freed, corresponding pointer should
+     * be set to NULL bu vehicle hal.
+     */
+    void (*release_memory_from_get)(struct vehicle_hw_device* device, vehicle_prop_value_t *data);
 
     /**
      * Set a vehicle property value.  data should be allocated properly and not
