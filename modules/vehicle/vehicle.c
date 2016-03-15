@@ -245,6 +245,21 @@ static int vdev_get(vehicle_hw_device_t* device UNUSED, vehicle_prop_value_t* da
     return 0;
 }
 
+static void vdev_release_memory_from_get(struct vehicle_hw_device* device UNUSED,
+        vehicle_prop_value_t *data) {
+    switch (data->value_type) {
+        case VEHICLE_VALUE_TYPE_STRING:
+        case VEHICLE_VALUE_TYPE_BYTES:
+            free(data->value.str_value.data);
+            data->value.str_value.data = NULL;
+            break;
+        default:
+            ALOGW("release_memory_from_get for property 0x%x which is not string or bytes type 0x%x"
+                    , data->prop, data->value_type);
+            break;
+    }
+}
+
 static int vdev_set(vehicle_hw_device_t* device UNUSED, const vehicle_prop_value_t* data) {
     ALOGD("vdev_set.");
     // Just print what data will be setting here.
@@ -377,7 +392,7 @@ void fake_event_thread(struct subscription *sub) {
                     return;
                 }
                 if (sub->impl->error_fn_ != NULL) {
-                    sub->impl->error_fn_(VEHICLE_ERROR_UNKNOWN, VEHICLE_PROPERTY_INVALID,
+                    sub->impl->error_fn_(-EINVAL, VEHICLE_PROPERTY_INVALID,
                             VEHICLE_OPERATION_GENERIC);
                 } else {
                     ALOGE("Error function is null");
@@ -538,6 +553,7 @@ static int vdev_open(const hw_module_t* module, const char* name UNUSED,
     vdev->vehicle_device.init = vdev_init;
     vdev->vehicle_device.release = vdev_release;
     vdev->vehicle_device.get = vdev_get;
+    vdev->vehicle_device.release_memory_from_get = vdev_release_memory_from_get;
     vdev->vehicle_device.set = vdev_set;
     vdev->vehicle_device.subscribe = vdev_subscribe;
     vdev->vehicle_device.unsubscribe = vdev_unsubscribe;
