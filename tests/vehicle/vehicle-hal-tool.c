@@ -89,6 +89,121 @@ void list_all_properties(vehicle_hw_device_t *device) {
     }
 }
 
+static void print_property(const vehicle_prop_value_t *data) {
+    switch (data->value_type) {
+        case VEHICLE_VALUE_TYPE_STRING:
+            printf("Value type: STRING\n Size: %d\n", data->value.str_value.len);
+            // This implementation only supports ASCII.
+            char *ascii_out = (char *) malloc((data->value.str_value.len + 1) * sizeof(char));
+            memcpy(ascii_out, data->value.str_value.data, data->value.str_value.len);
+            ascii_out[data->value.str_value.len] = '\0';
+            printf("Value Type: STRING %s\n", ascii_out);
+            break;
+        case VEHICLE_VALUE_TYPE_BYTES:
+            printf("Value type: BYTES\n Size: %d", data->value.bytes_value.len);
+            for (int i = 0; i < data->value.bytes_value.len; i++) {
+                if ((i % 16) == 0) {
+                    printf("\n %04X: ", i);
+                }
+                printf("%02X ", data->value.bytes_value.data[i]);
+            }
+            printf("\n");
+            break;
+        case VEHICLE_VALUE_TYPE_BOOLEAN:
+            printf("Value type: BOOLEAN\nValue: %d\n", data->value.boolean_value);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_BOOLEAN:
+            printf("Value type: ZONED_BOOLEAN\nZone: %d\n", data->zone);
+            printf("Value: %d\n", data->value.boolean_value);
+            break;
+        case VEHICLE_VALUE_TYPE_INT64:
+            printf("Value type: INT64\nValue: %" PRId64 "\n", data->value.int64_value);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT:
+            printf("Value type: FLOAT\nValue: %f\n", data->value.float_value);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC2:
+            printf("Value type: FLOAT_VEC2\nValue[0]: %f ", data->value.float_array[0]);
+            printf("Value[1]: %f\n", data->value.float_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC3:
+            printf("Value type: FLOAT_VEC3\nValue[0]: %f ", data->value.float_array[0]);
+            printf("Value[1]: %f ", data->value.float_array[1]);
+            printf("Value[2]: %f\n", data->value.float_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC4:
+            printf("Value type: FLOAT_VEC4\nValue[0]: %f ", data->value.float_array[0]);
+            printf("Value[1]: %f ", data->value.float_array[1]);
+            printf("Value[2]: %f ", data->value.float_array[2]);
+            printf("Value[3]: %f\n", data->value.float_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32:
+            printf("Value type: INT32\nValue: %d\n", data->value.int32_value);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32_VEC2:
+            printf("Value type: INT32_VEC2\nValue[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d\n", data->value.int32_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32_VEC3:
+            printf("Value type: INT32_VEC3\nValue[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d ", data->value.int32_array[1]);
+            printf("Value[2]: %d\n", data->value.int32_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32_VEC4:
+            printf("Value type: INT32_VEC4\nValue[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d ", data->value.int32_array[1]);
+            printf("Value[2]: %d ", data->value.int32_array[2]);
+            printf("Value[3]: %d\n", data->value.int32_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
+            printf("Value type: ZONED_FLOAT\nZone: %d ", data->zone);
+            printf("Value: %f\n", data->value.float_value);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC2:
+            printf("Value type: ZONED_FLOAT_VEC2\nZone: %d ", data->zone);
+            printf("Value[0]: %f", data->value.float_array[0]);
+            printf("Value[1]: %f\n", data->value.float_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC3:
+            printf("Value type: ZONED_FLOAT_VEC3\nZone: %d ", data->zone);
+            printf("Value[0]: %f ", data->value.float_array[0]);
+            printf("Value[1]: %f ", data->value.float_array[1]);
+            printf("Value[2]: %f\n", data->value.float_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC4:
+            printf("Value type: ZONED_FLOAT_VEC4\nZone: %d ", data->zone);
+            printf("Value[0]: %f ", data->value.float_array[0]);
+            printf("Value[1]: %f ", data->value.float_array[1]);
+            printf("Value[2]: %f ", data->value.float_array[2]);
+            printf("Value[3]: %f\n", data->value.float_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32:
+            printf("Value type: ZONED_INT32\nZone: %d ", data->zone);
+            printf("Value: %d\n", data->value.int32_value);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC2:
+            printf("Value type: ZONED_INT32_VEC2\nZone: %d ", data->zone);
+            printf("Value[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d\n", data->value.int32_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC3:
+            printf("Value type: ZONED_INT32_VEC3\nZone: %d ", data->zone);
+            printf("Value[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d ", data->value.int32_array[1]);
+            printf("Value[2]: %d\n", data->value.int32_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC4:
+            printf("Value type: ZONED_INT32_VEC4\nZone: %d ", data->zone);
+            printf("Value[0]: %d ", data->value.int32_array[0]);
+            printf("Value[1]: %d ", data->value.int32_array[1]);
+            printf("Value[2]: %d ", data->value.int32_array[2]);
+            printf("Value[3]: %d\n", data->value.int32_array[3]);
+            break;
+        default:
+            printf("Value type not yet handled: %d.\n", data->value_type);
+    }
+}
+
 void get_property(
     vehicle_hw_device_t *device, int32_t property, int32_t type, char *value_string) {
     vehicle_prop_value_t *data = (vehicle_prop_value_t *) malloc (sizeof(vehicle_prop_value_t));
@@ -122,45 +237,7 @@ void get_property(
     // We simply convert the data into the type mentioned by the result of the
     // get call.
     printf("Get output\n------------\n");
-    switch (data->value_type) {
-        case VEHICLE_VALUE_TYPE_FLOAT:
-            printf("Value type: FLOAT\nValue: %f\n", data->value.float_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32:
-            printf("Value type: INT32\nValue: %d\n", data->value.int32_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT64:
-            printf("Value type: INT64\nValue: %" PRId64 "\n", data->value.int64_value);
-            break;
-        case VEHICLE_VALUE_TYPE_BOOLEAN:
-            printf("Value type: BOOLEAN\nValue: %d\n", data->value.boolean_value);
-            break;
-        case VEHICLE_VALUE_TYPE_STRING:
-            printf("Value type: STRING\n Size: %d\n", data->value.str_value.len);
-            // This implementation only supports ASCII.
-            char *ascii_out = (char *) malloc((data->value.str_value.len + 1) * sizeof(char));
-            memcpy(ascii_out, data->value.str_value.data, data->value.str_value.len);
-            ascii_out[data->value.str_value.len] = '\0';
-            printf("Value: %s\n", ascii_out);
-            break;
-        case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", data->zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", data->value.float_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32_VEC3:
-            printf("Value type: INT32_VEC3\nValue[0]: %d\n", data->value.int32_array[0]);
-            printf("Value type: INT32_VEC3\nValue[1]: %d\n", data->value.int32_array[1]);
-            printf("Value type: INT32_VEC3\nValue[2]: %d\n", data->value.int32_array[2]);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32_VEC4:
-            printf("Value type: INT32_VEC4\nValue[0]: %d\n", data->value.int32_array[0]);
-            printf("Value type: INT32_VEC4\nValue[1]: %d\n", data->value.int32_array[1]);
-            printf("Value type: INT32_VEC4\nValue[2]: %d\n", data->value.int32_array[2]);
-            printf("Value type: INT32_VEC4\nValue[3]: %d\n", data->value.int32_array[3]);
-            break;
-        default:
-            printf("Value type not yet handled: %d.\n", data->value_type);
-    }
+    print_property(data);
     free(data);
 }
 
@@ -174,18 +251,6 @@ void set_property(vehicle_hw_device_t *device,
     int32_t zone = 0;
     float value = 0.0;
     switch (type) {
-        case VEHICLE_VALUE_TYPE_FLOAT:
-            vehicle_data.value.float_value = atof(data);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32:
-            vehicle_data.value.int32_value = atoi(data);
-            break;
-        case VEHICLE_VALUE_TYPE_INT64:
-            vehicle_data.value.int64_value = atoi(data);
-            break;
-        case VEHICLE_VALUE_TYPE_BOOLEAN:
-            vehicle_data.value.boolean_value = atoi(data);
-            break;
         case VEHICLE_VALUE_TYPE_STRING:
             // TODO: Make the code generic to UTF8 characters.
             vehicle_data.value.str_value.len = strlen(data);
@@ -193,45 +258,117 @@ void set_property(vehicle_hw_device_t *device,
                 (uint8_t *) malloc (strlen(data) * sizeof(uint8_t));
             memcpy(vehicle_data.value.str_value.data, data, strlen(data) + 1);
             break;
-        case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
-            sscanf(data, "%d %f", &zone, &value);
-            vehicle_data.zone = zone;
-            vehicle_data.value.float_value = value;
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", vehicle_data.zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", vehicle_data.value.float_value);
+        case VEHICLE_VALUE_TYPE_BYTES: {
+                int len = strlen(data);
+                int numBytes = (len + 1) / 3;
+                uint8_t *buf = calloc(numBytes, sizeof(uint8_t));
+                char *byte = strtok(data, " ");
+                for (int i = 0; byte != NULL && i < numBytes; i++) {
+                    buf[i] = strtol(data, NULL, 16);
+                    byte = strtok(NULL, " ");
+                }
+                vehicle_data.value.bytes_value.len = numBytes;
+                vehicle_data.value.bytes_value.data = buf;
+            }
+            break;
+        case VEHICLE_VALUE_TYPE_BOOLEAN:
+            vehicle_data.value.boolean_value = atoi(data);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_BOOLEAN:
+            sscanf(data, "%d %d", &vehicle_data.zone,
+                &vehicle_data.value.boolean_value);
+            break;
+        case VEHICLE_VALUE_TYPE_INT64:
+            vehicle_data.value.int64_value = atoi(data);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT:
+            vehicle_data.value.float_value = atof(data);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC2:
+            sscanf(data, "%f %f", &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC3:
+            sscanf(data, "%f %f %f", &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1],
+                &vehicle_data.value.float_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_FLOAT_VEC4:
+            sscanf(data, "%f %f %f %f", &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1],
+                &vehicle_data.value.float_array[2],
+                &vehicle_data.value.float_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_INT32:
+            vehicle_data.value.int32_value = atoi(data);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC2:
             sscanf(data, "%d %d", &vehicle_data.value.int32_array[0],
                 &vehicle_data.value.int32_array[1]);
-            printf("Setting: Value type INT32_VEC2: %d %d\n",
-                vehicle_data.value.int32_array[0],
-                vehicle_data.value.int32_array[1]);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC3:
             sscanf(data, "%d %d %d", &vehicle_data.value.int32_array[0],
                 &vehicle_data.value.int32_array[1],
                 &vehicle_data.value.int32_array[2]);
-            printf("Setting: Value type INT32_VEC3: %d %d %d\n",
-                vehicle_data.value.int32_array[0],
-                vehicle_data.value.int32_array[1],
-                vehicle_data.value.int32_array[2]);
             break;
         case VEHICLE_VALUE_TYPE_INT32_VEC4:
             sscanf(data, "%d %d %d %d", &vehicle_data.value.int32_array[0],
                 &vehicle_data.value.int32_array[1],
                 &vehicle_data.value.int32_array[2],
                 &vehicle_data.value.int32_array[3]);
-            printf("Setting: Value type INT32_VEC4: %d %d %d %d\n",
-                vehicle_data.value.int32_array[0],
-                vehicle_data.value.int32_array[1],
-                vehicle_data.value.int32_array[2],
-                vehicle_data.value.int32_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
+            sscanf(data, "%d %f", &zone, &value);
+            vehicle_data.zone = zone;
+            vehicle_data.value.float_value = value;
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC2:
+            sscanf(data, "%d %f %f", &vehicle_data.zone,
+                &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC3:
+            sscanf(data, "%d %f %f %f", &vehicle_data.zone,
+                &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1],
+                &vehicle_data.value.float_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_FLOAT_VEC4:
+            sscanf(data, "%d %f %f %f %f", &vehicle_data.zone,
+                &vehicle_data.value.float_array[0],
+                &vehicle_data.value.float_array[1],
+                &vehicle_data.value.float_array[2],
+                &vehicle_data.value.float_array[3]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32:
+            sscanf(data, "%d %d", &vehicle_data.zone,
+                &vehicle_data.value.int32_value);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC2:
+            sscanf(data, "%d %d %d", &vehicle_data.zone,
+                &vehicle_data.value.int32_array[0],
+                &vehicle_data.value.int32_array[1]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC3:
+            sscanf(data, "%d %d %d %d", &vehicle_data.zone,
+                &vehicle_data.value.int32_array[0],
+                &vehicle_data.value.int32_array[1],
+                &vehicle_data.value.int32_array[2]);
+            break;
+        case VEHICLE_VALUE_TYPE_ZONED_INT32_VEC4:
+            sscanf(data, "%d %d %d %d %d", &vehicle_data.zone,
+                &vehicle_data.value.int32_array[0],
+                &vehicle_data.value.int32_array[1],
+                &vehicle_data.value.int32_array[2],
+                &vehicle_data.value.int32_array[3]);
             break;
         default:
             printf("set_property: Value type not yet handled: %d\n", type);
             exit(1);
     }
-    printf("Property id: %d\n", vehicle_data.prop);
+    printf("Setting Property id: %d\n", vehicle_data.prop);
+    print_property(&vehicle_data);
+
     int ret_code = device->set(device, &vehicle_data);
     if (ret_code != 0) {
         printf("Cannot set property: %d\n", ret_code);
@@ -243,57 +380,16 @@ int vehicle_event_callback(const vehicle_prop_value_t *event_data) {
     // Print what we got.
     printf("Got some value from callback property: %d\n", event_data->prop);
     printf("Timestamp: %" PRId64 "\n", event_data->timestamp);
-    char *ascii_out;
-    switch (event_data->value_type) {
-        case VEHICLE_VALUE_TYPE_FLOAT:
-            printf("Float value: %f\n", event_data->value.float_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32:
-            printf("int32 value: %d\n", event_data->value.int32_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT64:
-            printf("int64 value: %" PRId64 "\n", event_data->value.int64_value);
-            break;
-        case VEHICLE_VALUE_TYPE_BOOLEAN:
-            printf("bool value: %d\n", event_data->value.boolean_value);
-            break;
-        case VEHICLE_VALUE_TYPE_STRING:
-            // TODO: Make the code generic to UTF8 characters.
-            ascii_out = (char *) malloc ((event_data->value.str_value.len + 1) * sizeof(char));
-            memcpy(ascii_out, event_data->value.str_value.data, event_data->value.str_value.len);
-            ascii_out[event_data->value.str_value.len] = '\0';
-            printf("Ascii value: %s\n", ascii_out);
-            break;
-        case VEHICLE_VALUE_TYPE_ZONED_FLOAT:
-            printf("Value type: ZONED_FLOAT\nZone: %d\n", event_data->zone);
-            printf("Value type: ZONED_FLOAT\nValue: %f\n", event_data->value.float_value);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32_VEC2:
-            printf("Value type: INT32_VEC2\nValue[0]: %d Value[1] %d\n",
-                  event_data->value.int32_array[0], event_data->value.int32_array[1]);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32_VEC3:
-            printf("Value type: INT32_VEC3\nValue[0]: %d Value[1] %d Value[2] %d\n",
-                  event_data->value.int32_array[0], event_data->value.int32_array[1],
-                  event_data->value.int32_array[2]);
-            break;
-        case VEHICLE_VALUE_TYPE_INT32_VEC4:
-            printf("Value type: INT32_VEC4\nValue[0]: %d Value[1] %d Value[2] %d Value[3] %d\n",
-                  event_data->value.int32_array[0], event_data->value.int32_array[1],
-                  event_data->value.int32_array[2], event_data->value.int32_array[3]);
-            break;
-        default:
-            printf("vehicle_event_callback: Value type not yet handled: %d\n",
-                    event_data->value_type);
-            exit(1);
-    }
+    print_property(event_data);
     return 0;
 }
+
 int vehicle_error_callback(int32_t error_code, int32_t property, int32_t operation) {
     // Print what we got.
     printf("Error code obtained: %d\n", error_code);
     return 0;
 }
+
 void subscribe_to_property(
     vehicle_hw_device_t *device,
     int32_t prop,
@@ -364,7 +460,6 @@ int main(int argc, char* argv[]) {
     char int_array_string[1000]; int_array_string[0] = '\0';
 
     int opt;
-    //TODO allow passing zone
     while ((opt = getopt(argc, argv, "lm:p:t:v:w:s:")) != -1) {
         switch (opt) {
             case 'l':
