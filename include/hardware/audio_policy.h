@@ -141,14 +141,14 @@ struct audio_policy {
     int (*start_output)(struct audio_policy *pol,
                         audio_io_handle_t output,
                         audio_stream_type_t stream,
-                        int session);
+                        audio_session_t session);
 
     /* indicates to the audio policy manager that the output stops being used
      * by corresponding stream. */
     int (*stop_output)(struct audio_policy *pol,
                        audio_io_handle_t output,
                        audio_stream_type_t stream,
-                       int session);
+                       audio_session_t session);
 
     /* releases the output. */
     void (*release_output)(struct audio_policy *pol, audio_io_handle_t output);
@@ -222,7 +222,7 @@ struct audio_policy {
                            const struct effect_descriptor_s *desc,
                            audio_io_handle_t output,
                            uint32_t strategy,
-                           int session,
+                           audio_session_t session,
                            int id);
 
     int (*unregister_effect)(struct audio_policy *pol, int id);
@@ -367,7 +367,7 @@ struct audio_policy_service_ops {
 
     /* move effect to the specified output */
     int (*move_effects)(void *service,
-                        int session,
+                        audio_session_t session,
                         audio_io_handle_t src_output,
                         audio_io_handle_t dst_output);
 
