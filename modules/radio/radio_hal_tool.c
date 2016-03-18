@@ -151,7 +151,7 @@ void get_tuner_metadata(radio_hw_device_t *device) {
             case RADIO_METADATA_TYPE_CLOCK:
                 printf("UTC Epoch: %lld\n"
                        "UTC Offset: %d\n",
-                       ((radio_metadata_clock_t *) value)->utc_seconds_since_epoch,
+                       (long long)((radio_metadata_clock_t *) value)->utc_seconds_since_epoch,
                        ((radio_metadata_clock_t *) value)->timezone_offset_in_minutes);
         }
     }
