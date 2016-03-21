@@ -48,7 +48,8 @@ typedef enum {
     POWER_HINT_VIDEO_ENCODE = 0x00000003,
     POWER_HINT_VIDEO_DECODE = 0x00000004,
     POWER_HINT_LOW_POWER = 0x00000005,
-    POWER_HINT_SUSTAINED_PERFORMANCE = 0x00000006
+    POWER_HINT_SUSTAINED_PERFORMANCE = 0x00000006,
+    POWER_HINT_VR_MODE = 0x00000007
 } power_hint_t;
 
 typedef enum {
@@ -135,6 +136,13 @@ typedef struct power_module {
      *     performance for a prolonged amount of time. The data parameter is
      *     non-zero when sustained performance mode is activated, and zero
      *     when deactivated.
+     *
+     * POWER_HINT_VR_MODE
+     *
+     *     VR Mode is activated or deactivated. VR mode is intended to
+     *     provide minimum guarantee for performance for the amount of time the
+     *     device can sustain it. The data parameter is non-zero when the mode
+     *     is activated and zero when deactivated.
      *
      * A particular platform may choose to ignore any hint.
      *
