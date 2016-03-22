@@ -40,9 +40,7 @@ typedef struct
 /** Parameters for GATT read operations */
 typedef struct
 {
-    btgatt_srvc_id_t    srvc_id;
-    btgatt_gatt_id_t    char_id;
-    btgatt_gatt_id_t    descr_id;
+    uint16_t           handle;
     btgatt_unformatted_value_t value;
     uint16_t            value_type;
     uint8_t             status;
@@ -62,8 +60,7 @@ typedef struct
 {
     uint8_t             value[BTGATT_MAX_ATTR_LEN];
     bt_bdaddr_t         bda;
-    btgatt_srvc_id_t    srvc_id;
-    btgatt_gatt_id_t    char_id;
+    uint16_t            handle;
     uint16_t            len;
     uint8_t             is_notify;
 } btgatt_notify_params_t;
@@ -139,8 +136,7 @@ typedef void (*search_complete_callback)(int conn_id, int status);
 
 /** Callback invoked in response to [de]register_for_notification */
 typedef void (*register_for_notification_callback)(int conn_id,
-                int registered, int status, btgatt_srvc_id_t *srvc_id,
-                btgatt_gatt_id_t *char_id);
+                int registered, int status, uint16_t handle);
 
 /**
  * Remote device notification callback, invoked when a remote device sends
@@ -153,8 +149,7 @@ typedef void (*read_characteristic_callback)(int conn_id, int status,
                 btgatt_read_params_t *p_data);
 
 /** GATT write characteristic operation callback */
-typedef void (*write_characteristic_callback)(int conn_id, int status,
-                btgatt_write_params_t *p_data);
+typedef void (*write_characteristic_callback)(int conn_id, int status, uint16_t handle);
 
 /** GATT execute prepared write callback */
 typedef void (*execute_write_callback)(int conn_id, int status);
@@ -164,8 +159,7 @@ typedef void (*read_descriptor_callback)(int conn_id, int status,
                 btgatt_read_params_t *p_data);
 
 /** Callback invoked in response to write_descriptor */
-typedef void (*write_descriptor_callback)(int conn_id, int status,
-                btgatt_write_params_t *p_data);
+typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t handle);
 
 /** Callback triggered in response to read_remote_rssi */
 typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
@@ -305,25 +299,20 @@ typedef struct {
     bt_status_t (*search_service)(int conn_id, bt_uuid_t *filter_uuid );
 
     /** Read a characteristic on a remote device */
-    bt_status_t (*read_characteristic)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
+    bt_status_t (*read_characteristic)( int conn_id, uint16_t handle,
                     int auth_req );
 
     /** Write a remote characteristic */
-    bt_status_t (*write_characteristic)(int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
+    bt_status_t (*write_characteristic)(int conn_id, uint16_t handle,
                     int write_type, int len, int auth_req,
                     char* p_value);
 
     /** Read the descriptor for a given characteristic */
-    bt_status_t (*read_descriptor)(int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *descr_id, int auth_req);
+    bt_status_t (*read_descriptor)(int conn_id, uint16_t handle, int auth_req);
 
     /** Write a remote descriptor for a given characteristic */
-    bt_status_t (*write_descriptor)( int conn_id,
-                    btgatt_srvc_id_t *srvc_id, btgatt_gatt_id_t *char_id,
-                    btgatt_gatt_id_t *descr_id, int write_type, int len,
+    bt_status_t (*write_descriptor)( int conn_id, uint16_t handle,
+                    int write_type, int len,
                     int auth_req, char* p_value);
 
     /** Execute a prepared write operation */
@@ -334,13 +323,11 @@ typedef struct {
      * characteristic
      */
     bt_status_t (*register_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, btgatt_srvc_id_t *srvc_id,
-                    btgatt_gatt_id_t *char_id);
+                    const bt_bdaddr_t *bd_addr, uint16_t handle);
 
     /** Deregister a previous request for notifications/indications */
     bt_status_t (*deregister_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, btgatt_srvc_id_t *srvc_id,
-                    btgatt_gatt_id_t *char_id);
+                    const bt_bdaddr_t *bd_addr, uint16_t handle);
 
     /** Request RSSI for a given remote device */
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
