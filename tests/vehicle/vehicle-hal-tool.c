@@ -396,7 +396,6 @@ void subscribe_to_property(
     float sample_rate,
     uint32_t wait_in_seconds) {
     // Init the device with a callback.
-    device->init(device, vehicle_event_callback, vehicle_error_callback);
     int ret_code = device->subscribe(device, prop, 0, 0);
     if (ret_code != 0) {
         printf("Could not subscribe: %d\n", ret_code);
@@ -411,11 +410,6 @@ void subscribe_to_property(
     ret_code = device->unsubscribe(device, prop);
     if (ret_code != 0) {
         printf("Error unsubscribing the HAL, still continuining to uninit HAL ...");
-    }
-
-    ret_code = device->release(device);
-    if (ret_code != 0) {
-        printf("Error uniniting HAL, exiting anyways.");
     }
 }
 
@@ -437,6 +431,8 @@ int main(int argc, char* argv[]) {
     }
     vehicle_hw_device_t *vehicle_device = (vehicle_hw_device_t *) (device);
     printf("HAL Loaded!\n");
+
+    vehicle_device->init(vehicle_device, vehicle_event_callback, vehicle_error_callback);
 
     // If this is a list properties command - we check for -l command.
     int list_properties = 0;
@@ -528,6 +524,11 @@ int main(int argc, char* argv[]) {
             exit(1);
         }
         subscribe_to_property(vehicle_device, property, sample_rate, wait_time_in_sec);
+    }
+
+    ret_code = vehicle_device->release(vehicle_device);
+    if (ret_code != 0) {
+        printf("Error uniniting HAL, exiting anyways.");
     }
     return 0;
 }
