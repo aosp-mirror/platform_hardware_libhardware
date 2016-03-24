@@ -21,10 +21,14 @@
 
 #include <malloc.h>
 #include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <math.h>
+
+#define TIMEOUT_STR_LEN         20
 
 static const char THE_DEVICE[] = "/sys/class/timed_output/vibrator/enable";
 
@@ -33,7 +37,6 @@ static int vibra_exists() {
 
     fd = TEMP_FAILURE_RETRY(open(THE_DEVICE, O_RDWR));
     if(fd < 0) {
-        ALOGE("Vibrator file does not exist : %d", fd);
         return 0;
     }
 
@@ -41,27 +44,24 @@ static int vibra_exists() {
     return 1;
 }
 
-static int sendit(unsigned int timeout_ms)
+static int write_value(const char *file, const char *value)
 {
     int to_write, written, ret, fd;
 
-    char value[20]; /* large enough for millions of years */
-
-    fd = TEMP_FAILURE_RETRY(open(THE_DEVICE, O_RDWR));
-    if(fd < 0) {
+    fd = TEMP_FAILURE_RETRY(open(file, O_WRONLY));
+    if (fd < 0) {
         return -errno;
     }
 
-    to_write = snprintf(value, sizeof(value), "%u\n", timeout_ms);
+    to_write = strlen(value) + 1;
     written = TEMP_FAILURE_RETRY(write(fd, value, to_write));
-
     if (written == -1) {
         ret = -errno;
     } else if (written != to_write) {
         /* even though EAGAIN is an errno value that could be set
            by write() in some cases, none of them apply here.  So, this return
            value can be clearly identified when debugging and suggests the
-           caller that it may try to call vibraror_on() again */
+           caller that it may try to call vibrator_on() again */
         ret = -EAGAIN;
     } else {
         ret = 0;
@@ -71,6 +71,14 @@ static int sendit(unsigned int timeout_ms)
     close(fd);
 
     return ret;
+}
+
+static int sendit(unsigned int timeout_ms)
+{
+    char value[TIMEOUT_STR_LEN]; /* large enough for millions of years */
+
+    snprintf(value, sizeof(value), "%u", timeout_ms);
+    return write_value(THE_DEVICE, value);
 }
 
 static int vibra_on(vibrator_device_t* vibradev __unused, unsigned int timeout_ms)
@@ -84,6 +92,43 @@ static int vibra_off(vibrator_device_t* vibradev __unused)
     return sendit(0);
 }
 
+static const char LED_DEVICE[] = "/sys/class/leds/vibrator";
+
+static int write_led_file(const char *file, const char *value)
+{
+    char file_str[50];
+
+    snprintf(file_str, sizeof(file_str), "%s/%s", LED_DEVICE, file);
+    return write_value(file_str, value);
+}
+
+static int vibra_led_exists()
+{
+    return !write_led_file("trigger", "transient");
+}
+
+static int vibra_led_on(vibrator_device_t* vibradev __unused, unsigned int timeout_ms)
+{
+    int ret;
+    char value[TIMEOUT_STR_LEN]; /* large enough for millions of years */
+
+    ret = write_led_file("state", "1");
+    if (ret)
+        return ret;
+
+    snprintf(value, sizeof(value), "%u\n", timeout_ms);
+    ret = write_led_file("duration", value);
+    if (ret)
+        return ret;
+
+    return write_led_file("activate", "1");
+}
+
+static int vibra_led_off(vibrator_device_t* vibradev __unused)
+{
+    return write_led_file("activate", "0");
+}
+
 static int vibra_close(hw_device_t *device)
 {
     free(device);
@@ -92,7 +137,15 @@ static int vibra_close(hw_device_t *device)
 
 static int vibra_open(const hw_module_t* module, const char* id __unused,
                       hw_device_t** device __unused) {
-    if (!vibra_exists()) {
+    bool use_led;
+
+    if (vibra_exists()) {
+        ALOGD("Vibrator using timed_output");
+        use_led = false;
+    } else if (vibra_led_exists()) {
+        ALOGD("Vibrator using LED trigger");
+        use_led = true;
+    } else {
         ALOGE("Vibrator device does not exist. Cannot start vibrator");
         return -ENODEV;
     }
@@ -109,8 +162,13 @@ static int vibra_open(const hw_module_t* module, const char* id __unused,
     vibradev->common.version = HARDWARE_DEVICE_API_VERSION(1,0);
     vibradev->common.close = vibra_close;
 
-    vibradev->vibrator_on = vibra_on;
-    vibradev->vibrator_off = vibra_off;
+    if (use_led) {
+        vibradev->vibrator_on = vibra_led_on;
+        vibradev->vibrator_off = vibra_led_off;
+    } else {
+        vibradev->vibrator_on = vibra_on;
+        vibradev->vibrator_off = vibra_off;
+    }
 
     *device = (hw_device_t *) vibradev;
 
