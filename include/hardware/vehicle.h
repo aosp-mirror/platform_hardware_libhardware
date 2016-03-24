@@ -609,8 +609,16 @@ enum vehicle_audio_context_flag {
 /**
  * Property to control audio volume of each audio context.
  *
+ * vehicle_prop_config_t
+ *   config_array[0] : bit flags of all supported audio contexts. If this is 0,
+ *                     audio volume is controlled per physical stream
+ *   config_array[1] : flags defined in vehicle_audio_volume_capability_flag to
+ *                     represent audio module's capability.
+ *
  * Data type looks like:
- *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag. If only physical
+                      stream is supported (config_array[0] == 0), this will represent physical
+                      stream number.
  *   int32_array[1] : volume level, valid range is 0 to int32_max_value defined in config.
  *                    0 will be mute state. int32_min_value in config should be always 0.
  *   int32_array[2] : One of vehicle_audio_volume_state.
@@ -625,6 +633,27 @@ enum vehicle_audio_context_flag {
  * @data_member int32_array
  */
 #define VEHICLE_PROPERTY_AUDIO_VOLUME                                 (0x00000901)
+
+
+/**
+ * flags to represent capability of audio volume property.
+ * used in config_array[1] of vehicle_prop_config_t.
+ */
+enum vehicle_audio_volume_capability_flag {
+    /**
+     * External audio module or vehicle hal has persistent storage
+     * to keep the volume level. This should be set only when per context
+     * volume level is supproted. When this is set, audio volume level per
+     * each context will be retrieved from the property when systen starts up.
+     * And external audio module is also expected to adjust volume automatically
+     * whenever there is an audio context change.
+     * When this flag is not set, android side will assume that there is no
+     * persistent storage and stored value in android side will be used to
+     * initialize the volume level. And android side will set volume level
+     * of each physical streams whenever there is an audio context change.
+     */
+    VEHICLE_AUDIO_VOLUME_CAPABILITY_PERSISTENT_STORAGE = 0x1,
+};
 
 /**
  * enum to represent audio volume state.
@@ -649,8 +678,18 @@ enum vehicle_audio_volume_index {
 
 /**
  * Property for handling volume limit set by user. This limits maximum volume that can be set
- * per each context.
- *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
+ * per each context or physical stream.
+ *
+ * vehicle_prop_config_t
+ *   config_array[0] : bit flags of all supported audio contexts. If this is 0,
+ *                     audio volume is controlled per physical stream
+ *   config_array[1] : flags defined in vehicle_audio_volume_capability_flag to
+ *                     represent audio module's capability.
+ *
+ * Data type looks like:
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag. If only physical
+ *                    stream is supported (config_array[0] == 0), this will represent physical
+ *                    stream number.
  *   int32_array[1] : maximum volume set to the stream. If there is no restriction, this value
  *                    will be  bigger than VEHICLE_PROPERTY_AUDIO_VOLUME's max value.
  *
