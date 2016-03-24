@@ -1398,8 +1398,8 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_CLIENT_TARGET)(
  * color [R_out, G_out, B_out] will be:
  *
  * R_out = R_in * r.r + G_in * g.r + B_in * b.r + Tr
- * G_out = G_in * r.g + G_in * g.g + B_in * b.g + Tg
- * B_out = B_in * r.b + G_in * g.b + B_in * b.b + Tb
+ * G_out = R_in * r.g + G_in * g.g + B_in * b.g + Tg
+ * B_out = R_in * r.b + G_in * g.b + B_in * b.b + Tb
  *
  * Parameters:
  *   matrix - a 4x4 transform matrix (16 floats) as described above
