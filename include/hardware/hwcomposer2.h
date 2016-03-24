@@ -1371,6 +1371,32 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_CLIENT_TARGET)(
         hwc2_device_t* device, hwc2_display_t display, buffer_handle_t target,
         int32_t acquireFence, int32_t /*android_dataspace_t*/ dataspace);
 
+/* setColorMode(..., mode)
+ * Descriptor: HWC2_FUNCTION_SET_COLOR_MODE
+ * Must be provided by all HWC2 devices
+ *
+ * Sets the color mode of the given display.
+ *
+ * Upon returning from this function, the color mode change must have fully
+ * taken effect.
+ *
+ * The valid color modes can be found in android_color_mode_t in
+ * <system/graphics.h>. All HWC2 devices must support at least
+ * HAL_COLOR_MODE_NATIVE, and displays are assumed to be in this mode upon
+ * hotplug.
+ *
+ * Parameters:
+ *   mode - the mode to set
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_PARAMETER - mode is not a valid color mode
+ *   HWC2_ERROR_UNSUPPORTED - mode is not supported on this display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_COLOR_MODE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t /*android_color_mode_t*/ mode);
+
 /* setColorTransform(..., matrix, hint)
  * Descriptor: HWC2_FUNCTION_SET_COLOR_TRANSFORM
  * Must be provided by all HWC2 devices
@@ -1411,34 +1437,8 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_CLIENT_TARGET)(
  *   HWC2_ERROR_BAD_PARAMETER - hint is not a valid color transform hint
  */
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_COLOR_TRANSFORM)(
-        hwc2_device_t* device, hwc2_display_t display, float* matrix,
+        hwc2_device_t* device, hwc2_display_t display, const float* matrix,
         int32_t /*android_color_transform_t*/ hint);
-
-/* setColorMode(..., mode)
- * Descriptor: HWC2_FUNCTION_SET_COLOR_MODE
- * Must be provided by all HWC2 devices
- *
- * Sets the color mode of the given display.
- *
- * Upon returning from this function, the color mode change must have fully
- * taken effect.
- *
- * The valid color modes can be found in android_color_mode_t in
- * <system/graphics.h>. All HWC2 devices must support at least
- * HAL_COLOR_MODE_NATIVE, and displays are assumed to be in this mode upon
- * hotplug.
- *
- * Parameters:
- *   mode - the mode to set
- *
- * Returns HWC2_ERROR_NONE or one of the following errors:
- *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
- *   HWC2_ERROR_BAD_PARAMETER - mode is not a valid color mode
- *   HWC2_ERROR_UNSUPPORTED - mode is not supported on this display
- */
-typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_COLOR_MODE)(
-        hwc2_device_t* device, hwc2_display_t display,
-        int32_t /*android_color_mode_t*/ mode);
 
 /* setOutputBuffer(..., buffer, releaseFence)
  * Descriptor: HWC2_FUNCTION_SET_OUTPUT_BUFFER
