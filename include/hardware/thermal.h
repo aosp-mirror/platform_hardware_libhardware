@@ -80,6 +80,13 @@ typedef struct {
    * If not available, set by HAL to UNKNOWN_TEMPERATURE.
    */
   float shutdown_threshold;
+
+  /**
+   * Threshold temperature at which VR mode clockrate minumums cannot be
+   * maintained for this device temperature type.
+   * If not available, set by HAL to UNKNOWN_TEMPERATURE.
+   */
+  float vr_throttling_threshold;
 } temperature_t;
 
 typedef struct {
@@ -193,6 +200,7 @@ typedef struct thermal_module {
      */
     ssize_t (*getCoolingDevices)(struct thermal_module *module, cooling_device_t *list,
                                  size_t size);
+
 } thermal_module_t;
 
 __END_DECLS
