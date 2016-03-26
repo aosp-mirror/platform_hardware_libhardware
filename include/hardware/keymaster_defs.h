@@ -341,6 +341,11 @@ typedef enum {
                                        * completeness. */
 } keymaster_verified_boot_t;
 
+typedef enum {
+    KM_SECURITY_LEVEL_SOFTWARE = 0,
+    KM_SECURITY_LEVEL_TRUSTED_ENVIRONMENT = 1,
+} keymaster_security_level_t;
+
 /**
  * Formats for key import and export.
  */
