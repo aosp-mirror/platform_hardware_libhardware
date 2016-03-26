@@ -43,6 +43,22 @@ struct keymaster2_device {
     uint32_t flags;
 
     /**
+     * Configures keymaster.  This method must be called once after the device is opened and before
+     * it is used.  It's used to provide KM_TAG_OS_VERSION and KM_TAG_OS_PATCHLEVEL to keymaster.
+     * Until this method is called, all other methods will return KM_ERROR_KEYMASTER_NOT_CONFIGURED.
+     * The values provided by this method are only accepted by keymaster once per boot.  Subsequent
+     * calls will return KM_ERROR_OK, but do nothing.
+     *
+     * If the keymaster implementation is in secure hardware and the OS version and patch level
+     * values provided do not match the values provided to the secure hardware by the bootloader (or
+     * if the bootloader did not provide values), then this method will return
+     * KM_ERROR_INVALID_ARGUMENT, and all other methods will continue returning
+     * KM_ERROR_KEYMASTER_NOT_CONFIGURED.
+     */
+    keymaster_error_t (*configure)(const struct keymaster2_device* dev,
+                                   const keymaster_key_param_set_t* params);
+
+    /**
      * Adds entropy to the RNG used by keymaster.  Entropy added through this method is guaranteed
      * not to be the only source of entropy used, and the mixing function is required to be secure,
      * in the sense that if the RNG is seeded (from any source) with any data the attacker cannot
@@ -200,42 +216,6 @@ struct keymaster2_device {
                                     const keymaster_blob_t* client_id,
                                     const keymaster_blob_t* app_data,
                                     keymaster_blob_t* export_data);
-
-    /**
-     * Derives a shared secret key from \p key, which must be an EC key, and the public key found in
-     * /p other_key_certificate, an X.509 certificate containing a compatible EC public key.  The
-     * derived key's characteristics are described in \p new_key_params, which must include
-     * algorithm (KM_TAG_ALGORITHM), key size (KM_TAG_KEY_SIZE) and KDF (KM_TAG_KDF) as well as
-     * other desired key characteristics.  The resulting key material is not returned directly, but
-     * instead a new keymaster key is created and the associated blob returned in \p key_blob.  If
-     * \p characteristics is non-NULL, the new key's characteristics are placed there.
-     *
-     * \param[in] dev The keymaster device structure.
-     *
-     * \param[in] key The keymaster key to use for key agreement. This must be an EC key with the
-     * KM_PURPOSE_DERIVE_KEY purpose.
-     *
-     * \param[in] other_key_certificate An X.509 certificate or certificate fragment containing a
-     * SubjectPublicKey field containing an EC public key on the same curve as \p key.
-     *
-     * \param[in] new_key_params A set of parameters to define/describe the newly-derived symmetric
-     * key. The parameters will define how the key may be used. The set must include KM_TAG_KDF to
-     * specify how the raw agreed key bytes will be transformed to produce the key material.
-     *
-     * \param[out] key_blob The key blob containing the newly-derived key.  The caller takes
-     * ownership of the returned blob.
-     *
-     * \param[out] characteristics. If non-null, will be used to return the characteristics of the
-     * new key blob, which will have KM_TAG_ORIGIN set to KM_ORIGIN_DERIVED.  The caller takes
-     * ownership of the returned characteristics and must deallocate with
-     * keymaster_free_characteristics().
-     */
-    keymaster_error_t (*agree_key)(const struct keymaster2_device* dev,
-                                   const keymaster_key_blob_t* key,
-                                   const keymaster_blob_t* other_key_certificate,
-                                   const keymaster_key_param_set_t* new_key_params,
-                                   keymaster_key_blob_t* new_key_blob,
-                                   keymaster_key_characteristics_t* characteristics);
 
     /**
      * Generates a signed X.509 certificate chain attesting to the presence of \p key_to_attest in
