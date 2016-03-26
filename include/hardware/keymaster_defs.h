@@ -587,6 +587,7 @@ inline void keymaster_free_param_set(keymaster_key_param_set_t* set) {
         keymaster_free_param_values(set->params, set->length);
         free(set->params);
         set->params = NULL;
+        set->length = 0;
     }
 }
 
