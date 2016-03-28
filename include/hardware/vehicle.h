@@ -465,6 +465,11 @@ enum vehicle_radio_consts {
  *                   LOSS_TRANSIENT: always should be VEHICLE_AUDIO_EXT_FOCUS_CAR_TRANSIENT
  *   int32_array[3]: should be zero.
  *
+ * A focus response should be sent per each focus request even if there is no change in
+ * focus state. This can happen in case like focus request only involving context change
+ * where android side still needs matching focus response to confirm that audio module
+ * has made necessary changes.
+ *
  * If car does not support VEHICLE_PROPERTY_AUDIO_FOCUS, focus is assumed to be granted always.
  *
  * @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
