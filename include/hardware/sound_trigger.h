@@ -106,7 +106,12 @@ struct sound_trigger_hw_device {
      * The implementation does not have to call the callback when stopped via this method.
      */
     int (*stop_recognition)(const struct sound_trigger_hw_device *dev,
-                           sound_model_handle_t sound_model_handle);
+                            sound_model_handle_t sound_model_handle);
+
+    /* Stop recognition on all models.
+     * If no implementation is provided, stop_recognition will be called for each running model.
+     */
+    int (*stop_all_recognitions)(const struct sound_trigger_hw_device* dev);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
