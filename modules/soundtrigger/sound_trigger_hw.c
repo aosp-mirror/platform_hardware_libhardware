@@ -787,6 +787,27 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
     return 0;
 }
 
+static int stdev_stop_all_recognitions(const struct sound_trigger_hw_device *dev) {
+    struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
+    ALOGI("%s", __func__);
+    pthread_mutex_lock(&stdev->lock);
+
+    struct recognition_context *model_context = stdev->root_model_context;
+    while (model_context) {
+        free(model_context->config);
+        model_context->config = NULL;
+        model_context->recognition_callback = NULL;
+        model_context->recognition_cookie = NULL;
+        ALOGI("%s stopped handle %d", __func__, model_context->model_handle);
+
+        model_context = model_context->next;
+    }
+
+    pthread_mutex_unlock(&stdev->lock);
+
+    return 0;
+}
+
 __attribute__ ((visibility ("default")))
 int sound_trigger_open_for_streaming() {
     int ret = 0;
@@ -838,6 +859,7 @@ static int stdev_open(const hw_module_t* module, const char* name,
     stdev->device.unload_sound_model = stdev_unload_sound_model;
     stdev->device.start_recognition = stdev_start_recognition;
     stdev->device.stop_recognition = stdev_stop_recognition;
+    stdev->device.stop_all_recognitions = stdev_stop_all_recognitions;
 
     pthread_mutex_init(&stdev->lock, (const pthread_mutexattr_t *) NULL);
 
