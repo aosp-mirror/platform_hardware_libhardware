@@ -434,7 +434,7 @@ enum vehicle_radio_consts {
  *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG can be used.
  *                   This is for case like radio where android side app still needs to hold focus
  *                   but playback is done outside Android.
- *   int32_array[3]: Currently active audio contexts in android side. Use combination of flags from
+ *   int32_array[3]: Currently active audio contexts. Use combination of flags from
  *                   vehicle_audio_context_flag.
  *                   This can be used as a hint to adjust audio policy or other policy decision.
  *                   Note that there can be multiple context active at the same time. And android
@@ -723,14 +723,13 @@ enum vehicle_audio_routing_policy_index {
  */
 enum vehicle_audio_hw_variant_config_flag {
     /**
-     * This is a flag to disable the default behavior of not sending focus request for radio module.
-     * By default, when radio app request audio focus, that focus request is filtered out and
-     * is not sent to car audio module as radio is supposed to be played by car radio module and
-     * android side should have have audio focus for media stream.
-     * But in some H/W, radio may be directly played from android side, and in that case,
-     * android side should take focus for media stream. This flag should be enabled in such case.
+     * Flag to tell that radio is internal to android and radio should
+     * be treated like other android stream like media.
+     * When this flag is not set or AUDIO_HW_VARIANT does not exist,
+     * radio is treated as external module. This brins some delta in audio focus
+     * handling as well.
      */
-    VEHICLE_AUDIO_HW_VARIANT_FLAG_PASS_RADIO_AUDIO_FOCUS_FLAG = 0x1,
+    VEHICLE_AUDIO_HW_VARIANT_FLAG_INTERNAL_RADIO_FLAG = 0x1,
 };
 
 
