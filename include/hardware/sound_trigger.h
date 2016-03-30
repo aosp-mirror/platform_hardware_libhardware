@@ -39,7 +39,8 @@ __BEGIN_DECLS
 
 
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
-#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_0
+#define SOUND_TRIGGER_DEVICE_API_VERSION_1_1 HARDWARE_DEVICE_API_VERSION(1, 1)
+#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_1
 
 /**
  * List of known sound trigger HAL modules. This is the base name of the sound_trigger HAL
@@ -109,6 +110,7 @@ struct sound_trigger_hw_device {
                             sound_model_handle_t sound_model_handle);
 
     /* Stop recognition on all models.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_1 or above.
      * If no implementation is provided, stop_recognition will be called for each running model.
      */
     int (*stop_all_recognitions)(const struct sound_trigger_hw_device* dev);
