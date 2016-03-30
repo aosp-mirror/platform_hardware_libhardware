@@ -851,7 +851,7 @@ static int stdev_open(const hw_module_t* module, const char* name,
     stdev->root_model_context = NULL;
 
     stdev->device.common.tag = HARDWARE_DEVICE_TAG;
-    stdev->device.common.version = SOUND_TRIGGER_DEVICE_API_VERSION_1_0;
+    stdev->device.common.version = SOUND_TRIGGER_DEVICE_API_VERSION_1_1;
     stdev->device.common.module = (struct hw_module_t *) module;
     stdev->device.common.close = stdev_close;
     stdev->device.get_properties = stdev_get_properties;
