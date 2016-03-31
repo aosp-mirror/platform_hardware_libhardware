@@ -72,6 +72,7 @@ static ssize_t get_temperatures(thermal_module_t *module, temperature_t *list, s
                     .current_value = temp,
                     .throttling_threshold = UNKNOWN_TEMPERATURE,
                     .shutdown_threshold = UNKNOWN_TEMPERATURE,
+                    .vr_throttling_threshold = UNKNOWN_TEMPERATURE,
                 };
             }
             fclose(file);
