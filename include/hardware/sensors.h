@@ -116,6 +116,35 @@ enum {
     SENSOR_HAL_DATA_INJECTION_MODE      = 0x1
 };
 
+#define SENSOR_FLAG_MASK(nbit, shift)   (((1<<(nbit))-1)<<(shift))
+#define SENSOR_FLAG_MASK_1(shift)       SENSOR_FLAG_MASK(1, shift)
+
+/*
+ * Mask and shift for reporting mode sensor flags defined above.
+ */
+#define REPORTING_MODE_SHIFT            (1)
+#define REPORTING_MODE_NBIT             (3)
+#define REPORTING_MODE_MASK             SENSOR_FLAG_MASK(REPORTING_MODE_NBIT, REPORTING_MODE_SHIFT)
+                                        // 0xE
+
+/*
+ * Mask and shift for data_injection mode sensor flags defined above.
+ */
+#define DATA_INJECTION_SHIFT            (4)
+#define DATA_INJECTION_MASK             SENSOR_FLAG_MASK_1(DATA_INJECTION_SHIFT) //0x10
+
+/*
+ * Mask and shift for dynamic sensor flag.
+ */
+#define DYNAMIC_SENSOR_SHIFT            (5)
+#define DYNAMIC_SENSOR_MASK             SENSOR_FLAG_MASK_1(DYNAMIC_SENSOR_SHIFT) //0x20
+
+/*
+ * Mask and shift for sensor additional information support.
+ */
+#define ADDITIONAL_INFO_SHIFT           (6)
+#define ADDITIONAL_INFO_MASK            SENSOR_FLAG_MASK_1(ADDITIONAL_INFO_SHIFT) //0x40
+
 /*
  * Availability: SENSORS_DEVICE_API_VERSION_1_3
  * Sensor flags used in sensor_t.flags.
@@ -147,20 +176,21 @@ enum {
      * Counter sensors can be set with this flag and SensorService will inject accelerometer data
      * and read the corresponding step counts.
      */
-    SENSOR_FLAG_SUPPORTS_DATA_INJECTION = 0x10  // 1 0000
+    SENSOR_FLAG_SUPPORTS_DATA_INJECTION = DATA_INJECTION_MASK, // 1 0000
+
+    /*
+     * Set this flag if the sensor is a dynamically connected sensor. See
+     * dynamic_sensor_meta_event_t and SENSOR_TYPE_DYNAMIC_SENSOR_META for details.
+     */
+    SENSOR_FLAG_DYNAMIC_SENSOR = DYNAMIC_SENSOR_MASK,
+
+    /*
+     * Set this flag if sensor additional information is supported. See SENSOR_TYPE_ADDITIONAL_INFO
+     * and additional_info_event_t for details.
+     */
+    SENSOR_FLAG_ADDITIONAL_INFO = ADDITIONAL_INFO_MASK
 };
 
-/*
- * Mask and shift for reporting mode sensor flags defined above.
- */
-#define REPORTING_MODE_MASK              (0xE)
-#define REPORTING_MODE_SHIFT             (1)
-
-/*
- * Mask and shift for data_injection mode sensor flags defined above.
- */
-#define DATA_INJECTION_MASK              (0x10)
-#define DATA_INJECTION_SHIFT             (4)
 
 /*
  * Sensor type
