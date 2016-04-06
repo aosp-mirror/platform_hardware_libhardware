@@ -1573,7 +1573,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     status_t res = submix_get_route_idx_for_address_l(rsxadev, address, &route_idx);
     if (res != OK) {
-        ALOGE("Error %d looking for address=%s in adev_open_output_stream", res, address);
+        ALOGE("Error %d looking for address=%s in adev_open_input_stream", res, address);
         pthread_mutex_unlock(&rsxadev->lock);
         return res;
     }
