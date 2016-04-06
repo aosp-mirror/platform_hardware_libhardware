@@ -526,6 +526,11 @@ static int vdev_close(hw_device_t* device) {
     }
 }
 
+static int vdev_dump(struct vehicle_hw_device* device UNUSED, int fd UNUSED) {
+    //TODO
+    return 0;
+}
+
 /*
  * The open function is provided as an interface in harwdare.h which fills in
  * all the information about specific implementations and version specific
@@ -557,6 +562,7 @@ static int vdev_open(const hw_module_t* module, const char* name UNUSED,
     vdev->vehicle_device.set = vdev_set;
     vdev->vehicle_device.subscribe = vdev_subscribe;
     vdev->vehicle_device.unsubscribe = vdev_unsubscribe;
+    vdev->vehicle_device.dump = vdev_dump;
 
     *device = (hw_device_t *) vdev;
     return 0;
