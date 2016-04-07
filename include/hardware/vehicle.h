@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <math.h>
 #include <errno.h>
 
 #include <hardware/hardware.h>
@@ -75,6 +76,8 @@ __BEGIN_DECLS
  *                 for that property to work.
  * @zone_type type of zoned used. defined for zoned property
  * @range_start, @range_end : define range of specific property values.
+ * @allow_out_of_range_value : This property allows out of range value to deliver additional
+ *                             information. Check VEHICLE_*_OUT_OF_RANGE_* for applicable values.
  */
 //===== Vehicle Information ====
 
@@ -257,10 +260,10 @@ __BEGIN_DECLS
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @config_flags Supported zones
  * @data_member hvac.fan_speed
  * @zone_type VEHICLE_ZONE
  * @data_enum TODO
+ * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_SPEED                             (0x00000500)
 
@@ -269,10 +272,10 @@ __BEGIN_DECLS
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @config_flags Supported zones
  * @data_member hvac.fan_direction
  * @zone_type VEHICLE_ZONE
  * @data_enum TODO
+ * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION                         (0x00000501)
 
@@ -292,7 +295,6 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @config_flags Supported zones
  * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_current
  */
@@ -302,10 +304,10 @@ enum vehicle_hvac_fan_direction {
  * HVAC, target temperature set.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
- * @config_flags Supported zones
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_set
+ * @allow_out_of_range_value : MIN / MAX / OFF
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_SET                       (0x00000503)
 
@@ -314,7 +316,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @config_flags Supported zones
+ * @zone_type VEHICLE_WINDOW
  * @data_member hvac.defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_DEFROSTER                             (0x00000504)
@@ -367,6 +369,22 @@ enum vehicle_hvac_fan_direction {
 #define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
 
 /**
+ * Represents power state for HVAC. Some HVAC properties will require matching power to be turned on
+ * to get out of OFF state. For non-zoned HVAC properties, VEHICLE_ALL_ZONE corresponds to
+ * global power state.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @config_string list of HVAC properties whose power is controlled by this property. Format is
+ *                hexa-decimal number (0x...) separated by comma like "0x500,0x503". All zones
+ *                defined in these affected properties should be available in the property.
+ * @zone_type VEHICLE_ZONE
+ * @data_member hvac.power_on
+ */
+#define VEHICLE_PROPERTY_HVAC_POWER_ON                              (0x00000510)
+
+/**
  * Outside temperature
  * @value_type VEHICLE_VALUE_TYPE_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
@@ -374,6 +392,7 @@ enum vehicle_hvac_fan_direction {
  * @data_member outside_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
+
 #define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                   (0x00000703)
 
 
@@ -431,9 +450,15 @@ enum vehicle_radio_consts {
  *   int32_array[1]: bit flags of streams requested by this focus request. There can be up to
  *                   32 streams.
  *   int32_array[2]: External focus state flags. For request, only flag like
- *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG can be used.
- *                   This is for case like radio where android side app still needs to hold focus
- *                   but playback is done outside Android.
+ *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG or
+ *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_MUTE_MEDIA_FLAG can be used.
+ *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG is for case like radio where android
+ *                   side app still needs to hold focus but playback is done outside Android.
+ *                   VEHICLE_AUDIO_EXT_FOCUS_CAR_MUTE_MEDIA_FLAG is for muting media channel
+ *                   including radio. VEHICLE_AUDIO_EXT_FOCUS_CAR_MUTE_MEDIA_FLAG can be set even
+ *                   if android side releases focus (request type REQUEST_RELEASE). In that case,
+ *                   audio module should maintain mute state until user's explicit action to
+ *                   play some media.
  *   int32_array[3]: Currently active audio contexts. Use combination of flags from
  *                   vehicle_audio_context_flag.
  *                   This can be used as a hint to adjust audio policy or other policy decision.
@@ -564,6 +589,11 @@ enum vehicle_audio_ext_focus_flag {
      * side and car side can play radio any time while this flag is active.
      */
     VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG = 0x4,
+    /**
+     * Car side should mute any media including radio. This can be used with any focus request
+     * including GAIN* and RELEASE.
+     */
+    VEHICLE_AUDIO_EXT_FOCUS_CAR_MUTE_MEDIA_FLAG = 0x8,
 };
 
 /**
@@ -1159,6 +1189,24 @@ enum vehicle_permission_model {
     VEHICLE_PERMISSION_OEM_OR_SYSTEM_APP = 0x3
 };
 
+
+/**
+ *  Special values for INT32/FLOAT (including ZONED types)
+ *  These values represent special state, which is outside MIN/MAX range but can happen.
+ *  For example, HVAC temperature may use out of range min / max to represent that
+ *  it is working in full power although target temperature has separate min / max.
+ *  OUT_OF_RANGE_OFF can represent a state where the property is powered off.
+ *  Usually such property will have separate property to control power.
+ */
+
+#define VEHICLE_INT_OUT_OF_RANGE_MAX (INT32_MAX)
+#define VEHICLE_INT_OUT_OF_RANGE_MIN (INT32_MIN)
+#define VEHICLE_INT_OUT_OF_RANGE_OFF (INT32_MIN + 1)
+
+#define VEHICLE_FLOAT_OUT_OF_RANGE_MAX (INFINITY)
+#define VEHICLE_FLOAT_OUT_OF_RANGE_MIN (-INFINITY)
+#define VEHICLE_INT_OUT_OF_RANGE_OFF (NAN)
+
 /**
  * Car states.
  *
@@ -1460,6 +1508,7 @@ typedef struct vehicle_hvac {
         vehicle_boolean_t max_defrost_on;
         vehicle_boolean_t recirc_on;
         vehicle_boolean_t dual_on;
+        vehicle_boolean_t power_on;
 
         float temperature_current;
         float temperature_set;
@@ -1688,6 +1737,9 @@ typedef struct vehicle_hw_device {
      * NULL.
      * The caller of the API OWNS the data field.
      * timestamp of data will be ignored for set operation.
+     * Setting some properties require having initial state available. Depending on the vehicle hal,
+     * such initial data may not be available for short time after init. In such case, set call
+     * can return -EAGAIN like get call.
      */
     int (*set)(struct vehicle_hw_device* device, const vehicle_prop_value_t *data);
 
@@ -1697,8 +1749,9 @@ typedef struct vehicle_hw_device {
      * a) on-change: sample_rate should be set to 0.
      * b) supports frequency: sample_rate should be set from min_sample_rate to
      * max_sample_rate.
-     * Subscribing to properties in-correctly may result in error callbacks and
-     * will depend on HAL implementation.
+     * For on-change type of properties, vehicle network service will make another get call to check
+     * the initial state. Due to this, vehicle hal implementation does not need to send initial
+     * state for on-change type of properties.
      * @param device
      * @param prop
      * @param sample_rate
@@ -1710,6 +1763,24 @@ typedef struct vehicle_hw_device {
 
     /** Cancel subscription on a property. */
     int (*unsubscribe)(struct vehicle_hw_device* device, int32_t prop);
+
+    /**
+     * Print out debugging state for the vehicle hal. This will be called by
+     * the vehicle network service and will be included into the service' dump.
+     *
+     * The passed-in file descriptor can be used to write debugging text using
+     * dprintf() or write(). The text should be in ASCII encoding only.
+     *
+     * Performance requirements:
+     *
+     * This must be a non-blocking call. The HAL should return from this call
+     * in 1ms, must return from this call in 10ms. This call must avoid
+     * deadlocks, as it may be called at any point of operation.
+     * Any synchronization primitives used (such as mutex locks or semaphores)
+     * should be acquired with a timeout.
+     */
+    int (*dump)(struct vehicle_hw_device* device, int fd);
+
 } vehicle_hw_device_t;
 
 __END_DECLS
