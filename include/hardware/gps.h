@@ -1469,7 +1469,7 @@ typedef struct {
     /**
      * Leap second data.
      * The sign of the value is defined by the following equation:
-     *      utc_time_ns = time_ns + (full_bias_ns + bias_ns) - leap_second *
+     *      utc_time_ns = time_ns - (full_bias_ns + bias_ns) - leap_second *
      *      1,000,000,000
      *
      * If the data is available 'flags' must contain GNSS_CLOCK_HAS_LEAP_SECOND.
@@ -1483,8 +1483,9 @@ typedef struct {
      * For local hardware clock, this value is expected to be monotonically
      * increasing while the hardware clock remains power on. (For the case of a
      * HW clock that is not continuously on, see the
-     * hw_clock_discontinuity_count field). The real GPS time can be derived by
-     * adding the 'full_bias_ns + bias_ns' (when it is available) to this value.
+     * hw_clock_discontinuity_count field). The receiver's estimate of GPS time
+     * can be derived by substracting the sum of full_bias_ns and bias_ns (when
+     * available) from this value.
      *
      * This GPS time is expected to be the best estimate of current GPS time
      * that GNSS receiver can achieve.
@@ -1513,20 +1514,22 @@ typedef struct {
      * and the true GPS time since 0000Z, January 6, 1980, in nanoseconds.
      *
      * The sign of the value is defined by the following equation:
-     *      local estimate of GPS time = time_ns + (full_bias_ns + bias_ns)
+     *      local estimate of GPS time = time_ns - (full_bias_ns + bias_ns)
      *
      * This value is mandatory if the receiver has estimated GPS time. If the
      * computed time is for a non-GPS constellation, the time offset of that
-     * constellation to GPS has to be applied to fill this value. The value
-     * contains the 'bias uncertainty' in it, and the caller is responsible of
-     * using the uncertainty. If the data is available 'flags' must contain
-     * GNSS_CLOCK_HAS_FULL_BIAS.
+     * constellation to GPS has to be applied to fill this value. The error
+     * estimate for the sum of this and the bias_ns is the bias_uncertainty_ns,
+     * and the caller is responsible for using this uncertainty (it can be very
+     * large before the GPS time has been solved for.) If the data is available
+     * 'flags' must contain GNSS_CLOCK_HAS_FULL_BIAS.
      */
     int64_t full_bias_ns;
 
     /**
      * Sub-nanosecond bias.
-     * The value contains the 'bias uncertainty' in it.
+     * The error estimate for the sum of this and the full_bias_ns is the
+     * bias_uncertainty_ns
      *
      * If the data is available 'flags' must contain GNSS_CLOCK_HAS_BIAS. If GPS
      * has computed a position fix. This value is mandatory if the receiver has
@@ -1549,7 +1552,8 @@ typedef struct {
      * The clock's drift in nanoseconds (per second).
      *
      * A positive value means that the frequency is higher than the nominal
-     * frequency.
+     * frequency, and that the (full_bias_ns + bias_ns) is growing more positive
+     * over time.
      *
      * The value contains the 'drift uncertainty' in it.
      * If the data is available 'flags' must contain GNSS_CLOCK_HAS_DRIFT.
