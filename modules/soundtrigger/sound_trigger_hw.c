@@ -45,6 +45,7 @@
 #define COMMAND_RECOGNITION_ABORT "abort"  // Argument: model index.
 #define COMMAND_RECOGNITION_FAILURE "fail"  // Argument: model index.
 #define COMMAND_UPDATE "update"  // Argument: model index.
+#define COMMAND_CLEAR "clear" // Removes all models from the list.
 #define COMMAND_CLOSE "close" // Close just closes the network port, keeps thread running.
 #define COMMAND_END "end" // Closes connection and stops the thread.
 
@@ -98,6 +99,8 @@ struct recognition_context {
     struct sound_trigger_recognition_config *config;
     recognition_callback_t recognition_callback;
     void *recognition_cookie;
+
+    bool model_started;
 
     // Next recognition_context in the linked list
     struct recognition_context *next;
@@ -239,6 +242,7 @@ static sound_model_handle_t generate_sound_model_handle(const struct sound_trigg
 }
 
 bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev);
+static void unload_all_sound_models(struct stub_sound_trigger_device *stdev);
 
 static char *sound_trigger_keyphrase_event_alloc(sound_model_handle_t handle,
                                                  struct sound_trigger_recognition_config *config,
@@ -472,6 +476,7 @@ void list_models(int conn_socket, char* buffer,
     ALOGI("%s", __func__);
     struct recognition_context *last_model_context = stdev->root_model_context;
     unsigned int model_index = 0;
+    write_string(conn_socket, "-----------------------\n");
     if (!last_model_context) {
         ALOGI("ZERO Models exist.");
         write_string(conn_socket, "Zero models exist.\n");
@@ -495,8 +500,15 @@ void list_models(int conn_socket, char* buffer,
             write_vastr(conn_socket, "Unknown sound model type: %d\n", model_type);
             ALOGI("Unknown sound model type: %d", model_type);
         }
-        write_string(conn_socket, "----\n\n");
-        ALOGI("----");
+        if (last_model_context->model_started) {
+            write_string(conn_socket, "Model started.\n");
+            ALOGI("Model started.\n");
+        } else {
+            write_string(conn_socket, "Model stopped.\n");
+            ALOGI("Model stopped.\n");
+        }
+        write_string(conn_socket, "-----------------------\n\n");
+        ALOGI("----\n\n");
         last_model_context = last_model_context->next;
         model_index++;
     }
@@ -524,6 +536,7 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
 
     // Note: Since we acquire a lock inside this loop, do not use break or other
     // exit methods without releasing this lock.
+    write_string(conn_socket, "\n>>> ");
     while(!input_done) {
         if (fgets(buffer, PARSE_BUF_LEN, input_fp) != NULL) {
             pthread_mutex_lock(&stdev->lock);
@@ -540,6 +553,8 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
                 send_event(conn_socket, stdev, EVENT_RECOGNITION, RECOGNITION_STATUS_FAILURE);
             } else if (strcmp(command, COMMAND_UPDATE) == 0) {
                 send_event(conn_socket, stdev, EVENT_SOUND_MODEL, SOUND_MODEL_STATUS_UPDATED);
+            } else if (strncmp(command, COMMAND_CLEAR, 5) == 0) {
+                unload_all_sound_models(stdev);
             } else if (strncmp(command, COMMAND_CLOSE, 5) == 0) {
                 ALOGI("Closing this connection.");
                 write_string(conn_socket, "Closing this connection.");
@@ -550,13 +565,14 @@ bool parse_socket_data(int conn_socket, struct stub_sound_trigger_device* stdev)
                 continue_listening = false;
                 input_done = true;
             } else {
-                write_vastr(conn_socket, "Bad command %s.\n", command);
+                write_vastr(conn_socket, "\nBad command %s.\n\n", command);
             }
             pthread_mutex_unlock(&stdev->lock);
         } else {
             ALOGI("parse_socket_data done (got null)");
             input_done = true;  // break.
         }
+        write_string(conn_socket, "\n>>> ");
     }
     return continue_listening;
 }
@@ -651,10 +667,26 @@ static int stdev_load_sound_model(const struct sound_trigger_hw_device *dev,
     model_context->recognition_callback = NULL;
     model_context->recognition_cookie = NULL;
     model_context->next = NULL;
+    model_context->model_started = false;
     ALOGI("Sound model loaded: Handle %d ", *handle);
 
     pthread_mutex_unlock(&stdev->lock);
     return status;
+}
+
+static void unload_all_sound_models(struct stub_sound_trigger_device *stdev) {
+    ALOGI("%s", __func__);
+    struct recognition_context *model_context = stdev->root_model_context;
+    stdev->root_model_context = NULL;
+    pthread_mutex_lock(&stdev->lock);
+    while (model_context) {
+        ALOGI("Deleting model with handle: %d", model_context->model_handle);
+        struct recognition_context *temp = model_context;
+        model_context = model_context->next;
+        free(temp->config);
+        free(temp);
+    }
+    pthread_mutex_unlock(&stdev->lock);
 }
 
 static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
@@ -663,6 +695,7 @@ static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
     ALOGI("%s", __func__);
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     int status = 0;
+    ALOGI("unload_sound_model:%d", handle);
     pthread_mutex_lock(&stdev->lock);
 
     struct recognition_context *model_context = NULL;
@@ -683,7 +716,7 @@ static int stdev_unload_sound_model(const struct sound_trigger_hw_device *dev,
         pthread_mutex_unlock(&stdev->lock);
         return -ENOSYS;
     }
-    if(previous_model_context) {
+    if (previous_model_context) {
         previous_model_context->next = model_context->next;
     } else {
         stdev->root_model_context = model_context->next;
@@ -725,6 +758,7 @@ static int stdev_start_recognition(const struct sound_trigger_hw_device *dev,
     }
     model_context->recognition_callback = callback;
     model_context->recognition_cookie = cookie;
+    model_context->model_started = true;
 
     pthread_mutex_unlock(&stdev->lock);
     ALOGI("%s done for handle %d", __func__, handle);
@@ -748,6 +782,7 @@ static int stdev_stop_recognition(const struct sound_trigger_hw_device *dev,
     model_context->config = NULL;
     model_context->recognition_callback = NULL;
     model_context->recognition_cookie = NULL;
+    model_context->model_started = false;
 
     pthread_mutex_unlock(&stdev->lock);
     ALOGI("%s done for handle %d", __func__, handle);
@@ -766,6 +801,7 @@ static int stdev_stop_all_recognitions(const struct sound_trigger_hw_device *dev
         model_context->config = NULL;
         model_context->recognition_callback = NULL;
         model_context->recognition_cookie = NULL;
+        model_context->model_started = false;
         ALOGI("%s stopped handle %d", __func__, model_context->model_handle);
 
         model_context = model_context->next;
