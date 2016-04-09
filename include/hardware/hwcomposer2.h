@@ -206,6 +206,7 @@ typedef enum {
     HWC2_FUNCTION_GET_DISPLAY_REQUESTS,
     HWC2_FUNCTION_GET_DISPLAY_TYPE,
     HWC2_FUNCTION_GET_DOZE_SUPPORT,
+    HWC2_FUNCTION_GET_HDR_CAPABILITIES,
     HWC2_FUNCTION_GET_MAX_VIRTUAL_DISPLAY_COUNT,
     HWC2_FUNCTION_GET_RELEASE_FENCES,
     HWC2_FUNCTION_PRESENT_DISPLAY,
@@ -234,7 +235,7 @@ typedef enum {
     HWC2_FUNCTION_VALIDATE_DISPLAY,
 } hwc2_function_descriptor_t;
 
-/* Layer requests returned from getDisplayRequests. */
+/* Layer requests returned from getDisplayRequests */
 typedef enum {
     /* The client should clear its target with transparent pixels where this
      * layer would be. The client may ignore this request if the layer must be
@@ -412,6 +413,7 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_DISPLAY_REQUESTS: return "GetDisplayRequests";
         case HWC2_FUNCTION_GET_DISPLAY_TYPE: return "GetDisplayType";
         case HWC2_FUNCTION_GET_DOZE_SUPPORT: return "GetDozeSupport";
+        case HWC2_FUNCTION_GET_HDR_CAPABILITIES: return "GetHdrCapabilities";
         case HWC2_FUNCTION_GET_MAX_VIRTUAL_DISPLAY_COUNT:
             return "GetMaxVirtualDisplayCount";
         case HWC2_FUNCTION_GET_RELEASE_FENCES: return "GetReleaseFences";
@@ -603,6 +605,7 @@ enum class FunctionDescriptor : int32_t {
     GetDisplayRequests = HWC2_FUNCTION_GET_DISPLAY_REQUESTS,
     GetDisplayType = HWC2_FUNCTION_GET_DISPLAY_TYPE,
     GetDozeSupport = HWC2_FUNCTION_GET_DOZE_SUPPORT,
+    GetHdrCapabilities = HWC2_FUNCTION_GET_HDR_CAPABILITIES,
     GetMaxVirtualDisplayCount = HWC2_FUNCTION_GET_MAX_VIRTUAL_DISPLAY_COUNT,
     GetReleaseFences = HWC2_FUNCTION_GET_RELEASE_FENCES,
     PresentDisplay = HWC2_FUNCTION_PRESENT_DISPLAY,
@@ -1243,6 +1246,42 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_TYPE)(
  */
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DOZE_SUPPORT)(
         hwc2_device_t* device, hwc2_display_t display, int32_t* outSupport);
+
+/* getHdrCapabilities(..., outNumTypes, outTypes, outMaxLuminance,
+ *     outMaxAverageLuminance, outMinLuminance)
+ * Descriptor: HWC2_FUNCTION_GET_HDR_CAPABILITIES
+ * Must be provided by all HWC2 devices
+ *
+ * Returns the high dynamic range (HDR) capabilities of the given display, which
+ * are invariant with regard to the active configuration.
+ *
+ * Displays which are not HDR-capable must return no types in outTypes and set
+ * outNumTypes to 0.
+ *
+ * If outTypes is NULL, the required number of HDR types must be returned in
+ * outNumTypes.
+ *
+ * Parameters:
+ *   outNumTypes - if outTypes was NULL, the number of types which would have
+ *       been returned; if it was not NULL, the number of types stored in
+ *       outTypes, which must not exceed the value stored in outNumTypes prior
+ *       to the call; pointer will be non-NULL
+ *   outTypes - an array of HDR types, may have 0 elements if the display is not
+ *       HDR-capable
+ *   outMaxLuminance - the desired content maximum luminance for this display in
+ *       cd/m^2; pointer will be non-NULL
+ *   outMaxAverageLuminance - the desired content maximum frame-average
+ *       luminance for this display in cd/m^2; pointer will be non-NULL
+ *   outMinLuminance - the desired content minimum luminance for this display in
+ *       cd/m^2; pointer will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_HDR_CAPABILITIES)(
+        hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumTypes,
+        int32_t* /*android_hdr_t*/ outTypes, float* outMaxLuminance,
+        float* outMaxAverageLuminance, float* outMinLuminance);
 
 /* getReleaseFences(..., outNumElements, outLayers, outFences)
  * Descriptor: HWC2_FUNCTION_GET_RELEASE_FENCES
