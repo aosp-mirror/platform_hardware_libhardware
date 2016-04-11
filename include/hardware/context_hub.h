@@ -74,6 +74,21 @@ __BEGIN_DECLS
 
 #define HUB_MEM_TYPE_FIRST_VENDOR     0x80000000ul
 
+#define NANOAPP_VENDORS_ALL           0xFFFFFFFFFF000000ULL
+#define NANOAPP_VENDOR_ALL_APPS       0x0000000000FFFFFFULL
+
+#define NANOAPP_VENDOR(name) \
+    (((uint64_t)name[0] << 56) | \
+    ((uint64_t)name[1] << 48) | \
+    ((uint64_t)name[2] << 40) | \
+    ((uint64_t)name[3] << 32) | \
+    ((uint64_t)name[4] << 24))
+
+/*
+ * generates the NANOAPP ID from vendor id and app seq# id
+ */
+#define NANO_APP_ID(vendor, seq_id) \
+	(((uint64_t)vendor & NANOAPP_VENDORS_ALL) | ((uint64_t)seq_id & NANOAPP_VENDOR_ALL_APPS))
 
 /**
  * Other memory types (likely not writeable, informational only)
@@ -100,17 +115,12 @@ struct mem_range_t {
     uint32_t mem_flags;   // MEM_FLAG_*
 };
 
-
-/**
- * App names may be strings, bytes, uints, etc. This caovers all types of app names
- */
 struct hub_app_name_t {
-    uint32_t app_name_len;
-    const void *app_name;
+    uint64_t id;
 };
 
 struct hub_app_info {
-    const struct hub_app_name_t *name;
+    struct hub_app_name_t app_name;
     uint32_t version;
     uint32_t num_mem_ranges;
     const struct mem_range_t *mem_usage;
@@ -195,7 +205,7 @@ struct connected_sensor_t {
 #define HUB_REQUIRED_SUPPORTED_MSG_LEN  128
 
 struct hub_message_t {
-    const struct hub_app_name_t *app; /* To/From this nanoapp */
+    struct hub_app_name_t app_name; /* To/From this nanoapp */
     uint32_t message_type;
     uint32_t message_len;
     const void *message;
@@ -226,7 +236,7 @@ struct context_hub_t {
     uint32_t num_connected_sensors;  // number of connected sensors
 
     uint32_t max_supported_msg_len;
-    const struct hub_app_name_t *os_app_name; /* send msgs here for OS functions */
+    const struct hub_app_name_t os_app_name; /* send msgs here for OS functions */
 };
 
 /**
