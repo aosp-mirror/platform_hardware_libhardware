@@ -90,6 +90,10 @@ __BEGIN_DECLS
 #define NANO_APP_ID(vendor, seq_id) \
 	(((uint64_t)vendor & NANOAPP_VENDORS_ALL) | ((uint64_t)seq_id & NANOAPP_VENDOR_ALL_APPS))
 
+struct hub_app_name_t {
+    uint64_t id;
+};
+
 /**
  * Other memory types (likely not writeable, informational only)
  */
@@ -115,8 +119,19 @@ struct mem_range_t {
     uint32_t mem_flags;   // MEM_FLAG_*
 };
 
-struct hub_app_name_t {
-    uint64_t id;
+#define NANOAPP_SIGNED_FLAG    0x1
+#define NANOAPP_ENCRYPTED_FLAG 0x2
+
+// The binary format below is in little endian format
+struct nano_app_binary_t {
+    uint32_t header_version;       // 0x1 for this version
+    uint32_t magic;                // "NANO"
+    struct hub_app_name_t app_id;  // App Id contains vendor id
+    uint32_t app_version;          // Version of the app
+    uint32_t flags;                // Signed, encrypted
+    uint64_t hw_hub_type;          // which hub type is this compiled for
+    uint32_t reserved[2];          // Should be all zeroes
+    uint8_t  custom_binary[0];     // start of custom binary data
 };
 
 struct hub_app_info {
@@ -192,25 +207,12 @@ struct connected_sensor_t {
     };
 };
 
-
-
-/**
- * Messages of this length or less must be supported by all implementations,
- * longer lengths are supported up to max_supported_msg_len. This is exposed
- * to third party apps, and since we do not know their msg data formats we
- * cannot fragment for them. Our own messages are allowed to be bigger and
- * this HAL will fragment as needed. "Our own" messages are messaegs defined
- * in this file.
- */
-#define HUB_REQUIRED_SUPPORTED_MSG_LEN  128
-
 struct hub_message_t {
     struct hub_app_name_t app_name; /* To/From this nanoapp */
     uint32_t message_type;
     uint32_t message_len;
     const void *message;
 };
-
 
 /**
  * Definition of a context hub. A device may contain more than one low
@@ -235,9 +237,124 @@ struct context_hub_t {
     const struct connected_sensor_t *connected_sensors; // array of connected sensors
     uint32_t num_connected_sensors;  // number of connected sensors
 
-    uint32_t max_supported_msg_len;
     const struct hub_app_name_t os_app_name; /* send msgs here for OS functions */
+    uint32_t max_supported_msg_len;  // This is the maximum size of the message that can
+                                     // be sent to the hub in one chunk (in bytes)
 };
+
+/**
+ * Definitions of message payloads, see hub_messages_e
+ */
+
+struct status_response_t {
+    int32_t result; // 0 on success, < 0 : error on failure. > 0 for any descriptive status
+};
+
+struct apps_enable_request_t {
+    struct hub_app_name_t app_name;
+};
+
+struct apps_disable_request_t {
+    struct hub_app_name_t app_name;
+};
+
+struct load_app_request_t {
+    struct nano_app_binary_t app_binary;
+};
+
+struct unload_app_request_t {
+    struct hub_app_name_t app_name;
+};
+
+struct query_apps_request_t {
+    struct hub_app_name_t app_name;
+};
+
+/**
+ * CONTEXT_HUB_APPS_ENABLE
+ * Enables the specified nano-app(s)
+ *
+ * Payload : apps_enable_request_t
+ *
+ * Response : status_response_t
+ *            On receipt of a successful response, it is
+ *               expected that
+ *
+ *               i) the app is executing and able to receive
+ *                  any messages.
+ *
+ *              ii) the system should be able to respond to an
+ *                  CONTEXT_HUB_QUERY_APPS request.
+ *
+ */
+
+/**
+ * CONTEXT_HUB_APPS_DISABLE
+ * Stops the specified nano-app(s)
+ *
+ * Payload : apps_disable_request_t
+ *
+ * Response : status_response_t
+ *            On receipt of a successful response,
+ *               i) No further events are delivered to the
+ *                  nanoapp.
+ *
+ *              ii) The app should not show up in a
+ *                  CONTEXT_HUB_QUERY_APPS request.
+ */
+
+/**
+ * CONTEXT_HUB_LOAD_APP
+ * Loads a nanoApp. Upon loading the nanoApp's init method is
+ * called.
+ *
+ *
+ * Payload : load_app_request_t
+ *
+ * Response : status_response_t On receipt of a successful
+ *               response, it is expected that
+ *               i) the app is executing and able to receive
+ *                  messages.
+ *
+ *              ii) the system should be able to respond to a
+ *                  CONTEXT_HUB_QUERY_APPS.
+ */
+
+/**
+ * CONTEXT_HUB_UNLOAD_APP
+ * Unloads a nanoApp. Before the unload, the app's deinit method
+ * is called.
+ *
+ * Payload : unload_app_request_t.
+ *
+ * Response : status_response_t On receipt of a
+ *            successful response, it is expected that
+ *               i) No further events are delivered to the
+ *                  nanoapp.
+ *
+ *              ii) the system does not list the app in a
+ *                  response to a CONTEXT_HUB_QUERY_APPS.
+ *
+ *             iii) Any resources used by the app should be
+ *                  freed up and available to the system.
+ */
+
+/**
+ * CONTEXT_HUB_QUERY_APPS Queries for status of apps
+ *
+ * Payload : query_apps_request_t
+ *
+ * Response : struct hub_app_info[]
+ */
+
+/**
+ * CONTEXT_HUB_QUERY_MEMORY Queries for memory regions on the
+ * hub
+ *
+ * Payload : NULL
+ *
+ * Response : struct mem_range_t[]
+ */
 
 /**
  * All communication between the context hubs and the Context Hub Service is in
@@ -248,17 +365,15 @@ struct context_hub_t {
  */
 
 typedef enum {
-    CONTEXT_HUB_APPS_ENABLE = 1, // 1: Enables the loaded nano-apps
-    CONTEXT_HUB_APPS_DISABLE,    // 2: Disables any loaded nano-apps
-    CONTEXT_HUB_LOAD_APP,        // 3: Load a supplied app
-    CONTEXT_HUB_UNLOAD_APP,      // 4: Unload a specified app
-    CONTEXT_HUB_QUERY_APPS,      // 5: Query for apps info on hub (gets struct hub_app_info[])
-    CONTEXT_HUB_QUERY_MEMORY,    // 5: Query for memory info (gets struct mem_range_t[])
-    CONTEXT_HUB_LOAD_OS,         // 6: Load up OS update
+    CONTEXT_HUB_APPS_ENABLE  = 1, // Enables loaded nano-app(s)
+    CONTEXT_HUB_APPS_DISABLE = 2, // Disables loaded nano-app(s)
+    CONTEXT_HUB_LOAD_APP     = 3, // Load a supplied app
+    CONTEXT_HUB_UNLOAD_APP   = 4, // Unload a specified app
+    CONTEXT_HUB_QUERY_APPS   = 5, // Query for app(s) info on hub
+    CONTEXT_HUB_QUERY_MEMORY = 6, // Query for memory info
 } hub_messages_e;
 
 #define CONTEXT_HUB_TYPE_PRIVATE_MSG_BASE 0x10000
-
 
 /**
  * A callback registers with the context hub service to pass messages
