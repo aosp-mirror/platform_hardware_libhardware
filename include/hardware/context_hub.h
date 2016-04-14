@@ -138,7 +138,7 @@ struct hub_app_info {
     struct hub_app_name_t app_name;
     uint32_t version;
     uint32_t num_mem_ranges;
-    const struct mem_range_t *mem_usage;
+    struct mem_range_t mem_usage[2]; // Apps could only have RAM and SHARED_DATA
 };
 
 /**
