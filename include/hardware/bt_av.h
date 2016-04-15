@@ -98,7 +98,10 @@ typedef struct {
     void  (*cleanup)( void );
 
     /** Sends Audio Focus State. */
-    void  (*audio_focus_state)( int focus_state );
+    void  (*set_audio_focus_state)( int focus_state );
+
+    /** Sets the audio track gain. */
+    void  (*set_audio_track_gain)( float gain );
 } btav_interface_t;
 
 __END_DECLS
