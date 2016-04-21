@@ -122,7 +122,7 @@ __BEGIN_DECLS
  * @data_member info_model_year
  * @unit VEHICLE_UNIT_TYPE_YEAR
  */
-#define VEHICLE_PROPERTY_INFO_MODEL_YEAR                           (0x00000103)
+#define VEHICLE_PROPERTY_INFO_MODEL_YEAR                            (0x00000103)
 
 /**
  * Fuel capacity of the vehicle
@@ -373,6 +373,15 @@ enum vehicle_hvac_fan_direction {
 #define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
 
 /**
+ * On/off automatic mode
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
+ */
+#define VEHICLE_PROPERTY_HVAC_AUTO_ON                               (0x0000050A)
+
+/**
  * Represents power state for HVAC. Some HVAC properties will require matching power to be turned on
  * to get out of OFF state. For non-zoned HVAC properties, VEHICLE_ALL_ZONE corresponds to
  * global power state.
@@ -396,8 +405,7 @@ enum vehicle_hvac_fan_direction {
  * @data_member outside_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
-
-#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                   (0x00000703)
+#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                    (0x00000703)
 
 
 /**
@@ -408,7 +416,7 @@ enum vehicle_hvac_fan_direction {
  * @data_member cabin_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
-#define VEHICLE_PROPERTY_ENV_CABIN_TEMPERATURE                  (0x00000704)
+#define VEHICLE_PROPERTY_ENV_CABIN_TEMPERATURE                      (0x00000704)
 
 
 /*
@@ -434,7 +442,7 @@ enum vehicle_hvac_fan_direction {
  * @config_flags Number of presets supported
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_RADIO_PRESET                               (0x0000801)
+#define VEHICLE_PROPERTY_RADIO_PRESET                                (0x0000801)
 
 /**
  * Constants relevant to radio.
@@ -506,7 +514,7 @@ enum vehicle_radio_consts {
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_FOCUS                                  (0x00000900)
+#define VEHICLE_PROPERTY_AUDIO_FOCUS                                (0x00000900)
 
 enum vehicle_audio_focus_request {
     VEHICLE_AUDIO_FOCUS_REQUEST_GAIN = 0x1,
@@ -671,7 +679,7 @@ enum vehicle_audio_context_flag {
  * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_VOLUME                                 (0x00000901)
+#define VEHICLE_PROPERTY_AUDIO_VOLUME                               (0x00000901)
 
 
 /**
@@ -693,6 +701,7 @@ enum vehicle_audio_volume_capability_flag {
      */
     VEHICLE_AUDIO_VOLUME_CAPABILITY_PERSISTENT_STORAGE = 0x1,
 };
+
 
 /**
  * enum to represent audio volume state.
@@ -742,7 +751,7 @@ enum vehicle_audio_volume_index {
  * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT                           (0x00000902)
+#define VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT                         (0x00000902)
 
 /**
  * Index in int32_array for VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT property.
@@ -771,7 +780,7 @@ enum vehicle_audio_volume_limit_index {
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY                         (0x00000903)
+#define VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY                       (0x00000903)
 
 /**
  * Index in int32_array for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY property.
@@ -794,7 +803,7 @@ enum vehicle_audio_routing_policy_index {
 *               this.
 * @data_member int32_value
 */
-#define VEHICLE_PROPERTY_AUDIO_HW_VARIANT                             (0x00000904)
+#define VEHICLE_PROPERTY_AUDIO_HW_VARIANT                           (0x00000904)
 
 /**
  * Flag to be used in vehicle_prop_config.config_flags for VEHICLE_PROPERTY_AUDIO_HW_VARIANT.
@@ -832,7 +841,7 @@ enum vehicle_audio_hw_variant_config_flag {
  * @config_flags Additional info on power state. Should use vehicle_ap_power_state_config_flag.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AP_POWER_STATE                               (0x00000A00)
+#define VEHICLE_PROPERTY_AP_POWER_STATE                             (0x00000A00)
 
 enum vehicle_ap_power_state_config_flag {
     /**
@@ -939,7 +948,7 @@ enum vehicle_ap_power_set_state {
  * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32
  */
-#define VEHICLE_PROPERTY_DISPLAY_BRIGHTNESS                        (0x00000A01)
+#define VEHICLE_PROPERTY_DISPLAY_BRIGHTNESS                         (0x00000A01)
 
 
 /**
@@ -1043,7 +1052,7 @@ enum vehicle_display {
  * @config_array 0:vehicle_instument_cluster_type 1:hw type
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_INSTRUMENT_CLUSTER_INFO                     (0x00000A20)
+#define VEHICLE_PROPERTY_INSTRUMENT_CLUSTER_INFO                    (0x00000A20)
 
 /**
  * Represents instrument cluster type available in system
@@ -1062,6 +1071,56 @@ enum vehicle_instument_cluster_type {
     VEHICLE_INSTRUMENT_CLUSTER_TYPE_EXTERNAL_DISPLAY = 2,
 };
 
+
+/**
+ * Seat temperature
+ *
+ * Negative values indicate cooling.
+ * 0 indicates off.
+ * Positive values indicate heating.
+ *
+ * Some vehicles may have multiple levels of heating and cooling. The min/max
+ * range defines the allowable range and number of steps in each direction.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ */
+#define VEHICLE_PROPERTY_SEAT_TEMPERATURE                           (0x00000B00)
+
+/**
+ * Seat memory
+ *
+ * This parameter selects the memory preset to use to select the seat position.
+ * The minValue is always 0, and the maxValue determines the number of seat
+ * positions available.
+ *
+ * For instance, if the driver's seat has 3 memory presets, the maxValue will be 3.
+ * When the user wants to select a preset, the desired preset number (1, 2, or 3)
+ * is set.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ */
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B01)
+
+/**
+ * Seat memory set
+ *
+ * This setting allows the user to save the current seat position settings into
+ * the selected preset slot.  The maxValue for each seat position shall match
+ * the maxValue for VEHICLE_PROPERTY_SEAT_MEMORY_SELECT.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ */
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B02)
+
 /**
  *  H/W specific, non-standard property can be added as necessary. Such property should use
  *  property number in range of [VEHICLE_PROPERTY_CUSTOM_START, VEHICLE_PROPERTY_CUSTOM_END].
@@ -1071,20 +1130,20 @@ enum vehicle_instument_cluster_type {
  *  include config_string of "com.XYZ.some_further_details".
  *  @range_start
  */
-#define VEHICLE_PROPERTY_CUSTOM_START                       (0x70000000)
+#define VEHICLE_PROPERTY_CUSTOM_START                               (0x70000000)
 /** @range_end */
-#define VEHICLE_PROPERTY_CUSTOM_END                         (0x73ffffff)
+#define VEHICLE_PROPERTY_CUSTOM_END                                 (0x73ffffff)
 
 /**
  * Property range allocated for system's internal usage like testing. HAL should never declare
  * property in this range.
  * @range_start
  */
-#define VEHICLE_PROPERTY_INTERNAL_START                     (0x74000000)
+#define VEHICLE_PROPERTY_INTERNAL_START                             (0x74000000)
 /**
  * @range_end
  */
-#define VEHICLE_PROPERTY_INTERNAL_END                       (0x74ffffff)
+#define VEHICLE_PROPERTY_INTERNAL_END                               (0x74ffffff)
 
 /**
  * Value types for various properties.
