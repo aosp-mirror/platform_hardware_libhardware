@@ -334,36 +334,40 @@ enum vehicle_hvac_fan_direction {
 
 /**
  * On/off max AC
- * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.max_ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_AC_ON                             (0x00000506)
 
 /**
  * On/off max defrost
- * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.max_defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_DEFROST_ON                        (0x00000507)
 
 /**
  * On/off re-circulation
- * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.max_recirc_on
  */
 #define VEHICLE_PROPERTY_HVAC_RECIRC_ON                             (0x00000508)
 
 /**
- * On/off dual
- * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * On/off dual. This will be defined per each row.
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE
  * @data_member hvac.dual_on
  */
 #define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
@@ -1205,7 +1209,7 @@ enum vehicle_permission_model {
 
 #define VEHICLE_FLOAT_OUT_OF_RANGE_MAX (INFINITY)
 #define VEHICLE_FLOAT_OUT_OF_RANGE_MIN (-INFINITY)
-#define VEHICLE_INT_OUT_OF_RANGE_OFF (NAN)
+#define VEHICLE_FLOAT_OUT_OF_RANGE_OFF (NAN)
 
 /**
  * Car states.
