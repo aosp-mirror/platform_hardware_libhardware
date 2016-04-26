@@ -1700,6 +1700,8 @@ typedef struct vehicle_hw_device {
      * Setting some properties require having initial state available. Depending on the vehicle hal,
      * such initial data may not be available for short time after init. In such case, set call
      * can return -EAGAIN like get call.
+     * For a property with separate power control, set can fail if the property is not powered on.
+     * In such case, hal should return -ESHUTDOWN error.
      */
     int (*set)(struct vehicle_hw_device* device, const vehicle_prop_value_t *data);
 
