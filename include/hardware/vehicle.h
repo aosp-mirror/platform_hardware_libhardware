@@ -1082,7 +1082,7 @@ enum vehicle_instument_cluster_type {
  * Some vehicles may have multiple levels of heating and cooling. The min/max
  * range defines the allowable range and number of steps in each direction.
  *
- * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
@@ -1100,7 +1100,7 @@ enum vehicle_instument_cluster_type {
  * When the user wants to select a preset, the desired preset number (1, 2, or 3)
  * is set.
  *
- * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
@@ -1114,7 +1114,7 @@ enum vehicle_instument_cluster_type {
  * the selected preset slot.  The maxValue for each seat position shall match
  * the maxValue for VEHICLE_PROPERTY_SEAT_MEMORY_SELECT.
  *
- * @value_type VEHICLE_VALUE_TYPE_ZONED_INT
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
