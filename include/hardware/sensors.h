@@ -947,7 +947,10 @@ typedef struct dynamic_sensor_meta_event {
     int32_t  connected;
     int32_t  handle;
     const struct sensor_t * sensor; // should be NULL if connected == false
-    uint8_t uuid[16];               // UUID of a dynamic sensor (use platform endianess).
+    uint8_t uuid[16];               // UUID of a dynamic sensor (using RFC 4122 byte order)
+                                    // For UUID 12345678-90AB-CDEF-1122-334455667788 the uuid field
+                                    // should be initialized as:
+                                    // {0x12, 0x34, 0x56, 0x78, 0x90, 0xAB, 0xCD, 0xEF, 0x11, ...}
 } dynamic_sensor_meta_event_t;
 
 /**
