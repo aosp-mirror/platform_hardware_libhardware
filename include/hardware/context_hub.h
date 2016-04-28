@@ -121,6 +121,7 @@ struct mem_range_t {
 
 #define NANOAPP_SIGNED_FLAG    0x1
 #define NANOAPP_ENCRYPTED_FLAG 0x2
+#define NANOAPP_MAGIC (((uint32_t)'N' <<  0) | ((uint32_t)'A' <<  8) | ((uint32_t)'N' << 16) | ((uint32_t)'O' << 24))
 
 // The binary format below is in little endian format
 struct nano_app_binary_t {
