@@ -378,6 +378,7 @@ enum vehicle_hvac_fan_direction {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_ZONE
+ * @data_member hvac.auto_on
  */
 #define VEHICLE_PROPERTY_HVAC_AUTO_ON                               (0x0000050A)
 
@@ -1571,6 +1572,7 @@ typedef struct vehicle_hvac {
         vehicle_boolean_t max_defrost_on;
         vehicle_boolean_t recirc_on;
         vehicle_boolean_t dual_on;
+        vehicle_boolean_t auto_on;
         vehicle_boolean_t power_on;
 
         float temperature_current;
