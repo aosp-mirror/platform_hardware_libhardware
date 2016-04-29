@@ -373,7 +373,7 @@ typedef enum {
     CONTEXT_HUB_QUERY_MEMORY = 6, // Query for memory info
 } hub_messages_e;
 
-#define CONTEXT_HUB_TYPE_PRIVATE_MSG_BASE 0x10000
+#define CONTEXT_HUB_TYPE_PRIVATE_MSG_BASE 0x00400
 
 /**
  * A callback registers with the context hub service to pass messages
