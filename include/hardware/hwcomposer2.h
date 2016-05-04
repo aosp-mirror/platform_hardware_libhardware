@@ -1384,6 +1384,10 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG)(
  * prior to the call to presentDisplay, and layers not marked as
  * HWC2_COMPOSITION_CLIENT should be composited with this buffer by the device.
  *
+ * The buffer handle provided may be null if no layers are being composited by
+ * the client. This must not result in an error (unless an invalid display
+ * handle is also provided).
+ *
  * Also provides a file descriptor referring to an acquire sync fence object,
  * which will be signaled when it is safe to read from the client target buffer.
  * If it is already safe to read from this buffer, -1 may be passed instead.
