@@ -82,8 +82,8 @@ typedef struct {
   float shutdown_threshold;
 
   /**
-   * Threshold temperature at which VR mode clockrate minumums cannot be
-   * maintained for this device temperature type.
+   * Threshold temperature above which the VR mode clockrate minimums cannot
+   * be maintained for this device.
    * If not available, set by HAL to UNKNOWN_TEMPERATURE.
    */
   float vr_throttling_threshold;
