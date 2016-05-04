@@ -35,42 +35,54 @@ __BEGIN_DECLS
  *   and gyro to an application-visible callback must be extremely low (<5ms
  *   typically).  This is required for HIFI sensor support.
  * - Low display latency - Total end-to-end latency from the GPU draw calls to
- *   the actual display update must be as low as possible.  This is typically
- *   achieved by using SurfaceFlinger in a single-buffered mode, and assuring
- *   that draw calls are synchronized with the display scanout correctly.  Any
- *   GPU settings required to allow consistent performance of this operation
- *   are required, including the EGL extensions: EGL_IMG_context_priority, and
- *   EGL_XXX_set_render_buffer_mode.
+ *   the actual display update must be as low as possible.  This is achieved by
+ *   using SurfaceFlinger in a single-buffered mode, and assuring that draw calls
+ *   are synchronized with the display scanout correctly.  This behavior is
+ *   exposed via an EGL extension to applications.  See below for the EGL
+ *   extensions needed for this.
  * - Low-persistence display - Display persistence settings must be set as low as
  *   possible while still maintaining a reasonable brightness.  For a typical
- *   display running at 60Hz, pixels should be illuminated for <4ms to be
- *   considered low-persistence (<2ms is desirable).  This avoids ghosting
- *   during movements in a VR setting.
+ *   display running at 60Hz, pixels should be illuminated for <=3.5ms to be
+ *   considered low-persistence.  This avoids ghosting during movements in a VR
+ *   setting, and should be enabled from the lights.h HAL when
+ *   BRIGHTNESS_MODE_LOW_PERSISTENCE is set.
  * - Consistent performance of the GPU and CPU - When given a mixed GPU/CPU
  *   workload for a VR application with bursts of work at regular intervals
- *   several times a frame.  CPU scheduling should ensure that the application
- *   render thread is run consistently within 1ms of when required for the
- *   draw window, and an appropriate clockrate is maintained to ensure the
- *   workload finishes within the time alloted to the draw window.  Likewise,
- *   GPU scheduling should ensure that work from the application render thread
- *   is given priority over other GPU work, and that a high enough clockrate can
- *   be maintained to ensure that this completes within the draw window.  CTS
- *   tests with example VR workloads will be available to assess performance
- *   tuning.
+ *   several times a frame, the CPU scheduling should ensure that the application
+ *   render thread work is run consistently within 1ms of when scheduled, and
+ *   completed before the end of the draw window.  To this end, a single CPU core
+ *   must be reserved for solely for the currently running VR application's render
+ *   thread while in VR mode, and made available in the "top-app" cpuset.
+ *   Likewise, an appropriate CPU, GPU, and bus clockrate must be maintained to
+ *   ensure that the rendering workload finishes within the time allotted to
+ *   render each frame when the POWER_HINT_SUSTAINED_PERFORMANCE flag has been
+ *   set in the power.h HAL while in VR mode when the device is not being
+ *   thermally throttled.
+ * - Required EGL extensions must be present - Any GPU settings required to allow
+ *   the above capabilities are required, including the EGL extensions:
+ *   EGL_ANDROID_create_native_client_buffer, EGL_ANDROID_front_buffer_auto_refresh,
+ *   EGL_EXT_protected_content, EGL_KHR_mutable_render_buffer,
+ *   EGL_KHR_reusable_sync, and EGL_KHR_wait_sync.
+ * - Accurate thermal reporting - Accurate thermal temperatures and limits must be
+ *   reported in the thermal.h HAL.  Specifically, the current skin temperature
+ *   must accurately be reported for DEVICE_TEMPERATURE_SKIN and the
+ *   vr_throttling_threshold reported for this device must accurately report the
+ *   temperature limit above which the device's thermal governor throttles the
+ *   CPU, GPU, and/or bus clockrates below the minimum necessary for consistent
+ *   performance (see previous bullet point).
  *
- * Vendors implementing this HAL are expected to use set_vr_mode as a hint to
- * enable VR-specific performance tuning, and to turn on any device features
- * optimal for VR display modes (or do nothing if none are available). Devices
- * that advertise FEATURE_VR_MODE_HIGH_PERFORMANCE are must pass the additional
- * CTS performance tests required for this feature and follow the additional
- * guidelines for hardware implementation for "VR Ready" devices.
+ * In general, vendors implementing this HAL are expected to use set_vr_mode as a
+ * hint to enable VR-specific performance tuning needed for any of the above
+ * requirements, and to turn on any device features optimal for VR display
+ * modes.  The set_vr_mode call may simply do nothing if no optimizations are
+ * available or necessary to meet the above requirements.
  *
  * No methods in this HAL will be called concurrently from the Android framework.
  */
 typedef struct vr_module {
     /**
      * Common methods of the  module.  This *must* be the first member of
-     * vr_module as users of * this structure will cast a hw_module_t to a
+     * vr_module as users of this structure may cast a hw_module_t to a
      * vr_module pointer in contexts where it's known that the hw_module_t
      * references a vr_module.
      */
@@ -88,10 +100,9 @@ typedef struct vr_module {
      * false - VR mode is disabled, turn off all VR-specific settings.
      * true - VR mode is enabled, turn on all VR-specific settings.
      *
-     * This is called from the VrManagerService whenever the application(s)
-     * currently in use enters or leaves VR mode. This will typically occur
-     * when the user switches or from an application that has indicated to
-     * system_server that it should run in VR mode.
+     * This is called whenever the the Android system enters or leaves VR mode.
+     * This will typically occur when the user switches to or from a VR application
+     * that is doing stereoscopic rendering.
      */
     void (*set_vr_mode)(struct vr_module *module, bool enabled);
 
