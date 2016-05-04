@@ -41,7 +41,7 @@ namespace android {
 
 class UniqueBlob : public UniquePtr<uint8_t[]> {
 public:
-    UniqueBlob(size_t length) :
+    explicit UniqueBlob(size_t length) :
             mLength(length) {
     }
 
