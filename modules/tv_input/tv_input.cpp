@@ -37,18 +37,18 @@ static int tv_input_device_open(const struct hw_module_t* module,
         const char* name, struct hw_device_t** device);
 
 static struct hw_module_methods_t tv_input_module_methods = {
-    .open = tv_input_device_open
+    open: tv_input_device_open
 };
 
 tv_input_module_t HAL_MODULE_INFO_SYM = {
-    .common = {
-        .tag = HARDWARE_MODULE_TAG,
-        .version_major = 0,
-        .version_minor = 1,
-        .id = TV_INPUT_HARDWARE_MODULE_ID,
-        .name = "Sample TV input module",
-        .author = "The Android Open Source Project",
-        .methods = &tv_input_module_methods,
+    common: {
+        tag: HARDWARE_MODULE_TAG,
+        version_major: 0,
+        version_minor: 1,
+        id: TV_INPUT_HARDWARE_MODULE_ID,
+        name: "Sample TV input module",
+        author: "The Android Open Source Project",
+        methods: &tv_input_module_methods,
     }
 };
 
@@ -72,8 +72,7 @@ static int tv_input_initialize(struct tv_input_device* dev,
 }
 
 static int tv_input_get_stream_configurations(
-        const struct tv_input_device*, int, int*,
-        const tv_stream_config_t**)
+        const struct tv_input_device*, int, int*, const tv_stream_config_t**)
 {
     return -EINVAL;
 }
@@ -95,13 +94,6 @@ static int tv_input_request_capture(
 }
 
 static int tv_input_cancel_capture(struct tv_input_device*, int, int, uint32_t)
-{
-    return -EINVAL;
-}
-
-static int tv_input_get_stream_configurations_ext(
-        const struct tv_input_device*, int, int*,
-        const tv_stream_config_ext_t**)
 {
     return -EINVAL;
 }
@@ -142,8 +134,6 @@ static int tv_input_device_open(const struct hw_module_t* module,
         dev->device.close_stream = tv_input_close_stream;
         dev->device.request_capture = tv_input_request_capture;
         dev->device.cancel_capture = tv_input_cancel_capture;
-        dev->device.get_stream_configurations_ext =
-                tv_input_get_stream_configurations_ext;
 
         *device = &dev->device.common;
         status = 0;
