@@ -1072,6 +1072,30 @@ enum vehicle_instument_cluster_type {
     VEHICLE_INSTRUMENT_CLUSTER_TYPE_EXTERNAL_DISPLAY = 2,
 };
 
+/**
+ * Current date and time, encoded as Unix time.
+ * This value denotes the number of seconds that have elapsed since 1/1/1970.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT64
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_POLL
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int64_value
+ * @unit VEHICLE_UNIT_TYPE_SECS
+ */
+#define VEHICLE_PROPERTY_UNIX_TIME                                  (0x00000A30)
+
+/**
+ * Current time only.
+ * Some vehicles may not keep track of date.  This property only affects the current time, in
+ * seconds during the day.  Thus, the max value for this parameter is 86,400 (24 * 60 * 60)
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_POLL
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ * @unit VEHICLE_UNIT_TYPE_SECS
+ */
+#define VEHICLE_PROPERTY_CURRENT_TIME_IN_SECONDS                    (0x00000A31)
 
 /**
  * Seat temperature
@@ -1087,6 +1111,7 @@ enum vehicle_instument_cluster_type {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_TEMPERATURE                           (0x00000B00)
 
@@ -1105,6 +1130,7 @@ enum vehicle_instument_cluster_type {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B01)
 
@@ -1119,6 +1145,7 @@ enum vehicle_instument_cluster_type {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B02)
 
@@ -1195,7 +1222,7 @@ enum vehicle_unit_type {
     VEHICLE_UNIT_TYPE_MILLILITER            = 0x00000040,
     // time
     VEHICLE_UNIT_TYPE_NANO_SECS             = 0x00000050,
-    VEHICLE_UNOT_TYPE_SECS                  = 0x00000053,
+    VEHICLE_UNIT_TYPE_SECS                  = 0x00000053,
     VEHICLE_UNIT_TYPE_YEAR                  = 0x00000059,
 };
 
@@ -1218,6 +1245,10 @@ enum vehicle_prop_change_mode {
      * the data.
      */
     VEHICLE_PROP_CHANGE_MODE_CONTINUOUS     = 0x02,
+    /**
+     * Property of this type may be polled to get the current value.
+     */
+    VEHICLE_PROP_CHANGE_MODE_POLL           = 0x03,
 };
 
 /**
