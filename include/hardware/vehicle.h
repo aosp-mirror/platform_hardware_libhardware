@@ -293,7 +293,7 @@ enum vehicle_hvac_fan_direction {
 /**
  * HVAC current temperature.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_current
@@ -303,7 +303,7 @@ enum vehicle_hvac_fan_direction {
 /**
  * HVAC, target temperature set.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_ZONE
  * @data_member hvac.temperature_set
@@ -501,7 +501,8 @@ enum vehicle_radio_consts {
  *                       VEHICLE_AUDIO_EXT_FOCUS_CAR_PERMANENT when car side is playing something
  *                       permanent.
  *                   LOSS_TRANSIENT: always should be VEHICLE_AUDIO_EXT_FOCUS_CAR_TRANSIENT
- *   int32_array[3]: should be zero.
+ *   int32_array[3]: context requested by android side when responding to focus request.
+ *                   When car side is taking focus away, this should be zero.
  *
  * A focus response should be sent per each focus request even if there is no change in
  * focus state. This can happen in case like focus request only involving context change
@@ -1077,7 +1078,7 @@ enum vehicle_instument_cluster_type {
  * This value denotes the number of seconds that have elapsed since 1/1/1970.
  *
  * @value_type VEHICLE_VALUE_TYPE_INT64
- * @change_mode VEHICLE_PROP_CHANGE_MODE_POLL
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_SET
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int64_value
  * @unit VEHICLE_UNIT_TYPE_SECS
@@ -1090,7 +1091,7 @@ enum vehicle_instument_cluster_type {
  * seconds during the day.  Thus, the max value for this parameter is 86,400 (24 * 60 * 60)
  *
  * @value_type VEHICLE_VALUE_TYPE_INT32
- * @change_mode VEHICLE_PROP_CHANGE_MODE_POLL
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_SET
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_value
  * @unit VEHICLE_UNIT_TYPE_SECS
@@ -1236,8 +1237,12 @@ enum vehicle_prop_change_mode {
      */
     VEHICLE_PROP_CHANGE_MODE_STATIC         = 0x00,
     /**
-     * Property of this type will be reported when there is a change. get should return the
-     * current value.
+     * Property of this type will be reported when there is a change.
+     * get call should return the current value.
+     * Set operation for this property is assumed to be asynchronous. When the property is read
+     * (=get) after set, it may still return old value until underlying H/W backing this property
+     * has actually changed the state. Once state is changed, the property will dispatch changed
+     * value as event.
      */
     VEHICLE_PROP_CHANGE_MODE_ON_CHANGE      = 0x01,
     /**
@@ -1249,6 +1254,14 @@ enum vehicle_prop_change_mode {
      * Property of this type may be polled to get the current value.
      */
     VEHICLE_PROP_CHANGE_MODE_POLL           = 0x03,
+    /**
+     * This is for property where change event should be sent only when the value is
+     * set from external component. Normal value change will not trigger event.
+     * For example, clock property can send change event only when it is set, outside android,
+     * for case like user setting time or time getting update. There is no need to send it
+     * per every value change.
+     */
+    VEHICLE_PROP_CHANGE_MODE_ON_SET         = 0x04,
 };
 
 /**
