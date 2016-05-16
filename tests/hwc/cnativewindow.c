@@ -37,7 +37,7 @@ typedef struct ANativeWindow aWindow;
 static int trace_level = 1;
 
 #define _TRACE(n,fmt...) \
-	do { if (trace_level >= n) fprintf(stderr, "CNW: " fmt); } while (0)
+	do { if (trace_level >= (n)) fprintf(stderr, "CNW: " fmt); } while (0)
 
 #define ERROR(fmt...) _TRACE(0, fmt)
 #define INFO(fmt...) _TRACE(1, fmt)
