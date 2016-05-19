@@ -583,13 +583,9 @@ typedef struct {
      *
      * - GPS:     1-32
      * - SBAS:    120-151, 183-192
-     * - GLONASS: Set the upper 8 bits, signed, to the frequency channel number
-     *            (FCN) in the range from -7 to +6, if known, and -127, if
-     *            unknown
-     *            Set the lower 8 bits, signed, to the orbital slot number (OSN)
-     *            in the range from 1-24, if known, or -127 if unknown
-     *            At least one of the two (FCN & OSN) must be set to a known
-     *            value
+     * - GLONASS: 1-24, the orbital slot number (OSN), if known.  Or, if not:
+     *            93-106, the frequency channel number (FCN) (-7 to +6) offset by + 100
+     *            i.e. report an FCN of -7 as 93, FCN of 0 as 100, and FCN of +6 as 106.
      * - QZSS:    193-200
      * - Galileo: 1-36
      * - Beidou:  1-37
