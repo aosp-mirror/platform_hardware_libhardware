@@ -702,6 +702,11 @@ enum vehicle_audio_volume_capability_flag {
      * of each physical streams whenever there is an audio context change.
      */
     VEHICLE_AUDIO_VOLUME_CAPABILITY_PERSISTENT_STORAGE = 0x1,
+    /**
+     * When this flag is set, the H/W can support only single master volume for all streams.
+     * There is no way to set volume level differently per each stream or context.
+     */
+    VEHICLE_AUDIO_VOLUME_CAPABILITY_MASTER_VOLUME_ONLY = 0x2,
 };
 
 
@@ -1240,7 +1245,7 @@ enum vehicle_prop_change_mode {
      * Property of this type will be reported when there is a change.
      * get call should return the current value.
      * Set operation for this property is assumed to be asynchronous. When the property is read
-     * (=get) after set, it may still return old value until underlying H/W backing this property
+     * (get) after set, it may still return old value until underlying H/W backing this property
      * has actually changed the state. Once state is changed, the property will dispatch changed
      * value as event.
      */
