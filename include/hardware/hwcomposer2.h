@@ -816,17 +816,24 @@ typedef void (*HWC2_PFN_VSYNC)(hwc2_callback_data_t callbackData,
  * this parameter is omitted from the described parameter lists.
  */
 
-/* createVirtualDisplay(..., width, height, outDisplay)
+/* createVirtualDisplay(..., width, height, format, outDisplay)
  * Descriptor: HWC2_FUNCTION_CREATE_VIRTUAL_DISPLAY
  * Must be provided by all HWC2 devices
  *
- * Creates a new virtual display with the given width and height. The display
- * will be assumed to be on from the time the first frame is presented until the
- * display is destroyed.
+ * Creates a new virtual display with the given width and height. The format
+ * passed into this function is the default format requested by the consumer of
+ * the virtual display output buffers. If a different format will be returned by
+ * the device, it should be returned in this parameter so it can be set properly
+ * when handing the buffers to the consumer.
+ *
+ * The display will be assumed to be on from the time the first frame is
+ * presented until the display is destroyed.
  *
  * Parameters:
  *   width - width in pixels
  *   height - height in pixels
+ *   format - prior to the call, the default output buffer format selected by
+ *       the consumer; after the call, the format the device will produce
  *   outDisplay - the newly-created virtual display; pointer will be non-NULL
  *
  * Returns HWC2_ERROR_NONE or one of the following errors:
@@ -837,7 +844,7 @@ typedef void (*HWC2_PFN_VSYNC)(hwc2_callback_data_t callbackData,
  */
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_CREATE_VIRTUAL_DISPLAY)(
         hwc2_device_t* device, uint32_t width, uint32_t height,
-        hwc2_display_t* outDisplay);
+        int32_t* /*android_pixel_format_t*/ format, hwc2_display_t* outDisplay);
 
 /* destroyVirtualDisplay(..., display)
  * Descriptor: HWC2_FUNCTION_DESTROY_VIRTUAL_DISPLAY
@@ -1375,7 +1382,7 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_PRESENT_DISPLAY)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_config_t config);
 
-/* setClientTarget(..., target, acquireFence, dataspace)
+/* setClientTarget(..., target, acquireFence, dataspace, damage)
  * Descriptor: HWC2_FUNCTION_SET_CLIENT_TARGET
  * Must be provided by all HWC2 devices
  *
@@ -1396,6 +1403,9 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG)(
  *
  * For more about dataspaces, see setLayerDataspace.
  *
+ * The damage parameter describes a surface damage region as defined in the
+ * description of setLayerSurfaceDamage.
+ *
  * Will be called before presentDisplay if any of the layers are marked as
  * HWC2_COMPOSITION_CLIENT. If no layers are so marked, then it is not
  * necessary to call this function. It is not necessary to call validateDisplay
@@ -1405,6 +1415,7 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG)(
  *   target - the new target buffer
  *   acquireFence - a sync fence file descriptor as described above
  *   dataspace - the dataspace of the buffer, as described in setLayerDataspace
+ *   damage - the surface damage region
  *
  * Returns HWC2_ERROR_NONE or one of the following errors:
  *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
@@ -1412,7 +1423,8 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG)(
  */
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_CLIENT_TARGET)(
         hwc2_device_t* device, hwc2_display_t display, buffer_handle_t target,
-        int32_t acquireFence, int32_t /*android_dataspace_t*/ dataspace);
+        int32_t acquireFence, int32_t /*android_dataspace_t*/ dataspace,
+        hwc_region_t damage);
 
 /* setColorMode(..., mode)
  * Descriptor: HWC2_FUNCTION_SET_COLOR_MODE
