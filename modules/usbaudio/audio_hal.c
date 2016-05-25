@@ -912,11 +912,11 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     /* Rate */
     if (config->sample_rate == 0) {
-        proxy_config.rate = config->sample_rate = profile_get_default_sample_rate(in->profile);
-    } else if (in->dev->device_sample_rate != 0 &&      /* we are playing, so lock the rate */
-               in->dev->device_sample_rate >= RATELOCK_THRESHOLD) {  /* but only for high
-                                                                        sample rates */
-        // Lock the rate to the output rate
+        config->sample_rate = profile_get_default_sample_rate(in->profile);
+    }
+
+    if (in->dev->device_sample_rate != 0 &&                 /* we are playing, so lock the rate */
+        in->dev->device_sample_rate >= RATELOCK_THRESHOLD) {/* but only for high sample rates */
         ret = config->sample_rate != in->dev->device_sample_rate ? -EINVAL : 0;
         proxy_config.rate = config->sample_rate = in->dev->device_sample_rate;
     } else if (profile_is_sample_rate_valid(in->profile, config->sample_rate)) {
