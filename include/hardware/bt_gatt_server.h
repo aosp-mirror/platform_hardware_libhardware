@@ -94,8 +94,8 @@ typedef void (*request_read_callback)(int conn_id, int trans_id, bt_bdaddr_t *bd
  * characteristic or descriptor.
  */
 typedef void (*request_write_callback)(int conn_id, int trans_id, bt_bdaddr_t *bda,
-                                       int attr_handle, int offset, int length,
-                                       bool need_rsp, bool is_prep, uint8_t* value);
+                                       int attr_handle, int offset, bool need_rsp,
+                                       bool is_prep, vector<uint8_t> value);
 
 /** Callback invoked when a previously prepared write is to be executed */
 typedef void (*request_exec_write_callback)(int conn_id, int trans_id,
