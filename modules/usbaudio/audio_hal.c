@@ -25,6 +25,7 @@
 #include <sys/time.h>
 
 #include <log/log.h>
+#include <cutils/list.h>
 #include <cutils/str_parms.h>
 #include <cutils/properties.h>
 
@@ -65,9 +66,11 @@ struct audio_device {
 
     /* output */
     alsa_device_profile out_profile;
+    struct listnode output_stream_list;
 
     /* input */
     alsa_device_profile in_profile;
+    struct listnode input_stream_list;
 
     /* lock input & output sample rates */
     /*FIXME - How do we address multiple output streams? */
@@ -97,6 +100,8 @@ struct stream_out {
                                          * too few channels. */
     audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
 
+    struct listnode list_node;
+
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
                                          * there was a previous conversion */
@@ -122,12 +127,32 @@ struct stream_in {
                                          * too few channels. */
     audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
 
+    struct listnode list_node;
+
     /* We may need to read more data from the device in order to data reduce to 16bit, 4chan */
     void * conversion_buffer;           /* any conversions are put into here
                                          * they could come from here too if
                                          * there was a previous conversion */
     size_t conversion_buffer_size;      /* in bytes */
 };
+
+static void adev_add_stream_to_list(
+    struct audio_device* adev, struct listnode* list, struct listnode* stream_node) {
+    pthread_mutex_lock(&adev->lock);
+
+    list_add_tail(list, stream_node);
+
+    pthread_mutex_unlock(&adev->lock);
+}
+
+static void adev_remove_stream_from_list(
+    struct audio_device* adev, struct listnode* stream_node) {
+    pthread_mutex_lock(&adev->lock);
+
+    list_remove(stream_node);
+
+    pthread_mutex_unlock(&adev->lock);
+}
 
 /*
  * NOTE: when multiple mutexes have to be acquired, always take the
@@ -297,8 +322,17 @@ static int out_standby(struct audio_stream *stream)
     return 0;
 }
 
-static int out_dump(const struct audio_stream *stream, int fd)
-{
+static int out_dump(const struct audio_stream *stream, int fd) {
+    const struct stream_out* out_stream = (const struct stream_out*) stream;
+
+    if (out_stream != NULL) {
+        dprintf(fd, "Output Profile:\n");
+        profile_dump(out_stream->profile, fd);
+
+        dprintf(fd, "Output Proxy:\n");
+        proxy_dump(&out_stream->proxy, fd);
+    }
+
     return 0;
 }
 
@@ -592,6 +626,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     out->standby = true;
 
+    /* Save the stream for adev_dump() */
+    adev_add_stream_to_list(out->dev, &out->dev->output_stream_list, &out->list_node);
+
     *stream_out = &out->stream;
 
     return ret;
@@ -607,6 +644,8 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
 {
     struct stream_out *out = (struct stream_out *)stream;
     ALOGV("adev_close_output_stream(c:%d d:%d)", out->profile->card, out->profile->device);
+
+    adev_remove_stream_from_list(out->dev, &out->list_node);
 
     /* Close the pcm device */
     out_standby(&stream->common);
@@ -691,7 +730,16 @@ static int in_standby(struct audio_stream *stream)
 
 static int in_dump(const struct audio_stream *stream, int fd)
 {
-    return 0;
+  const struct stream_in* in_stream = (const struct stream_in*)stream;
+  if (in_stream != NULL) {
+      dprintf(fd, "Input Profile:\n");
+      profile_dump(in_stream->profile, fd);
+
+      dprintf(fd, "Input Proxy:\n");
+      proxy_dump(&in_stream->proxy, fd);
+  }
+
+  return 0;
 }
 
 static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
@@ -966,6 +1014,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->standby = true;
 
+    /* Save this for adev_dump() */
+    adev_add_stream_to_list(in->dev, &in->dev->input_stream_list, &in->list_node);
+
     in->conversion_buffer = NULL;
     in->conversion_buffer_size = 0;
 
@@ -977,6 +1028,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_stream_in *stream)
 {
     struct stream_in *in = (struct stream_in *)stream;
+    ALOGV("adev_close_input_stream(c:%d d:%d)", in->profile->card, in->profile->device);
+
+    adev_remove_stream_from_list(in->dev, &in->list_node);
 
     /* Close the pcm device */
     in_standby(&stream->common);
@@ -1035,6 +1089,48 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 
 static int adev_dump(const audio_hw_device_t *device, int fd)
 {
+    dprintf(fd, "\nUSB audio module:\n");
+
+    struct audio_device* adev = (struct audio_device*)device;
+    const int kNumRetries = 3;
+    const int kSleepTimeMS = 500;
+
+    // use pthread_mutex_trylock() in case we dumpsys during a deadlock
+    int retry = kNumRetries;
+    while (retry > 0 && pthread_mutex_trylock(&adev->lock) != 0) {
+      sleep(kSleepTimeMS);
+      retry--;
+    }
+
+    if (retry > 0) {
+        if (list_empty(&adev->output_stream_list)) {
+            dprintf(fd, "  No output streams.\n");
+        } else {
+            struct listnode* node;
+            list_for_each(node, &adev->output_stream_list) {
+                struct audio_stream* stream =
+                        (struct audio_stream *)node_to_item(node, struct stream_out, list_node);
+                out_dump(stream, fd);
+            }
+        }
+
+        if (list_empty(&adev->input_stream_list)) {
+            dprintf(fd, "\n  No input streams.\n");
+        } else {
+            struct listnode* node;
+            list_for_each(node, &adev->input_stream_list) {
+                struct audio_stream* stream =
+                        (struct audio_stream *)node_to_item(node, struct stream_in, list_node);
+                in_dump(stream, fd);
+            }
+        }
+
+        pthread_mutex_unlock(&adev->lock);
+    } else {
+        // Couldn't lock
+        dprintf(fd, "  Could not obtain device lock.\n");
+    }
+
     return 0;
 }
 
@@ -1057,6 +1153,9 @@ static int adev_open(const hw_module_t* module, const char* name, hw_device_t** 
 
     profile_init(&adev->out_profile, PCM_OUT);
     profile_init(&adev->in_profile, PCM_IN);
+
+    list_init(&adev->output_stream_list);
+    list_init(&adev->input_stream_list);
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;
     adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_2_0;
