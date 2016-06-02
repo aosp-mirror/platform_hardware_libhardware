@@ -88,7 +88,7 @@ struct stream_out {
     pthread_mutex_t pre_lock;           /* acquire before lock to avoid DOS by playback thread */
     bool standby;
 
-    struct audio_device *dev;           /* hardware information - only using this for the lock */
+    struct audio_device *adev;           /* hardware information - only using this for the lock */
 
     alsa_device_profile * profile;      /* Points to the alsa_device_profile in the audio_device */
     alsa_device_proxy proxy;            /* state of the stream */
@@ -115,7 +115,7 @@ struct stream_in {
     pthread_mutex_t pre_lock;           /* acquire before lock to avoid DOS by capture thread */
     bool standby;
 
-    struct audio_device *dev;           /* hardware information - only using this for the lock */
+    struct audio_device *adev;           /* hardware information - only using this for the lock */
 
     alsa_device_profile * profile;      /* Points to the alsa_device_profile in the audio_device */
     alsa_device_proxy proxy;            /* state of the stream */
@@ -312,9 +312,9 @@ static int out_standby(struct audio_stream *stream)
 
     lock_output_stream(out);
     if (!out->standby) {
-        pthread_mutex_lock(&out->dev->lock);
+        pthread_mutex_lock(&out->adev->lock);
         proxy_close(&out->proxy);
-        pthread_mutex_unlock(&out->dev->lock);
+        pthread_mutex_unlock(&out->adev->lock);
         out->standby = true;
     }
     pthread_mutex_unlock(&out->lock);
@@ -354,7 +354,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     lock_output_stream(out);
     /* Lock the device because that is where the profile lives */
-    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&out->adev->lock);
 
     if (!profile_is_cached_for(out->profile, card, device)) {
         /* cannot read pcm device info if playback is active */
@@ -373,7 +373,7 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         }
     }
 
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_unlock(&out->adev->lock);
     pthread_mutex_unlock(&out->lock);
 
     return ret_value;
@@ -383,12 +383,12 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 {
     struct stream_out *out = (struct stream_out *)stream;
     lock_output_stream(out);
-    pthread_mutex_lock(&out->dev->lock);
+    pthread_mutex_lock(&out->adev->lock);
 
     char * params_str =  device_get_parameters(out->profile, keys);
 
     pthread_mutex_unlock(&out->lock);
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_unlock(&out->adev->lock);
 
     return params_str;
 }
@@ -419,9 +419,9 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
 
     lock_output_stream(out);
     if (out->standby) {
-        pthread_mutex_lock(&out->dev->lock);
+        pthread_mutex_lock(&out->adev->lock);
         ret = start_output_stream(out);
-        pthread_mutex_unlock(&out->dev->lock);
+        pthread_mutex_unlock(&out->adev->lock);
         if (ret != 0) {
             goto err;
         }
@@ -503,24 +503,23 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream, i
     return -EINVAL;
 }
 
-static int adev_open_output_stream(struct audio_hw_device *dev,
+static int adev_open_output_stream(struct audio_hw_device *hw_dev,
                                    audio_io_handle_t handle,
-                                   audio_devices_t devices,
+                                   audio_devices_t devicesSpec __unused,
                                    audio_output_flags_t flags,
                                    struct audio_config *config,
                                    struct audio_stream_out **stream_out,
                                    const char *address /*__unused*/)
 {
-    ALOGV("adev_open_output_stream() handle:0x%X, device:0x%X, flags:0x%X, addr:%s",
-          handle, devices, flags, address);
-
-    struct audio_device *adev = (struct audio_device *)dev;
+    ALOGV("adev_open_output_stream() handle:0x%X, devicesSpec:0x%X, flags:0x%X, addr:%s",
+          handle, devicesSpec, flags, address);
 
     struct stream_out *out;
 
     out = (struct stream_out *)calloc(1, sizeof(struct stream_out));
-    if (!out)
+    if (out == NULL) {
         return -ENOMEM;
+    }
 
     /* setup function pointers */
     out->stream.common.get_sample_rate = out_get_sample_rate;
@@ -545,9 +544,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     pthread_mutex_init(&out->lock, (const pthread_mutexattr_t *) NULL);
     pthread_mutex_init(&out->pre_lock, (const pthread_mutexattr_t *) NULL);
 
-    out->dev = adev;
-    pthread_mutex_lock(&adev->lock);
-    out->profile = &adev->out_profile;
+    out->adev = (struct audio_device *)hw_dev;
+    pthread_mutex_lock(&out->adev->lock);
+    out->profile = &out->adev->out_profile;
 
     // build this to hand to the alsa_device_proxy
     struct pcm_config proxy_config;
@@ -570,8 +569,8 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
         ret = -EINVAL;
     }
 
-    out->dev->device_sample_rate = config->sample_rate;
-    pthread_mutex_unlock(&adev->lock);
+    out->adev->device_sample_rate = config->sample_rate;
+    pthread_mutex_unlock(&out->adev->lock);
 
     /* Format */
     if (config->format == AUDIO_FORMAT_DEFAULT) {
@@ -627,7 +626,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->standby = true;
 
     /* Save the stream for adev_dump() */
-    adev_add_stream_to_list(out->dev, &out->dev->output_stream_list, &out->list_node);
+    adev_add_stream_to_list(out->adev, &out->adev->output_stream_list, &out->list_node);
 
     *stream_out = &out->stream;
 
@@ -639,13 +638,13 @@ err_open:
     return -ENOSYS;
 }
 
-static void adev_close_output_stream(struct audio_hw_device *dev,
+static void adev_close_output_stream(struct audio_hw_device *hw_dev,
                                      struct audio_stream_out *stream)
 {
     struct stream_out *out = (struct stream_out *)stream;
     ALOGV("adev_close_output_stream(c:%d d:%d)", out->profile->card, out->profile->device);
 
-    adev_remove_stream_from_list(out->dev, &out->list_node);
+    adev_remove_stream_from_list(out->adev, &out->list_node);
 
     /* Close the pcm device */
     out_standby(&stream->common);
@@ -655,14 +654,14 @@ static void adev_close_output_stream(struct audio_hw_device *dev,
     out->conversion_buffer = NULL;
     out->conversion_buffer_size = 0;
 
-    pthread_mutex_lock(&out->dev->lock);
-    out->dev->device_sample_rate = 0;
-    pthread_mutex_unlock(&out->dev->lock);
+    pthread_mutex_lock(&out->adev->lock);
+    out->adev->device_sample_rate = 0;
+    pthread_mutex_unlock(&out->adev->lock);
 
     free(stream);
 }
 
-static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
+static size_t adev_get_input_buffer_size(const struct audio_hw_device *hw_dev,
                                          const struct audio_config *config)
 {
     /* TODO This needs to be calculated based on format/channels/rate */
@@ -717,9 +716,9 @@ static int in_standby(struct audio_stream *stream)
 
     lock_input_stream(in);
     if (!in->standby) {
-        pthread_mutex_lock(&in->dev->lock);
+        pthread_mutex_lock(&in->adev->lock);
         proxy_close(&in->proxy);
-        pthread_mutex_unlock(&in->dev->lock);
+        pthread_mutex_unlock(&in->adev->lock);
         in->standby = true;
     }
 
@@ -761,7 +760,7 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     }
 
     lock_input_stream(in);
-    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->adev->lock);
 
     if (card >= 0 && device >= 0 && !profile_is_cached_for(in->profile, card, device)) {
         /* cannot read pcm device info if playback is active */
@@ -780,7 +779,7 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
         }
     }
 
-    pthread_mutex_unlock(&in->dev->lock);
+    pthread_mutex_unlock(&in->adev->lock);
     pthread_mutex_unlock(&in->lock);
 
     return ret_value;
@@ -791,11 +790,11 @@ static char * in_get_parameters(const struct audio_stream *stream, const char *k
     struct stream_in *in = (struct stream_in *)stream;
 
     lock_input_stream(in);
-    pthread_mutex_lock(&in->dev->lock);
+    pthread_mutex_lock(&in->adev->lock);
 
     char * params_str =  device_get_parameters(in->profile, keys);
 
-    pthread_mutex_unlock(&in->dev->lock);
+    pthread_mutex_unlock(&in->adev->lock);
     pthread_mutex_unlock(&in->lock);
 
     return params_str;
@@ -836,9 +835,9 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
 
     lock_input_stream(in);
     if (in->standby) {
-        pthread_mutex_lock(&in->dev->lock);
+        pthread_mutex_lock(&in->adev->lock);
         ret = start_input_stream(in);
-        pthread_mutex_unlock(&in->dev->lock);
+        pthread_mutex_unlock(&in->adev->lock);
         if (ret != 0) {
             goto err;
         }
@@ -888,8 +887,8 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
             }
         }
 
-        /* no need to acquire in->dev->lock to read mic_muted here as we don't change its state */
-        if (num_read_buff_bytes > 0 && in->dev->mic_muted)
+        /* no need to acquire in->adev->lock to read mic_muted here as we don't change its state */
+        if (num_read_buff_bytes > 0 && in->adev->mic_muted)
             memset(buffer, 0, num_read_buff_bytes);
     } else {
         num_read_buff_bytes = 0; // reset the value after USB headset is unplugged
@@ -906,9 +905,9 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     return 0;
 }
 
-static int adev_open_input_stream(struct audio_hw_device *dev,
+static int adev_open_input_stream(struct audio_hw_device *hw_dev,
                                   audio_io_handle_t handle,
-                                  audio_devices_t devices,
+                                  audio_devices_t devicesSpec __unused,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in,
                                   audio_input_flags_t flags __unused,
@@ -921,8 +920,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     struct stream_in *in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
     int ret = 0;
 
-    if (in == NULL)
+    if (in == NULL) {
         return -ENOMEM;
+    }
 
     /* setup function pointers */
     in->stream.common.get_sample_rate = in_get_sample_rate;
@@ -945,10 +945,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     pthread_mutex_init(&in->lock, (const pthread_mutexattr_t *) NULL);
     pthread_mutex_init(&in->pre_lock, (const pthread_mutexattr_t *) NULL);
 
-    in->dev = (struct audio_device *)dev;
-    pthread_mutex_lock(&in->dev->lock);
+    in->adev = (struct audio_device *)hw_dev;
+    pthread_mutex_lock(&in->adev->lock);
 
-    in->profile = &in->dev->in_profile;
+    in->profile = &in->adev->in_profile;
 
     struct pcm_config proxy_config;
     memset(&proxy_config, 0, sizeof(proxy_config));
@@ -963,17 +963,17 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         config->sample_rate = profile_get_default_sample_rate(in->profile);
     }
 
-    if (in->dev->device_sample_rate != 0 &&                 /* we are playing, so lock the rate */
-        in->dev->device_sample_rate >= RATELOCK_THRESHOLD) {/* but only for high sample rates */
-        ret = config->sample_rate != in->dev->device_sample_rate ? -EINVAL : 0;
-        proxy_config.rate = config->sample_rate = in->dev->device_sample_rate;
+    if (in->adev->device_sample_rate != 0 &&                 /* we are playing, so lock the rate */
+        in->adev->device_sample_rate >= RATELOCK_THRESHOLD) {/* but only for high sample rates */
+        ret = config->sample_rate != in->adev->device_sample_rate ? -EINVAL : 0;
+        proxy_config.rate = config->sample_rate = in->adev->device_sample_rate;
     } else if (profile_is_sample_rate_valid(in->profile, config->sample_rate)) {
-        in->dev->device_sample_rate = proxy_config.rate = config->sample_rate;
+        in->adev->device_sample_rate = proxy_config.rate = config->sample_rate;
     } else {
         proxy_config.rate = config->sample_rate = profile_get_default_sample_rate(in->profile);
         ret = -EINVAL;
     }
-    pthread_mutex_unlock(&in->dev->lock);
+    pthread_mutex_unlock(&in->adev->lock);
 
     /* Format */
     if (config->format == AUDIO_FORMAT_DEFAULT) {
@@ -1015,7 +1015,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->standby = true;
 
     /* Save this for adev_dump() */
-    adev_add_stream_to_list(in->dev, &in->dev->input_stream_list, &in->list_node);
+    adev_add_stream_to_list(in->adev, &in->adev->input_stream_list, &in->list_node);
 
     in->conversion_buffer = NULL;
     in->conversion_buffer_size = 0;
@@ -1025,12 +1025,13 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     return ret;
 }
 
-static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_stream_in *stream)
+static void adev_close_input_stream(struct audio_hw_device *hw_dev,
+                                    struct audio_stream_in *stream)
 {
     struct stream_in *in = (struct stream_in *)stream;
     ALOGV("adev_close_input_stream(c:%d d:%d)", in->profile->card, in->profile->device);
 
-    adev_remove_stream_from_list(in->dev, &in->list_node);
+    adev_remove_stream_from_list(in->adev, &in->list_node);
 
     /* Close the pcm device */
     in_standby(&stream->common);
@@ -1043,51 +1044,51 @@ static void adev_close_input_stream(struct audio_hw_device *dev, struct audio_st
 /*
  * ADEV Functions
  */
-static int adev_set_parameters(struct audio_hw_device *dev, const char *kvpairs)
+static int adev_set_parameters(struct audio_hw_device *hw_dev, const char *kvpairs)
 {
     return 0;
 }
 
-static char * adev_get_parameters(const struct audio_hw_device *dev, const char *keys)
+static char * adev_get_parameters(const struct audio_hw_device *hw_dev, const char *keys)
 {
     return strdup("");
 }
 
-static int adev_init_check(const struct audio_hw_device *dev)
+static int adev_init_check(const struct audio_hw_device *hw_dev)
 {
     return 0;
 }
 
-static int adev_set_voice_volume(struct audio_hw_device *dev, float volume)
+static int adev_set_voice_volume(struct audio_hw_device *hw_dev, float volume)
 {
     return -ENOSYS;
 }
 
-static int adev_set_master_volume(struct audio_hw_device *dev, float volume)
+static int adev_set_master_volume(struct audio_hw_device *hw_dev, float volume)
 {
     return -ENOSYS;
 }
 
-static int adev_set_mode(struct audio_hw_device *dev, audio_mode_t mode)
+static int adev_set_mode(struct audio_hw_device *hw_dev, audio_mode_t mode)
 {
     return 0;
 }
 
-static int adev_set_mic_mute(struct audio_hw_device *dev, bool state)
+static int adev_set_mic_mute(struct audio_hw_device *hw_dev, bool state)
 {
-    struct audio_device * adev = (struct audio_device *)dev;
+    struct audio_device * adev = (struct audio_device *)hw_dev;
     pthread_mutex_lock(&adev->lock);
     adev->mic_muted = state;
     pthread_mutex_unlock(&adev->lock);
     return -ENOSYS;
 }
 
-static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
+static int adev_get_mic_mute(const struct audio_hw_device *hw_dev, bool *state)
 {
     return -ENOSYS;
 }
 
-static int adev_dump(const audio_hw_device_t *device, int fd)
+static int adev_dump(const struct audio_hw_device *device, int fd)
 {
     dprintf(fd, "\nUSB audio module:\n");
 
