@@ -39,17 +39,6 @@
 
 #include <audio_utils/channels.h>
 
-/* FOR TESTING:
- * Set k_force_channels to force the number of channels to present to AudioFlinger.
- *   0 disables (this is default: present the device channels to AudioFlinger).
- *   2 forces to legacy stereo mode.
- *
- * Others values can be tried (up to 8).
- * TODO: AudioFlinger cannot support more than 8 active output channels
- * at this time, so limiting logic needs to be put here or communicated from above.
- */
-static const unsigned k_force_channels = 0;
-
 #include "alsa_device_profile.h"
 #include "alsa_device_proxy.h"
 #include "alsa_logging.h"
@@ -103,7 +92,11 @@ struct stream_out {
                                          * the device is not compatible with AudioFlinger
                                          * capabilities, e.g. exposes too many channels or
                                          * too few channels. */
-    audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
+    audio_channel_mask_t hal_channel_mask;  /* USB devices deal in channel counts, not masks
+                                             * so the proxy doesn't have a channel_mask, but
+                                             * audio HALs need to talk about channel masks
+                                             * so expose the one calculated by
+                                             * adev_open_output_stream */
 
     struct listnode list_node;
 
@@ -130,7 +123,11 @@ struct stream_in {
                                          * the device is not compatible with AudioFlinger
                                          * capabilities, e.g. exposes too many channels or
                                          * too few channels. */
-    audio_channel_mask_t hal_channel_mask;   /* channel mask exposed to AudioFlinger. */
+    audio_channel_mask_t hal_channel_mask;  /* USB devices deal in channel counts, not masks
+                                             * so the proxy doesn't have a channel_mask, but
+                                             * audio HALs need to talk about channel masks
+                                             * so expose the one calculated by
+                                             * adev_open_input_stream */
 
     struct listnode list_node;
 
@@ -609,33 +606,38 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     }
 
     /* Channels */
-    unsigned proposed_channel_count = 0;
-    if (k_force_channels) {
-        proposed_channel_count = k_force_channels;
-    } else if (config->channel_mask == AUDIO_CHANNEL_NONE) {
-        proposed_channel_count =  profile_get_default_channel_count(out->profile);
-    }
-
-    if (proposed_channel_count != 0) {
-        if (proposed_channel_count <= FCC_2) {
-            // use channel position mask for mono and stereo
-            config->channel_mask = audio_channel_out_mask_from_count(proposed_channel_count);
-        } else {
-            // use channel index mask for multichannel
-            config->channel_mask =
-                    audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
-        }
+    bool calc_mask = false;
+    if (config->channel_mask == AUDIO_CHANNEL_NONE) {
+        /* query case */
+        out->hal_channel_count = profile_get_default_channel_count(out->profile);
+        calc_mask = true;
     } else {
-        proposed_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
+        /* explicit case */
+        out->hal_channel_count = audio_channel_count_from_out_mask(config->channel_mask);
     }
-    out->hal_channel_count = proposed_channel_count;
 
-    /* we can expose any channel mask, and emulate internally based on channel count. */
+    /* The Framework is currently limited to no more than this number of channels */
+    if (out->hal_channel_count > FCC_8) {
+        out->hal_channel_count = FCC_8;
+        calc_mask = true;
+    }
+
+    if (calc_mask) {
+        /* need to calculate the mask from channel count either because this is the query case
+         * or the specified mask isn't valid for this device, or is more then the FW can handle */
+        config->channel_mask = out->hal_channel_count <= FCC_2
+            /* position mask for mono and stereo*/
+            ? audio_channel_out_mask_from_count(out->hal_channel_count)
+            /* otherwise indexed */
+            : audio_channel_mask_for_index_assignment_from_count(out->hal_channel_count);
+    }
+
     out->hal_channel_mask = config->channel_mask;
 
-    /* no validity checks are needed as proxy_prepare() forces channel_count to be valid.
-     * and we emulate any channel count discrepancies in out_write(). */
-    proxy_config.channels = out->hal_channel_count;
+    // Validate the "logical" channel count against support in the "actual" profile.
+    // if they differ, choose the "actual" number of channels *closest* to the "logical".
+    // and store THAT in proxy_config.channels
+    proxy_config.channels = profile_get_closest_channel_count(out->profile, out->hal_channel_count);
     proxy_prepare(&out->proxy, out->profile, &proxy_config);
 
     /* TODO The retry mechanism isn't implemented in AudioPolicyManager/AudioFlinger. */
@@ -1010,36 +1012,64 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     }
 
     /* Channels */
-    unsigned proposed_channel_count = 0;
-    if (k_force_channels) {
-        proposed_channel_count = k_force_channels;
-    } else if (config->channel_mask == AUDIO_CHANNEL_NONE) {
-        proposed_channel_count = profile_get_default_channel_count(in->profile);
-    }
-    if (proposed_channel_count != 0) {
-        config->channel_mask = audio_channel_in_mask_from_count(proposed_channel_count);
-        if (config->channel_mask == AUDIO_CHANNEL_INVALID)
-            config->channel_mask =
-                    audio_channel_mask_for_index_assignment_from_count(proposed_channel_count);
-        in->hal_channel_count = proposed_channel_count;
+    bool calc_mask = false;
+    if (config->channel_mask == AUDIO_CHANNEL_NONE) {
+        /* query case */
+        in->hal_channel_count = profile_get_default_channel_count(in->profile);
+        calc_mask = true;
     } else {
+        /* explicit case */
         in->hal_channel_count = audio_channel_count_from_in_mask(config->channel_mask);
     }
-    /* we can expose any channel mask, and emulate internally based on channel count. */
-    in->hal_channel_mask = config->channel_mask;
 
-    proxy_config.channels = profile_get_default_channel_count(in->profile);
-    proxy_prepare(&in->proxy, in->profile, &proxy_config);
+    /* The Framework is currently limited to no more than this number of channels */
+    if (in->hal_channel_count > FCC_8) {
+        in->hal_channel_count = FCC_8;
+        calc_mask = true;
+    }
 
-    in->standby = true;
+    if (calc_mask) {
+        /* need to calculate the mask from channel count either because this is the query case
+         * or the specified mask isn't valid for this device, or is more then the FW can handle */
+        in->hal_channel_mask = in->hal_channel_count <= FCC_2
+            /* position mask for mono & stereo */
+            ? audio_channel_in_mask_from_count(in->hal_channel_count)
+            /* otherwise indexed */
+            : audio_channel_mask_for_index_assignment_from_count(in->hal_channel_count);
 
-    /* Save this for adev_dump() */
-    adev_add_stream_to_list(in->adev, &in->adev->input_stream_list, &in->list_node);
+        // if we change the mask...
+        if (in->hal_channel_mask != config->channel_mask &&
+            config->channel_mask != AUDIO_CHANNEL_NONE) {
+            config->channel_mask = in->hal_channel_mask;
+            ret = -EINVAL;
+        }
+    } else {
+        in->hal_channel_mask = config->channel_mask;
+    }
 
-    in->conversion_buffer = NULL;
-    in->conversion_buffer_size = 0;
+    if (ret == 0) {
+        // Validate the "logical" channel count against support in the "actual" profile.
+        // if they differ, choose the "actual" number of channels *closest* to the "logical".
+        // and store THAT in proxy_config.channels
+        proxy_config.channels =
+                profile_get_closest_channel_count(in->profile, in->hal_channel_count);
+        proxy_prepare(&in->proxy, in->profile, &proxy_config);
 
-    *stream_in = &in->stream;
+        in->standby = true;
+
+        in->conversion_buffer = NULL;
+        in->conversion_buffer_size = 0;
+
+        *stream_in = &in->stream;
+
+        /* Save this for adev_dump() */
+        adev_add_stream_to_list(in->adev, &in->adev->input_stream_list, &in->list_node);
+    } else {
+        // Deallocate this stream on error, because AudioFlinger won't call
+        // adev_close_input_stream() in this case.
+        *stream_in = NULL;
+        free(in);
+    }
 
     return ret;
 }
