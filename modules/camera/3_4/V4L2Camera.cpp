@@ -37,6 +37,9 @@ camera_metadata_t* V4L2Camera::initStaticInfo() {
 
   android::CameraMetadata metadata(1);
   // TODO(b/29214516): fill this in.
+  uint8_t scene_mode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
+  metadata.update(ANDROID_CONTROL_AVAILABLE_SCENE_MODES, &scene_mode, 1);
+
   return metadata.release();
 }
 

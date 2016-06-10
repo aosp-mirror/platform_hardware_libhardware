@@ -18,7 +18,17 @@
 
 #include "V4L2CameraHAL.h"
 
+#include <dirent.h>
+#include <fcntl.h>
+#include <linux/videodev2.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+#include <algorithm>
 #include <cstdlib>
+#include <unordered_set>
 
 #include "Common.h"
 #include "V4L2Camera.h"
@@ -54,7 +64,57 @@ static int id_from_name(const char* name) {
 
 V4L2CameraHAL::V4L2CameraHAL() : mCameras(), mCallbacks(NULL) {
   HAL_LOG_ENTER();
-  // TODO(29160300): Populate camera devices.
+  // Adds all available V4L2 devices.
+  // List /dev nodes.
+  DIR* dir = opendir("/dev");
+  if (dir == NULL) {
+    HAL_LOGE("Failed to open /dev");
+    return;
+  }
+  // Find /dev/video* nodes.
+  dirent* ent;
+  std::vector<std::string> nodes;
+  while ((ent = readdir(dir))) {
+    std::string desired = "video";
+    size_t len = desired.size();
+    if (strncmp(desired.c_str(), ent->d_name, len) == 0) {
+      if (strlen(ent->d_name) > len && isdigit(ent->d_name[len])) {
+        // ent is a numbered video node.
+        nodes.push_back(std::string("/dev/") + ent->d_name);
+        HAL_LOGV("Found video node %s.", nodes.back().c_str());
+      }
+    }
+  }
+  // Test each for V4L2 support and uniqueness.
+  std::unordered_set<std::string> buses;
+  std::string bus;
+  v4l2_capability cap;
+  int fd;
+  int id = 0;
+  for (const auto& node : nodes) {
+    // Open the node.
+    fd = TEMP_FAILURE_RETRY(open(node.c_str(), O_RDWR));
+    if (fd < 0) {
+      HAL_LOGE("failed to open %s (%s).", node.c_str(), strerror(errno));
+      continue;
+    }
+    // Read V4L2 capabilities.
+    if (TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &cap)) != 0) {
+      HAL_LOGE("VIDIOC_QUERYCAP on %s fail: %s.", node.c_str(),
+               strerror(errno));
+    } else if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
+      HAL_LOGE("%s is not a V4L2 video capture device.", node.c_str());
+    } else {
+      // If the node is unique, add a camera for it.
+      bus = reinterpret_cast<char*>(cap.bus_info);
+      if (buses.insert(bus).second) {
+        HAL_LOGV("Found unique bus at %s.", node.c_str());
+        std::unique_ptr<V4L2Camera> cam(new V4L2Camera(id++, node));
+        mCameras.push_back(std::move(cam));
+      }
+    }
+    TEMP_FAILURE_RETRY(close(fd));
+  }
 }
 
 V4L2CameraHAL::~V4L2CameraHAL() {
@@ -101,8 +161,8 @@ int V4L2CameraHAL::setTorchMode(const char* camera_id, bool enabled) {
   return -ENOSYS;
 }
 
-int V4L2CameraHAL::open(const hw_module_t* module, const char* name,
-                        hw_device_t** device) {
+int V4L2CameraHAL::openDevice(const hw_module_t* module, const char* name,
+                              hw_device_t** device) {
   HAL_LOG_ENTER();
 
   if (module != &HAL_MODULE_INFO_SYM.common) {
@@ -153,7 +213,7 @@ static int set_torch_mode(const char* camera_id, bool enabled) {
 
 static int open_dev(const hw_module_t* module, const char* name,
                     hw_device_t** device) {
-  return gCameraHAL.open(module, name, device);
+  return gCameraHAL.openDevice(module, name, device);
 }
 
 }  // namespace v4l2_camera_hal

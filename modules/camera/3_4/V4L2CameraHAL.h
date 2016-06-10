@@ -48,7 +48,7 @@ public:
   int setTorchMode(const char* camera_id, bool enabled);
 
   // Hardware Module Interface (see <hardware/hardware.h>).
-  int open(const hw_module_t* mod, const char* name, hw_device_t** dev);
+  int openDevice(const hw_module_t* mod, const char* name, hw_device_t** dev);
 
 private:
   // Vector of cameras.
