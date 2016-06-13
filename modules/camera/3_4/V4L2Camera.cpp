@@ -16,8 +16,13 @@
 
 #include "V4L2Camera.h"
 
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #include <camera/CameraMetadata.h>
 #include <hardware/camera3.h>
+#include <nativehelper/ScopedFd.h>
 
 #include "Common.h"
 
@@ -30,6 +35,35 @@ V4L2Camera::V4L2Camera(int id, std::string path)
 
 V4L2Camera::~V4L2Camera() {
   HAL_LOG_ENTER();
+}
+
+int V4L2Camera::connect() {
+  HAL_LOG_ENTER();
+
+  if (mDeviceFd.get() >= 0) {
+    HAL_LOGE("Camera device %s is opened. Close it first", mDevicePath.c_str());
+    return -EIO;
+  }
+
+  int fd = TEMP_FAILURE_RETRY(open(mDevicePath.c_str(), O_RDWR));
+  if (fd < 0) {
+    HAL_LOGE("failed to open %s (%s)", mDevicePath.c_str(), strerror(errno));
+    return -errno;
+  }
+  mDeviceFd.reset(fd);
+
+  // TODO(b/29185945): confirm this is a supported device.
+  //   This is checked by the HAL, but the device at mDevicePath may
+  //   not be the same one that was there when the HAL was loaded.
+  //   (Alternatively, better hotplugging support may make this unecessary
+  //   by disabling cameras that get disconnected and checking newly connected
+  //   cameras, so connect() is never called on an unsupported camera)
+  return 0;
+}
+
+void V4L2Camera::disconnect() {
+  HAL_LOG_ENTER();
+  mDeviceFd.reset();
 }
 
 camera_metadata_t* V4L2Camera::initStaticInfo() {

@@ -21,7 +21,9 @@
 
 #include <string>
 
+#include <nativehelper/ScopedFd.h>
 #include <system/camera_metadata.h>
+
 #include "Camera.h"
 #include "Common.h"
 
@@ -37,6 +39,10 @@ public:
 
 private:
   // default_camera_hal::Camera virtual methods.
+  // Connect to the device: open dev nodes, etc.
+  int connect();
+  // Disconnect from the device: close dev nodes, etc.
+  void disconnect();
   // Initialize static camera characteristics for individual device.
   camera_metadata_t *initStaticInfo();
   // Initialize device info: facing, orientation, resource cost,
@@ -49,6 +55,8 @@ private:
 
   // The camera device path. For example, /dev/video0.
   const std::string mDevicePath;
+  // The opened device fd.
+  ScopedFd mDeviceFd;
 
   DISALLOW_COPY_AND_ASSIGN(V4L2Camera);
 };

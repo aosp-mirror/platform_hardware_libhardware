@@ -26,10 +26,12 @@ LOCAL_CFLAGS += -fno-short-enums
 #   some various unexpected variables had to be set.
 
 LOCAL_SHARED_LIBRARIES := \
+    libbase \
     libcamera_client \
     libcamera_metadata \
     libcutils \
     liblog \
+    libnativehelper \
     libsync \
     libutils \
 

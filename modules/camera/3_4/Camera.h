@@ -40,7 +40,7 @@ class Camera {
         virtual ~Camera();
 
         // Common Camera Device Operations (see <hardware/camera_common.h>)
-        int open(const hw_module_t *module, hw_device_t **device);
+        int openDevice(const hw_module_t *module, hw_device_t **device);
         int getInfo(struct camera_info *info);
         int close();
 
@@ -54,6 +54,10 @@ class Camera {
 
 
     protected:
+        // Connect to the device: open dev nodes, etc.
+        virtual int connect() = 0;
+        // Disconnect from the device: close dev nodes, etc.
+        virtual void disconnect() = 0;
         // Initialize static camera characteristics for individual device
         virtual camera_metadata_t *initStaticInfo() = 0;
         // Initialize device info: facing, orientation, resource cost,

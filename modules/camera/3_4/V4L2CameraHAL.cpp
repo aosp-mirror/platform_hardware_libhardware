@@ -30,6 +30,8 @@
 #include <cstdlib>
 #include <unordered_set>
 
+#include <android-base/parseint.h>
+
 #include "Common.h"
 #include "V4L2Camera.h"
 
@@ -45,22 +47,6 @@ namespace v4l2_camera_hal {
 
 // Default global camera hal.
 static V4L2CameraHAL gCameraHAL;
-
-// Helper function for converting and validating string name to int id.
-// Returns either a non-negative camera id, or a negative error code.
-static int id_from_name(const char* name) {
-  if (name == NULL || *name == '\0') {
-    HAL_LOGE("Invalid camera id name is NULL");
-    return -EINVAL;
-  }
-  char* nameEnd;
-  int id = strtol(name, &nameEnd, 10);
-  if (*nameEnd != '\0' || id < 0) {
-    HAL_LOGE("Invalid camera id name %s", name);
-    return -EINVAL;
-  }
-  return id;
-}
 
 V4L2CameraHAL::V4L2CameraHAL() : mCameras(), mCallbacks(NULL) {
   HAL_LOG_ENTER();
@@ -171,14 +157,12 @@ int V4L2CameraHAL::openDevice(const hw_module_t* module, const char* name,
     return -EINVAL;
   }
 
-  int id = id_from_name(name);
-  if (id < 0) {
-    return id;
-  } else if (id < 0 || id >= mCameras.size()) {
+  int id;
+  if (!android::base::ParseInt(name, &id, 0, getNumberOfCameras() - 1)) {
     return -EINVAL;
   }
   // TODO(b/29185945): Hotplugging: return -EINVAL if unplugged.
-  return mCameras[id]->open(module, device);
+  return mCameras[id]->openDevice(module, device);
 }
 
 /*

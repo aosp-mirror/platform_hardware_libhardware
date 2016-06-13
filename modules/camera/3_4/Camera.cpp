@@ -81,7 +81,7 @@ Camera::~Camera()
     }
 }
 
-int Camera::open(const hw_module_t *module, hw_device_t **device)
+int Camera::openDevice(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
     ATRACE_CALL();
@@ -92,7 +92,10 @@ int Camera::open(const hw_module_t *module, hw_device_t **device)
         return -EBUSY;
     }
 
-    // TODO: open camera dev nodes, etc
+    int connectResult = connect();
+    if (connectResult != 0) {
+      return connectResult;
+    }
     mBusy = true;
     mDevice.common.module = const_cast<hw_module_t*>(module);
     *device = &mDevice.common;
@@ -124,7 +127,7 @@ int Camera::close()
         return -EINVAL;
     }
 
-    // TODO: close camera dev nodes, etc
+    disconnect();
     mBusy = false;
     return 0;
 }
