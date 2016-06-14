@@ -162,7 +162,7 @@ static hw_module_methods_t v4l2_module_methods = {
   .open = v4l2_camera_hal::open_dev
 };
 
-camera_module_t HAL_MODULE_INFO_SYM = {
+camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
   .common = {
     .tag =                 HARDWARE_MODULE_TAG,
     .module_api_version =  CAMERA_MODULE_API_VERSION_2_4,
