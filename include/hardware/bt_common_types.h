@@ -52,7 +52,7 @@ typedef enum
 
 typedef struct
 {
-    uint8_t             id;
+    uint16_t             id;
     bt_uuid_t           uuid;
     bt_gatt_db_attribute_type_t type;
     uint16_t            attribute_handle;
