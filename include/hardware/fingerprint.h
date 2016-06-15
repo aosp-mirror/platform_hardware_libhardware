@@ -50,7 +50,6 @@ typedef enum fingerprint_error {
     FINGERPRINT_ERROR_NO_SPACE = 4, /* No space available to store a template */
     FINGERPRINT_ERROR_CANCELED = 5, /* The current operation can't proceed. See above. */
     FINGERPRINT_ERROR_UNABLE_TO_REMOVE = 6, /* fingerprint with given id can't be removed */
-    FINGERPRINT_ERROR_LOCKOUT = 7, /* the functionality is temporarily locked out */
     FINGERPRINT_ERROR_VENDOR_BASE = 1000 /* vendor-specific error messages start here */
 } fingerprint_error_t;
 
@@ -251,16 +250,8 @@ typedef struct fingerprint_device {
      */
     int (*authenticate)(struct fingerprint_device *dev, uint64_t operation_id, uint32_t gid);
 
-    /*
-     * Resets a lockout by providing a valid hardware authentication token.
-     *
-     * Function return: 0 on success
-     *                  or a negative number in case of error, generally from the errno.h set.
-     */
-    int (*reset_lockout)(struct fingerprint_device *dev, const hw_auth_token_t *hat);
-
     /* Reserved for backward binary compatibility */
-    void *reserved[3];
+    void *reserved[4];
 } fingerprint_device_t;
 
 typedef struct fingerprint_module {
