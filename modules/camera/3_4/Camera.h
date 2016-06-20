@@ -59,7 +59,7 @@ class Camera {
         // Disconnect from the device: close dev nodes, etc.
         virtual void disconnect() = 0;
         // Initialize static camera characteristics for individual device
-        virtual camera_metadata_t *initStaticInfo() = 0;
+        virtual int initStaticInfo(camera_metadata_t **out) = 0;
         // Initialize device info: facing, orientation, resource cost,
         // and conflicting devices (/conflicting devices length)
         virtual void initDeviceInfo(struct camera_info *info) = 0;
@@ -68,7 +68,7 @@ class Camera {
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
         // Accessor used by initDevice() to set the templates' metadata
-        int setTemplate(int type, camera_metadata_t *static_info);
+        int setTemplate(int type, const camera_metadata_t *static_info);
         // Prettyprint template names
         const char* templateToString(int type);
 

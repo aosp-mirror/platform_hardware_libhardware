@@ -40,18 +40,18 @@ public:
 private:
   // default_camera_hal::Camera virtual methods.
   // Connect to the device: open dev nodes, etc.
-  int connect();
+  int connect() override;
   // Disconnect from the device: close dev nodes, etc.
-  void disconnect();
+  void disconnect() override;
   // Initialize static camera characteristics for individual device.
-  camera_metadata_t *initStaticInfo();
+  int initStaticInfo(camera_metadata_t** out) override;
   // Initialize device info: facing, orientation, resource cost,
   // and conflicting devices (/conflicting devices length).
-  void initDeviceInfo(camera_info_t* info);
+  void initDeviceInfo(camera_info_t* info) override;
   // Initialize whole device (templates/etc) when opened.
-  int initDevice();
+  int initDevice() override;
   // Verify settings are valid for a capture with this device.
-  bool isValidCaptureSettings(const camera_metadata_t* settings);
+  bool isValidCaptureSettings(const camera_metadata_t* settings) override;
 
   // The camera device path. For example, /dev/video0.
   const std::string mDevicePath;

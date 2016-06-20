@@ -60,7 +60,7 @@ Camera::Camera(int id)
     memset(&mTemplates, 0, sizeof(mTemplates));
     memset(&mDevice, 0, sizeof(mDevice));
     mDevice.common.tag    = HARDWARE_DEVICE_TAG;
-    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_0;
+    mDevice.common.version = CAMERA_DEVICE_API_VERSION_3_4;
     mDevice.common.close  = close_device;
     mDevice.ops           = const_cast<camera3_device_ops_t*>(&sOps);
     mDevice.priv          = this;
@@ -109,9 +109,10 @@ int Camera::getInfo(struct camera_info *info)
     info->device_version = mDevice.common.version;
     initDeviceInfo(info);
     if (mStaticInfo == NULL) {
-        mStaticInfo = initStaticInfo();
+      if (initStaticInfo(&mStaticInfo)) {
+        return -ENODEV;
+      }
     }
-
     info->static_camera_characteristics = mStaticInfo;
     return 0;
 }
@@ -319,7 +320,7 @@ int Camera::registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set)
 
 bool Camera::isValidTemplateType(int type)
 {
-    return type < 1 || type >= CAMERA3_TEMPLATE_COUNT;
+    return type > 0 && type < CAMERA3_TEMPLATE_COUNT;
 }
 
 const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
@@ -514,7 +515,7 @@ const char* Camera::templateToString(int type)
     return "Invalid template type!";
 }
 
-int Camera::setTemplate(int type, camera_metadata_t *settings)
+int Camera::setTemplate(int type, const camera_metadata_t *settings)
 {
     android::Mutex::Autolock al(mDeviceLock);
 
@@ -558,6 +559,7 @@ static int configure_streams(const camera3_device_t *dev,
     return camdev_to_camera(dev)->configureStreams(stream_list);
 }
 
+  // TODO: remove
 static int register_stream_buffers(const camera3_device_t *dev,
         const camera3_stream_buffer_set_t *buffer_set)
 {
@@ -592,7 +594,7 @@ static int flush(const camera3_device_t*)
 const camera3_device_ops_t Camera::sOps = {
     .initialize = default_camera_hal::initialize,
     .configure_streams = default_camera_hal::configure_streams,
-    .register_stream_buffers = default_camera_hal::register_stream_buffers,
+    .register_stream_buffers = nullptr,
     .construct_default_request_settings
         = default_camera_hal::construct_default_request_settings,
     .process_capture_request = default_camera_hal::process_capture_request,
