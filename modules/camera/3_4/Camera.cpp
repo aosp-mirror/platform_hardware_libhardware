@@ -331,6 +331,9 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
         ALOGE("%s:%d: Invalid template request type: %d", __func__, mId, type);
         return NULL;
     }
+
+    // Will return NULL (indicating unsupported) if the template is not
+    // initialized.
     return mTemplates[type];
 }
 
@@ -559,7 +562,7 @@ static int configure_streams(const camera3_device_t *dev,
     return camdev_to_camera(dev)->configureStreams(stream_list);
 }
 
-  // TODO: remove
+// TODO(b/29221641): remove
 static int register_stream_buffers(const camera3_device_t *dev,
         const camera3_stream_buffer_set_t *buffer_set)
 {

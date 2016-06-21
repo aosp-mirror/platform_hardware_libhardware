@@ -19,11 +19,14 @@
 #ifndef V4L2_CAMERA_H
 #define V4L2_CAMERA_H
 
+#include <array>
 #include <string>
+#include <vector>
 
 #include <nativehelper/ScopedFd.h>
 #include <system/camera_metadata.h>
 
+#include "ArrayVector.h"
 #include "Camera.h"
 #include "Common.h"
 
@@ -57,6 +60,50 @@ private:
   const std::string mDevicePath;
   // The opened device fd.
   ScopedFd mDeviceFd;
+
+  bool mTemplatesInitialized;
+  int initTemplates();
+
+  // Camera characteristics.
+  bool mCharacteristicsInitialized;  // If false, characteristics are invalid.
+  // Fixed characteristics.
+  float mAperture;
+  float mFilterDensity;
+  float mFocalLength;
+  int32_t mOrientation;
+  std::array<float, 2> mPhysicalSize;  // {width, height}, in mm.
+  std::array<int32_t, 4> mPixelArraySize;  // {xmin, ymin, width, height}.
+  uint8_t mCropType;
+  float mMaxZoom;
+  std::array<int32_t, 2> mAeCompensationRange;  // {min, max}.
+  camera_metadata_rational mAeCompensationStep;
+  uint8_t mAeLockAvailable;
+  uint8_t mAwbLockAvailable;
+  uint8_t mFlashAvailable;
+  float mFocusDistance;
+  // Variable characteristics available options.
+  std::vector<uint8_t> mAeModes;
+  std::vector<uint8_t> mAeAntibandingModes;
+  std::vector<uint8_t> mAfModes;
+  std::vector<uint8_t> mAwbModes;
+  std::vector<uint8_t> mSceneModes;
+  std::vector<uint8_t> mControlModes;
+  std::vector<uint8_t> mEffects;
+  std::vector<uint8_t> mLeds;
+  std::vector<uint8_t> mOpticalStabilizationModes;
+  std::vector<uint8_t> mVideoStabilizationModes;
+  // {format, width, height, direction} (input or output).
+  ArrayVector<int32_t, 4> mStreamConfigs;
+  // {format, width, height, duration} (duration in ns).
+  ArrayVector<int64_t, 4> mMinFrameDurations;
+  int64_t mMaxFrameDuration;
+  // {format, width, height, duration} (duration in ns).
+  ArrayVector<int64_t, 4> mStallDurations;
+  // {min, max} (in fps).
+  ArrayVector<int32_t, 2> mFpsRanges;
+
+  // Initialize characteristics and set mCharacteristicsInitialized to True.
+  int initCharacteristics();
 
   DISALLOW_COPY_AND_ASSIGN(V4L2Camera);
 };
