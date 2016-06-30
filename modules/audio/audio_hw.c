@@ -117,7 +117,7 @@ static int out_set_volume(struct audio_stream_out *stream, float left,
 static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
                          size_t bytes)
 {
-    ALOGV("out_write: bytes: %d", bytes);
+    ALOGV("out_write: bytes: %zu", bytes);
     /* XXX: fake timing for audio output */
     usleep((int64_t)bytes * 1000000 / audio_stream_out_frame_size(stream) /
            out_get_sample_rate(&stream->common));
@@ -216,7 +216,7 @@ static int in_set_gain(struct audio_stream_in *stream, float gain)
 static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
                        size_t bytes)
 {
-    ALOGV("in_read: bytes %d", bytes);
+    ALOGV("in_read: bytes %zu", bytes);
     /* XXX: fake timing for audio input */
     usleep((int64_t)bytes * 1000000 / audio_stream_in_frame_size(stream) /
            in_get_sample_rate(&stream->common));
