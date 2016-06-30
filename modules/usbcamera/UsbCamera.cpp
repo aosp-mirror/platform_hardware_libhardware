@@ -313,7 +313,7 @@ int UsbCamera::initManualTemplate(Metadata m) {
     return setTemplate(CAMERA3_TEMPLATE_MANUAL, m.get());
 }
 
-bool UsbCamera::isValidCaptureSettings(const camera_metadata_t* settings) {
+bool UsbCamera::isValidCaptureSettings(const camera_metadata_t* /*settings*/) {
     // TODO: reject settings that cannot be captured
     return true;
 }
