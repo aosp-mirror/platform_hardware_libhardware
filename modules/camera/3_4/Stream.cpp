@@ -42,17 +42,14 @@ Stream::Stream(int id, camera3_stream_t *s)
     mHeight(s->height),
     mFormat(s->format),
     mUsage(0),
-    mMaxBuffers(0),
-    mRegistered(false),
-    mBuffers(0),
-    mNumBuffers(0)
+    mRotation(s->rotation),
+    mDataSpace(s->data_space),
+    mMaxBuffers(0)
 {
 }
 
 Stream::~Stream()
 {
-    android::Mutex::Autolock al(mLock);
-    unregisterBuffers_L();
 }
 
 void Stream::setUsage(uint32_t usage)
@@ -61,7 +58,6 @@ void Stream::setUsage(uint32_t usage)
     if (usage != mUsage) {
         mUsage = usage;
         mStream->usage = usage;
-        unregisterBuffers_L();
     }
 }
 
@@ -71,22 +67,25 @@ void Stream::setMaxBuffers(uint32_t max_buffers)
     if (max_buffers != mMaxBuffers) {
         mMaxBuffers = max_buffers;
         mStream->max_buffers = max_buffers;
-        unregisterBuffers_L();
     }
 }
 
-int Stream::getType()
+void Stream::setDataSpace(android_dataspace_t data_space)
 {
-    return mType;
+    android::Mutex::Autolock al(mLock);
+    if (data_space != mDataSpace) {
+        mDataSpace = data_space;
+        mStream->data_space = data_space;
+    }
 }
 
-bool Stream::isInputType()
+bool Stream::isInputType() const
 {
     return mType == CAMERA3_STREAM_INPUT ||
         mType == CAMERA3_STREAM_BIDIRECTIONAL;
 }
 
-bool Stream::isOutputType()
+bool Stream::isOutputType() const
 {
     return mType == CAMERA3_STREAM_OUTPUT ||
         mType == CAMERA3_STREAM_BIDIRECTIONAL;
@@ -145,11 +144,6 @@ const char* Stream::formatToString(int format)
     return "Invalid stream format!";
 }
 
-bool Stream::isRegistered()
-{
-    return mRegistered;
-}
-
 bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
 {
     if (id != mId) {
@@ -187,40 +181,6 @@ bool Stream::isValidReuseStream(int id, camera3_stream_t *s)
     return true;
 }
 
-int Stream::registerBuffers(const camera3_stream_buffer_set_t *buf_set)
-{
-    ATRACE_CALL();
-    android::Mutex::Autolock al(mLock);
-
-    if (buf_set->stream != mStream) {
-        ALOGE("%s:%d: Buffer set for invalid stream. Got %p expect %p",
-                __func__, mId, buf_set->stream, mStream);
-        return -EINVAL;
-    }
-
-    mNumBuffers = buf_set->num_buffers;
-    mBuffers = new buffer_handle_t*[mNumBuffers];
-
-    for (unsigned int i = 0; i < mNumBuffers; i++) {
-        ALOGV("%s:%d: Registering buffer %p", __func__, mId,
-                buf_set->buffers[i]);
-        mBuffers[i] = buf_set->buffers[i];
-        // TODO: register buffers with hw, handle error cases
-    }
-    mRegistered = true;
-
-    return 0;
-}
-
-// This must only be called with mLock held
-void Stream::unregisterBuffers_L()
-{
-    mRegistered = false;
-    mNumBuffers = 0;
-    delete [] mBuffers;
-    // TODO: unregister buffers from hw
-}
-
 void Stream::dump(int fd)
 {
     android::Mutex::Autolock al(mLock);
@@ -231,13 +191,9 @@ void Stream::dump(int fd)
     dprintf(fd, "Stream Format: %s (%d)", formatToString(mFormat), mFormat);
     // ToDo: prettyprint usage mask flags
     dprintf(fd, "Gralloc Usage Mask: %#" PRIx32 "\n", mUsage);
+    dprintf(fd, "Stream Rotation: %d\n", mRotation);
+    dprintf(fd, "Stream Dataspace: 0x%x\n", mDataSpace);
     dprintf(fd, "Max Buffer Count: %" PRIu32 "\n", mMaxBuffers);
-    dprintf(fd, "Buffers Registered: %s\n", mRegistered ? "true" : "false");
-    dprintf(fd, "Number of Buffers: %" PRIu32 "\n", mNumBuffers);
-    for (uint32_t i = 0; i < mNumBuffers; i++) {
-        dprintf(fd, "Buffer %" PRIu32 "/%" PRIu32 ": %p\n", i, mNumBuffers,
-                mBuffers[i]);
-    }
 }
 
 } // namespace default_camera_hal

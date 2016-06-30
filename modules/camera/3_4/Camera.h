@@ -47,7 +47,6 @@ class Camera {
         // Camera v3 Device Operations (see <hardware/camera3.h>)
         int initialize(const camera3_callback_ops_t *callback_ops);
         int configureStreams(camera3_stream_configuration_t *stream_list);
-        int registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set);
         const camera_metadata_t *constructDefaultRequestSettings(int type);
         int processCaptureRequest(camera3_capture_request_t *request);
         void dump(int fd);
@@ -63,6 +62,12 @@ class Camera {
         // Initialize device info: facing, orientation, resource cost,
         // and conflicting devices (/conflicting devices length)
         virtual void initDeviceInfo(struct camera_info *info) = 0;
+        // Verify stream configuration is device-compatible
+        virtual bool isSupportedStreamSet(Stream** streams, int count,
+                                          uint32_t mode) = 0;
+        // Set up the device for a stream, and get the maximum number of
+        // buffers that stream can handle (max_buffers is an output parameter)
+        virtual int setupStream(Stream* stream, uint32_t* max_buffers) = 0;
         // Verify settings are valid for a capture
         virtual bool isValidCaptureSettings(const camera_metadata_t *) = 0;
         // Separate initialization method for individual devices when opened
@@ -80,9 +85,9 @@ class Camera {
         // Destroy all streams in a stream array, and the array itself
         void destroyStreams(Stream **array, int count);
         // Verify a set of streams is valid in aggregate
-        bool isValidStreamSet(Stream **array, int count);
+        bool isValidStreamSet(Stream **array, int count, uint32_t mode);
         // Calculate usage and max_bufs of each stream
-        void setupStreams(Stream **array, int count);
+        int setupStreams(Stream **array, int count);
         // Copy new settings for re-use and clean up old settings.
         void setSettings(const camera_metadata_t *new_settings);
         // Verify settings are valid for reprocessing an input buffer

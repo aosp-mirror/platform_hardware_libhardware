@@ -53,13 +53,39 @@ private:
   void initDeviceInfo(camera_info_t* info) override;
   // Initialize whole device (templates/etc) when opened.
   int initDevice() override;
+  // Verify stream configuration is device-compatible.
+  bool isSupportedStreamSet(default_camera_hal::Stream** streams,
+                            int count, uint32_t mode) override;
+  // Set up the device for a stream, and get the maximum number of
+  // buffers that stream can handle (max_buffers is an output parameter).
+  int setupStream(default_camera_hal::Stream* stream,
+                  uint32_t* max_buffers) override;
   // Verify settings are valid for a capture with this device.
   bool isValidCaptureSettings(const camera_metadata_t* settings) override;
+
+  // Helper functions for V4L2 functionality.
+  int setFormat(const default_camera_hal::Stream* stream);
+  int setupBuffers();
+
+  // HAL <-> V4L2 conversions.
+  uint32_t halToV4L2PixelFormat(int hal_format);  // 0 for unrecognized.
+  int V4L2ToHalPixelFormat(uint32_t v4l2_format);  // -1 for unrecognized.
 
   // The camera device path. For example, /dev/video0.
   const std::string mDevicePath;
   // The opened device fd.
   ScopedFd mDeviceFd;
+  // Lock protecting use of the device.
+  android::Mutex mDeviceLock;
+  // Wrapper around ioctl.
+  template<typename T>
+  int ioctlLocked(int request, T data);
+
+  // Current output stream settings.
+  uint32_t mOutStreamFormat;
+  uint32_t mOutStreamWidth;
+  uint32_t mOutStreamHeight;
+  uint32_t mOutStreamMaxBuffers;
 
   bool mTemplatesInitialized;
   int initTemplates();
@@ -81,6 +107,11 @@ private:
   uint8_t mAwbLockAvailable;
   uint8_t mFlashAvailable;
   float mFocusDistance;
+  int32_t mMaxRawOutputStreams;
+  int32_t mMaxYuvOutputStreams;
+  int32_t mMaxJpegOutputStreams;
+  int32_t mMaxInputStreams;
+  std::vector<int32_t> mSupportedFormats;
   // Variable characteristics available options.
   std::vector<uint8_t> mAeModes;
   std::vector<uint8_t> mAeAntibandingModes;

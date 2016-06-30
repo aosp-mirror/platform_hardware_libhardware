@@ -152,6 +152,7 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 {
     camera3_stream_t *astream;
     Stream **newStreams = NULL;
+    int res = 0;
 
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
     ATRACE_CALL();
@@ -193,13 +194,19 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     }
 
     // Verify the set of streams in aggregate
-    if (!isValidStreamSet(newStreams, stream_config->num_streams)) {
+    if (!isValidStreamSet(newStreams, stream_config->num_streams,
+                          stream_config->operation_mode)) {
         ALOGE("%s:%d: Invalid stream set", __func__, mId);
         goto err_out;
     }
 
-    // Set up all streams (calculate usage/max_buffers for each)
-    setupStreams(newStreams, stream_config->num_streams);
+    // Set up all streams (calculate usage/max_buffers for each,
+    // do any device-specific initialization)
+    res = setupStreams(newStreams, stream_config->num_streams);
+    if (res) {
+        ALOGE("%s:%d: Failed to setup stream set", __func__, mId);
+        goto err_out;
+    }
 
     // Destroy all old streams and replace stream array with new one
     destroyStreams(mStreams, mNumStreams);
@@ -213,7 +220,11 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 err_out:
     // Clean up temporary streams, preserve existing mStreams/mNumStreams
     destroyStreams(newStreams, stream_config->num_streams);
-    return -EINVAL;
+    // Set error if it wasn't specified.
+    if (!res) {
+      res = -EINVAL;
+    }
+    return res;
 }
 
 void Camera::destroyStreams(Stream **streams, int count)
@@ -241,7 +252,7 @@ Stream *Camera::reuseStream(camera3_stream_t *astream)
     return priv;
 }
 
-bool Camera::isValidStreamSet(Stream **streams, int count)
+bool Camera::isValidStreamSet(Stream **streams, int count, uint32_t mode)
 {
     int inputs = 0;
     int outputs = 0;
@@ -272,50 +283,37 @@ bool Camera::isValidStreamSet(Stream **streams, int count)
         ALOGE("%s:%d: Stream config must have <= 1 input", __func__, mId);
         return false;
     }
-    // TODO: check for correct number of Bayer/YUV/JPEG/Encoder streams
-    return true;
+
+    // check for correct number of Bayer/YUV/JPEG/Encoder streams
+    return isSupportedStreamSet(streams, count, mode);
 }
 
-void Camera::setupStreams(Stream **streams, int count)
+int Camera::setupStreams(Stream **streams, int count)
 {
     /*
      * This is where the HAL has to decide internally how to handle all of the
      * streams, and then produce usage and max_buffer values for each stream.
      * Note, the stream array has been checked before this point for ALL invalid
      * conditions, so it must find a successful configuration for this stream
-     * array.  The HAL may not return an error from this point.
-     *
-     * In this demo HAL, we just set all streams to be the same dummy values;
-     * real implementations will want to avoid USAGE_SW_{READ|WRITE}_OFTEN.
+     * array. The only errors should be from individual streams requesting
+     * unsupported features (such as data_space or rotation).
      */
     for (int i = 0; i < count; i++) {
         uint32_t usage = 0;
-
         if (streams[i]->isOutputType())
-            usage |= GRALLOC_USAGE_SW_WRITE_OFTEN |
-                     GRALLOC_USAGE_HW_CAMERA_WRITE;
+            usage |= GRALLOC_USAGE_HW_CAMERA_WRITE;
         if (streams[i]->isInputType())
-            usage |= GRALLOC_USAGE_SW_READ_OFTEN |
-                     GRALLOC_USAGE_HW_CAMERA_READ;
-
+            usage |= GRALLOC_USAGE_HW_CAMERA_READ;
         streams[i]->setUsage(usage);
-        streams[i]->setMaxBuffers(1);
-    }
-}
 
-int Camera::registerStreamBuffers(const camera3_stream_buffer_set_t *buf_set)
-{
-    ALOGV("%s:%d: buffer_set=%p", __func__, mId, buf_set);
-    if (buf_set == NULL) {
-        ALOGE("%s:%d: NULL buffer set", __func__, mId);
-        return -EINVAL;
+        uint32_t max_buffers;
+        int res = setupStream(streams[i], &max_buffers);
+        if (res) {
+          return res;
+        }
+        streams[i]->setMaxBuffers(max_buffers);
     }
-    if (buf_set->stream == NULL) {
-        ALOGE("%s:%d: NULL stream handle", __func__, mId);
-        return -EINVAL;
-    }
-    Stream *stream = reinterpret_cast<Stream*>(buf_set->stream->priv);
-    return stream->registerBuffers(buf_set);
+    return 0;
 }
 
 bool Camera::isValidTemplateType(int type)
@@ -562,13 +560,6 @@ static int configure_streams(const camera3_device_t *dev,
     return camdev_to_camera(dev)->configureStreams(stream_list);
 }
 
-// TODO(b/29221641): remove
-static int register_stream_buffers(const camera3_device_t *dev,
-        const camera3_stream_buffer_set_t *buffer_set)
-{
-    return camdev_to_camera(dev)->registerStreamBuffers(buffer_set);
-}
-
 static const camera_metadata_t *construct_default_request_settings(
         const camera3_device_t *dev, int type)
 {
@@ -588,6 +579,7 @@ static void dump(const camera3_device_t *dev, int fd)
 
 static int flush(const camera3_device_t*)
 {
+    // TODO(b/29937783)
     ALOGE("%s: unimplemented.", __func__);
     return -1;
 }
@@ -601,7 +593,7 @@ const camera3_device_ops_t Camera::sOps = {
     .construct_default_request_settings
         = default_camera_hal::construct_default_request_settings,
     .process_capture_request = default_camera_hal::process_capture_request,
-    .get_metadata_vendor_tag_ops = NULL,
+    .get_metadata_vendor_tag_ops = nullptr,
     .dump = default_camera_hal::dump,
     .flush = default_camera_hal::flush,
     .reserved = {0},

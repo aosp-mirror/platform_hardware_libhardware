@@ -34,16 +34,18 @@ class Stream {
         // validate that astream's parameters match this stream's parameters
         bool isValidReuseStream(int id, camera3_stream_t *s);
 
-        // Register buffers with hardware
-        int registerBuffers(const camera3_stream_buffer_set_t *buf_set);
-
         void setUsage(uint32_t usage);
         void setMaxBuffers(uint32_t max_buffers);
+        void setDataSpace(android_dataspace_t data_space);
 
-        int getType();
-        bool isInputType();
-        bool isOutputType();
-        bool isRegistered();
+        inline int getFormat() const { return mFormat; };
+        inline int getType() const { return mType; };
+        inline uint32_t getWidth() const { return mWidth; };
+        inline uint32_t getHeight() const { return mHeight; };
+        inline int getRotation() const { return mRotation; };
+
+        bool isInputType() const;
+        bool isOutputType() const;
         const char* typeToString(int type);
         const char* formatToString(int format);
         void dump(int fd);
@@ -52,8 +54,6 @@ class Stream {
         bool mReuse;
 
     private:
-        // Clean up buffer state. must be called with mLock held.
-        void unregisterBuffers_L();
 
         // The camera device id this stream belongs to
         const int mId;
@@ -69,14 +69,12 @@ class Stream {
         const int mFormat;
         // Gralloc usage mask : GRALLOC_USAGE_* (see <hardware/gralloc.h>)
         uint32_t mUsage;
+        // Output rotation this stream should undergo
+        const int mRotation;
+        // Color space of image data.
+        android_dataspace_t mDataSpace;
         // Max simultaneous in-flight buffers for this stream
         uint32_t mMaxBuffers;
-        // Buffers have been registered for this stream and are ready
-        bool mRegistered;
-        // Array of handles to buffers currently in use by the stream
-        buffer_handle_t **mBuffers;
-        // Number of buffers in mBuffers
-        unsigned int mNumBuffers;
         // Lock protecting the Stream object for modifications
         android::Mutex mLock;
 };

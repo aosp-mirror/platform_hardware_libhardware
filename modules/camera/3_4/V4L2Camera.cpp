@@ -49,6 +49,10 @@ static std::vector<int32_t> getMetadataKeys(
 V4L2Camera::V4L2Camera(int id, std::string path)
     : default_camera_hal::Camera(id),
       mDevicePath(std::move(path)),
+      mOutStreamFormat(0),
+      mOutStreamWidth(0),
+      mOutStreamHeight(0),
+      mOutStreamMaxBuffers(0),
       mTemplatesInitialized(false),
       mCharacteristicsInitialized(false) {
   HAL_LOG_ENTER();
@@ -56,6 +60,16 @@ V4L2Camera::V4L2Camera(int id, std::string path)
 
 V4L2Camera::~V4L2Camera() {
   HAL_LOG_ENTER();
+}
+
+// Helper function. Should be used instead of ioctl throughout this class.
+template<typename T>
+int V4L2Camera::ioctlLocked(int request, T data) {
+  android::Mutex::Autolock al(mDeviceLock);
+  if (mDeviceFd.get() < 0) {
+    return -ENODEV;
+  }
+  return TEMP_FAILURE_RETRY(ioctl(mDeviceFd.get(), request, data));
 }
 
 int V4L2Camera::connect() {
@@ -381,17 +395,19 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
 
   /* android.request. */
 
-  // Resources may be an issue, so just using minimum allowable
-  // for LIMITED devices.
   int32_t max_num_output_streams[] = {
-    /*Raw*/0, /*YUV*/2, /*JPEG*/1};
+    mMaxRawOutputStreams, mMaxYuvOutputStreams, mMaxJpegOutputStreams};
   res = info.update(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
                     max_num_output_streams, ARRAY_SIZE(max_num_output_streams));
   if (res != android::OK) {
     return res;
   }
 
-  // Reprocessing not supported, so no maxNumInputStreams.
+  res = info.update(ANDROID_REQUEST_MAX_NUM_INPUT_STREAMS,
+                    &mMaxInputStreams, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // No way to know for V4L2, so fake with max allowable latency.
   // Doesn't mean much without per-frame controls.
@@ -1170,6 +1186,180 @@ int V4L2Camera::initTemplates() {
   return 0;
 }
 
+bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
+                                      int count, uint32_t mode) {
+  HAL_LOG_ENTER();
+
+  if (mode != CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE) {
+    HAL_LOGE("Unsupported stream configuration mode: %d", mode);
+    return false;
+  }
+
+  // This should be checked by the caller, but put here as a sanity check.
+  if (count < 1) {
+    HAL_LOGE("Must request at least 1 stream");
+    return false;
+  }
+
+  // Count the number of streams of each type.
+  int32_t num_input = 0;
+  int32_t num_raw = 0;
+  int32_t num_yuv = 0;
+  int32_t num_jpeg = 0;
+  for (int i = 0; i < count; ++i) {
+    default_camera_hal::Stream* stream = streams[i];
+
+    if (stream->isInputType()) {
+      ++num_input;
+    }
+
+    if (stream->isOutputType()) {
+      switch (halToV4L2PixelFormat(stream->getFormat())) {
+        case V4L2_PIX_FMT_YUV420:
+          ++num_yuv;
+          break;
+        case V4L2_PIX_FMT_JPEG:
+          ++num_jpeg;
+          break;
+        default:
+          // Note: no supported raw formats at this time.
+          HAL_LOGE("Unsupported format for stream %d: %d", i, stream->getFormat());
+          return false;
+      }
+    }
+  }
+
+  if (num_input > mMaxInputStreams || num_raw > mMaxRawOutputStreams ||
+      num_yuv > mMaxYuvOutputStreams || num_jpeg > mMaxJpegOutputStreams) {
+    HAL_LOGE("Invalid stream configuration: %d input, %d RAW, %d YUV, %d JPEG "
+             "(max supported: %d input, %d RAW, %d YUV, %d JPEG)",
+             mMaxInputStreams, mMaxRawOutputStreams, mMaxYuvOutputStreams,
+             mMaxJpegOutputStreams, num_input, num_raw, num_yuv, num_jpeg);
+    return false;
+  }
+
+  // TODO(b/29939583): The above logic should be all that's necessary,
+  // but V4L2 doesn't actually support more than 1 stream at a time. So for now,
+  // if not all streams are the same format and size, error. Note that this
+  // means the HAL is not spec-compliant; the requested streams are technically
+  // valid and it is not technically allowed to error once it has reached this
+  // point.
+  int format = streams[0]->getFormat();
+  uint32_t width = streams[0]->getWidth();
+  uint32_t height = streams[0]->getHeight();
+  for (int i = 1; i < count; ++i) {
+    const default_camera_hal::Stream* stream = streams[i];
+    if (stream->getFormat() != format || stream->getWidth() != width ||
+        stream->getHeight() != height) {
+      HAL_LOGE("V4L2 only supports 1 stream configuration at a time "
+               "(stream 0 is format %d, width %u, height %u, "
+               "stream %d is format %d, width %u, height %u).",
+               format, width, height, i, stream->getFormat(),
+               stream->getWidth(), stream->getHeight());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
+                            uint32_t* max_buffers) {
+  HAL_LOG_ENTER();
+
+  if (stream->getRotation() != CAMERA3_STREAM_ROTATION_0) {
+    HAL_LOGE("Rotation %d not supported", stream->getRotation());
+    return -EINVAL;
+  }
+
+  // Doesn't matter what was requested, we always use dataspace V0_JFIF.
+  // Note: according to camera3.h, this isn't allowed, but etalvala@google.com
+  // claims it's underdocumented; the implementation lets the HAL overwrite it.
+  stream->setDataSpace(HAL_DATASPACE_V0_JFIF);
+
+  int ret = setFormat(stream);
+  if (ret) {
+    return ret;
+  }
+
+  // Only do buffer setup if we don't know our maxBuffers.
+  if (mOutStreamMaxBuffers < 1) {
+    ret = setupBuffers();
+    if (ret) {
+      return ret;
+    }
+  }
+
+  // Sanity check.
+  if (mOutStreamMaxBuffers < 1) {
+    HAL_LOGE("HAL failed to determine max number of buffers.");
+    return -ENODEV;
+  }
+  *max_buffers = mOutStreamMaxBuffers;
+
+  return 0;
+}
+
+int V4L2Camera::setFormat(const default_camera_hal::Stream* stream) {
+  HAL_LOG_ENTER();
+
+  // Should be checked earlier; sanity check.
+  if (stream->isInputType()) {
+    HAL_LOGE("Input streams not supported.");
+    return -EINVAL;
+  }
+
+  v4l2_format format;
+  memset(&format, 0, sizeof(format));
+  format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  format.fmt.pix.width = stream->getWidth();
+  format.fmt.pix.height = stream->getHeight();
+  format.fmt.pix.pixelformat = halToV4L2PixelFormat(stream->getFormat());
+  // Check to make sure we're not already in the correct format.
+  if (mOutStreamFormat == format.fmt.pix.pixelformat &&
+      mOutStreamWidth == format.fmt.pix.width &&
+      mOutStreamHeight == format.fmt.pix.height) {
+    return 0;
+  }
+  // Not in the correct format, set our format.
+  int ret = ioctlLocked(VIDIOC_S_FMT, &format);
+  if (ret < 0) {
+    HAL_LOGE("S_FMT failed: %s", strerror(errno));
+    return -ENODEV;
+  }
+  // Check that the driver actually set to the requested values.
+  if (format.fmt.pix.pixelformat != halToV4L2PixelFormat(stream->getFormat()) ||
+      format.fmt.pix.width != stream->getWidth() ||
+      format.fmt.pix.height != stream->getHeight()) {
+    HAL_LOGE("Device doesn't support desired stream configuration.");
+    return -EINVAL;
+  }
+  // Since our format changed, our maxBuffers may be incorrect.
+  mOutStreamMaxBuffers = 0;
+
+  return 0;
+}
+
+int V4L2Camera::setupBuffers() {
+  HAL_LOG_ENTER();
+
+  // "Request" a buffer (since we're using a userspace buffer, this just
+  // tells V4L2 to switch into userspace buffer mode).
+  v4l2_requestbuffers req_buffers;
+  memset(&req_buffers, 0, sizeof(req_buffers));
+  req_buffers.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  req_buffers.memory = V4L2_MEMORY_USERPTR;
+  req_buffers.count = 1;
+  if (ioctlLocked(VIDIOC_REQBUFS, &req_buffers) < 0) {
+    HAL_LOGE("REQBUFS failed: %s", strerror(errno));
+    return -ENODEV;
+  }
+
+  // V4L2 will set req_buffers.count to a number of buffers it can handle.
+  mOutStreamMaxBuffers = req_buffers.count;
+  return 0;
+}
+
 bool V4L2Camera::isValidCaptureSettings(const camera_metadata_t* settings) {
   HAL_LOG_ENTER();
 
@@ -1227,6 +1417,14 @@ int V4L2Camera::initCharacteristics() {
   // TODO(b/29394024): query V4L2_CID_FOCUS_ABSOLUTE for focus range.
   mFocusDistance = 0;  // Fixed focus.
 
+  // TODO(b/29939583): V4L2 can only support 1 stream at a time.
+  // For now, just reporting minimum allowable for LIMITED devices.
+  mMaxRawOutputStreams = 0;
+  mMaxYuvOutputStreams = 2;
+  mMaxJpegOutputStreams = 1;
+  // Reprocessing not supported.
+  mMaxInputStreams = 0;
+
   /* Features with (potentially) multiple options. */
 
   // TODO(b/29394024): query V4L2_CID_EXPOSURE_AUTO for ae modes.
@@ -1272,23 +1470,15 @@ int V4L2Camera::initCharacteristics() {
   // Need to support YUV_420_888 and JPEG.
   // TODO(b/29394024): query VIDIOC_ENUM_FMT.
   std::vector<uint32_t> formats = {{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420}};
-  int32_t hal_format;
   // We want to find the smallest maximum frame duration amongst formats.
   mMaxFrameDuration = std::numeric_limits<int64_t>::max();
   int64_t min_yuv_frame_duration = std::numeric_limits<int64_t>::max();
   for (auto format : formats) {
-    // Translate V4L2 format to HAL format.
-    switch (format) {
-      case V4L2_PIX_FMT_JPEG:
-        hal_format = HAL_PIXEL_FORMAT_BLOB;
-        break;
-      case V4L2_PIX_FMT_YUV420:
-        hal_format = HAL_PIXEL_FORMAT_YCbCr_420_888;
-      default:
-        // Unrecognized/unused format. Skip it.
-        continue;
+    int32_t hal_format = V4L2ToHalPixelFormat(format);
+    if (hal_format < 0) {
+      // Unrecognized/unused format. Skip it.
+      continue;
     }
-
     // TODO(b/29394024): query VIDIOC_ENUM_FRAMESIZES.
     // For now, just 640x480.
     ArrayVector<int32_t, 2> frame_sizes;
@@ -1352,6 +1542,41 @@ int V4L2Camera::initCharacteristics() {
 
   mCharacteristicsInitialized = true;
   return 0;
+}
+
+int V4L2Camera::V4L2ToHalPixelFormat(uint32_t v4l2_format) {
+  // Translate V4L2 format to HAL format.
+  int hal_format = -1;
+  switch (v4l2_format) {
+    case V4L2_PIX_FMT_JPEG:
+      hal_format = HAL_PIXEL_FORMAT_BLOB;
+      break;
+    case V4L2_PIX_FMT_YUV420:
+      hal_format = HAL_PIXEL_FORMAT_YCbCr_420_888;
+      break;
+    default:
+      // Unrecognized format.
+      break;
+  }
+  return hal_format;
+}
+
+uint32_t V4L2Camera::halToV4L2PixelFormat(int hal_format) {
+  // Translate HAL format to V4L2 format.
+  uint32_t v4l2_format = 0;
+  switch (hal_format) {
+    case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:  // fall-through.
+    case HAL_PIXEL_FORMAT_YCbCr_420_888:
+      v4l2_format = V4L2_PIX_FMT_YUV420;
+      break;
+    case HAL_PIXEL_FORMAT_BLOB:
+      v4l2_format = V4L2_PIX_FMT_JPEG;
+      break;
+    default:
+      // Unrecognized format.
+      break;
+  }
+  return v4l2_format;
 }
 
 } // namespace v4l2_camera_hal
