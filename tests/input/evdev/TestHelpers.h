@@ -42,7 +42,7 @@ decltype(auto) delay_async(Duration&& delay, Function&& task)
  */
 class TempFile {
 public:
-    TempFile(const char* path);
+    explicit TempFile(const char* path);
     ~TempFile();
 
     // No copy or assign

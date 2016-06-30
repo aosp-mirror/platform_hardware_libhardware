@@ -29,7 +29,7 @@ namespace default_camera_hal {
 // camera device.
 class CameraHAL {
     public:
-        CameraHAL(int num_cameras);
+        explicit CameraHAL(int num_cameras);
         ~CameraHAL();
 
         // Camera Module Interface (see <hardware/camera_common.h>)
