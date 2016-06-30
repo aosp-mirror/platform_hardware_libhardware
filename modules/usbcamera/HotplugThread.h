@@ -36,7 +36,7 @@ class CameraHAL;
 class HotplugThread : public android::Thread {
 
     public:
-        HotplugThread(CameraHAL *hal);
+        explicit HotplugThread(CameraHAL *hal);
         ~HotplugThread();
 
         // Override below two methods for proper cleanup.

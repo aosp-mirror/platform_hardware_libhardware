@@ -28,7 +28,7 @@ namespace usb_camera_hal {
  */
 class UsbCamera : public Camera {
     public:
-        UsbCamera(int id);
+        explicit UsbCamera(int id);
         ~UsbCamera();
 
     private:

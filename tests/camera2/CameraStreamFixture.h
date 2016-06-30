@@ -71,7 +71,7 @@ class CameraStreamFixture
     : public CameraModuleFixture</*InfoQuirk*/true> {
 
 public:
-    CameraStreamFixture(CameraStreamParams p)
+    explicit CameraStreamFixture(CameraStreamParams p)
     : CameraModuleFixture(TestSettings::DeviceId()) {
         TEST_EXTENSION_FORKING_CONSTRUCTOR;
 
