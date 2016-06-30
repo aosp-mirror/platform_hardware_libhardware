@@ -38,7 +38,7 @@ class SensorEventQueue {
     pthread_cond_t mSpaceAvailableCondition;
 
 public:
-    SensorEventQueue(int capacity);
+    explicit SensorEventQueue(int capacity);
     ~SensorEventQueue();
 
     // Returns length of region, between zero and min(capacity, requestedLength). If there is any

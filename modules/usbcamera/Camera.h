@@ -38,7 +38,7 @@ class Camera {
     public:
         // id is used to distinguish cameras. 0 <= id < NUM_CAMERAS.
         // module is a handle to the HAL module, used when the device is opened.
-        Camera(int id);
+        explicit Camera(int id);
         virtual ~Camera();
 
         // Common Camera Device Operations (see <hardware/camera_common.h>)
