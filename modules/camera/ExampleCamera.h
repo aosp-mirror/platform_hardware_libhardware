@@ -27,7 +27,7 @@ namespace default_camera_hal {
 // metadata and logic about that device.
 class ExampleCamera : public Camera {
     public:
-        ExampleCamera(int id);
+        explicit ExampleCamera(int id);
         ~ExampleCamera();
 
     private:
