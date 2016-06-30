@@ -166,7 +166,7 @@ class NotifierListener {
  */
 class StreamAdapter: public camera2_stream_ops {
   public:
-    StreamAdapter(sp<IGraphicBufferProducer> consumer);
+    explicit StreamAdapter(sp<IGraphicBufferProducer> consumer);
 
     ~StreamAdapter();
 

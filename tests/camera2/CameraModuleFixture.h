@@ -36,7 +36,7 @@ namespace tests {
 template <bool InfoQuirk = false>
 struct CameraModuleFixture {
 
-    CameraModuleFixture(int CameraID = -1) {
+    explicit CameraModuleFixture(int CameraID = -1) {
         TEST_EXTENSION_FORKING_CONSTRUCTOR;
 
         mCameraID = CameraID;

@@ -48,7 +48,7 @@ public:
     class Autolock {
         Locker& locker;
     public:
-        inline Autolock(Locker& locker) : locker(locker) {  locker.lock(); }
+        inline explicit Autolock(Locker& locker) : locker(locker) {  locker.lock(); }
         inline ~Autolock() { locker.unlock(); }
     };
     inline Locker()        { pthread_mutex_init(&mutex, 0); }
