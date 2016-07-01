@@ -33,6 +33,19 @@
 
 namespace v4l2_camera_hal {
 
+// Helper function for managing metadata.
+static std::vector<int32_t> getMetadataKeys(
+    const camera_metadata_t* metadata) {
+  std::vector<int32_t> keys;
+  size_t num_entries = get_camera_metadata_entry_count(metadata);
+  for (size_t i = 0; i < num_entries; ++i) {
+    camera_metadata_ro_entry_t entry;
+    get_camera_metadata_ro_entry(metadata, i, &entry);
+    keys.push_back(entry.tag);
+  }
+  return keys;
+}
+
 V4L2Camera::V4L2Camera(int id, std::string path)
     : default_camera_hal::Camera(id),
       mDevicePath(std::move(path)),
@@ -95,13 +108,6 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
 
   android::CameraMetadata info;
 
-  std::vector<int32_t> avail_characteristics_keys;
-
-#define ADD_STATIC_ENTRY(name, varptr, count) \
-  avail_characteristics_keys.push_back(name); \
-  res = info.update(name, varptr, count); \
-  if (res != android::OK) return res
-
   // Static metadata characteristics from /system/media/camera/docs/docs.html.
 
   /* android.colorCorrection. */
@@ -111,70 +117,118 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   uint8_t avail_aberration_modes[] = {
     ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
     ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY};
-  ADD_STATIC_ENTRY(ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
-                   avail_aberration_modes, ARRAY_SIZE(avail_aberration_modes));
+  res = info.update(ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
+                    avail_aberration_modes, ARRAY_SIZE(avail_aberration_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.control. */
 
   /*   3As */
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
-                   mAeAntibandingModes.data(), mAeAntibandingModes.size());
+  res = info.update(ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
+                    mAeAntibandingModes.data(), mAeAntibandingModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_AVAILABLE_MODES,
-                   mAeModes.data(), mAeModes.size());
+  res = info.update(ANDROID_CONTROL_AE_AVAILABLE_MODES,
+                    mAeModes.data(), mAeModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // Flatten mFpsRanges.
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
-                   mFpsRanges.data(), mFpsRanges.total_num_elements());
+  res = info.update(ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
+                    mFpsRanges.data(), mFpsRanges.total_num_elements());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
-                   mAeCompensationRange.data(), mAeCompensationRange.size());
+  res = info.update(ANDROID_CONTROL_AE_COMPENSATION_RANGE,
+                    mAeCompensationRange.data(), mAeCompensationRange.size());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_COMPENSATION_STEP,
-                   &mAeCompensationStep, 1);
+  res = info.update(ANDROID_CONTROL_AE_COMPENSATION_STEP,
+                    &mAeCompensationStep, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AF_AVAILABLE_MODES,
-                   mAfModes.data(), mAfModes.size());
+  res = info.update(ANDROID_CONTROL_AF_AVAILABLE_MODES,
+                    mAfModes.data(), mAfModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AWB_AVAILABLE_MODES,
-                   mAwbModes.data(), mAwbModes.size());
+  res = info.update(ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+                    mAwbModes.data(), mAwbModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // Couldn't find any V4L2 support for regions, though maybe it's out there.
   int32_t max_regions[] = {/*AE*/ 0,/*AWB*/ 0,/*AF*/ 0};
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_MAX_REGIONS,
-                   max_regions, ARRAY_SIZE(max_regions));
+  res = info.update(ANDROID_CONTROL_MAX_REGIONS,
+                    max_regions, ARRAY_SIZE(max_regions));
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
-                   &mAeLockAvailable, 1);
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AWB_LOCK_AVAILABLE,
-                   &mAwbLockAvailable, 1);
+  res = info.update(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
+                    &mAeLockAvailable, 1);
+  if (res != android::OK) {
+    return res;
+  }
+  res = info.update(ANDROID_CONTROL_AWB_LOCK_AVAILABLE,
+                    &mAwbLockAvailable, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Scene modes. */
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
-                   mSceneModes.data(), mSceneModes.size());
+  res = info.update(ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
+                    mSceneModes.data(), mSceneModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // A 3-tuple of AE, AWB, AF overrides for each scene mode.
   // Ignored for DISABLED, FACE_PRIORITY and FACE_PRIORITY_LOW_LIGHT.
   uint8_t scene_mode_overrides[] = {
     /*SCENE_MODE_DISABLED*/ /*AE*/0, /*AW*/0, /*AF*/0};
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_SCENE_MODE_OVERRIDES,
-                   scene_mode_overrides, ARRAY_SIZE(scene_mode_overrides));
+  res = info.update(ANDROID_CONTROL_SCENE_MODE_OVERRIDES,
+                    scene_mode_overrides, ARRAY_SIZE(scene_mode_overrides));
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Top level 3A/Scenes switch. */
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AVAILABLE_MODES,
-                   mControlModes.data(), mControlModes.size());
+  res = info.update(ANDROID_CONTROL_AVAILABLE_MODES,
+                    mControlModes.data(), mControlModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Other android.control configuration. */
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
-                   mVideoStabilizationModes.data(),
-                   mVideoStabilizationModes.size());
+  res = info.update(ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
+                    mVideoStabilizationModes.data(),
+                    mVideoStabilizationModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_CONTROL_AVAILABLE_EFFECTS,
-                   mEffects.data(), mEffects.size());
+  res = info.update(ANDROID_CONTROL_AVAILABLE_EFFECTS,
+                    mEffects.data(), mEffects.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // AVAILABLE_HIGH_SPEED_VIDEO_CONFIGURATIONS only necessary
   // for devices supporting CONSTRAINED_HIGH_SPEED_VIDEO,
@@ -190,13 +244,19 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // either way it's fine to list.
   uint8_t avail_edge_modes[] = {
     ANDROID_EDGE_MODE_FAST};
-  ADD_STATIC_ENTRY(ANDROID_EDGE_AVAILABLE_EDGE_MODES,
-                   avail_edge_modes, ARRAY_SIZE(avail_edge_modes));
+  res = info.update(ANDROID_EDGE_AVAILABLE_EDGE_MODES,
+                    avail_edge_modes, ARRAY_SIZE(avail_edge_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.flash. */
 
-  ADD_STATIC_ENTRY(ANDROID_FLASH_INFO_AVAILABLE,
-                   &mFlashAvailable, 1);
+  res = info.update(ANDROID_FLASH_INFO_AVAILABLE,
+                    &mFlashAvailable, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // info.chargeDuration, color.Temperature, maxEnergy marked FUTURE.
 
@@ -207,8 +267,11 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   uint8_t avail_hot_pixel_modes[] = {
     ANDROID_HOT_PIXEL_MODE_FAST,
     ANDROID_HOT_PIXEL_MODE_HIGH_QUALITY};
-  ADD_STATIC_ENTRY(ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
-                   avail_hot_pixel_modes, ARRAY_SIZE(avail_hot_pixel_modes));
+  res = info.update(ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
+                    avail_hot_pixel_modes, ARRAY_SIZE(avail_hot_pixel_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.jpeg. */
 
@@ -217,54 +280,84 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // since V4L2 doesn't actually allow for thumbnail size control.
   int32_t thumbnail_sizes[] = {
     0, 0};
-  ADD_STATIC_ENTRY(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
-                   thumbnail_sizes, ARRAY_SIZE(thumbnail_sizes));
+  res = info.update(ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
+                    thumbnail_sizes, ARRAY_SIZE(thumbnail_sizes));
+  if (res != android::OK) {
+    return res;
+  }
 
   // V4L2 doesn't support querying this, so we generously assume up to 3 MB.
   int32_t max_jpeg_size = 3000000;
-  ADD_STATIC_ENTRY(ANDROID_JPEG_MAX_SIZE,
-                   &max_jpeg_size, 1);
+  res = info.update(ANDROID_JPEG_MAX_SIZE,
+                    &max_jpeg_size, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.lens. */
 
   /*   Misc. lens control. */
 
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_AVAILABLE_APERTURES,
-                   &mAperture, 1);
+  res = info.update(ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+                    &mAperture, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
-                   &mFilterDensity, 1);
+  res = info.update(ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
+                    &mFilterDensity, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
-                   mOpticalStabilizationModes.data(),
-                   mOpticalStabilizationModes.size());
+  res = info.update(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
+                    mOpticalStabilizationModes.data(),
+                    mOpticalStabilizationModes.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // No known V4L2 shading map info.
   int32_t shading_map_size[] = {1, 1};
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_SHADING_MAP_SIZE,
-                   shading_map_size, ARRAY_SIZE(shading_map_size));
+  res = info.update(ANDROID_LENS_INFO_SHADING_MAP_SIZE,
+                    shading_map_size, ARRAY_SIZE(shading_map_size));
+  if (res != android::OK) {
+    return res;
+  }
 
   // All V4L2 devices are considered to be external facing.
   uint8_t facing = ANDROID_LENS_FACING_EXTERNAL;
-  ADD_STATIC_ENTRY(ANDROID_LENS_FACING, &facing, 1);
+  res = info.update(ANDROID_LENS_FACING, &facing, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Zoom/Focus. */
 
   // No way to actually get the focal length in V4L2, but it's a required key,
   // so we just fake it.
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
-                   &mFocalLength, 1);
+  res = info.update(ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+                    &mFocalLength, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // V4L2 focal units do not correspond to a particular physical unit.
   uint8_t focus_calibration =
       ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION_UNCALIBRATED;
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
-                   &focus_calibration, 1);
+  res = info.update(ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
+                    &focus_calibration, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // info.hyperfocalDistance not required for UNCALIBRATED.
 
-  ADD_STATIC_ENTRY(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
-                   &mFocusDistance, 1);
+  res = info.update(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
+                    &mFocusDistance, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Depth. */
 
@@ -279,9 +372,12 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // Unable to control noise reduction in V4L2 devices,
   // but FAST is allowed to be the same as OFF.
   uint8_t avail_noise_reduction_modes[] = {ANDROID_NOISE_REDUCTION_MODE_FAST};
-  ADD_STATIC_ENTRY(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
-                   avail_noise_reduction_modes,
-                   ARRAY_SIZE(avail_noise_reduction_modes));
+  res = info.update(ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
+                    avail_noise_reduction_modes,
+                    ARRAY_SIZE(avail_noise_reduction_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.request. */
 
@@ -289,16 +385,22 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // for LIMITED devices.
   int32_t max_num_output_streams[] = {
     /*Raw*/0, /*YUV*/2, /*JPEG*/1};
-  ADD_STATIC_ENTRY(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
-                   max_num_output_streams, ARRAY_SIZE(max_num_output_streams));
+  res = info.update(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
+                    max_num_output_streams, ARRAY_SIZE(max_num_output_streams));
+  if (res != android::OK) {
+    return res;
+  }
 
   // Reprocessing not supported, so no maxNumInputStreams.
 
   // No way to know for V4L2, so fake with max allowable latency.
   // Doesn't mean much without per-frame controls.
   uint8_t pipeline_max_depth = 4;
-  ADD_STATIC_ENTRY(ANDROID_REQUEST_PIPELINE_MAX_DEPTH,
-                   &pipeline_max_depth, 1);
+  res = info.update(ANDROID_REQUEST_PIPELINE_MAX_DEPTH,
+                    &pipeline_max_depth, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // Partial results not supported; partialResultCount defaults to 1.
 
@@ -308,56 +410,89 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
 
   /*   Cropping. */
 
-  ADD_STATIC_ENTRY(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
-                   &mMaxZoom, 1);
+  res = info.update(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM,
+                    &mMaxZoom, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_SCALER_CROPPING_TYPE, &mCropType, 1);
+  res = info.update(ANDROID_SCALER_CROPPING_TYPE, &mCropType, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Streams. */
 
   // availableInputOutputFormatsMap only required for reprocessing capability.
 
   // Flatten mStreamConfigs.
-  ADD_STATIC_ENTRY(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
-                   mStreamConfigs.data(),
-                   mStreamConfigs.total_num_elements());
+  res = info.update(ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
+                    mStreamConfigs.data(),
+                    mStreamConfigs.total_num_elements());
+  if (res != android::OK) {
+    return res;
+  }
 
   // Flatten mMinFrameDurations.
-  ADD_STATIC_ENTRY(ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
-                   mMinFrameDurations.data(),
-                   mMinFrameDurations.total_num_elements());
+  res = info.update(ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS,
+                    mMinFrameDurations.data(),
+                    mMinFrameDurations.total_num_elements());
+  if (res != android::OK) {
+    return res;
+  }
 
   // Flatten mStallDurations.
-  ADD_STATIC_ENTRY(ANDROID_SCALER_AVAILABLE_STALL_DURATIONS,
-                   mStallDurations.data(),
-                   mStallDurations.total_num_elements());
+  res = info.update(ANDROID_SCALER_AVAILABLE_STALL_DURATIONS,
+                    mStallDurations.data(),
+                    mStallDurations.total_num_elements());
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.sensor. */
 
   /*   Sizes. */
 
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
-                   mPixelArraySize.data(), mPixelArraySize.size());
+  res = info.update(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
+                    mPixelArraySize.data(), mPixelArraySize.size());
+  if (res != android::OK) {
+    return res;
+  }
   // No V4L2 way to differentiate active vs. inactive parts of the rectangle.
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
-                   mPixelArraySize.data(), mPixelArraySize.size());
+  res = info.update(ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
+                    mPixelArraySize.data(), mPixelArraySize.size());
+  if (res != android::OK) {
+    return res;
+  }
 
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
-                   mPhysicalSize.data(), mPhysicalSize.size());
+  res = info.update(ANDROID_SENSOR_INFO_PHYSICAL_SIZE,
+                    mPhysicalSize.data(), mPhysicalSize.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   Misc sensor information. */
 
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
-                   &mMaxFrameDuration, 1);
+  res = info.update(ANDROID_SENSOR_INFO_MAX_FRAME_DURATION,
+                    &mMaxFrameDuration, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // HAL uses BOOTTIME timestamps.
   // TODO(b/29457051): make sure timestamps are consistent throughout the HAL.
   uint8_t timestamp_source = ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN;
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
-                   &timestamp_source, 1);
+  res = info.update(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
+                    &timestamp_source, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // As in initDeviceInfo, no way to actually get orientation.
-  ADD_STATIC_ENTRY(ANDROID_SENSOR_ORIENTATION, &mOrientation, 1);
+  res = info.update(ANDROID_SENSOR_ORIENTATION, &mOrientation, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // availableTestPatternModes just defaults to OFF, which is fine.
 
@@ -386,21 +521,30 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   uint8_t avail_shading_modes[] = {
     ANDROID_SHADING_MODE_FAST,
     ANDROID_SHADING_MODE_HIGH_QUALITY};
-  ADD_STATIC_ENTRY(ANDROID_SHADING_AVAILABLE_MODES,
-                   avail_shading_modes, ARRAY_SIZE(avail_shading_modes));
+  res = info.update(ANDROID_SHADING_AVAILABLE_MODES,
+                    avail_shading_modes, ARRAY_SIZE(avail_shading_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.statistics */
 
   // Face detection not supported.
   uint8_t avail_face_detect_modes[] = {
     ANDROID_STATISTICS_FACE_DETECT_MODE_OFF};
-  ADD_STATIC_ENTRY(ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
-                   avail_face_detect_modes,
-                   ARRAY_SIZE(avail_face_detect_modes));
+  res = info.update(ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
+                    avail_face_detect_modes,
+                    ARRAY_SIZE(avail_face_detect_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   int32_t max_face_count = 0;
-  ADD_STATIC_ENTRY(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT,
-                   &max_face_count, 1);
+  res = info.update(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT,
+                    &max_face_count, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // info.histogramBucketCount, info.maxHistogramCount,
   // info.maxSharpnessMapValue, info.sharpnessMapSizemarked FUTURE.
@@ -408,16 +552,22 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // ON only needs to be supported for RAW capable devices.
   uint8_t avail_hot_pixel_map_modes[] = {
     ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF};
-  ADD_STATIC_ENTRY(ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
-                   avail_hot_pixel_map_modes,
-                   ARRAY_SIZE(avail_hot_pixel_map_modes));
+  res = info.update(ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
+                    avail_hot_pixel_map_modes,
+                    ARRAY_SIZE(avail_hot_pixel_map_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   // ON only needs to be supported for RAW capable devices.
   uint8_t avail_lens_shading_map_modes[] = {
     ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF};
-  ADD_STATIC_ENTRY(ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
-                   avail_lens_shading_map_modes,
-                   ARRAY_SIZE(avail_lens_shading_map_modes));
+  res = info.update(ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
+                    avail_lens_shading_map_modes,
+                    ARRAY_SIZE(avail_lens_shading_map_modes));
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.tonemap. */
 
@@ -427,7 +577,10 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
 
   // May or may not have LEDs available.
   if (!mLeds.empty()) {
-    ADD_STATIC_ENTRY(ANDROID_LED_AVAILABLE_LEDS, mLeds.data(), mLeds.size());
+    res = info.update(ANDROID_LED_AVAILABLE_LEDS, mLeds.data(), mLeds.size());
+    if (res != android::OK) {
+      return res;
+    }
   }
 
   /* android.sync. */
@@ -438,8 +591,11 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   // really help here either. Could even be that adjusting settings mid-stream
   // blocks in V4L2, and should be avoided.
   int32_t max_latency = ANDROID_SYNC_MAX_LATENCY_UNKNOWN;
-  ADD_STATIC_ENTRY(ANDROID_SYNC_MAX_LATENCY,
-                   &max_latency, 1);
+  res = info.update(ANDROID_SYNC_MAX_LATENCY,
+                    &max_latency, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.reprocess. */
 
@@ -452,13 +608,19 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   /* Capabilities and android.info. */
 
   uint8_t hw_level = ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED;
-  ADD_STATIC_ENTRY(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
-                   &hw_level, 1);
+  res = info.update(ANDROID_INFO_SUPPORTED_HARDWARE_LEVEL,
+                    &hw_level, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t capabilities[] = {
     ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE};
-  ADD_STATIC_ENTRY(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
-                   capabilities, ARRAY_SIZE(capabilities));
+  res = info.update(ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
+                    capabilities, ARRAY_SIZE(capabilities));
+  if (res != android::OK) {
+    return res;
+  }
 
   // Scan a default request template for included request keys.
   if (!mTemplatesInitialized) {
@@ -467,8 +629,7 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
       return res;
     }
   }
-  std::vector<int32_t> avail_request_keys;
-  const camera_metadata_t *preview_request = nullptr;
+  const camera_metadata_t* preview_request = nullptr;
   // Search templates from the beginning for a supported one.
   for (uint8_t template_id = 1; template_id < CAMERA3_TEMPLATE_COUNT;
        ++template_id) {
@@ -481,25 +642,38 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
     HAL_LOGE("No valid templates, can't get request keys.");
     return -ENODEV;
   }
-  size_t num_entries = get_camera_metadata_entry_count(preview_request);
-  for (size_t i = 0; i < num_entries; ++i) {
-    camera_metadata_ro_entry_t entry;
-    get_camera_metadata_ro_entry(preview_request, i, &entry);
-    avail_request_keys.push_back(entry.tag);
+  std::vector<int32_t> avail_request_keys = getMetadataKeys(preview_request);
+  res = info.update(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
+                    avail_request_keys.data(), avail_request_keys.size());
+  if (res != android::OK) {
+    return res;
   }
-  ADD_STATIC_ENTRY(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
-                   avail_request_keys.data(), avail_request_keys.size());
 
   // Result keys will be duplicated from the request, plus a few extras.
   // TODO(b/29335262): additonal available result keys.
   std::vector<int32_t> avail_result_keys(avail_request_keys);
-  ADD_STATIC_ENTRY(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
-                   avail_result_keys.data(), avail_result_keys.size());
+  res = info.update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
+                    avail_result_keys.data(), avail_result_keys.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   // Last thing, once all the available characteristics have been added.
-  info.update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
-              avail_characteristics_keys.data(),
-              avail_characteristics_keys.size());
+  const camera_metadata_t* static_characteristics = info.getAndLock();
+  std::vector<int32_t> avail_characteristics_keys =
+      getMetadataKeys(static_characteristics);
+  res = info.unlock(static_characteristics);
+  if (res != android::OK) {
+    return res;
+  }
+  avail_characteristics_keys.push_back(
+      ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS);
+  res = info.update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+                    avail_characteristics_keys.data(),
+                    avail_characteristics_keys.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   *out = info.release();
   return 0;
@@ -547,22 +721,25 @@ int V4L2Camera::initTemplates() {
   // Note: static metadata expects all templates/requests
   // to provide values for all supported keys.
 
-  android::CameraMetadata template_metadata;
-#define ADD_REQUEST_ENTRY(name, varptr, count) \
-  res = template_metadata.update(name, varptr, count); \
-  if (res != android::OK) return res
+  android::CameraMetadata base_metadata;
 
   // Start with defaults for all templates.
 
   /* android.colorCorrection. */
 
   uint8_t aberration_mode = ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
-                    &aberration_mode, 1);
+  res = base_metadata.update(ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
+                             &aberration_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t color_correction_mode = ANDROID_COLOR_CORRECTION_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_COLOR_CORRECTION_MODE,
-                    &color_correction_mode, 1);
+  res = base_metadata.update(ANDROID_COLOR_CORRECTION_MODE,
+                             &color_correction_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // transform and gains are for the unsupported MANUAL_POST_PROCESSING only.
 
@@ -570,27 +747,42 @@ int V4L2Camera::initTemplates() {
 
   /*   AE. */
   uint8_t ae_antibanding_mode = ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_ANTIBANDING_MODE,
-                    &ae_antibanding_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AE_ANTIBANDING_MODE,
+                             &ae_antibanding_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // Only matters if AE_MODE = OFF
   int32_t ae_exposure_compensation = 0;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION,
-                    &ae_exposure_compensation, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION,
+                             &ae_exposure_compensation, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t ae_lock = ANDROID_CONTROL_AE_LOCK_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_LOCK, &ae_lock, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AE_LOCK, &ae_lock, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t ae_mode = ANDROID_CONTROL_AE_MODE_ON;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_MODE, &ae_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AE_MODE, &ae_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // AE regions not supported.
 
   // FPS set per-template.
 
   uint8_t ae_precapture_trigger = ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_IDLE;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER,
-                    &ae_precapture_trigger, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER,
+                             &ae_precapture_trigger, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   AF. */
 
@@ -599,7 +791,10 @@ int V4L2Camera::initTemplates() {
   // AF regions not supported.
 
   uint8_t af_trigger = ANDROID_CONTROL_AF_TRIGGER_IDLE;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AF_TRIGGER, &af_trigger, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AF_TRIGGER, &af_trigger, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /*   AWB. */
 
@@ -612,25 +807,40 @@ int V4L2Camera::initTemplates() {
                        ANDROID_CONTROL_AWB_MODE_OFF)) {
     default_awb_mode = ANDROID_CONTROL_AWB_MODE_OFF;
   }
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_AWB_MODE, &default_awb_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_AWB_MODE, &default_awb_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // AWB regions not supported.
 
   /*   Other controls. */
 
   uint8_t effect_mode = ANDROID_CONTROL_EFFECT_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_EFFECT_MODE, &effect_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_EFFECT_MODE, &effect_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t control_mode = ANDROID_CONTROL_MODE_AUTO;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_MODE, &control_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_MODE, &control_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t scene_mode = ANDROID_CONTROL_SCENE_MODE_DISABLED;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_SCENE_MODE,
-                    &scene_mode, 1);
+  res = base_metadata.update(ANDROID_CONTROL_SCENE_MODE,
+                             &scene_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t video_stabilization = ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_CONTROL_VIDEO_STABILIZATION_MODE,
-                    &video_stabilization, 1);
+  res = base_metadata.update(ANDROID_CONTROL_VIDEO_STABILIZATION_MODE,
+                             &video_stabilization, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // postRawSensitivityBoost: RAW not supported, leave null.
 
@@ -641,7 +851,10 @@ int V4L2Camera::initTemplates() {
   /* android.edge. */
 
   uint8_t edge_mode = ANDROID_EDGE_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_EDGE_MODE, &edge_mode, 1);
+  res = base_metadata.update(ANDROID_EDGE_MODE, &edge_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // strength marked FUTURE.
 
@@ -650,58 +863,106 @@ int V4L2Camera::initTemplates() {
   // firingPower, firingTime marked FUTURE.
 
   uint8_t flash_mode = ANDROID_FLASH_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_FLASH_MODE, &flash_mode, 1);
+  res = base_metadata.update(ANDROID_FLASH_MODE, &flash_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.hotPixel. */
 
   uint8_t hp_mode = ANDROID_HOT_PIXEL_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_HOT_PIXEL_MODE, &hp_mode, 1);
+  res = base_metadata.update(ANDROID_HOT_PIXEL_MODE, &hp_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.jpeg. */
 
   double gps_coords[] = {/*latitude*/0, /*longitude*/0, /*altitude*/0};
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_GPS_COORDINATES, gps_coords, 3);
+  res = base_metadata.update(ANDROID_JPEG_GPS_COORDINATES, gps_coords, 3);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t gps_processing_method[] = "none";
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_GPS_PROCESSING_METHOD,
-                    gps_processing_method, ARRAY_SIZE(gps_processing_method));
+  res = base_metadata.update(ANDROID_JPEG_GPS_PROCESSING_METHOD,
+                             gps_processing_method,
+                             ARRAY_SIZE(gps_processing_method));
+  if (res != android::OK) {
+    return res;
+  }
 
   int64_t gps_timestamp = 0;
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_GPS_TIMESTAMP, &gps_timestamp, 1);
+  res = base_metadata.update(ANDROID_JPEG_GPS_TIMESTAMP, &gps_timestamp, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // JPEG orientation is relative to sensor orientation (mOrientation).
   int32_t jpeg_orientation = 0;
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_ORIENTATION, &jpeg_orientation, 1);
+  res = base_metadata.update(ANDROID_JPEG_ORIENTATION, &jpeg_orientation, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // 1-100, larger is higher quality.
   uint8_t jpeg_quality = 80;
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_QUALITY, &jpeg_quality, 1);
+  res = base_metadata.update(ANDROID_JPEG_QUALITY, &jpeg_quality, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // TODO(b/29580107): If thumbnail quality actually matters/can be adjusted,
   // adjust this.
   uint8_t thumbnail_quality = 80;
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_THUMBNAIL_QUALITY, &thumbnail_quality, 1);
+  res = base_metadata.update(ANDROID_JPEG_THUMBNAIL_QUALITY,
+                             &thumbnail_quality, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // TODO(b/29580107): Choose a size matching the resolution.
   int32_t thumbnail_size[] = {0, 0};
-  ADD_REQUEST_ENTRY(ANDROID_JPEG_THUMBNAIL_SIZE, thumbnail_size, 2);
+  res = base_metadata.update(ANDROID_JPEG_THUMBNAIL_SIZE, thumbnail_size, 2);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.lens. */
 
   // Fixed values.
-  ADD_REQUEST_ENTRY(ANDROID_LENS_APERTURE, &mAperture, 1);
-  ADD_REQUEST_ENTRY(ANDROID_LENS_FILTER_DENSITY, &mFilterDensity, 1);
-  ADD_REQUEST_ENTRY(ANDROID_LENS_FOCAL_LENGTH, &mFocalLength, 1);
-  ADD_REQUEST_ENTRY(ANDROID_LENS_FOCUS_DISTANCE, &mFocusDistance, 1);
+  res = base_metadata.update(ANDROID_LENS_APERTURE, &mAperture, 1);
+  if (res != android::OK) {
+    return res;
+  }
+  res = base_metadata.update(ANDROID_LENS_FILTER_DENSITY, &mFilterDensity, 1);
+  if (res != android::OK) {
+    return res;
+  }
+  res = base_metadata.update(ANDROID_LENS_FOCAL_LENGTH, &mFocalLength, 1);
+  if (res != android::OK) {
+    return res;
+  }
+  res = base_metadata.update(ANDROID_LENS_FOCUS_DISTANCE, &mFocusDistance, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t optical_stabilization = ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
+  res = base_metadata.update(ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
                     &optical_stabilization, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.noiseReduction. */
 
   uint8_t noise_reduction_mode = ANDROID_NOISE_REDUCTION_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_NOISE_REDUCTION_MODE, &noise_reduction_mode, 1);
+  res = base_metadata.update(ANDROID_NOISE_REDUCTION_MODE,
+                             &noise_reduction_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // strength marked FUTURE.
 
@@ -710,15 +971,21 @@ int V4L2Camera::initTemplates() {
   // Request Id unused by the HAL for now, and these are just
   // templates, so just fill it in with a dummy.
   int32_t id = 0;
-  ADD_REQUEST_ENTRY(ANDROID_REQUEST_ID, &id, 1);
+  res = base_metadata.update(ANDROID_REQUEST_ID, &id, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // metadataMode marked FUTURE.
 
   /* android.scaler. */
 
   // No cropping by default; use the full active array.
-  ADD_REQUEST_ENTRY(ANDROID_SCALER_CROP_REGION, mPixelArraySize.data(),
-                    mPixelArraySize.size());
+  res = base_metadata.update(ANDROID_SCALER_CROP_REGION, mPixelArraySize.data(),
+                             mPixelArraySize.size());
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.sensor. */
 
@@ -726,26 +993,43 @@ int V4L2Camera::initTemplates() {
 
   // Ignored when AE is OFF.
   int64_t frame_duration = 33333333L; // 1/30 s.
-  ADD_REQUEST_ENTRY(ANDROID_SENSOR_FRAME_DURATION, &frame_duration, 1);
+  res = base_metadata.update(ANDROID_SENSOR_FRAME_DURATION, &frame_duration, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.shading. */
 
   uint8_t shading_mode = ANDROID_SHADING_MODE_FAST;
-  ADD_REQUEST_ENTRY(ANDROID_SHADING_MODE, &shading_mode, 1);
+  res = base_metadata.update(ANDROID_SHADING_MODE, &shading_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.statistics. */
 
   uint8_t face_detect_mode = ANDROID_STATISTICS_FACE_DETECT_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_STATISTICS_FACE_DETECT_MODE, &face_detect_mode, 1);
+  res = base_metadata.update(ANDROID_STATISTICS_FACE_DETECT_MODE,
+                             &face_detect_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   // histogramMode, sharpnessMapMode marked FUTURE.
 
   uint8_t hp_map_mode = ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE, &hp_map_mode, 1);
+  res = base_metadata.update(ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE,
+                             &hp_map_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   uint8_t lens_shading_map_mode = ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF;
-  ADD_REQUEST_ENTRY(ANDROID_STATISTICS_LENS_SHADING_MAP_MODE,
-                    &lens_shading_map_mode, 1);
+  res = base_metadata.update(ANDROID_STATISTICS_LENS_SHADING_MAP_MODE,
+                             &lens_shading_map_mode, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.tonemap. */
 
@@ -754,7 +1038,10 @@ int V4L2Camera::initTemplates() {
   /* android.led. */
 
   uint8_t transmit = ANDROID_LED_TRANSMIT_ON;
-  ADD_REQUEST_ENTRY(ANDROID_LED_TRANSMIT, &transmit, 1);
+  res = base_metadata.update(ANDROID_LED_TRANSMIT, &transmit, 1);
+  if (res != android::OK) {
+    return res;
+  }
 
   /* android.reprocess */
 
@@ -817,11 +1104,8 @@ int V4L2Camera::initTemplates() {
   uint8_t video_af_mode =  continuous_video_avail ?
       ANDROID_CONTROL_AF_MODE_CONTINUOUS_VIDEO : non_continuous_af_mode;
 
-  // Copy our base metadata (note: we do it in this direction so we don't have
-  // to redefine our ADD_REQUEST_ENTRY macro).
-  android::CameraMetadata base_metadata(template_metadata);
-
-  for (uint8_t template_id = 1; template_id < CAMERA3_TEMPLATE_COUNT; ++template_id) {
+  for (uint8_t template_id = 1; template_id < CAMERA3_TEMPLATE_COUNT;
+       ++template_id) {
     // General differences/support.
     uint8_t intent;
     uint8_t af_mode;
@@ -854,10 +1138,21 @@ int V4L2Camera::initTemplates() {
         continue;
     }
 
-    ADD_REQUEST_ENTRY(ANDROID_CONTROL_CAPTURE_INTENT, &intent, 1);
-    ADD_REQUEST_ENTRY(ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
-                      fps_range.data(), fps_range.size());
-    ADD_REQUEST_ENTRY(ANDROID_CONTROL_AF_MODE, &af_mode, 1);
+    // Copy our base metadata and add the new items.
+    android::CameraMetadata template_metadata(base_metadata);
+    res = template_metadata.update(ANDROID_CONTROL_CAPTURE_INTENT, &intent, 1);
+    if (res != android::OK) {
+      return res;
+    }
+    res = template_metadata.update(ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
+                                   fps_range.data(), fps_range.size());
+    if (res != android::OK) {
+      return res;
+    }
+    res = template_metadata.update(ANDROID_CONTROL_AF_MODE, &af_mode, 1);
+    if (res != android::OK) {
+      return res;
+    }
 
     const camera_metadata_t* template_raw_metadata =
         template_metadata.getAndLock();
@@ -869,9 +1164,6 @@ int V4L2Camera::initTemplates() {
     if (res != android::OK) {
       return res;
     }
-
-    // Reset the template metadata to the base.
-    template_metadata = base_metadata;
   }
 
   mTemplatesInitialized = true;
