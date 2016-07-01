@@ -279,10 +279,10 @@ static int vdev_set(vehicle_hw_device_t* device UNUSED, const vehicle_prop_value
             ALOGD("Value type: FLOAT\nValue: %f\n", data->value.float_value);
             break;
         case VEHICLE_VALUE_TYPE_INT32:
-            ALOGD("Value type: INT32\nValue: %d\n", data->value.int32_value);
+            ALOGD("Value type: INT32\nValue: %" PRId32 "\n", data->value.int32_value);
             break;
         case VEHICLE_VALUE_TYPE_INT64:
-            ALOGD("Value type: INT64\nValue: %lld\n", data->value.int64_value);
+            ALOGD("Value type: INT64\nValue: %" PRId64 "\n", data->value.int64_value);
             break;
         case VEHICLE_VALUE_TYPE_BOOLEAN:
             ALOGD("Value type: BOOLEAN\nValue: %d\n", data->value.boolean_value);
