@@ -37,18 +37,18 @@ static int tv_input_device_open(const struct hw_module_t* module,
         const char* name, struct hw_device_t** device);
 
 static struct hw_module_methods_t tv_input_module_methods = {
-    open: tv_input_device_open
+    .open = tv_input_device_open
 };
 
 tv_input_module_t HAL_MODULE_INFO_SYM = {
-    common: {
-        tag: HARDWARE_MODULE_TAG,
-        version_major: 0,
-        version_minor: 1,
-        id: TV_INPUT_HARDWARE_MODULE_ID,
-        name: "Sample TV input module",
-        author: "The Android Open Source Project",
-        methods: &tv_input_module_methods,
+    .common = {
+        .tag = HARDWARE_MODULE_TAG,
+        .version_major = 0,
+        .version_minor = 1,
+        .id = TV_INPUT_HARDWARE_MODULE_ID,
+        .name = "Sample TV input module",
+        .author = "The Android Open Source Project",
+        .methods = &tv_input_module_methods,
     }
 };
 
