@@ -69,9 +69,18 @@ class Camera {
         // buffers that stream can handle (max_buffers is an output parameter)
         virtual int setupStream(Stream* stream, uint32_t* max_buffers) = 0;
         // Verify settings are valid for a capture
-        virtual bool isValidCaptureSettings(const camera_metadata_t *) = 0;
+        virtual bool isValidCaptureSettings(
+            const camera_metadata_t *settings) = 0;
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
+        // Enqueue a buffer to receive data from the camera
+        virtual int enqueueBuffer(
+            const camera3_stream_buffer_t *camera_buffer) = 0;
+        // Get the shutter time and updated settings for the most recent frame.
+        // The metadata parameter is both an input and output; frame-specific
+        // result fields should be appended to what is passed in.
+        virtual int getResultSettings(camera_metadata_t **metadata,
+                                      uint64_t *timestamp) = 0;
         // Accessor used by initDevice() to set the templates' metadata
         int setTemplate(int type, const camera_metadata_t *static_info);
         // Prettyprint template names

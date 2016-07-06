@@ -17,6 +17,8 @@
 // Modified from hardware/libhardware/modules/camera/Camera.cpp
 
 #include <cstdlib>
+#include <memory>
+#include <vector>
 #include <stdio.h>
 #include <hardware/camera3.h>
 #include <sync/sync.h>
@@ -337,7 +339,7 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
 
 int Camera::processCaptureRequest(camera3_capture_request_t *request)
 {
-    camera3_capture_result result;
+    int res;
 
     ALOGV("%s:%d: request=%p", __func__, mId, request);
     ATRACE_CALL();
@@ -385,28 +387,61 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
                 request->num_output_buffers);
         return -EINVAL;
     }
-    result.num_output_buffers = request->num_output_buffers;
-    result.output_buffers = new camera3_stream_buffer_t[result.num_output_buffers];
-    for (unsigned int i = 0; i < request->num_output_buffers; i++) {
-        int res = processCaptureBuffer(&request->output_buffers[i],
-                const_cast<camera3_stream_buffer_t*>(&result.output_buffers[i]));
-        if (res)
-            goto err_out;
-    }
 
+    camera3_capture_result result;
+    result.num_output_buffers = request->num_output_buffers;
+    std::vector<camera3_stream_buffer_t> output_buffers(
+        result.num_output_buffers);
+    for (unsigned int i = 0; i < request->num_output_buffers; i++) {
+        res = processCaptureBuffer(&request->output_buffers[i],
+                                   &output_buffers[i]);
+        if (res)
+            return -ENODEV;
+    }
+    result.output_buffers = &output_buffers[0];
+
+    // Get metadata for this frame. Since the framework guarantees only
+    // one call to process_capture_request at a time, this call is guaranteed
+    // to correspond with the most recently enqueued buffer.
+
+    // Not wrapped in a unique_ptr since control is immediately
+    // handed off to the device via getResultSettings.
+    // TODO(b/30035628): This shouldn't even be an issue actually -
+    // the result settings returned should be a completely new
+    // object allocated by the function, not passed in and back
+    // out (the cloning of the request metadata is just a shim
+    // to fill in all the control fields until the device actually
+    // checks their real values).
+    camera_metadata_t* result_metadata = clone_camera_metadata(
+        request->settings);
+    if (!result_metadata) {
+        return -ENODEV;
+    }
+    uint64_t timestamp = 0;
+    // TODO(b/29334616): this may also want to use a callback, since
+    // the shutter may not happen immediately.
+    res = getResultSettings(&result_metadata, &timestamp);
+    // Upon getting result settings (for now from this function,
+    // eventually by callback, the Camera regains responsibility for
+    // the metadata, so immediately wrap it in a unique_ptr, before
+    // potentially returning due to failure.
+    std::unique_ptr<camera_metadata_t, void(*)(camera_metadata_t *)>
+        returned_metadata(result_metadata, free_camera_metadata);
+    if (res) {
+        return res;
+    }
+    result.result = returned_metadata.get();
+
+    // Notify the framework with the shutter time.
     result.frame_number = request->frame_number;
-    // TODO: return actual captured/reprocessed settings
-    result.result = request->settings;
-    // TODO: asynchronously return results
-    notifyShutter(request->frame_number, 0);
+    notifyShutter(result.frame_number, timestamp);
+
+    // TODO(b/29334616): asynchronously return results (the following should
+    // be done once all enqueued buffers for the request complete and callback).
+    result.partial_result = 1;
     mCallbackOps->process_capture_result(mCallbackOps, &result);
 
     return 0;
-
-err_out:
-    delete [] result.output_buffers;
-    // TODO: this should probably be a total device failure; transient for now
-    return -EINVAL;
 }
 
 void Camera::setSettings(const camera_metadata_t *new_settings)
@@ -431,8 +466,13 @@ bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
 int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
         camera3_stream_buffer_t *out)
 {
+    int res;
+    // TODO(b/29334616): This probably should be non-blocking (currently blocks
+    // here and on gralloc lock). Perhaps caller should put "in" in a queue
+    // initially, then have a thread that dequeues from there and calls this
+    // function.
     if (in->acquire_fence != -1) {
-        int res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
+        res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
         if (res == -ETIME) {
             ALOGE("%s:%d: Timeout waiting on buffer acquire fence",
                     __func__, mId);
@@ -447,11 +487,18 @@ int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
     out->stream = in->stream;
     out->buffer = in->buffer;
     out->status = CAMERA3_BUFFER_STATUS_OK;
+
+    // Enqueue buffer for software-painting
+    res = enqueueBuffer(out);
+    if (res) {
+      return res;
+    }
+
+    // TODO(b/29334616): This should be part of a callback made when the
+    // enqueued buffer finishes painting.
     // TODO: use driver-backed release fences
     out->acquire_fence = -1;
     out->release_fence = -1;
-
-    // TODO: lock and software-paint buffer
     return 0;
 }
 
