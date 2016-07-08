@@ -262,7 +262,6 @@ __BEGIN_DECLS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_speed
  * @zone_type VEHICLE_ZONE
- * @data_enum TODO
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_SPEED                             (0x00000500)
@@ -274,7 +273,7 @@ __BEGIN_DECLS
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_direction
  * @zone_type VEHICLE_ZONE
- * @data_enum TODO
+ * @data_enum vehicle_hvac_fan_direction
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION                         (0x00000501)
@@ -401,6 +400,60 @@ enum vehicle_hvac_fan_direction {
 #define VEHICLE_PROPERTY_HVAC_SEAT_TEMPERATURE                      (0x0000050B)
 
 /**
+ * Side Mirror Heat
+ *
+ * Increase values denote higher heating levels for side mirrors.
+ * 0 indicates heating is turned off.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_SIDE_MIRROR_HEAT                      (0x0000050C)
+
+/**
+ * Steering Wheel Temperature
+ *
+ * Sets the temperature for the steering wheel
+ * Positive value indicates heating.
+ * Negative value indicates cooling.
+ * 0 indicates tempreature control is off.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_STEERING_WHEEL_TEMP                   (0x0000050D)
+
+/**
+ * Temperature units
+ *
+ * Indicates whether the temperature is in Celsius, Fahrenheit, or a different unit.
+ * This parameter affects all HVAC temperatures in the system.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_enum vehicle_unit_type
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_TEMPERATURE_UNITS                     (0x0000050E)
+
+/**
+ * Actual fan speed
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_member hvac.fan_speed
+ * @zone_type VEHICLE_ZONE
+ * @allow_out_of_range_value : OFF
+ */
+#define VEHICLE_PROPERTY_HVAC_ACTUAL_FAN_SPEED_RPM                  (0x0000050F)
+
+
+/**
  * Represents power state for HVAC. Some HVAC properties will require matching power to be turned on
  * to get out of OFF state. For non-zoned HVAC properties, VEHICLE_ALL_ZONE corresponds to
  * global power state.
@@ -415,6 +468,25 @@ enum vehicle_hvac_fan_direction {
  * @data_member hvac.power_on
  */
 #define VEHICLE_PROPERTY_HVAC_POWER_ON                              (0x00000510)
+
+/**
+ * Fan Positions Available
+ *
+ * This is a bit mask of fan positions available for the zone.  Each entry in
+ * vehicle_hvac_fan_direction is selected by bit position.  For instance, if
+ * only the FAN_DIRECTION_FACE (0x1) and FAN_DIRECTION_DEFROST (0x4) are available,
+ * then this value shall be set to 0x12.
+ *
+ * 0x12 = (1 << 1) | (1 << 4)
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_STATIC
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_member int32_value
+ * @zone_type VEHICLE_ZONE
+ * @allow_out_of_range_value : OFF
+ */
+#define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION_AVAILABLE               (0x00000511)
 
 /**
  * Outside temperature
@@ -1313,18 +1385,6 @@ enum vehicle_instument_cluster_type {
 #define VEHICLE_PROPERTY_MIRROR_LOCK                                (0x00000B44)
 
 /**
- * Mirror Heat
- *
- * Increase values denote higher heating levels.
- *
- * @value_type VEHICLE_VALUE_TYPE_INT32
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
- * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @data_member int32_value
- */
-#define VEHICLE_PROPERTY_MIRROR_HEAT                                (0x00000B45)
-
-/**
  * Mirror Fold
  *
  * True indicates mirrors are folded
@@ -1334,7 +1394,7 @@ enum vehicle_instument_cluster_type {
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member boolean_value
  */
-#define VEHICLE_PROPERTY_MIRROR_FOLD                                (0x00000B46)
+#define VEHICLE_PROPERTY_MIRROR_FOLD                                (0x00000B45)
 
 // Seats
 /**
@@ -1854,7 +1914,9 @@ enum vehicle_unit_type {
     VEHICLE_UNIT_TYPE_METER                 = 0x00000021,
     VEHICLE_UNIT_TYPE_KILOMETER             = 0x00000023,
     // temperature
-    VEHICLE_UNIT_TYPE_CELCIUS               = 0x00000030,
+    VEHICLE_UNIT_TYPE_CELSIUS               = 0x00000030,
+    VEHICLE_UNIT_TYPE_FAHRENHEIT            = 0x00000031,
+    VEHICLE_UNIT_TYPE_KELVIN                = 0x00000032,
     // volume
     VEHICLE_UNIT_TYPE_MILLILITER            = 0x00000040,
     // time
