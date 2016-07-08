@@ -1214,7 +1214,7 @@ enum vehicle_instument_cluster_type {
  * Some vehicles (minivans) can open the door electronically.  Hence, the ability
  * to write this property.
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_DOOR
@@ -1225,7 +1225,7 @@ enum vehicle_instument_cluster_type {
 /**
  * Door move
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_DOOR
@@ -1239,7 +1239,7 @@ enum vehicle_instument_cluster_type {
  *
  * 'true' indicates door is locked
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_DOOR
@@ -1253,7 +1253,7 @@ enum vehicle_instument_cluster_type {
  *
  * Positive value indicates tilt upwards, negative value is downwards
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_MIRROR
@@ -1266,7 +1266,7 @@ enum vehicle_instument_cluster_type {
  *
  * Positive value indicates tilt upwards, negative value is downwards
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_MIRROR
@@ -1279,7 +1279,7 @@ enum vehicle_instument_cluster_type {
  *
  * Positive value indicate tilt right, negative value is left
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_MIRROR
@@ -1292,7 +1292,7 @@ enum vehicle_instument_cluster_type {
  *
  * Positive value indicate tilt right, negative value is left
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
  * @zone_type VEHICLE_MIRROR
@@ -1305,7 +1305,7 @@ enum vehicle_instument_cluster_type {
  *
  * True indicates mirror positions are locked and not changeable
  *
- * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member boolean_value
@@ -1317,7 +1317,7 @@ enum vehicle_instument_cluster_type {
  *
  * Increase values denote higher heating levels.
  *
- * @value_type VEHICE_VALUE_TYPE_INT32
+ * @value_type VEHICLE_VALUE_TYPE_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_value
@@ -1329,7 +1329,7 @@ enum vehicle_instument_cluster_type {
  *
  * True indicates mirrors are folded
  *
- * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member boolean_value
@@ -1721,7 +1721,7 @@ enum vehicle_instument_cluster_type {
  * Max = window up / closed
  * Min = window down / open
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_value
@@ -1735,7 +1735,7 @@ enum vehicle_instument_cluster_type {
  * Min = window down / open
  * Magnitude denotes relative speed.  I.e. +2 is faster than +1 in raising the window.
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
  * @data_member int32_value
@@ -1750,7 +1750,7 @@ enum vehicle_instument_cluster_type {
  * Max = vent open
  * Min = vent closed
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_value
@@ -1765,7 +1765,7 @@ enum vehicle_instument_cluster_type {
  * Max = vent open
  * Min = vent closed
  *
- * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
  * @data_member int32_value
@@ -1777,7 +1777,7 @@ enum vehicle_instument_cluster_type {
  *
  * True indicates windows are locked and can't be moved.
  *
- * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member boolean_value
