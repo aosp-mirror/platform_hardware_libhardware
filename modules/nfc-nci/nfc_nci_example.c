@@ -23,44 +23,61 @@
 
 
 /*
+ * We want to silence the "unused argument" that gcc and clang give.
+ * Other compilers generating this warning will need to provide their
+ * custom attribute to silence this.
+ */
+#if defined(__GNUC__) || defined(__clang__)
+#define UNUSED_ARGUMENT __attribute((unused))
+#else
+#define UNUSED_ARGUMENT
+#endif
+
+/*
  * NCI HAL method implementations. These must be overriden
  */
-static int hal_open(const struct nfc_nci_device *dev,
-        nfc_stack_callback_t *p_cback, nfc_stack_data_callback_t *p_data_cback) {
+static int hal_open(const struct nfc_nci_device *dev UNUSED_ARGUMENT,
+        nfc_stack_callback_t *p_cback UNUSED_ARGUMENT,
+        nfc_stack_data_callback_t *p_data_cback UNUSED_ARGUMENT) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
-static int hal_write(const struct nfc_nci_device *dev,
-        uint16_t data_len, const uint8_t *p_data) {
+static int hal_write(const struct nfc_nci_device *dev UNUSED_ARGUMENT,
+        uint16_t data_len UNUSED_ARGUMENT,
+        const uint8_t *p_data UNUSED_ARGUMENT) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
-static int hal_core_initialized(const struct nfc_nci_device *dev,
-        uint8_t* p_core_init_rsp_params) {
+static int hal_core_initialized(
+        const struct nfc_nci_device *dev UNUSED_ARGUMENT,
+        uint8_t* p_core_init_rsp_params UNUSED_ARGUMENT) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
-static int hal_pre_discover(const struct nfc_nci_device *dev) {
+static int hal_pre_discover(
+        const struct nfc_nci_device *dev UNUSED_ARGUMENT) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
-static int hal_close(const struct nfc_nci_device *dev) {
+static int hal_close(const struct nfc_nci_device *dev UNUSED_ARGUMENT) {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
-static int hal_control_granted (const struct nfc_nci_device *p_dev)
+static int hal_control_granted (
+        const struct nfc_nci_device *p_dev UNUSED_ARGUMENT)
 {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
 }
 
 
-static int hal_power_cycle (const struct nfc_nci_device *p_dev)
+static int hal_power_cycle (
+        const struct nfc_nci_device *p_dev UNUSED_ARGUMENT)
 {
     ALOGE("NFC-NCI HAL: %s", __FUNCTION__);
     return 0;
