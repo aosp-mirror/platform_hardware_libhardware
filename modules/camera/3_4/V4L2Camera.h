@@ -82,6 +82,7 @@ private:
   int ioctlLocked(int request, T data);
 
   // Current output stream settings.
+  uint32_t mOutStreamType;
   uint32_t mOutStreamFormat;
   uint32_t mOutStreamWidth;
   uint32_t mOutStreamHeight;

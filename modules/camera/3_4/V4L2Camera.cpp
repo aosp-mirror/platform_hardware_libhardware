@@ -49,6 +49,7 @@ static std::vector<int32_t> getMetadataKeys(
 V4L2Camera::V4L2Camera(int id, std::string path)
     : default_camera_hal::Camera(id),
       mDevicePath(std::move(path)),
+      mOutStreamType(0),
       mOutStreamFormat(0),
       mOutStreamWidth(0),
       mOutStreamHeight(0),
@@ -105,6 +106,13 @@ void V4L2Camera::disconnect() {
   // because this camera is no longer in use.
 
   mDeviceFd.reset();
+
+  // Clear out our variables tracking device settings.
+  mOutStreamType = 0;
+  mOutStreamFormat = 0;
+  mOutStreamWidth = 0;
+  mOutStreamHeight = 0;
+  mOutStreamMaxBuffers = 0;
 }
 
 int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
@@ -1309,31 +1317,47 @@ int V4L2Camera::setFormat(const default_camera_hal::Stream* stream) {
     return -EINVAL;
   }
 
-  v4l2_format format;
-  memset(&format, 0, sizeof(format));
-  format.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  format.fmt.pix.width = stream->getWidth();
-  format.fmt.pix.height = stream->getHeight();
-  format.fmt.pix.pixelformat = halToV4L2PixelFormat(stream->getFormat());
+  // TODO(b/30000211): Check if appropriate to do multi-planar capture instead.
+  uint32_t desired_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  uint32_t desired_format = halToV4L2PixelFormat(stream->getFormat());
+  uint32_t desired_width = stream->getWidth();
+  uint32_t desired_height = stream->getHeight();
+
   // Check to make sure we're not already in the correct format.
-  if (mOutStreamFormat == format.fmt.pix.pixelformat &&
-      mOutStreamWidth == format.fmt.pix.width &&
-      mOutStreamHeight == format.fmt.pix.height) {
+  if (desired_type == mOutStreamType &&
+      desired_format == mOutStreamFormat &&
+      desired_width == mOutStreamWidth &&
+      desired_height == mOutStreamHeight) {
     return 0;
   }
+
   // Not in the correct format, set our format.
-  int ret = ioctlLocked(VIDIOC_S_FMT, &format);
-  if (ret < 0) {
+  v4l2_format format;
+  memset(&format, 0, sizeof(format));
+  format.type = desired_type;
+  format.fmt.pix.width = desired_width;
+  format.fmt.pix.height = desired_height;
+  format.fmt.pix.pixelformat = desired_format;
+  // TODO(b/29334616): When async, this will need to check if the stream
+  // is on, and if so, lock it off while setting format.
+  if (ioctlLocked(VIDIOC_S_FMT, &format) < 0) {
     HAL_LOGE("S_FMT failed: %s", strerror(errno));
     return -ENODEV;
   }
   // Check that the driver actually set to the requested values.
-  if (format.fmt.pix.pixelformat != halToV4L2PixelFormat(stream->getFormat()) ||
-      format.fmt.pix.width != stream->getWidth() ||
-      format.fmt.pix.height != stream->getHeight()) {
+  if (format.type != desired_type ||
+      format.fmt.pix.pixelformat != desired_format ||
+      format.fmt.pix.width != desired_width ||
+      format.fmt.pix.height != desired_height) {
     HAL_LOGE("Device doesn't support desired stream configuration.");
     return -EINVAL;
   }
+
+  // Keep track of the new format.
+  mOutStreamType = format.type;
+  mOutStreamFormat = format.fmt.pix.pixelformat;
+  mOutStreamWidth = format.fmt.pix.width;
+  mOutStreamHeight = format.fmt.pix.height;
   // Since our format changed, our maxBuffers may be incorrect.
   mOutStreamMaxBuffers = 0;
 
