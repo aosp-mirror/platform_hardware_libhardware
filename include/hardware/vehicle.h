@@ -653,6 +653,8 @@ enum vehicle_audio_context_flag {
     VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND_FLAG               = 0x400,
     /** Radio is played */
     VEHICLE_AUDIO_CONTEXT_RADIO_FLAG                      = 0x800,
+    /** Ext source is played. This is for tagging generic ext sources. */
+    VEHICLE_AUDIO_CONTEXT_EXT_SOURCE_FLAG                 = 0x1000,
 };
 
 /**
@@ -826,6 +828,70 @@ enum vehicle_audio_hw_variant_config_flag {
     VEHICLE_AUDIO_HW_VARIANT_FLAG_INTERNAL_RADIO_FLAG = 0x1,
 };
 
+/** audio routing for AM/FM. This should be also be the value when there is only one
+    radio module in the system. */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_AM_FM "RADIO_AM_FM"
+/** Should be added only when there is a separate radio module with HD capability. */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_AM_FM_HD "RADIO_AM_FM_HD"
+/** For digial audio broadcasting type of radio */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_DAB "RADIO_DAB"
+/** For satellite type of radio */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_SATELLITE "RADIO_SATELLITE"
+/** For CD or DVD */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_CD_DVD "CD_DVD"
+/** For 1st auxiliary input */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_AUX_IN0 "AUX_IN0"
+/** For 2nd auxiliary input */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_AUX_IN1 "AUX_IN1"
+/** For navigation guidance from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_NAV_GUIDANCE "EXT_NAV_GUIDANCE"
+/** For voice command from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_VOICE_COMMAND "EXT_VOICE_COMMAND"
+/** For voice call from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_VOICE_CALL "EXT_VOICE_CALL"
+/** For safety alert from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_SAFETY_ALERT "EXT_SAFETY_ALERT"
+
+/**
+* Property to pass hint on external audio routing. When android side request focus
+* with VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG flag, this property will be set
+* before setting AUDIO_FOCUS property as a hint for external audio source routing.
+* Note that setting this property alone should not trigger any change.
+* Audio routing should be changed only when AUDIO_FOCUS property is set. Note that
+* this property allows passing custom value as long as it is defined in config_string.
+* This allows supporting non-standard routing options through this property.
+* It is recommended to use separate name space for custom property to prevent conflict in future
+* android releases.
+* Enabling each external routing option is done by enabling each bit flag for the routing.
+* This property can support up to 128 external routings.
+* To give full flexibility, there is no standard definition for each bit flag and
+* assigning each big flag to specific routing type is decided by config_string.
+* config_string has format of each entry separated by ','
+* and each entry has format of bitFlagPositon:typeString[:physicalStreamNumber].
+*  bitFlagPosition: represents which big flag will be set to enable this routing. 0 means
+*    LSB in int32_array[0]. 31 will be MSB in int32_array[0]. 127 will MSB in int32_array[3].
+*  typeString: string representation of external routing. Some types are already defined
+*    in VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_* and use them first before adding something
+*    custom. Applications will find each routing using this string.
+*  physicalStreamNumber: This part is optional and represents physical stream to android
+*    which will be disabled when this routing is enabled. If not specified, this routing
+*    should not affect physical streams to android.
+* As an example, let's assume a system with two physical streams, 0 for media and 1 for
+* nav guidance. And let's assume external routing option of am fm radio, external navigation
+* guidance, satellite radio, and one custom. Let's assume that radio and satellite replaces
+* physical stream 0 and external navigation replaces physical stream 1. And bit flag will be
+* assigned in the order listed above. This configuration will look like this in config_string:
+*  "0:RADIO_AM_FM:0,1:EXT_NAV_GUIDANCE:1,2:RADIO_SATELLITE:0,3:com.test.SOMETHING_CUSTOM"
+* When android requests RADIO_AM_FM, int32_array[0] will be set to 0x1.
+* When android requests RADIO_SATELLITE + EXT_NAV_GUIDANCE, int32_array[0] will be set to 0x2|0x4.
+*
+* @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
+* @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+* @access VEHICLE_PROP_ACCESS_WRITE|VEHICLE_PROP_ACCESS_READ_WRITE
+* @config_string List of all avaiable external source in the system.
+* @data_member int32_array
+*/
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_HINT                     (0x00000905)
 
 /**
  * Property to control power state of application processor.
