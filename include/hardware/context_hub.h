@@ -358,6 +358,27 @@ struct query_apps_request_t {
  */
 
 /**
+ * CONTEXT_HUB_OS_REBOOT
+ * Reboots context hub OS, restarts all the nanoApps.
+ * No reboot notification is sent to nanoApps; reboot happens immediately and
+ * unconditionally; all volatile FW state and any data is lost as a result
+ *
+ * Payload : none
+ *
+ * Response : status_response_t
+ *            On receipt of a successful response, it is
+ *               expected that
+ *
+ *               i) system reboot has completed;
+ *                  status contains reboot reason code (platform-specific)
+ *
+ * Unsolicited response:
+ *            System may send unsolicited response at any time;
+ *            this should be interpreted as FW reboot, and necessary setup
+ *            has to be done (same or similar to the setup done on system boot)
+ */
+
+/**
  * All communication between the context hubs and the Context Hub Service is in
  * the form of messages. Some message types are distinguished and their
  * Semantics shall be well defined.
@@ -372,6 +393,7 @@ typedef enum {
     CONTEXT_HUB_UNLOAD_APP   = 4, // Unload a specified app
     CONTEXT_HUB_QUERY_APPS   = 5, // Query for app(s) info on hub
     CONTEXT_HUB_QUERY_MEMORY = 6, // Query for memory info
+    CONTEXT_HUB_OS_REBOOT    = 7, // Request to reboot context HUB OS
 } hub_messages_e;
 
 #define CONTEXT_HUB_TYPE_PRIVATE_MSG_BASE 0x00400
