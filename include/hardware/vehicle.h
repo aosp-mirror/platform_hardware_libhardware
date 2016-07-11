@@ -253,7 +253,7 @@ __BEGIN_DECLS
 
 
 
- //==== HVAC Properties ====
+//==== HVAC Properties ====
 
 /**
  * Fan speed setting
@@ -381,6 +381,24 @@ enum vehicle_hvac_fan_direction {
  * @data_member hvac.auto_on
  */
 #define VEHICLE_PROPERTY_HVAC_AUTO_ON                               (0x0000050A)
+
+/**
+ * Seat temperature
+ *
+ * Negative values indicate cooling.
+ * 0 indicates off.
+ * Positive values indicate heating.
+ *
+ * Some vehicles may have multiple levels of heating and cooling. The min/max
+ * range defines the allowable range and number of steps in each direction.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_SEAT_TEMPERATURE                      (0x0000050B)
 
 /**
  * Represents power state for HVAC. Some HVAC properties will require matching power to be turned on
@@ -1169,26 +1187,158 @@ enum vehicle_instument_cluster_type {
  */
 #define VEHICLE_PROPERTY_CURRENT_TIME_IN_SECONDS                    (0x00000A31)
 
+
+//==== Car Cabin Properties ====
 /**
- * Seat temperature
+ * Most Car Cabin properties have both a MOVE and POSITION parameter associated with them.
  *
- * Negative values indicate cooling.
- * 0 indicates off.
- * Positive values indicate heating.
+ * The MOVE parameter will start moving the device in the indicated direction.  The magnitude
+ * indicates the relative speed.  For instance, setting the WINDOW_MOVE parameter to +1 will roll
+ * the window up.  Setting it to +2 (if available) will roll it up faster.
  *
- * Some vehicles may have multiple levels of heating and cooling. The min/max
- * range defines the allowable range and number of steps in each direction.
+ * The POSITION parameter will move the device to the desired position.  For instance, if the
+ * WINDOW_POS has a range of 0-100, then setting this parameter to 50 will open the window halfway.
+ * Depending upon the initial position, the window may move up or down to the 50% value.
  *
- * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * OEMs may choose to implement one or both of the MOVE/POSITION parameters depending upon the
+ * capability of the hardware.
+ */
+
+// Doors
+/**
+ * Door position
+ *
+ * This is an integer in case a door may be set to a particular position.  Max
+ * value indicates fully open, min value (0) indicates fully closed.
+ *
+ * Some vehicles (minivans) can open the door electronically.  Hence, the ability
+ * to write this property.
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
- * @access VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_DOOR
  * @data_member int32_value
  */
-#define VEHICLE_PROPERTY_SEAT_TEMPERATURE                           (0x00000B00)
+#define VEHICLE_PROPERTY_DOOR_POS                                   (0x00000B00)
 
 /**
- * Seat memory
+ * Door move
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_DOOR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_DOOR_MOVE                                  (0x00000B01)
+
+
+/**
+ * Door lock
+ *
+ * 'true' indicates door is locked
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_DOOR
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_DOOR_LOCK                                  (0x00000B02)
+
+// Mirrors
+/**
+ * Mirror Z Position
+ *
+ * Positive value indicates tilt upwards, negative value is downwards
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Z_POS                               (0x00000B40)
+
+/**
+ * Mirror Z Move
+ *
+ * Positive value indicates tilt upwards, negative value is downwards
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Z_MOVE                              (0x00000B41)
+
+/**
+ * Mirror Y Position
+ *
+ * Positive value indicate tilt right, negative value is left
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Y_POS                               (0x00000B42)
+
+/**
+ * Mirror Y Move
+ *
+ * Positive value indicate tilt right, negative value is left
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Y_MOVE                              (0x00000B43)
+
+/**
+ * Mirror Lock
+ *
+ * True indicates mirror positions are locked and not changeable
+ *
+ * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_LOCK                                (0x00000B44)
+
+/**
+ * Mirror Heat
+ *
+ * Increase values denote higher heating levels.
+ *
+ * @value_type VEHICE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_HEAT                                (0x00000B45)
+
+/**
+ * Mirror Fold
+ *
+ * True indicates mirrors are folded
+ *
+ * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_FOLD                                (0x00000B46)
+
+// Seats
+/**
+ * Seat memory select
  *
  * This parameter selects the memory preset to use to select the seat position.
  * The minValue is always 0, and the maxValue determines the number of seat
@@ -1204,7 +1354,7 @@ enum vehicle_instument_cluster_type {
  * @zone_type VEHICLE_SEAT
  * @data_member int32_value
  */
-#define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B01)
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B80)
 
 /**
  * Seat memory set
@@ -1219,7 +1369,422 @@ enum vehicle_instument_cluster_type {
  * @zone_type VEHICLE_SEAT
  * @data_member int32_value
  */
-#define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B02)
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B81)
+
+/**
+ * Seatbelt buckled
+ *
+ * True indicates belt is buckled.
+ *
+ * Write access indicates automatic seat buckling capabilities.  There are no known cars at this
+ * time, but you never know...
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_BUCKLED                          (0x00000B82)
+
+/**
+ * Seatbelt height position
+ *
+ * Adjusts the shoulder belt anchor point.
+ * Max value indicates highest position
+ * Min value indicates lowest position
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_POS                       (0x00000B83)
+
+/**
+ * Seatbelt height move
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_MOVE                      (0x00000B84)
+
+/**
+ * Seat fore/aft position
+ *
+ * Sets the seat position forward (closer to steering wheel) and backwards.
+ * Max value indicates closest to wheel, min value indicates most rearward
+ * position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_FORE_AFT_POS                          (0x00000B85)
+
+/**
+ * Seat fore/aft move
+ *
+ * Moves the seat position forward and aft.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_FORE_AFT_MOVE                         (0x00000B86)
+
+/**
+ * Seat backrest angle 1 position
+ *
+ * Backrest angle 1 is the actuator closest to the bottom of the seat.
+ * Max value indicates angling forward towards the steering wheel.
+ * Min value indicates full recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_POS                  (0x00000B87)
+
+/**
+ * Seat backrest angle 1 move
+ *
+ * Moves the backrest forward or recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_MOVE                 (0x00000B88)
+
+/**
+ * Seat backrest angle 2 position
+ *
+ * Backrest angle 2 is the next actuator up from the bottom of the seat.
+ * Max value indicates angling forward towards the steering wheel.
+ * Min value indicates full recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_POS                  (0x00000B89)
+
+/**
+ * Seat backrest angle 2 move
+ *
+ * Moves the backrest forward or recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_MOVE                 (0x00000B8A)
+
+/**
+ * Seat height position
+ *
+ * Sets the seat height.
+ * Max value indicates highest position.
+ * Min value indicates lowest position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEIGHT_POS                            (0x00000B8B)
+
+/**
+ * Seat height move
+ *
+ * Moves the seat height.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEIGHT_MOVE                           (0x00000B8C)
+
+/**
+ * Seat depth position
+ *
+ * Sets the seat depth, distance from back rest to front edge of seat.
+ * Max value indicates longest depth position.
+ * Min value indicates shortest position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_DEPTH_POS                             (0x00000B8D)
+
+/**
+ * Seat depth move
+ *
+ * Adjusts the seat depth.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_DEPTH_MOVE                            (0x00000B8E)
+
+/**
+ * Seat tilt position
+ *
+ * Sets the seat tilt.
+ * Max value indicates front edge of seat higher than back edge.
+ * Min value indicates front edge of seat lower than back edge.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_TILT_POS                              (0x00000B8F)
+
+/**
+ * Seat tilt move
+ *
+ * Tilts the seat.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_TILT_MOVE                             (0x00000B90)
+
+/**
+ * Lumber fore/aft position
+ *
+ * Pushes the lumbar support forward and backwards
+ * Max value indicates most forward position.
+ * Min value indicates most rearward position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_POS                   (0x00000B91)
+
+/**
+ * Lumbar fore/aft move
+ *
+ * Adjusts the lumbar support.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_MOVE                  (0x00000B92)
+
+/**
+ * Lumbar side support position
+ *
+ * Sets the amount of lateral lumbar support.
+ * Max value indicates widest lumbar setting (i.e. least support)
+ * Min value indicates thinnest lumbar setting.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_POS               (0x00000B93)
+
+/**
+ * Lumbar side support move
+ *
+ * Adjusts the amount of lateral lumbar support.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_MOVE              (0x00000B94)
+
+/**
+ * Headrest height position
+ *
+ * Sets the headrest height.
+ * Max value indicates tallest setting.
+ * Min value indicates shortest setting.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_POS                   (0x00000B95)
+
+/**
+ * Headrest heigh move
+ *
+ * Moves the headrest up and down.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_MOVE                  (0x00000B96)
+
+/**
+ * Headrest angle position
+ *
+ * Sets the angle of the headrest.
+ * Max value indicates most upright angle.
+ * Min value indicates shallowest headrest angle.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_POS                    (0x00000B97)
+
+/**
+ * Headrest angle move
+ *
+ * Adjusts the angle of the headrest
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_MOVE                   (0x00000B98)
+
+/**
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_POS                 (0x00000B99)
+
+/**
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_MOVE                (0x00000B9A)
+
+
+// Windows
+/**
+ * Window Position
+ *
+ * Max = window up / closed
+ * Min = window down / open
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_POS                                 (0x00000BC0)
+
+/**
+ * Window Move
+ *
+ * Max = window up / closed
+ * Min = window down / open
+ * Magnitude denotes relative speed.  I.e. +2 is faster than +1 in raising the window.
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_MOVE                                (0x00000BC1)
+
+/**
+ * Window Vent Position
+ *
+ * This feature is used to control the vent feature on a sunroof.
+ *
+ * Max = vent open
+ * Min = vent closed
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_VENT_POS                            (0x00000BC2)
+
+/**
+ * Window Vent Move
+ *
+ * This feature is used to control the vent feature on a sunroof.
+ *
+ * Max = vent open
+ * Min = vent closed
+ *
+ * @value_type VEHICE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_VENT_MOVE                           (0x00000BC3)
+
+/**
+ * Window Lock
+ *
+ * True indicates windows are locked and can't be moved.
+ *
+ * @value_type VEHICE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_LOCK                                (0x00000BC4)
+
+
 
 /**
  *  H/W specific, non-standard property can be added as necessary. Such property should use
