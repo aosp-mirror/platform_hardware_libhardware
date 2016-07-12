@@ -253,7 +253,8 @@ typedef struct audio_stream audio_stream_t;
 /* type of asynchronous write callback events. Mutually exclusive */
 typedef enum {
     STREAM_CBK_EVENT_WRITE_READY, /* non blocking write completed */
-    STREAM_CBK_EVENT_DRAIN_READY  /* drain completed */
+    STREAM_CBK_EVENT_DRAIN_READY,  /* drain completed */
+    STREAM_CBK_EVENT_ERROR, /* stream hit some error, let AF take action */
 } stream_callback_event_t;
 
 typedef int (*stream_callback_t)(stream_callback_event_t event, void *param, void *cookie);
