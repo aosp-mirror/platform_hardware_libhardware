@@ -1,0 +1,14 @@
+cc_test {
+    name: "fingerprint_tests",
+    srcs: ["fingerprint_tests.cpp"],
+
+    shared_libs: [
+        "liblog",
+        "libhardware",
+    ],
+
+    cflags: [
+        "-Wall",
+        "-Wextra",
+    ],
+}
