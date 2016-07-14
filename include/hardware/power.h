@@ -49,7 +49,8 @@ typedef enum {
     POWER_HINT_LOW_POWER = 0x00000005,
     POWER_HINT_FOREGROUND_LOAD = 0x00000006,
     POWER_HINT_VR_MODE = 0x00000007,
-    POWER_HINT_LAUNCH = 0x00000008
+    POWER_HINT_LAUNCH = 0x00000008,
+    POWER_HINT_DISABLE_TOUCH = 0x00000009
 } power_hint_t;
 
 typedef enum {
@@ -128,6 +129,14 @@ typedef struct power_module {
      *     is intended to save battery at the cost of performance. The data
      *     parameter is non-zero when low power mode is activated, and zero
      *     when deactivated.
+     *
+     * POWER_HINT_DISABLE_TOUCH
+     *
+     *     When device enters some special modes, e.g. theater mode in Android
+     *     Wear, there is no touch interaction expected between device and user.
+     *     Touch controller could be disabled in those modes to save power.
+     *     The data parameter is non-zero when touch could be disabled, and zero
+     *     when touch needs to be re-enabled.
      *
      * A particular platform may choose to ignore any hint.
      *
