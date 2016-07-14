@@ -533,7 +533,7 @@ enum vehicle_hvac_fan_direction {
  * @config_flags Number of presets supported
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_RADIO_PRESET                                (0x0000801)
+#define VEHICLE_PROPERTY_RADIO_PRESET                               (0x00000801)
 
 /**
  * Constants relevant to radio.
@@ -1713,7 +1713,7 @@ enum vehicle_instument_cluster_type {
 #define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_POS                   (0x00000B95)
 
 /**
- * Headrest heigh move
+ * Headrest height move
  *
  * Moves the headrest up and down.
  *
@@ -1754,6 +1754,11 @@ enum vehicle_instument_cluster_type {
 #define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_MOVE                   (0x00000B98)
 
 /**
+ * Headrest fore/aft position
+ *
+ * Adjusts the headrest forwards and backwards.
+ * Max value indicates position closest to front of car.
+ * Min value indicates position closest to rear of car.
  *
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
@@ -1764,6 +1769,7 @@ enum vehicle_instument_cluster_type {
 #define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_POS                 (0x00000B99)
 
 /**
+ * Headrest fore/aft move
  *
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
