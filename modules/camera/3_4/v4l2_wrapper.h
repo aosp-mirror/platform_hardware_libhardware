@@ -82,6 +82,8 @@ class V4L2Wrapper {
   // Lock protecting use of the device.
   std::mutex device_lock_;
 
+  friend class V4L2WrapperMock;
+
   DISALLOW_COPY_AND_ASSIGN(V4L2Wrapper);
 };
 

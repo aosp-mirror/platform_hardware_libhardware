@@ -20,43 +20,64 @@ LOCAL_PATH := $(call my-dir)
 # requesting to use it.
 ifeq ($(USE_CAMERA_V4L2_HAL), true)
 
-include $(CLEAR_VARS)
+v4l2_shared_libs := \
+  libbase \
+  libcamera_client \
+  libcamera_metadata \
+  libcutils \
+  libhardware \
+  liblog \
+  libnativehelper \
+  libsync \
+  libutils \
 
-LOCAL_MODULE := camera.v4l2
-LOCAL_MODULE_RELATIVE_PATH := hw
+v4l2_static_libs :=
 
-LOCAL_CFLAGS += -fno-short-enums
+v4l2_cflags := -fno-short-enums -Wall -Wextra -fvisibility=hidden
 
-# Note: see V4L2 HALv1 implementation when adding YUV support,
-#   some various unexpected variables had to be set.
+v4l2_c_includes := $(call include-path-for, camera)
 
-LOCAL_SHARED_LIBRARIES := \
-    libbase \
-    libcamera_client \
-    libcamera_metadata \
-    libcutils \
-    libhardware \
-    liblog \
-    libnativehelper \
-    libsync \
-    libutils \
-
-LOCAL_STATIC_LIBRARIES :=
-
-LOCAL_C_INCLUDES += \
-    $(call include-path-for, camera)
-
-LOCAL_SRC_FILES := \
+v4l2_src_files := \
   camera.cpp \
   stream.cpp \
   stream_format.cpp \
   v4l2_camera.cpp \
   v4l2_camera_hal.cpp \
   v4l2_gralloc.cpp \
+  v4l2_metadata.cpp \
   v4l2_wrapper.cpp \
 
-LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
+v4l2_test_files := \
+  v4l2_metadata_test.cpp \
 
+# V4L2 Camera HAL.
+# ==============================================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := camera.v4l2
+LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_CFLAGS += $(v4l2_cflags)
+LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
+LOCAL_STATIC_LIBRARIES := $(v4l2_static_libs)
+LOCAL_C_INCLUDES += $(v4l2_c_includes)
+LOCAL_SRC_FILES := $(v4l2_src_files)
 include $(BUILD_SHARED_LIBRARY)
+
+# Unit tests for V4L2 Camera HAL.
+# ==============================================================================
+include $(CLEAR_VARS)
+LOCAL_MODULE := camera.v4l2_test
+LOCAL_CFLAGS += $(v4l2_cflags)
+LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
+LOCAL_STATIC_LIBRARIES := \
+  libBionicGtestMain \
+  libgmock \
+  $(v4l2_static_libs) \
+
+LOCAL_C_INCLUDES += $(v4l2_c_includes)
+LOCAL_SRC_FILES := \
+  $(v4l2_src_files) \
+  $(v4l2_test_files) \
+
+include $(BUILD_NATIVE_TEST)
 
 endif # USE_CAMERA_V4L2_HAL
