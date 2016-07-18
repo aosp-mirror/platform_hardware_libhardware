@@ -15,6 +15,11 @@
 #
 
 LOCAL_PATH := $(call my-dir)
+
+# Prevent the HAL from building on devices not specifically
+# requesting to use it.
+ifeq ($(USE_CAMERA_V4L2_HAL), true)
+
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := camera.v4l2
@@ -43,9 +48,13 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
   Camera.cpp \
   Stream.cpp \
+  StreamFormat.cpp \
   V4L2Camera.cpp \
   V4L2CameraHAL.cpp \
+  V4L2Wrapper.cpp \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
 include $(BUILD_SHARED_LIBRARY)
+
+endif # USE_CAMERA_V4L2_HAL
