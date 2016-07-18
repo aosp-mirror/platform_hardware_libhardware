@@ -147,6 +147,9 @@ __BEGIN_DECLS
 /* Enable mono audio playback if 1, else should be 0. */
 #define AUDIO_PARAMETER_MONO_OUTPUT "mono_output"
 
+/* Enable AANC */
+#define AUDIO_PARAMETER_KEY_AANC "aanc_enabled"
+
 /**
  * audio codec parameters
  */
