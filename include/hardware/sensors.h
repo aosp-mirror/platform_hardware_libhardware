@@ -803,7 +803,8 @@ enum {
  * system. At most one sensor of this type can be present in one sensor HAL implementation and
  * presence of a sensor of this type in sensor HAL implementation indicates that this sensor HAL
  * supports dynamic sensor feature. Operations, such as batch, activate and setDelay, to this
- * special purpose sensor should be treated as no-op and return successful.
+ * special purpose sensor should be treated as no-op and return successful; flush() also
+ * has to generate flush complete event as if this is a sensor that does not support batching.
  *
  * A dynamic sensor connection indicates connection of a physical device or instantiation of a
  * virtual sensor backed by algorithm; and a dynamic sensor disconnection indicates the the
@@ -1328,7 +1329,13 @@ typedef struct sensors_poll_device_1 {
                     int sensor_handle, int64_t sampling_period_ns);
 
             /**
-             * Returns an array of sensor data.
+             * Write an array of sensor_event_t to data. The size of the
+             * available buffer is specified by count. Returns number of
+             * valid sensor_event_t.
+             *
+             * This function should block if there is no sensor event
+             * available when being called. Thus, return value should always be
+             * positive.
              */
             int (*poll)(struct sensors_poll_device_t *dev,
                     sensors_event_t* data, int count);
