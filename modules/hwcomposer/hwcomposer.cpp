@@ -38,18 +38,18 @@ static int hwc_device_open(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
 
 static struct hw_module_methods_t hwc_module_methods = {
-    open: hwc_device_open
+    .open = hwc_device_open
 };
 
 hwc_module_t HAL_MODULE_INFO_SYM = {
-    common: {
-        tag: HARDWARE_MODULE_TAG,
-        version_major: 1,
-        version_minor: 0,
-        id: HWC_HARDWARE_MODULE_ID,
-        name: "Sample hwcomposer module",
-        author: "The Android Open Source Project",
-        methods: &hwc_module_methods,
+    .common = {
+        .tag = HARDWARE_MODULE_TAG,
+        .version_major = 1,
+        .version_minor = 0,
+        .id = HWC_HARDWARE_MODULE_ID,
+        .name = "Sample hwcomposer module",
+        .author = "The Android Open Source Project",
+        .methods = &hwc_module_methods,
     }
 };
 
@@ -68,8 +68,8 @@ static void dump_layer(hwc_layer_1_t const* l) {
             l->displayFrame.bottom);
 }
 
-static int hwc_prepare(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays) {
+static int hwc_prepare(hwc_composer_device_1_t * /*dev*/,
+        size_t /*numDisplays*/, hwc_display_contents_1_t** displays) {
     if (displays && (displays[0]->flags & HWC_GEOMETRY_CHANGED)) {
         for (size_t i=0 ; i<displays[0]->numHwLayers ; i++) {
             //dump_layer(&list->hwLayers[i]);
@@ -79,16 +79,16 @@ static int hwc_prepare(hwc_composer_device_1_t *dev,
     return 0;
 }
 
-static int hwc_set(hwc_composer_device_1_t *dev,
-        size_t numDisplays, hwc_display_contents_1_t** displays)
+static int hwc_set(hwc_composer_device_1_t * /*dev*/,
+        size_t /*numDisplays*/, hwc_display_contents_1_t** displays)
 {
     //for (size_t i=0 ; i<list->numHwLayers ; i++) {
     //    dump_layer(&list->hwLayers[i]);
     //}
 
-    EGLBoolean sucess = eglSwapBuffers((EGLDisplay)displays[0]->dpy,
+    EGLBoolean success = eglSwapBuffers((EGLDisplay)displays[0]->dpy,
             (EGLSurface)displays[0]->sur);
-    if (!sucess) {
+    if (!success) {
         return HWC_EGL_ERROR;
     }
     return 0;
