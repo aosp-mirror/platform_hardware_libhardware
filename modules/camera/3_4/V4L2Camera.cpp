@@ -28,7 +28,6 @@
 #include <nativehelper/ScopedFd.h>
 
 #include "Common.h"
-#include "V4L2Gralloc.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -54,7 +53,6 @@ V4L2Camera::V4L2Camera(int id, std::string path)
       mOutStreamFormat(0),
       mOutStreamWidth(0),
       mOutStreamHeight(0),
-      mOutStreamBytesPerLine(0),
       mOutStreamMaxBuffers(0),
       mTemplatesInitialized(false),
       mCharacteristicsInitialized(false) {
@@ -114,7 +112,6 @@ void V4L2Camera::disconnect() {
   mOutStreamFormat = 0;
   mOutStreamWidth = 0;
   mOutStreamHeight = 0;
-  mOutStreamBytesPerLine = 0;
   mOutStreamMaxBuffers = 0;
 }
 
@@ -311,9 +308,8 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
     return res;
   }
 
-  // V4L2 doesn't support querying this,
-  // so instead use a constant (defined in V4L2Gralloc.h).
-  int32_t max_jpeg_size = V4L2_MAX_JPEG_SIZE;
+  // V4L2 doesn't support querying this, so we generously assume up to 3 MB.
+  int32_t max_jpeg_size = 3000000;
   res = info.update(ANDROID_JPEG_MAX_SIZE,
                     &max_jpeg_size, 1);
   if (res != android::OK) {
@@ -721,21 +717,6 @@ void V4L2Camera::initDeviceInfo(camera_info_t* info) {
 int V4L2Camera::initDevice() {
   HAL_LOG_ENTER();
   int res;
-
-  // Initialize and check the gralloc module.
-  const hw_module_t* module;
-  res = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
-  if (res) {
-    HAL_LOGE("Couldn't get gralloc module.");
-    return -ENODEV;
-  }
-  const gralloc_module_t* gralloc =
-      reinterpret_cast<const gralloc_module_t*>(module);
-  mGralloc = V4L2Gralloc(gralloc);
-  if (!mGralloc.isValid()) {
-    HAL_LOGE("Invalid gralloc module.");
-    return -ENODEV;
-  }
 
   // Templates should be set up if they haven't already been.
   if (!mTemplatesInitialized) {
@@ -1377,7 +1358,6 @@ int V4L2Camera::setFormat(const default_camera_hal::Stream* stream) {
   mOutStreamFormat = format.fmt.pix.pixelformat;
   mOutStreamWidth = format.fmt.pix.width;
   mOutStreamHeight = format.fmt.pix.height;
-  mOutStreamBytesPerLine = format.fmt.pix.bytesperline;
   // Since our format changed, our maxBuffers may be incorrect.
   mOutStreamMaxBuffers = 0;
 

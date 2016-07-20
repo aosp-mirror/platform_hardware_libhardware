@@ -29,7 +29,6 @@
 #include "ArrayVector.h"
 #include "Camera.h"
 #include "Common.h"
-#include "V4L2Gralloc.h"
 
 namespace v4l2_camera_hal {
 // V4L2Camera is a specific V4L2-supported camera device. The Camera object
@@ -76,8 +75,6 @@ private:
   const std::string mDevicePath;
   // The opened device fd.
   ScopedFd mDeviceFd;
-  // Gralloc helper.
-  V4L2Gralloc mGralloc;
   // Lock protecting use of the device.
   android::Mutex mDeviceLock;
   // Wrapper around ioctl.
@@ -89,7 +86,6 @@ private:
   uint32_t mOutStreamFormat;
   uint32_t mOutStreamWidth;
   uint32_t mOutStreamHeight;
-  uint32_t mOutStreamBytesPerLine;
   uint32_t mOutStreamMaxBuffers;
 
   bool mTemplatesInitialized;
