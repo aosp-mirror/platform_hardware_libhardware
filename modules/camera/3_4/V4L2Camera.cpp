@@ -28,6 +28,7 @@
 #include <nativehelper/ScopedFd.h>
 
 #include "Common.h"
+#include "StreamFormat.h"
 #include "V4L2Gralloc.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
@@ -50,26 +51,18 @@ static std::vector<int32_t> getMetadataKeys(
 V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
   HAL_LOG_ENTER();
 
-  std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
-  if (!gralloc) {
-    HAL_LOGE("Failed to initialize gralloc helper.");
+  std::unique_ptr<V4L2Wrapper> v4l2_wrapper(V4L2Wrapper::NewV4L2Wrapper(path));
+  if (!v4l2_wrapper) {
+    HAL_LOGE("Failed to initialize V4L2 wrapper.");
     return nullptr;
   }
 
-  return new V4L2Camera(id, path, std::move(gralloc));
+  return new V4L2Camera(id, std::move(v4l2_wrapper));
 }
 
-V4L2Camera::V4L2Camera(int id, std::string path,
-                       std::unique_ptr<V4L2Gralloc> gralloc)
+V4L2Camera::V4L2Camera(int id, std::unique_ptr<V4L2Wrapper> v4l2_wrapper)
     : default_camera_hal::Camera(id),
-      mDevicePath(std::move(path)),
-      mGralloc(std::move(gralloc)),
-      mOutStreamType(0),
-      mOutStreamFormat(0),
-      mOutStreamWidth(0),
-      mOutStreamHeight(0),
-      mOutStreamBytesPerLine(0),
-      mOutStreamMaxBuffers(0),
+      mV4L2Device(std::move(v4l2_wrapper)),
       mTemplatesInitialized(false),
       mCharacteristicsInitialized(false) {
   HAL_LOG_ENTER();
@@ -79,32 +72,14 @@ V4L2Camera::~V4L2Camera() {
   HAL_LOG_ENTER();
 }
 
-// Helper function. Should be used instead of ioctl throughout this class.
-template<typename T>
-int V4L2Camera::ioctlLocked(int request, T data) {
-  HAL_LOG_ENTER();
-
-  android::Mutex::Autolock al(mDeviceLock);
-  if (mDeviceFd.get() < 0) {
-    return -ENODEV;
-  }
-  return TEMP_FAILURE_RETRY(ioctl(mDeviceFd.get(), request, data));
-}
-
 int V4L2Camera::connect() {
   HAL_LOG_ENTER();
 
-  if (mDeviceFd.get() >= 0) {
-    HAL_LOGE("Camera device %s is opened. Close it first", mDevicePath.c_str());
-    return -EIO;
+  int res = mV4L2Device->Connect();
+  if (res) {
+    HAL_LOGE("Failed to connect to device.");
+    return res;
   }
-
-  int fd = TEMP_FAILURE_RETRY(open(mDevicePath.c_str(), O_RDWR));
-  if (fd < 0) {
-    HAL_LOGE("failed to open %s (%s)", mDevicePath.c_str(), strerror(errno));
-    return -errno;
-  }
-  mDeviceFd.reset(fd);
 
   // TODO(b/29185945): confirm this is a supported device.
   // This is checked by the HAL, but the device at mDevicePath may
@@ -120,48 +95,12 @@ int V4L2Camera::connect() {
 
 void V4L2Camera::disconnect() {
   HAL_LOG_ENTER();
+
+  mV4L2Device->Disconnect();
+
   // TODO(b/29158098): Inform service of any flashes that are available again
   // because this camera is no longer in use.
-
-  mDeviceFd.reset();
-
-  // Clear out our variables tracking device settings.
-  mOutStreamType = 0;
-  mOutStreamFormat = 0;
-  mOutStreamWidth = 0;
-  mOutStreamHeight = 0;
-  mOutStreamBytesPerLine = 0;
-  mOutStreamMaxBuffers = 0;
 }
-
-int V4L2Camera::streamOn() {
-  HAL_LOG_ENTER();
-
-  if (!mOutStreamType) {
-    HAL_LOGE("Stream format must be set before turning on stream.");
-    return -EINVAL;
-  }
-
-  if (ioctlLocked(VIDIOC_STREAMON, &mOutStreamType) < 0) {
-    HAL_LOGE("STREAMON fails: %s", strerror(errno));
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
-int V4L2Camera::streamOff() {
-  HAL_LOG_ENTER();
-
-  // TODO(b/30000211): support mplane as well.
-  if (ioctlLocked(VIDIOC_STREAMOFF, &mOutStreamType) < 0) {
-    HAL_LOGE("STREAMOFF fails: %s", strerror(errno));
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
 
 int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   HAL_LOG_ENTER();
@@ -356,8 +295,9 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
     return res;
   }
 
-  // V4L2 doesn't support querying this,
-  // so instead use a constant (defined in V4L2Gralloc.h).
+  // V4L2 can query this with VIDIOC_TRY_FMT (or VIDIOC_S_FMT if TRY
+  // isn't supported), reading the fmt.pix.sizeimage for the largest
+  // jpeg size. For now use a constant (defined in V4L2Gralloc.h).
   int32_t max_jpeg_size = V4L2_MAX_JPEG_SIZE;
   res = info.update(ANDROID_JPEG_MAX_SIZE,
                     &max_jpeg_size, 1);
@@ -452,8 +392,9 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
 
   /* android.request. */
 
-  int32_t max_num_output_streams[] = {
-    mMaxRawOutputStreams, mMaxYuvOutputStreams, mMaxJpegOutputStreams};
+  int32_t max_num_output_streams[] = {mMaxRawOutputStreams,
+                                      mMaxNonStallingOutputStreams,
+                                      mMaxStallingOutputStreams};
   res = info.update(ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
                     max_num_output_streams, ARRAY_SIZE(max_num_output_streams));
   if (res != android::OK) {
@@ -765,11 +706,10 @@ void V4L2Camera::initDeviceInfo(camera_info_t* info) {
 
 int V4L2Camera::initDevice() {
   HAL_LOG_ENTER();
-  int res;
 
   // Templates should be set up if they haven't already been.
   if (!mTemplatesInitialized) {
-    res = initTemplates();
+    int res = initTemplates();
     if (res) {
       return res;
     }
@@ -781,42 +721,19 @@ int V4L2Camera::initDevice() {
 int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   HAL_LOG_ENTER();
 
-  // Set up a v4l2 buffer struct.
-  v4l2_buffer device_buffer;
-  memset(&device_buffer, 0, sizeof(device_buffer));
-  device_buffer.type = mOutStreamType;
-
-  // Use QUERYBUF to ensure our buffer/device is in good shape.
-  if (ioctlLocked(VIDIOC_QUERYBUF, &device_buffer) < 0) {
-    HAL_LOGE("QUERYBUF (%d) fails: %s", 0, strerror(errno));
-    return -ENODEV;
-  }
-
-  // Configure the device buffer based on the stream buffer.
-  device_buffer.memory = V4L2_MEMORY_USERPTR;
-  // TODO(b/29334616): when this is async, actually limit the number
-  // of buffers used to the known max, and set this according to the
-  // queue length.
-  device_buffer.index = 0;
-  // Lock the buffer for writing.
-  int res = mGralloc->lock(camera_buffer, mOutStreamBytesPerLine,
-                          &device_buffer);
+  int res = mV4L2Device->EnqueueBuffer(camera_buffer);
   if (res) {
+    HAL_LOGE("Device failed to enqueue buffer.");
     return res;
-  }
-  if (ioctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
-    HAL_LOGE("QBUF (%d) fails: %s", 0, strerror(errno));
-    mGralloc->unlock(&device_buffer);
-    return -ENODEV;
   }
 
   // Turn on the stream.
   // TODO(b/29334616): Lock around stream on/off access, only start stream
   // if not already on. (For now, since it's synchronous, it will always be
   // turned off before another call to this function).
-  res = streamOn();
+  res = mV4L2Device->StreamOn();
   if (res) {
-    mGralloc->unlock(&device_buffer);
+    HAL_LOGE("Device failed to turn on stream.");
     return res;
   }
 
@@ -825,14 +742,9 @@ int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
 
   // Dequeue the buffer.
   v4l2_buffer result_buffer;
-  res = dequeueBuffer(&result_buffer);
+  res = mV4L2Device->DequeueBuffer(&result_buffer);
   if (res) {
-    mGralloc->unlock(&result_buffer);
-    return res;
-  }
-  // Now that we're done painting the buffer, we can unlock it.
-  res = mGralloc->unlock(&result_buffer);
-  if (res) {
+    HAL_LOGE("Device failed to dequeue buffer.");
     return res;
   }
 
@@ -840,31 +752,12 @@ int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   // TODO(b/29334616): Lock around stream on/off access, only stop stream if
   // buffer queue is empty (synchronously, there's only ever 1 buffer in the
   // queue at a time, so this is safe).
-  res = streamOff();
+  res = mV4L2Device->StreamOff();
   if (res) {
+    HAL_LOGE("Device failed to turn off stream.");
     return res;
   }
 
-  // Sanity check.
-  if (result_buffer.m.userptr != device_buffer.m.userptr) {
-    HAL_LOGE("Got the wrong buffer 0x%x back (expected 0x%x)",
-             result_buffer.m.userptr, device_buffer.m.userptr);
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
-int V4L2Camera::dequeueBuffer(v4l2_buffer* buffer) {
-  HAL_LOG_ENTER();
-
-  memset(buffer, 0, sizeof(*buffer));
-  buffer->type = mOutStreamType;
-  buffer->memory = V4L2_MEMORY_USERPTR;
-  if (ioctlLocked(VIDIOC_DQBUF, buffer) < 0) {
-    HAL_LOGE("DQBUF fails: %s", strerror(errno));
-    return -ENODEV;
-  }
   return 0;
 }
 
@@ -872,7 +765,7 @@ int V4L2Camera::getResultSettings(camera_metadata** metadata,
                                   uint64_t* timestamp) {
   HAL_LOG_ENTER();
 
-  int res;
+  int res = 0;
   android::CameraMetadata frame_metadata(*metadata);
 
   // TODO(b/30035628): fill in.
@@ -891,7 +784,7 @@ int V4L2Camera::getResultSettings(camera_metadata** metadata,
 
 int V4L2Camera::initTemplates() {
   HAL_LOG_ENTER();
-  int res;
+  int res = 0;
 
   // Device characteristics need to be queried prior
   // to template setup.
@@ -1372,8 +1265,8 @@ bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
   // Count the number of streams of each type.
   int32_t num_input = 0;
   int32_t num_raw = 0;
-  int32_t num_yuv = 0;
-  int32_t num_jpeg = 0;
+  int32_t num_stalling = 0;
+  int32_t num_non_stalling = 0;
   for (int i = 0; i < count; ++i) {
     default_camera_hal::Stream* stream = streams[i];
 
@@ -1382,27 +1275,33 @@ bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
     }
 
     if (stream->isOutputType()) {
-      switch (halToV4L2PixelFormat(stream->getFormat())) {
-        case V4L2_PIX_FMT_YUV420:
-          ++num_yuv;
+      StreamFormat format(*stream);
+      switch (format.Category()) {
+        case kFormatCategoryRaw:
+          ++num_raw;
+        case kFormatCategoryStalling:
+          ++num_stalling;
           break;
-        case V4L2_PIX_FMT_JPEG:
-          ++num_jpeg;
+        case kFormatCategoryNonStalling:
+          ++num_non_stalling;
           break;
+        case kFormatCategoryUnknown:  // Fall through.
         default:
-          // Note: no supported raw formats at this time.
           HAL_LOGE("Unsupported format for stream %d: %d", i, stream->getFormat());
           return false;
       }
     }
   }
 
-  if (num_input > mMaxInputStreams || num_raw > mMaxRawOutputStreams ||
-      num_yuv > mMaxYuvOutputStreams || num_jpeg > mMaxJpegOutputStreams) {
-    HAL_LOGE("Invalid stream configuration: %d input, %d RAW, %d YUV, %d JPEG "
-             "(max supported: %d input, %d RAW, %d YUV, %d JPEG)",
-             mMaxInputStreams, mMaxRawOutputStreams, mMaxYuvOutputStreams,
-             mMaxJpegOutputStreams, num_input, num_raw, num_yuv, num_jpeg);
+  if (num_input > mMaxInputStreams ||
+      num_raw > mMaxRawOutputStreams ||
+      num_stalling > mMaxStallingOutputStreams ||
+      num_non_stalling > mMaxNonStallingOutputStreams) {
+    HAL_LOGE("Invalid stream configuration: %d input, %d RAW, %d stalling, "
+             "%d non-stalling (max supported: %d input, %d RAW, %d stalling, "
+             "%d non-stalling)", mMaxInputStreams, mMaxRawOutputStreams,
+             mMaxStallingOutputStreams, mMaxNonStallingOutputStreams, num_input,
+             num_raw, num_stalling, num_non_stalling);
     return false;
   }
 
@@ -1445,108 +1344,18 @@ int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
   // claims it's underdocumented; the implementation lets the HAL overwrite it.
   stream->setDataSpace(HAL_DATASPACE_V0_JFIF);
 
-  int ret = setFormat(stream);
-  if (ret) {
-    return ret;
+  int res = mV4L2Device->SetFormat(*stream, max_buffers);
+  if (res) {
+    HAL_LOGE("Failed to set device to correct format for stream.");
+    return res;
   }
-
-  // Only do buffer setup if we don't know our maxBuffers.
-  if (mOutStreamMaxBuffers < 1) {
-    ret = setupBuffers();
-    if (ret) {
-      return ret;
-    }
-  }
-
   // Sanity check.
-  if (mOutStreamMaxBuffers < 1) {
-    HAL_LOGE("HAL failed to determine max number of buffers.");
-    return -ENODEV;
-  }
-  *max_buffers = mOutStreamMaxBuffers;
-
-  return 0;
-}
-
-int V4L2Camera::setFormat(const default_camera_hal::Stream* stream) {
-  HAL_LOG_ENTER();
-
-  // Should be checked earlier; sanity check.
-  if (stream->isInputType()) {
-    HAL_LOGE("Input streams not supported.");
-    return -EINVAL;
-  }
-
-  // TODO(b/30000211): Check if appropriate to do multi-planar capture instead.
-  uint32_t desired_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-  uint32_t desired_format = halToV4L2PixelFormat(stream->getFormat());
-  uint32_t desired_width = stream->getWidth();
-  uint32_t desired_height = stream->getHeight();
-
-  // Check to make sure we're not already in the correct format.
-  if (desired_type == mOutStreamType &&
-      desired_format == mOutStreamFormat &&
-      desired_width == mOutStreamWidth &&
-      desired_height == mOutStreamHeight) {
-    return 0;
-  }
-
-  // Not in the correct format, set our format.
-  v4l2_format format;
-  memset(&format, 0, sizeof(format));
-  format.type = desired_type;
-  format.fmt.pix.width = desired_width;
-  format.fmt.pix.height = desired_height;
-  format.fmt.pix.pixelformat = desired_format;
-  // TODO(b/29334616): When async, this will need to check if the stream
-  // is on, and if so, lock it off while setting format.
-  if (ioctlLocked(VIDIOC_S_FMT, &format) < 0) {
-    HAL_LOGE("S_FMT failed: %s", strerror(errno));
-    return -ENODEV;
-  }
-  // Check that the driver actually set to the requested values.
-  if (format.type != desired_type ||
-      format.fmt.pix.pixelformat != desired_format ||
-      format.fmt.pix.width != desired_width ||
-      format.fmt.pix.height != desired_height) {
-    HAL_LOGE("Device doesn't support desired stream configuration.");
-    return -EINVAL;
-  }
-
-  // Keep track of the new format.
-  mOutStreamType = format.type;
-  mOutStreamFormat = format.fmt.pix.pixelformat;
-  mOutStreamWidth = format.fmt.pix.width;
-  mOutStreamHeight = format.fmt.pix.height;
-  mOutStreamBytesPerLine = format.fmt.pix.bytesperline;
-  HAL_LOGV("New format: type %u, pixel format %u, width %u, height %u, "
-           "bytes/line %u", mOutStreamType, mOutStreamFormat, mOutStreamWidth,
-           mOutStreamHeight, mOutStreamBytesPerLine);
-
-  // Since our format changed, our maxBuffers may be incorrect.
-  mOutStreamMaxBuffers = 0;
-
-
-  return 0;
-}
-
-int V4L2Camera::setupBuffers() {
-  HAL_LOG_ENTER();
-
-  // "Request" a buffer (since we're using a userspace buffer, this just
-  // tells V4L2 to switch into userspace buffer mode).
-  v4l2_requestbuffers req_buffers;
-  memset(&req_buffers, 0, sizeof(req_buffers));
-  req_buffers.type = mOutStreamType;
-  req_buffers.memory = V4L2_MEMORY_USERPTR;
-  req_buffers.count = 1;
-  if (ioctlLocked(VIDIOC_REQBUFS, &req_buffers) < 0) {
-    HAL_LOGE("REQBUFS failed: %s", strerror(errno));
+  if (*max_buffers < 1) {
+    HAL_LOGE("Setting format resulted in an invalid maximum of %u buffers.",
+             *max_buffers);
     return -ENODEV;
   }
 
-  // V4L2 will set req_buffers.count to a number of buffers it can handle.
-  mOutStreamMaxBuffers = req_buffers.count;
   return 0;
 }
 
@@ -1610,8 +1419,8 @@ int V4L2Camera::initCharacteristics() {
   // TODO(b/29939583): V4L2 can only support 1 stream at a time.
   // For now, just reporting minimum allowable for LIMITED devices.
   mMaxRawOutputStreams = 0;
-  mMaxYuvOutputStreams = 2;
-  mMaxJpegOutputStreams = 1;
+  mMaxStallingOutputStreams = 1;
+  mMaxNonStallingOutputStreams = 2;
   // Reprocessing not supported.
   mMaxInputStreams = 0;
 
@@ -1664,7 +1473,7 @@ int V4L2Camera::initCharacteristics() {
   mMaxFrameDuration = std::numeric_limits<int64_t>::max();
   int64_t min_yuv_frame_duration = std::numeric_limits<int64_t>::max();
   for (auto format : formats) {
-    int32_t hal_format = V4L2ToHalPixelFormat(format);
+    int32_t hal_format = StreamFormat::V4L2ToHalPixelFormat(format);
     if (hal_format < 0) {
       // Unrecognized/unused format. Skip it.
       continue;
@@ -1732,41 +1541,6 @@ int V4L2Camera::initCharacteristics() {
 
   mCharacteristicsInitialized = true;
   return 0;
-}
-
-int V4L2Camera::V4L2ToHalPixelFormat(uint32_t v4l2_format) {
-  // Translate V4L2 format to HAL format.
-  int hal_format = -1;
-  switch (v4l2_format) {
-    case V4L2_PIX_FMT_JPEG:
-      hal_format = HAL_PIXEL_FORMAT_BLOB;
-      break;
-    case V4L2_PIX_FMT_YUV420:
-      hal_format = HAL_PIXEL_FORMAT_YCbCr_420_888;
-      break;
-    default:
-      // Unrecognized format.
-      break;
-  }
-  return hal_format;
-}
-
-uint32_t V4L2Camera::halToV4L2PixelFormat(int hal_format) {
-  // Translate HAL format to V4L2 format.
-  uint32_t v4l2_format = 0;
-  switch (hal_format) {
-    case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:  // fall-through.
-    case HAL_PIXEL_FORMAT_YCbCr_420_888:
-      v4l2_format = V4L2_PIX_FMT_YUV420;
-      break;
-    case HAL_PIXEL_FORMAT_BLOB:
-      v4l2_format = V4L2_PIX_FMT_JPEG;
-      break;
-    default:
-      // Unrecognized format.
-      break;
-  }
-  return v4l2_format;
 }
 
 } // namespace v4l2_camera_hal

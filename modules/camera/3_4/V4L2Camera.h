@@ -23,13 +23,13 @@
 #include <string>
 #include <vector>
 
-#include <nativehelper/ScopedFd.h>
 #include <system/camera_metadata.h>
 
 #include "ArrayVector.h"
 #include "Camera.h"
 #include "Common.h"
 #include "V4L2Gralloc.h"
+#include "V4L2Wrapper.h"
 
 namespace v4l2_camera_hal {
 // V4L2Camera is a specific V4L2-supported camera device. The Camera object
@@ -46,8 +46,7 @@ public:
 private:
   // Constructor private to allow failing on bad input.
   // Use NewV4L2Camera instead.
-  V4L2Camera(int id, const std::string path,
-             std::unique_ptr<V4L2Gralloc> gralloc);
+  V4L2Camera(int id, std::unique_ptr<V4L2Wrapper> v4l2_wrapper);
 
   // default_camera_hal::Camera virtual methods.
   // Connect to the device: open dev nodes, etc.
@@ -77,36 +76,8 @@ private:
   // result fields should be appended to what is passed in.
   int getResultSettings(camera_metadata_t** metadata, uint64_t* timestamp);
 
-  // Helper functions for V4L2 functionality.
-  int streamOn();
-  int streamOff();
-  int setFormat(const default_camera_hal::Stream* stream);
-  int setupBuffers();
-  int dequeueBuffer(v4l2_buffer* buffer);
-
-  // HAL <-> V4L2 conversions.
-  uint32_t halToV4L2PixelFormat(int hal_format);  // 0 for unrecognized.
-  int V4L2ToHalPixelFormat(uint32_t v4l2_format);  // -1 for unrecognized.
-
-  // The camera device path. For example, /dev/video0.
-  const std::string mDevicePath;
-  // The opened device fd.
-  ScopedFd mDeviceFd;
-  // Gralloc helper.
-  std::unique_ptr<V4L2Gralloc> mGralloc;
-  // Lock protecting use of the device.
-  android::Mutex mDeviceLock;
-  // Wrapper around ioctl.
-  template<typename T>
-  int ioctlLocked(int request, T data);
-
-  // Current output stream settings.
-  uint32_t mOutStreamType;
-  uint32_t mOutStreamFormat;
-  uint32_t mOutStreamWidth;
-  uint32_t mOutStreamHeight;
-  uint32_t mOutStreamBytesPerLine;
-  uint32_t mOutStreamMaxBuffers;
+  // V4L2 helper.
+  std::unique_ptr<V4L2Wrapper> mV4L2Device;
 
   bool mTemplatesInitialized;
   int initTemplates();
@@ -129,8 +100,8 @@ private:
   uint8_t mFlashAvailable;
   float mFocusDistance;
   int32_t mMaxRawOutputStreams;
-  int32_t mMaxYuvOutputStreams;
-  int32_t mMaxJpegOutputStreams;
+  int32_t mMaxStallingOutputStreams;
+  int32_t mMaxNonStallingOutputStreams;
   int32_t mMaxInputStreams;
   std::vector<int32_t> mSupportedFormats;
   // Variable characteristics available options.

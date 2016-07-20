@@ -47,7 +47,8 @@ class V4L2Wrapper {
   int GetControl(uint32_t control_id, int32_t* value);
   int SetControl(uint32_t control_id, int32_t desired, int32_t* result);
   // Manage format.
-  int SetFormat(const default_camera_hal::Stream& stream);
+  int SetFormat(const default_camera_hal::Stream& stream,
+                uint32_t* result_max_buffers);
   // Manage buffers.
   int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
   int DequeueBuffer(v4l2_buffer* buffer);

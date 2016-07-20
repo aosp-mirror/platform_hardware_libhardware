@@ -46,7 +46,9 @@ V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
 
 V4L2Wrapper::V4L2Wrapper(const std::string device_path,
                          std::unique_ptr<V4L2Gralloc> gralloc)
-    : device_path_(device_path), gralloc_(std::move(gralloc)), max_buffers_(0) {
+    : device_path_(std::move(device_path)),
+      gralloc_(std::move(gralloc)),
+      max_buffers_(0) {
   HAL_LOG_ENTER();
 }
 
@@ -129,6 +131,11 @@ int V4L2Wrapper::StreamOn() {
 
 int V4L2Wrapper::StreamOff() {
   HAL_LOG_ENTER();
+
+  if (!format_) {
+    HAL_LOGE("Stream format must be set to turn off stream.");
+    return -ENODEV;
+  }
 
   int32_t type = format_->type();
   int res = IoctlLocked(VIDIOC_STREAMOFF, &type);
@@ -233,7 +240,8 @@ int V4L2Wrapper::SetControl(uint32_t control_id, int32_t desired,
   return 0;
 }
 
-int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream) {
+int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
+                           uint32_t* result_max_buffers) {
   HAL_LOG_ENTER();
 
   // Should be checked earlier; sanity check.
@@ -243,7 +251,7 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream) {
   }
 
   StreamFormat desired_format(stream);
-  if (desired_format == *format_) {
+  if (format_ && desired_format == *format_) {
     HAL_LOGV("Already in correct format, skipping format setting.");
     return 0;
   }
@@ -268,12 +276,22 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream) {
   format_.reset(new StreamFormat(new_format));
 
   // Format changed, setup new buffers.
-  SetupBuffers();
+  int res = SetupBuffers();
+  if (res) {
+    HAL_LOGE("Failed to set up buffers for new format.");
+    return res;
+  }
+  *result_max_buffers = max_buffers_;
   return 0;
 }
 
 int V4L2Wrapper::SetupBuffers() {
   HAL_LOG_ENTER();
+
+  if (!format_) {
+    HAL_LOGE("Stream format must be set before setting up buffers.");
+    return -ENODEV;
+  }
 
   // "Request" a buffer (since we're using a userspace buffer, this just
   // tells V4L2 to switch into userspace buffer mode).
@@ -297,11 +315,21 @@ int V4L2Wrapper::SetupBuffers() {
 
   // V4L2 will set req_buffers.count to a number of buffers it can handle.
   max_buffers_ = req_buffers.count;
+  // Sanity check.
+  if (max_buffers_ < 1) {
+    HAL_LOGE("REQBUFS claims it can't handle any buffers.");
+    return -ENODEV;
+  }
   return 0;
 }
 
 int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   HAL_LOG_ENTER();
+
+  if (!format_) {
+    HAL_LOGE("Stream format must be set before enqueuing buffers.");
+    return -ENODEV;
+  }
 
   // Set up a v4l2 buffer struct.
   v4l2_buffer device_buffer;
@@ -339,6 +367,11 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
 int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
   HAL_LOG_ENTER();
 
+  if (!format_) {
+    HAL_LOGE("Stream format must be set before dequeueing buffers.");
+    return -ENODEV;
+  }
+
   memset(buffer, 0, sizeof(*buffer));
   buffer->type = format_->type();
   buffer->memory = V4L2_MEMORY_USERPTR;
@@ -350,6 +383,7 @@ int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
   // Now that we're done painting the buffer, we can unlock it.
   int res = gralloc_->unlock(buffer);
   if (res) {
+    HAL_LOGE("Gralloc failed to unlock buffer after dequeueing.");
     return res;
   }
 

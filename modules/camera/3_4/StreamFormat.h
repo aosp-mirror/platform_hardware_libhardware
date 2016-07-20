@@ -35,7 +35,7 @@ class StreamFormat {
  public:
   StreamFormat(const default_camera_hal::Stream& stream);
   StreamFormat(const v4l2_format& format);
-  virtual ~StreamFormat();
+  virtual ~StreamFormat() = default;
   // Only uint32_t members, use default generated copy and assign.
 
   void FillFormatRequest(v4l2_format* format) const;
