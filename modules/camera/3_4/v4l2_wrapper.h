@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef V4L2_WRAPPER_H
-#define V4L2_WRAPPER_H
+#ifndef V4L2_CAMERA_HAL_V4L2_WRAPPER_H_
+#define V4L2_CAMERA_HAL_V4L2_WRAPPER_H_
 
 #include <memory>
 #include <mutex>
@@ -23,10 +23,10 @@
 
 #include <nativehelper/ScopedFd.h>
 
-#include "Common.h"
-#include "Stream.h"
-#include "StreamFormat.h"
-#include "V4L2Gralloc.h"
+#include "common.h"
+#include "stream.h"
+#include "stream_format.h"
+#include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
 class V4L2Wrapper {
@@ -87,4 +87,4 @@ class V4L2Wrapper {
 
 }  // namespace v4l2_camera_hal
 
-#endif  // V4L2_WRAPPER_H
+#endif  // V4L2_CAMERA_HAL_V4L2_WRAPPER_H_

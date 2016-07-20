@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef V4L2_GRALLOC_H
-#define V4L2_GRALLOC_H
+#ifndef V4L2_CAMERA_HAL_V4L2_GRALLOC_H_
+#define V4L2_CAMERA_HAL_V4L2_GRALLOC_H_
 
 #include <linux/videodev2.h>
 
@@ -65,6 +65,7 @@ private:
   // Map data pointer : BufferData about that buffer.
   std::unordered_map<void*, const BufferData*> mBufferMap;
 };
-} // namespace default_camera_hal
 
-#endif // CAMERA_GRALLOC_H_
+}  // namespace default_camera_hal
+
+#endif  // V4L2_CAMERA_HAL_V4L2_GRALLOC_H_

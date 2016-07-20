@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ARRAY_VECTOR_H
-#define ARRAY_VECTOR_H
+#ifndef V4L2_CAMERA_HAL_ARRAY_VECTOR_H_
+#define V4L2_CAMERA_HAL_ARRAY_VECTOR_H_
 
 #include <array>
 #include <vector>
@@ -47,6 +47,6 @@ private:
   std::vector<T> mItems;
 };
 
-} // namespace v4l2_camera_hal
+}  // namespace v4l2_camera_hal
 
-#endif // ARRAY_VECTOR_H
+#endif  // V4L2_CAMERA_HAL_ARRAY_VECTOR_H_

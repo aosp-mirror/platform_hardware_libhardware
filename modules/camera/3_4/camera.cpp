@@ -25,7 +25,7 @@
 #include <system/camera_metadata.h>
 #include <system/graphics.h>
 #include <utils/Mutex.h>
-#include "Stream.h"
+#include "stream.h"
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
@@ -34,7 +34,7 @@
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
 
-#include "Camera.h"
+#include "camera.h"
 
 #define CAMERA_SYNC_TIMEOUT 5000 // in msecs
 
@@ -646,4 +646,4 @@ const camera3_device_ops_t Camera::sOps = {
     .reserved = {0},
 };
 
-} // namespace default_camera_hal
+}  // namespace default_camera_hal

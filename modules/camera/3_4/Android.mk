@@ -47,13 +47,13 @@ LOCAL_C_INCLUDES += \
     $(call include-path-for, camera)
 
 LOCAL_SRC_FILES := \
-  Camera.cpp \
-  Stream.cpp \
-  StreamFormat.cpp \
-  V4L2Camera.cpp \
-  V4L2CameraHAL.cpp \
-  V4L2Gralloc.cpp \
-  V4L2Wrapper.cpp \
+  camera.cpp \
+  stream.cpp \
+  stream_format.cpp \
+  v4l2_camera.cpp \
+  v4l2_camera_hal.cpp \
+  v4l2_gralloc.cpp \
+  v4l2_wrapper.cpp \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 

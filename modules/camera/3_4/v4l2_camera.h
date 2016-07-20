@@ -16,8 +16,8 @@
 
 // Loosely based on hardware/libhardware/modules/camera/ExampleCamera.h
 
-#ifndef V4L2_CAMERA_H
-#define V4L2_CAMERA_H
+#ifndef V4L2_CAMERA_HAL_V4L2_CAMERA_H_
+#define V4L2_CAMERA_HAL_V4L2_CAMERA_H_
 
 #include <array>
 #include <string>
@@ -25,11 +25,11 @@
 
 #include <system/camera_metadata.h>
 
-#include "ArrayVector.h"
-#include "Camera.h"
-#include "Common.h"
-#include "V4L2Gralloc.h"
-#include "V4L2Wrapper.h"
+#include "array_vector.h"
+#include "camera.h"
+#include "common.h"
+#include "v4l2_gralloc.h"
+#include "v4l2_wrapper.h"
 
 namespace v4l2_camera_hal {
 // V4L2Camera is a specific V4L2-supported camera device. The Camera object
@@ -131,6 +131,6 @@ private:
   DISALLOW_COPY_AND_ASSIGN(V4L2Camera);
 };
 
-} // namespace v4l2_camera_hal
+}  // namespace v4l2_camera_hal
 
-#endif // V4L2_CAMERA_H
+#endif  // V4L2_CAMERA_HAL_V4L2_CAMERA_H

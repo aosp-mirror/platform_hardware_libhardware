@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef ANDROID_DEVICE_CAMERA_COMMON_H
-#define ANDROID_DEVICE_CAMERA_COMMON_H
+#ifndef V4L2_CAMERA_HAL_COMMON_H_
+#define V4L2_CAMERA_HAL_COMMON_H_
 
 // #define LOG_NDEBUG 0
 #include <cutils/log.h>
@@ -58,4 +58,4 @@
   void operator=(const TypeName&);
 #endif
 
-#endif
+#endif  // V4L2_CAMERA_HAL_COMMON_H_

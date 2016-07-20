@@ -16,16 +16,16 @@
 
 // Modified from hardware/libhardware/modules/camera/CameraHAL.h
 
-#ifndef V4L2_CAMERA_HAL_H
-#define V4L2_CAMERA_HAL_H
+#ifndef V4L2_CAMERA_HAL_V4L2_CAMERA_HAL_H_
+#define V4L2_CAMERA_HAL_V4L2_CAMERA_HAL_H_
 
 #include <vector>
 
 #include <hardware/camera_common.h>
 #include <hardware/hardware.h>
 
-#include "Camera.h"
-#include "Common.h"
+#include "camera.h"
+#include "common.h"
 
 namespace v4l2_camera_hal {
 /*
@@ -63,4 +63,4 @@ private:
 
 extern camera_module_t HAL_MODULE_INFO_SYM;
 
-#endif // V4L2_CAMERA_HAL_H
+#endif  // V4L2_CAMERA_HAL_V4L2_CAMERA_HAL_H_

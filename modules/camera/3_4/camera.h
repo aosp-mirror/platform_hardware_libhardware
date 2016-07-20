@@ -16,13 +16,13 @@
 
 // Modified from hardware/libhardware/modules/camera/Camera.h
 
-#ifndef CAMERA_H_
-#define CAMERA_H_
+#ifndef DEFAULT_CAMERA_HAL_CAMERA_H_
+#define DEFAULT_CAMERA_HAL_CAMERA_H_
 
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
 #include <utils/Mutex.h>
-#include "Stream.h"
+#include "stream.h"
 
 namespace default_camera_hal {
 // Camera represents a physical camera on a device.
@@ -133,6 +133,6 @@ class Camera {
         // Most recent request settings seen, memoized to be reused
         camera_metadata_t *mSettings;
 };
-} // namespace default_camera_hal
+}  // namespace default_camera_hal
 
-#endif // CAMERA_H_
+#endif  // DEFAULT_CAMERA_HAL_CAMERA_H_

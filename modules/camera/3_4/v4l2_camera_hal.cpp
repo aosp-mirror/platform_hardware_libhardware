@@ -16,7 +16,7 @@
 
 // Modified from hardware/libhardware/modules/camera/CameraHAL.cpp
 
-#include "V4L2CameraHAL.h"
+#include "v4l2_camera_hal.h"
 
 #include <dirent.h>
 #include <fcntl.h>
@@ -32,8 +32,8 @@
 
 #include <android-base/parseint.h>
 
-#include "Common.h"
-#include "V4L2Camera.h"
+#include "common.h"
+#include "v4l2_camera.h"
 
 /*
  * This file serves as the entry point to the HAL. It is modified from the

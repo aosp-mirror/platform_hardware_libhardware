@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "V4L2Gralloc.h"
+#include "v4l2_gralloc.h"
 
 #include <linux/videodev2.h>
 
@@ -24,7 +24,7 @@
 #include <hardware/gralloc.h>
 #include <system/graphics.h>
 
-#include "Common.h"
+#include "common.h"
 
 namespace v4l2_camera_hal {
 
@@ -289,5 +289,4 @@ int V4L2Gralloc::unlockAllBuffers() {
   return 0;
 }
 
-
-} // namespace default_camera_hal
+}  // namespace default_camera_hal

@@ -29,7 +29,7 @@
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
 
-#include "Stream.h"
+#include "stream.h"
 
 namespace default_camera_hal {
 
@@ -196,4 +196,4 @@ void Stream::dump(int fd)
     dprintf(fd, "Max Buffer Count: %" PRIu32 "\n", mMaxBuffers);
 }
 
-} // namespace default_camera_hal
+}  // namespace default_camera_hal

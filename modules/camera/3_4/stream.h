@@ -16,8 +16,8 @@
 
 // Modified from hardware/libhardware/modules/camera/Stream.h
 
-#ifndef STREAM_H_
-#define STREAM_H_
+#ifndef DEFAULT_CAMERA_HAL_STREAM_H_
+#define DEFAULT_CAMERA_HAL_STREAM_H_
 
 #include <hardware/camera3.h>
 #include <hardware/gralloc.h>
@@ -78,6 +78,6 @@ class Stream {
         // Lock protecting the Stream object for modifications
         android::Mutex mLock;
 };
-} // namespace default_camera_hal
+}  // namespace default_camera_hal
 
-#endif // STREAM_H_
+#endif  // DEFAULT_CAMERA_HAL_STREAM_H_

@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "StreamFormat.h"
+#include "stream_format.h"
 
 #include <linux/videodev2.h>
 
-#include "Common.h"
-#include "Stream.h"
+#include "common.h"
+#include "stream.h"
 
 namespace v4l2_camera_hal {
 

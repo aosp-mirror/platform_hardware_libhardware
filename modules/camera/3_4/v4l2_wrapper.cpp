@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "V4L2Wrapper.h"
+#include "v4l2_wrapper.h"
 
 #include <fcntl.h>
 #include <linux/videodev2.h>
@@ -25,10 +25,10 @@
 
 #include <nativehelper/ScopedFd.h>
 
-#include "Common.h"
-#include "Stream.h"
-#include "StreamFormat.h"
-#include "V4L2Gralloc.h"
+#include "common.h"
+#include "stream.h"
+#include "stream_format.h"
+#include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
 

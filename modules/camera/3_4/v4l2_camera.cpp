@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "V4L2Camera.h"
+#include "v4l2_camera.h"
 
 #include <fcntl.h>
 #include <linux/videodev2.h>
@@ -27,9 +27,9 @@
 #include <hardware/camera3.h>
 #include <nativehelper/ScopedFd.h>
 
-#include "Common.h"
-#include "StreamFormat.h"
-#include "V4L2Gralloc.h"
+#include "common.h"
+#include "stream_format.h"
+#include "v4l2_gralloc.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
@@ -1543,4 +1543,4 @@ int V4L2Camera::initCharacteristics() {
   return 0;
 }
 
-} // namespace v4l2_camera_hal
+}  // namespace v4l2_camera_hal

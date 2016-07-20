@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-#ifndef V4L2_STREAM_FORMAT_H_
-#define V4L2_STREAM_FORMAT_H_
+#ifndef V4L2_CAMERA_HAL_STREAM_FORMAT_H_
+#define V4L2_CAMERA_HAL_STREAM_FORMAT_H_
 
 #include <linux/videodev2.h>
 
-#include "Common.h"
-#include "Stream.h"
+#include "common.h"
+#include "stream.h"
 
 namespace v4l2_camera_hal {
 
@@ -65,4 +65,4 @@ class StreamFormat {
 
 }  // namespace v4l2_camera_hal
 
-#endif  // V4L2_STREAM_FORMAT_H_
+#endif  // V4L2_CAMERA_HAL_STREAM_FORMAT_H_
