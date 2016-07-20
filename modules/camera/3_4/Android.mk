@@ -44,11 +44,9 @@ LOCAL_C_INCLUDES += \
 LOCAL_SRC_FILES := \
   Camera.cpp \
   Stream.cpp \
-  StreamFormat.cpp \
   V4L2Camera.cpp \
   V4L2CameraHAL.cpp \
   V4L2Gralloc.cpp \
-  V4L2Wrapper.cpp \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
 
