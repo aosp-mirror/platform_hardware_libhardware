@@ -63,19 +63,10 @@ private:
                   uint32_t* max_buffers) override;
   // Verify settings are valid for a capture with this device.
   bool isValidCaptureSettings(const camera_metadata_t* settings) override;
-  // Enqueue a buffer to receive data from the camera.
-  int enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) override;
-  // Get the shutter time and updated settings for the most recent frame.
-  // The metadata parameter is both an input and output; frame-specific
-  // result fields should be appended to what is passed in.
-  int getResultSettings(camera_metadata_t** metadata, uint64_t* timestamp);
 
   // Helper functions for V4L2 functionality.
-  int streamOn();
-  int streamOff();
   int setFormat(const default_camera_hal::Stream* stream);
   int setupBuffers();
-  int dequeueBuffer(v4l2_buffer* buffer);
 
   // HAL <-> V4L2 conversions.
   uint32_t halToV4L2PixelFormat(int hal_format);  // 0 for unrecognized.

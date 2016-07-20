@@ -68,8 +68,6 @@ V4L2Camera::~V4L2Camera() {
 // Helper function. Should be used instead of ioctl throughout this class.
 template<typename T>
 int V4L2Camera::ioctlLocked(int request, T data) {
-  HAL_LOG_ENTER();
-
   android::Mutex::Autolock al(mDeviceLock);
   if (mDeviceFd.get() < 0) {
     return -ENODEV;
@@ -119,35 +117,6 @@ void V4L2Camera::disconnect() {
   mOutStreamBytesPerLine = 0;
   mOutStreamMaxBuffers = 0;
 }
-
-int V4L2Camera::streamOn() {
-  HAL_LOG_ENTER();
-
-  if (!mOutStreamType) {
-    HAL_LOGE("Stream format must be set before turning on stream.");
-    return -EINVAL;
-  }
-
-  if (ioctlLocked(VIDIOC_STREAMON, &mOutStreamType) < 0) {
-    HAL_LOGE("STREAMON fails: %s", strerror(errno));
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
-int V4L2Camera::streamOff() {
-  HAL_LOG_ENTER();
-
-  // TODO(b/30000211): support mplane as well.
-  if (ioctlLocked(VIDIOC_STREAMOFF, &mOutStreamType) < 0) {
-    HAL_LOGE("STREAMOFF fails: %s", strerror(errno));
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
 
 int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   HAL_LOG_ENTER();
@@ -709,7 +678,7 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
   }
 
   // Result keys will be duplicated from the request, plus a few extras.
-  // TODO(b/30035628): additonal available result keys.
+  // TODO(b/29335262): additonal available result keys.
   std::vector<int32_t> avail_result_keys(avail_request_keys);
   res = info.update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
                     avail_result_keys.data(), avail_result_keys.size());
@@ -775,117 +744,6 @@ int V4L2Camera::initDevice() {
       return res;
     }
   }
-
-  return 0;
-}
-
-int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
-  HAL_LOG_ENTER();
-
-  // Set up a v4l2 buffer struct.
-  v4l2_buffer device_buffer;
-  memset(&device_buffer, 0, sizeof(device_buffer));
-  device_buffer.type = mOutStreamType;
-
-  // Use QUERYBUF to ensure our buffer/device is in good shape.
-  if (ioctlLocked(VIDIOC_QUERYBUF, &device_buffer) < 0) {
-    HAL_LOGE("QUERYBUF (%d) fails: %s", 0, strerror(errno));
-    return -ENODEV;
-  }
-
-  // Configure the device buffer based on the stream buffer.
-  device_buffer.memory = V4L2_MEMORY_USERPTR;
-  // TODO(b/29334616): when this is async, actually limit the number
-  // of buffers used to the known max, and set this according to the
-  // queue length.
-  device_buffer.index = 0;
-  // Lock the buffer for writing.
-  int res = mGralloc.lock(camera_buffer, mOutStreamBytesPerLine,
-                          &device_buffer);
-  if (res) {
-    return res;
-  }
-  if (ioctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
-    HAL_LOGE("QBUF (%d) fails: %s", 0, strerror(errno));
-    mGralloc.unlock(&device_buffer);
-    return -ENODEV;
-  }
-
-  // Turn on the stream.
-  // TODO(b/29334616): Lock around stream on/off access, only start stream
-  // if not already on. (For now, since it's synchronous, it will always be
-  // turned off before another call to this function).
-  res = streamOn();
-  if (res) {
-    mGralloc.unlock(&device_buffer);
-    return res;
-  }
-
-  // TODO(b/29334616): Enqueueing and dequeueing should be separate worker
-  // threads, not in the same function.
-
-  // Dequeue the buffer.
-  v4l2_buffer result_buffer;
-  res = dequeueBuffer(&result_buffer);
-  if (res) {
-    mGralloc.unlock(&result_buffer);
-    return res;
-  }
-  // Now that we're done painting the buffer, we can unlock it.
-  res = mGralloc.unlock(&result_buffer);
-  if (res) {
-    return res;
-  }
-
-  // All done, cleanup.
-  // TODO(b/29334616): Lock around stream on/off access, only stop stream if
-  // buffer queue is empty (synchronously, there's only ever 1 buffer in the
-  // queue at a time, so this is safe).
-  res = streamOff();
-  if (res) {
-    return res;
-  }
-
-  // Sanity check.
-  if (result_buffer.m.userptr != device_buffer.m.userptr) {
-    HAL_LOGE("Got the wrong buffer 0x%x back (expected 0x%x)",
-             result_buffer.m.userptr, device_buffer.m.userptr);
-    return -ENODEV;
-  }
-
-  return 0;
-}
-
-int V4L2Camera::dequeueBuffer(v4l2_buffer* buffer) {
-  HAL_LOG_ENTER();
-
-  memset(buffer, 0, sizeof(*buffer));
-  buffer->type = mOutStreamType;
-  buffer->memory = V4L2_MEMORY_USERPTR;
-  if (ioctlLocked(VIDIOC_DQBUF, buffer) < 0) {
-    HAL_LOGE("DQBUF fails: %s", strerror(errno));
-    return -ENODEV;
-  }
-  return 0;
-}
-
-int V4L2Camera::getResultSettings(camera_metadata** metadata,
-                                  uint64_t* timestamp) {
-  HAL_LOG_ENTER();
-
-  int res;
-  android::CameraMetadata frame_metadata(*metadata);
-
-  // TODO(b/30035628): fill in.
-  // For now just spoof the timestamp to a non-0 value and send it back.
-  int64_t frame_time = 1;
-  res = frame_metadata.update(ANDROID_SENSOR_TIMESTAMP, &frame_time, 1);
-  if (res != android::OK) {
-    return res;
-  }
-
-  *metadata = frame_metadata.release();
-  *timestamp = frame_time;
 
   return 0;
 }
@@ -1520,13 +1378,8 @@ int V4L2Camera::setFormat(const default_camera_hal::Stream* stream) {
   mOutStreamWidth = format.fmt.pix.width;
   mOutStreamHeight = format.fmt.pix.height;
   mOutStreamBytesPerLine = format.fmt.pix.bytesperline;
-  HAL_LOGV("New format: type %u, pixel format %u, width %u, height %u, "
-           "bytes/line %u", mOutStreamType, mOutStreamFormat, mOutStreamWidth,
-           mOutStreamHeight, mOutStreamBytesPerLine);
-
   // Since our format changed, our maxBuffers may be incorrect.
   mOutStreamMaxBuffers = 0;
-
 
   return 0;
 }
@@ -1538,7 +1391,7 @@ int V4L2Camera::setupBuffers() {
   // tells V4L2 to switch into userspace buffer mode).
   v4l2_requestbuffers req_buffers;
   memset(&req_buffers, 0, sizeof(req_buffers));
-  req_buffers.type = mOutStreamType;
+  req_buffers.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
   req_buffers.memory = V4L2_MEMORY_USERPTR;
   req_buffers.count = 1;
   if (ioctlLocked(VIDIOC_REQBUFS, &req_buffers) < 0) {
