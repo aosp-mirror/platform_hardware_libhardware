@@ -393,7 +393,7 @@ enum vehicle_hvac_fan_direction {
  *
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
- * @access VEHICLE_PROP_ACCESS_WRITE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @zone_type VEHICLE_SEAT
  * @data_member int32_value
  */
