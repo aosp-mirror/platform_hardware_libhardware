@@ -38,10 +38,17 @@ namespace v4l2_camera_hal {
 // metadata and logic about that device.
 class V4L2Camera : public default_camera_hal::Camera {
 public:
-  V4L2Camera(int id, const std::string path);
+  // Use this method to create V4L2Camera objects. Functionally equivalent
+  // to "new V4L2Camera", except that it may return nullptr in case of failure.
+  static V4L2Camera* NewV4L2Camera(int id, const std::string path);
   ~V4L2Camera();
 
 private:
+  // Constructor private to allow failing on bad input.
+  // Use NewV4L2Camera instead.
+  V4L2Camera(int id, const std::string path,
+             std::unique_ptr<V4L2Gralloc> gralloc);
+
   // default_camera_hal::Camera virtual methods.
   // Connect to the device: open dev nodes, etc.
   int connect() override;
@@ -86,7 +93,7 @@ private:
   // The opened device fd.
   ScopedFd mDeviceFd;
   // Gralloc helper.
-  V4L2Gralloc mGralloc;
+  std::unique_ptr<V4L2Gralloc> mGralloc;
   // Lock protecting use of the device.
   android::Mutex mDeviceLock;
   // Wrapper around ioctl.

@@ -34,8 +34,10 @@ static constexpr size_t V4L2_MAX_JPEG_SIZE = 3000000;
 // with some assistive transformations.
 class V4L2Gralloc {
 public:
-  V4L2Gralloc(const gralloc_module_t* module = nullptr);
-  ~V4L2Gralloc();
+  // Use this method to create V4L2Gralloc objects. Functionally equivalent
+  // to "new V4L2Gralloc", except that it may return nullptr in case of failure.
+  static V4L2Gralloc* NewV4L2Gralloc();
+  virtual ~V4L2Gralloc();
 
   // Lock a camera buffer. Sets device buffer user pointer and length.
   int lock(const camera3_stream_buffer_t* camera_buffer,
@@ -45,10 +47,11 @@ public:
   // based on buffer user pointer, not the specific object).
   int unlock(const v4l2_buffer* device_buffer);
 
-  // Check that the module passed in to the constructor is supported.
-  bool isValid();
-
 private:
+  // Constructor is private to allow failing on bad input.
+  // Use NewV4L2Gralloc instead.
+  V4L2Gralloc(const gralloc_module_t* module);
+
   const gralloc_module_t* mModule;
 
   struct BufferData {

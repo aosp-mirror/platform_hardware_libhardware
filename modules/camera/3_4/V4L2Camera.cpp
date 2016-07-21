@@ -47,9 +47,23 @@ static std::vector<int32_t> getMetadataKeys(
   return keys;
 }
 
-V4L2Camera::V4L2Camera(int id, std::string path)
+V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
+  HAL_LOG_ENTER();
+
+  std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
+  if (!gralloc) {
+    HAL_LOGE("Failed to initialize gralloc helper.");
+    return nullptr;
+  }
+
+  return new V4L2Camera(id, path, std::move(gralloc));
+}
+
+V4L2Camera::V4L2Camera(int id, std::string path,
+                       std::unique_ptr<V4L2Gralloc> gralloc)
     : default_camera_hal::Camera(id),
       mDevicePath(std::move(path)),
+      mGralloc(std::move(gralloc)),
       mOutStreamType(0),
       mOutStreamFormat(0),
       mOutStreamWidth(0),
@@ -753,21 +767,6 @@ int V4L2Camera::initDevice() {
   HAL_LOG_ENTER();
   int res;
 
-  // Initialize and check the gralloc module.
-  const hw_module_t* module;
-  res = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
-  if (res) {
-    HAL_LOGE("Couldn't get gralloc module.");
-    return -ENODEV;
-  }
-  const gralloc_module_t* gralloc =
-      reinterpret_cast<const gralloc_module_t*>(module);
-  mGralloc = V4L2Gralloc(gralloc);
-  if (!mGralloc.isValid()) {
-    HAL_LOGE("Invalid gralloc module.");
-    return -ENODEV;
-  }
-
   // Templates should be set up if they haven't already been.
   if (!mTemplatesInitialized) {
     res = initTemplates();
@@ -800,14 +799,14 @@ int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   // queue length.
   device_buffer.index = 0;
   // Lock the buffer for writing.
-  int res = mGralloc.lock(camera_buffer, mOutStreamBytesPerLine,
+  int res = mGralloc->lock(camera_buffer, mOutStreamBytesPerLine,
                           &device_buffer);
   if (res) {
     return res;
   }
   if (ioctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
     HAL_LOGE("QBUF (%d) fails: %s", 0, strerror(errno));
-    mGralloc.unlock(&device_buffer);
+    mGralloc->unlock(&device_buffer);
     return -ENODEV;
   }
 
@@ -817,7 +816,7 @@ int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   // turned off before another call to this function).
   res = streamOn();
   if (res) {
-    mGralloc.unlock(&device_buffer);
+    mGralloc->unlock(&device_buffer);
     return res;
   }
 
@@ -828,11 +827,11 @@ int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   v4l2_buffer result_buffer;
   res = dequeueBuffer(&result_buffer);
   if (res) {
-    mGralloc.unlock(&result_buffer);
+    mGralloc->unlock(&result_buffer);
     return res;
   }
   // Now that we're done painting the buffer, we can unlock it.
-  res = mGralloc.unlock(&result_buffer);
+  res = mGralloc->unlock(&result_buffer);
   if (res) {
     return res;
   }

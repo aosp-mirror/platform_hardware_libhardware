@@ -46,6 +46,33 @@ void copyWithPadding(uint8_t* dest, const uint8_t* src, size_t dest_stride,
   }
 }
 
+V4L2Gralloc* V4L2Gralloc::NewV4L2Gralloc() {
+  HAL_LOG_ENTER();
+
+  // Initialize and check the gralloc module.
+  const hw_module_t* module = nullptr;
+  int res = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
+  if (res || !module) {
+    HAL_LOGE("Couldn't get gralloc module.");
+    return nullptr;
+  }
+  const gralloc_module_t* gralloc =
+      reinterpret_cast<const gralloc_module_t*>(module);
+
+  // This class only supports Gralloc v0, not Gralloc V1.
+  if (gralloc->common.module_api_version > GRALLOC_MODULE_API_VERSION_0_3) {
+    HAL_LOGE("Invalid gralloc version %x. Only 0.3 (%x) "
+             "and below are supported by this HAL.",
+             gralloc->common.module_api_version,
+             GRALLOC_MODULE_API_VERSION_0_3);
+    return nullptr;
+  }
+
+  return new V4L2Gralloc(gralloc);
+}
+
+// Private. As checked by above factory, module will be non-null
+// and a supported version.
 V4L2Gralloc::V4L2Gralloc(const gralloc_module_t* module)
     : mModule(module) {
   HAL_LOG_ENTER();
@@ -63,21 +90,6 @@ V4L2Gralloc::~V4L2Gralloc() {
     }
     delete entry.second;
   }
-}
-
-bool V4L2Gralloc::isValid() {
-  HAL_LOG_ENTER();
-
-  // This helper only supports Gralloc v0, not Gralloc V1.
-  if (mModule->common.module_api_version > GRALLOC_MODULE_API_VERSION_0_3) {
-    HAL_LOGE("Invalid gralloc version %x. Only 0.3 (%x) "
-             "and below are supported by this HAL.",
-             mModule->common.module_api_version,
-             GRALLOC_MODULE_API_VERSION_0_3);
-    return false;
-  }
-
-  return true;
 }
 
 int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,

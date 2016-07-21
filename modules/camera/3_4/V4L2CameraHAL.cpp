@@ -95,8 +95,12 @@ V4L2CameraHAL::V4L2CameraHAL() : mCameras(), mCallbacks(NULL) {
       bus = reinterpret_cast<char*>(cap.bus_info);
       if (buses.insert(bus).second) {
         HAL_LOGV("Found unique bus at %s.", node.c_str());
-        std::unique_ptr<V4L2Camera> cam(new V4L2Camera(id++, node));
-        mCameras.push_back(std::move(cam));
+        std::unique_ptr<V4L2Camera> cam(V4L2Camera::NewV4L2Camera(id++, node));
+        if (cam) {
+          mCameras.push_back(std::move(cam));
+        } else {
+          HAL_LOGE("Failed to initialize camera at %s.", node.c_str());
+        }
       }
     }
     TEMP_FAILURE_RETRY(close(fd));
