@@ -35,6 +35,7 @@ LOCAL_SHARED_LIBRARIES := \
     libcamera_client \
     libcamera_metadata \
     libcutils \
+    libhardware \
     liblog \
     libnativehelper \
     libsync \
@@ -51,6 +52,7 @@ LOCAL_SRC_FILES := \
   StreamFormat.cpp \
   V4L2Camera.cpp \
   V4L2CameraHAL.cpp \
+  V4L2Gralloc.cpp \
   V4L2Wrapper.cpp \
 
 LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
