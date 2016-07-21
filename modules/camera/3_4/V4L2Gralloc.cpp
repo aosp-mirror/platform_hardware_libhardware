@@ -82,14 +82,7 @@ V4L2Gralloc::~V4L2Gralloc() {
   HAL_LOG_ENTER();
 
   // Unlock buffers that are still locked.
-  for (auto const& entry : mBufferMap) {
-    mModule->unlock(mModule, *entry.second->camera_buffer->buffer);
-    // Clean up dynamically allocated stuff.
-    if (entry.second->transform_dest) {
-      delete [] reinterpret_cast<uint8_t*>(entry.first);
-    }
-    delete entry.second;
-  }
+  unlockAllBuffers();
 }
 
 int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
@@ -269,5 +262,32 @@ int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
 
   return 0;
 }
+
+int V4L2Gralloc::unlockAllBuffers() {
+  HAL_LOG_ENTER();
+
+  bool failed = false;
+  for (auto const& entry : mBufferMap) {
+    int res = mModule->unlock(mModule, *entry.second->camera_buffer->buffer);
+    if (res) {
+      failed = true;
+    }
+    // When there is a transform to be made, the buffer returned by lock()
+    // is dynamically allocated (to hold the pre-transform data).
+    if (entry.second->transform_dest) {
+      delete [] reinterpret_cast<uint8_t*>(entry.first);
+    }
+    // The BufferData entry is always dynamically allocated in lock().
+    delete entry.second;
+  }
+
+  // If any unlock failed, return error.
+  if (failed) {
+    return -ENODEV;
+  }
+
+  return 0;
+}
+
 
 } // namespace default_camera_hal

@@ -28,11 +28,25 @@
 #include "Common.h"
 #include "Stream.h"
 #include "StreamFormat.h"
+#include "V4L2Gralloc.h"
 
 namespace v4l2_camera_hal {
 
-V4L2Wrapper::V4L2Wrapper(const std::string device_path)
-    : device_path_(device_path), max_buffers_(0) {
+V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
+  HAL_LOG_ENTER();
+
+  std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
+  if (!gralloc) {
+    HAL_LOGE("Failed to initialize gralloc helper.");
+    return nullptr;
+  }
+
+  return new V4L2Wrapper(device_path, std::move(gralloc));
+}
+
+V4L2Wrapper::V4L2Wrapper(const std::string device_path,
+                         std::unique_ptr<V4L2Gralloc> gralloc)
+    : device_path_(device_path), gralloc_(std::move(gralloc)), max_buffers_(0) {
   HAL_LOG_ENTER();
 }
 
@@ -58,7 +72,7 @@ int V4L2Wrapper::Connect() {
   // Check if this connection has the extended control query capability.
   v4l2_query_ext_ctrl query;
   query.id = V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
-  // Already holding the lock, so don't call ioctlLocked.
+  // Already holding the lock, so don't call IoctlLocked.
   int res = TEMP_FAILURE_RETRY(
       ioctl(device_fd_.get(), VIDIOC_QUERY_EXT_CTRL, &query));
   extended_query_supported_ = (res == 0);
@@ -79,6 +93,8 @@ void V4L2Wrapper::Disconnect() {
   device_fd_.reset();  // Includes close().
   format_.reset();
   max_buffers_ = 0;
+  // Closing the device releases all queued buffers back to the user.
+  gralloc_->unlockAllBuffers();
 }
 
 // Helper function. Should be used instead of ioctl throughout this class.
@@ -102,7 +118,7 @@ int V4L2Wrapper::StreamOn() {
     return -EINVAL;
   }
 
-  int32_t type = format_->get_type();
+  int32_t type = format_->type();
   if (IoctlLocked(VIDIOC_STREAMON, &type) < 0) {
     HAL_LOGE("STREAMON fails: %s", strerror(errno));
     return -ENODEV;
@@ -114,10 +130,17 @@ int V4L2Wrapper::StreamOn() {
 int V4L2Wrapper::StreamOff() {
   HAL_LOG_ENTER();
 
-  int32_t type = format_->get_type();
-  if (IoctlLocked(VIDIOC_STREAMOFF, &type) < 0) {
+  int32_t type = format_->type();
+  int res = IoctlLocked(VIDIOC_STREAMOFF, &type);
+  // Calling STREAMOFF releases all queued buffers back to the user.
+  int gralloc_res = gralloc_->unlockAllBuffers();
+  if (res < 0) {
     HAL_LOGE("STREAMOFF fails: %s", strerror(errno));
     return -ENODEV;
+  }
+  if (gralloc_res < 0) {
+    HAL_LOGE("Failed to unlock all buffers after turning stream off.");
+    return gralloc_res;
   }
 
   return 0;
@@ -256,16 +279,80 @@ int V4L2Wrapper::SetupBuffers() {
   // tells V4L2 to switch into userspace buffer mode).
   v4l2_requestbuffers req_buffers;
   memset(&req_buffers, 0, sizeof(req_buffers));
-  req_buffers.type = format_->get_type();
+  req_buffers.type = format_->type();
   req_buffers.memory = V4L2_MEMORY_USERPTR;
   req_buffers.count = 1;
-  if (IoctlLocked(VIDIOC_REQBUFS, &req_buffers) < 0) {
+
+  int res = IoctlLocked(VIDIOC_REQBUFS, &req_buffers);
+  // Calling REQBUFS releases all queued buffers back to the user.
+  int gralloc_res = gralloc_->unlockAllBuffers();
+  if (res < 0) {
     HAL_LOGE("REQBUFS failed: %s", strerror(errno));
     return -ENODEV;
+  }
+  if (gralloc_res < 0) {
+    HAL_LOGE("Failed to unlock all buffers when setting up new buffers.");
+    return gralloc_res;
   }
 
   // V4L2 will set req_buffers.count to a number of buffers it can handle.
   max_buffers_ = req_buffers.count;
+  return 0;
+}
+
+int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
+  HAL_LOG_ENTER();
+
+  // Set up a v4l2 buffer struct.
+  v4l2_buffer device_buffer;
+  memset(&device_buffer, 0, sizeof(device_buffer));
+  device_buffer.type = format_->type();
+
+  // Use QUERYBUF to ensure our buffer/device is in good shape.
+  if (IoctlLocked(VIDIOC_QUERYBUF, &device_buffer) < 0) {
+    HAL_LOGE("QUERYBUF fails: %s", strerror(errno));
+    return -ENODEV;
+  }
+
+  // Configure the device buffer based on the stream buffer.
+  device_buffer.memory = V4L2_MEMORY_USERPTR;
+  // TODO(b/29334616): when this is async, actually limit the number
+  // of buffers used to the known max, and set this according to the
+  // queue length.
+  device_buffer.index = 0;
+  // Lock the buffer for writing.
+  int res =
+      gralloc_->lock(camera_buffer, format_->bytes_per_line(), &device_buffer);
+  if (res) {
+    HAL_LOGE("Gralloc failed to lock buffer.");
+    return res;
+  }
+  if (IoctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
+    HAL_LOGE("QBUF (%d) fails: %s", 0, strerror(errno));
+    gralloc_->unlock(&device_buffer);
+    return -ENODEV;
+  }
+
+  return 0;
+}
+
+int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
+  HAL_LOG_ENTER();
+
+  memset(buffer, 0, sizeof(*buffer));
+  buffer->type = format_->type();
+  buffer->memory = V4L2_MEMORY_USERPTR;
+  if (IoctlLocked(VIDIOC_DQBUF, buffer) < 0) {
+    HAL_LOGE("DQBUF fails: %s", strerror(errno));
+    return -ENODEV;
+  }
+
+  // Now that we're done painting the buffer, we can unlock it.
+  int res = gralloc_->unlock(buffer);
+  if (res) {
+    return res;
+  }
+
   return 0;
 }
 

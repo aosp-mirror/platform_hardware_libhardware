@@ -26,11 +26,14 @@
 #include "Common.h"
 #include "Stream.h"
 #include "StreamFormat.h"
+#include "V4L2Gralloc.h"
 
 namespace v4l2_camera_hal {
 class V4L2Wrapper {
  public:
-  V4L2Wrapper(const std::string device_path);
+  // Use this method to create V4L2Wrapper objects. Functionally equivalent
+  // to "new V4L2Wrapper", except that it may return nullptr in case of failure.
+  static V4L2Wrapper* NewV4L2Wrapper(const std::string device_path);
   virtual ~V4L2Wrapper();
 
   // Connect or disconnect to the device.
@@ -45,10 +48,18 @@ class V4L2Wrapper {
   int SetControl(uint32_t control_id, int32_t desired, int32_t* result);
   // Manage format.
   int SetFormat(const default_camera_hal::Stream& stream);
+  // Manage buffers.
+  int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
+  int DequeueBuffer(v4l2_buffer* buffer);
 
   inline bool connected() { return device_fd_.get() >= 0; }
 
  private:
+  // Constructor is private to allow failing on bad input.
+  // Use NewV4L2Wrapper instead.
+  V4L2Wrapper(const std::string device_path,
+              std::unique_ptr<V4L2Gralloc> gralloc);
+
   // Perform an ioctl call in a thread-safe fashion.
   template <typename T>
   int IoctlLocked(int request, T data);
@@ -59,6 +70,8 @@ class V4L2Wrapper {
   const std::string device_path_;
   // The opened device fd.
   ScopedFd device_fd_;
+  // The underlying gralloc module.
+  std::unique_ptr<V4L2Gralloc> gralloc_;
   // Whether or not the device supports the extended control query.
   bool extended_query_supported_;
   // The format this device is set up for.

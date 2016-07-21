@@ -40,7 +40,10 @@ class StreamFormat {
 
   void FillFormatRequest(v4l2_format* format) const;
   FormatCategory Category() const;
-  inline uint32_t get_type() const { return type_; };
+
+  // Accessors.
+  inline uint32_t type() const { return type_; };
+  inline uint32_t bytes_per_line() const { return bytes_per_line_; };
 
   bool operator==(const StreamFormat& other) const;
   bool operator!=(const StreamFormat& other) const;

@@ -46,6 +46,8 @@ public:
   // Unlock a buffer that was locked by this helper (equality determined
   // based on buffer user pointer, not the specific object).
   int unlock(const v4l2_buffer* device_buffer);
+  // Release all held locks.
+  int unlockAllBuffers();
 
 private:
   // Constructor is private to allow failing on bad input.
