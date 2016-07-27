@@ -176,7 +176,7 @@ status_t MetadataQueue::setStreamSlot(const List<camera_metadata_t*> &bufs) {
 }
 
 status_t MetadataQueue::freeBuffers(List<camera_metadata_t*>::iterator start,
-                                    List<camera_metadata_t*>::iterator end) {
+                                    const List<camera_metadata_t*>::iterator& end) {
     while (start != end) {
         free_camera_metadata(*start);
         start = mStreamSlot.erase(start);

@@ -44,8 +44,8 @@ using namespace std::literals::chrono_literals;
 using InputCbFunc = std::function<void(std::shared_ptr<InputDeviceNode>, InputEvent&, nsecs_t)>;
 using DeviceCbFunc = std::function<void(std::shared_ptr<InputDeviceNode>)>;
 
-static const InputCbFunc kNoopInputCb = [](std::shared_ptr<InputDeviceNode>, InputEvent&, nsecs_t){};
-static const DeviceCbFunc kNoopDeviceCb = [](std::shared_ptr<InputDeviceNode>){};
+static const InputCbFunc kNoopInputCb = [](const std::shared_ptr<InputDeviceNode>&, InputEvent&, nsecs_t){};
+static const DeviceCbFunc kNoopDeviceCb = [](const std::shared_ptr<InputDeviceNode>&){};
 
 class TestInputCallback : public InputCallbackInterface {
 public:
@@ -53,9 +53,9 @@ public:
         mInputCb(kNoopInputCb), mDeviceAddedCb(kNoopDeviceCb), mDeviceRemovedCb(kNoopDeviceCb) {}
     virtual ~TestInputCallback() = default;
 
-    void setInputCallback(InputCbFunc cb) { mInputCb = cb; }
-    void setDeviceAddedCallback(DeviceCbFunc cb) { mDeviceAddedCb = cb; }
-    void setDeviceRemovedCallback(DeviceCbFunc cb) { mDeviceRemovedCb = cb; }
+    void setInputCallback(const InputCbFunc& cb) { mInputCb = cb; }
+    void setDeviceAddedCallback(const DeviceCbFunc& cb) { mDeviceAddedCb = cb; }
+    void setDeviceRemovedCallback(const DeviceCbFunc& cb) { mDeviceRemovedCb = cb; }
 
     virtual void onInputEvent(std::shared_ptr<InputDeviceNode> node, InputEvent& event,
             nsecs_t event_time) override {
