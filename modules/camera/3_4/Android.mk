@@ -52,6 +52,7 @@ v4l2_test_files := \
   metadata/control_test.cpp \
   metadata/fixed_property_test.cpp \
   metadata/metadata_test.cpp \
+  metadata/optioned_control_test.cpp \
 
 # V4L2 Camera HAL.
 # ==============================================================================
@@ -60,7 +61,10 @@ LOCAL_MODULE := camera.v4l2
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_CFLAGS += $(v4l2_cflags)
 LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
-LOCAL_STATIC_LIBRARIES := $(v4l2_static_libs)
+LOCAL_STATIC_LIBRARIES := \
+  libgtest_prod \
+  $(v4l2_static_libs) \
+
 LOCAL_C_INCLUDES += $(v4l2_c_includes)
 LOCAL_SRC_FILES := $(v4l2_src_files)
 include $(BUILD_SHARED_LIBRARY)
