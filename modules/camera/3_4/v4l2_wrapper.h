@@ -17,8 +17,10 @@
 #ifndef V4L2_CAMERA_HAL_V4L2_WRAPPER_H_
 #define V4L2_CAMERA_HAL_V4L2_WRAPPER_H_
 
+#include <array>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 
 #include <nativehelper/ScopedFd.h>
@@ -36,9 +38,20 @@ class V4L2Wrapper {
   static V4L2Wrapper* NewV4L2Wrapper(const std::string device_path);
   virtual ~V4L2Wrapper();
 
-  // Connect or disconnect to the device.
-  int Connect();
-  void Disconnect();
+  // Helper class to ensure all opened connections are closed.
+  class Connection {
+   public:
+    Connection(std::shared_ptr<V4L2Wrapper> device)
+        : device_(std::move(device)), connect_result_(device_->Connect()) {}
+    ~Connection() { if (connect_result_ == 0) device_->Disconnect(); }
+    // Check whether the connection succeeded or not.
+    inline int status() const { return connect_result_; }
+
+   private:
+    std::shared_ptr<V4L2Wrapper> device_;
+    const int connect_result_;
+  };
+
   // Turn the stream on or off.
   int StreamOn();
   int StreamOff();
@@ -48,13 +61,18 @@ class V4L2Wrapper {
   int SetControl(uint32_t control_id, int32_t desired,
                  int32_t* result = nullptr);
   // Manage format.
+  int GetFormats(std::set<uint32_t>* v4l2_formats);
+  int GetFormatFrameSizes(uint32_t v4l2_format,
+                          std::set<std::array<int32_t, 2>>* sizes);
+  // Durations are returned in ns.
+  int GetFormatFrameDurationRange(uint32_t v4l2_format,
+                                  const std::array<int32_t, 2>& size,
+                                  std::array<int64_t, 2>* duration_range);
   int SetFormat(const default_camera_hal::Stream& stream,
                 uint32_t* result_max_buffers);
   // Manage buffers.
   int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
   int DequeueBuffer(v4l2_buffer* buffer);
-
-  inline bool connected() { return device_fd_.get() >= 0; }
 
  private:
   // Constructor is private to allow failing on bad input.
@@ -62,11 +80,17 @@ class V4L2Wrapper {
   V4L2Wrapper(const std::string device_path,
               std::unique_ptr<V4L2Gralloc> gralloc);
 
+  // Connect or disconnect to the device. Access by creating/destroying
+  // a V4L2Wrapper::Connection object.
+  int Connect();
+  void Disconnect();
   // Perform an ioctl call in a thread-safe fashion.
   template <typename T>
   int IoctlLocked(int request, T data);
   // Adjust buffers any time a device is connected/reformatted.
   int SetupBuffers();
+
+  inline bool connected() { return device_fd_.get() >= 0; }
 
   // The camera device path. For example, /dev/video0.
   const std::string device_path_;
@@ -82,7 +106,12 @@ class V4L2Wrapper {
   uint32_t max_buffers_;
   // Lock protecting use of the device.
   std::mutex device_lock_;
+  // Lock protecting connecting/disconnecting the device.
+  std::mutex connection_lock_;
+  // Reference count connections.
+  int connection_count_;
 
+  friend class Connection;
   friend class V4L2WrapperMock;
 
   DISALLOW_COPY_AND_ASSIGN(V4L2Wrapper);

@@ -51,7 +51,7 @@ static std::vector<int32_t> getMetadataKeys(
 V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
   HAL_LOG_ENTER();
 
-  std::unique_ptr<V4L2Wrapper> v4l2_wrapper(V4L2Wrapper::NewV4L2Wrapper(path));
+  std::shared_ptr<V4L2Wrapper> v4l2_wrapper(V4L2Wrapper::NewV4L2Wrapper(path));
   if (!v4l2_wrapper) {
     HAL_LOGE("Failed to initialize V4L2 wrapper.");
     return nullptr;
@@ -60,7 +60,7 @@ V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
   return new V4L2Camera(id, std::move(v4l2_wrapper));
 }
 
-V4L2Camera::V4L2Camera(int id, std::unique_ptr<V4L2Wrapper> v4l2_wrapper)
+V4L2Camera::V4L2Camera(int id, std::shared_ptr<V4L2Wrapper> v4l2_wrapper)
     : default_camera_hal::Camera(id),
       mV4L2Device(std::move(v4l2_wrapper)),
       mTemplatesInitialized(false),
@@ -75,10 +75,15 @@ V4L2Camera::~V4L2Camera() {
 int V4L2Camera::connect() {
   HAL_LOG_ENTER();
 
-  int res = mV4L2Device->Connect();
-  if (res) {
+  if (mConnection) {
+    HAL_LOGE("Already connected. Please disconnect and try again.");
+    return -EIO;
+  }
+
+  mConnection.reset(new V4L2Wrapper::Connection(mV4L2Device));
+  if (mConnection->status()) {
     HAL_LOGE("Failed to connect to device.");
-    return res;
+    return mConnection->status();
   }
 
   // TODO(b/29185945): confirm this is a supported device.
@@ -96,7 +101,7 @@ int V4L2Camera::connect() {
 void V4L2Camera::disconnect() {
   HAL_LOG_ENTER();
 
-  mV4L2Device->Disconnect();
+  mConnection.reset();
 
   // TODO(b/29158098): Inform service of any flashes that are available again
   // because this camera is no longer in use.
@@ -1460,35 +1465,77 @@ int V4L2Camera::initCharacteristics() {
   mVideoStabilizationModes.push_back(
       ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF);
 
-  // Need to support YUV_420_888 and JPEG.
-  // TODO(b/29394024): query VIDIOC_ENUM_FMT.
-  std::vector<uint32_t> formats = {{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420}};
-  // We want to find the smallest maximum frame duration amongst formats.
-  mMaxFrameDuration = std::numeric_limits<int64_t>::max();
-  int64_t min_yuv_frame_duration = std::numeric_limits<int64_t>::max();
-  for (auto format : formats) {
-    int32_t hal_format = StreamFormat::V4L2ToHalPixelFormat(format);
+  // Need to be connected to query the device.
+  V4L2Wrapper::Connection temp_connection(mV4L2Device);
+  if (temp_connection.status()) {
+    HAL_LOGE("Failed to connect to device.");
+    return temp_connection.status();
+  }
+
+  // Get all supported formats.
+  std::set<uint32_t> v4l2_formats;
+  int res = mV4L2Device->GetFormats(&v4l2_formats);
+  if (res) {
+    HAL_LOGE("Failed to get device formats.");
+    return res;
+  }
+  std::set<int32_t> hal_formats;
+  for (auto v4l2_format : v4l2_formats) {
+    int32_t hal_format = StreamFormat::V4L2ToHalPixelFormat(v4l2_format);
     if (hal_format < 0) {
       // Unrecognized/unused format. Skip it.
       continue;
     }
-    // TODO(b/29394024): query VIDIOC_ENUM_FRAMESIZES.
-    // For now, just 640x480.
-    ArrayVector<int32_t, 2> frame_sizes;
-    frame_sizes.push_back({{640, 480}});
-    size_t num_frame_sizes = frame_sizes.num_arrays();
-    for (size_t i = 0; i < num_frame_sizes; ++i) {
-      const int32_t* frame_size = frame_sizes[i];
+    hal_formats.insert(hal_format);
+  }
+  // In addition to well-defined formats, must support "Implementation Defined"
+  // (in this case what that means is managed by the StreamFormat class).
+  hal_formats.insert(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+
+  // Requirements check: need to support YCbCr_420_888 and JPEG.
+  if (hal_formats.find(HAL_PIXEL_FORMAT_YCbCr_420_888) == hal_formats.end()) {
+    HAL_LOGE("YCbCr_420_888 not supported by device.");
+    return -ENODEV;
+  } else if (hal_formats.find(HAL_PIXEL_FORMAT_BLOB) == hal_formats.end()) {
+    HAL_LOGE("JPEG not supported by device.");
+    return -ENODEV;
+  }
+
+  // Find sizes and frame durations for all formats.
+  // We also want to find the smallest max frame duration amongst all formats.
+  mMaxFrameDuration = std::numeric_limits<int64_t>::max();
+  int64_t min_yuv_frame_duration = std::numeric_limits<int64_t>::max();
+  for (auto hal_format : hal_formats) {
+    uint32_t v4l2_format = StreamFormat::HalToV4L2PixelFormat(hal_format);
+    if (v4l2_format == 0) {
+      // Unrecognized/unused format. Should never happen since hal_formats
+      // came from translating a bunch of V4L2 formats above.
+      HAL_LOGE("Couldn't find V4L2 format for HAL format %d", hal_format);
+      return -ENODEV;
+    }
+
+    std::set<std::array<int32_t, 2>> frame_sizes;
+    res = mV4L2Device->GetFormatFrameSizes(v4l2_format, &frame_sizes);
+    if (res) {
+      HAL_LOGE("Failed to get all frame sizes for format %d", v4l2_format);
+      return res;
+    }
+
+    for (const auto& frame_size : frame_sizes) {
       mStreamConfigs.push_back({{hal_format, frame_size[0], frame_size[1],
                 ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_OUTPUT}});
 
-      // TODO(b/29394024): query VIDIOC_ENUM_FRAMEINTERVALS.
-      // For now, using the emulator max value of .3 sec.
-      int64_t max_frame_duration = 300000000;
-      // For now, min value of 30 fps = 1/30 spf ~= 33333333 ns.
-      // For whatever reason the goldfish/qcom cameras report this as
-      // 33331760, so copying that.
-      int64_t min_frame_duration = 33331760;
+      std::array<int64_t, 2> duration_range;
+      res = mV4L2Device->GetFormatFrameDurationRange(
+          v4l2_format, frame_size, &duration_range);
+      if (res) {
+        HAL_LOGE("Failed to get frame duration range for format %d, "
+                 "size %u x %u", v4l2_format, frame_size[0], frame_size[1]);
+        return res;
+      }
+
+      int64_t min_frame_duration = duration_range[0];
+      int64_t max_frame_duration = duration_range[1];
 
       mMinFrameDurations.push_back(
           {{hal_format, frame_size[0], frame_size[1], min_frame_duration}});

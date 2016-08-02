@@ -27,8 +27,8 @@
 
 namespace v4l2_camera_hal {
 
-// Generously allow up to 3MB.
-static constexpr size_t V4L2_MAX_JPEG_SIZE = 3000000;
+// Generously allow up to 6MB (the largest JPEG on the RPi camera is about 5MB).
+static constexpr size_t V4L2_MAX_JPEG_SIZE = 6000000;
 
 // V4L2Gralloc is a wrapper around relevant parts of a gralloc module,
 // with some assistive transformations.
@@ -39,7 +39,7 @@ public:
   static V4L2Gralloc* NewV4L2Gralloc();
   virtual ~V4L2Gralloc();
 
-  // Lock a camera buffer. Sets device buffer user pointer and length.
+  // Lock a camera buffer. Uses device buffer length, sets user pointer.
   int lock(const camera3_stream_buffer_t* camera_buffer,
            uint32_t bytes_per_line,
            v4l2_buffer* device_buffer);

@@ -46,7 +46,7 @@ public:
 private:
   // Constructor private to allow failing on bad input.
   // Use NewV4L2Camera instead.
-  V4L2Camera(int id, std::unique_ptr<V4L2Wrapper> v4l2_wrapper);
+  V4L2Camera(int id, std::shared_ptr<V4L2Wrapper> v4l2_wrapper);
 
   // default_camera_hal::Camera virtual methods.
   // Connect to the device: open dev nodes, etc.
@@ -77,7 +77,8 @@ private:
   int getResultSettings(camera_metadata_t** metadata, uint64_t* timestamp);
 
   // V4L2 helper.
-  std::unique_ptr<V4L2Wrapper> mV4L2Device;
+  std::shared_ptr<V4L2Wrapper> mV4L2Device;
+  std::unique_ptr<V4L2Wrapper::Connection> mConnection;
 
   bool mTemplatesInitialized;
   int initTemplates();

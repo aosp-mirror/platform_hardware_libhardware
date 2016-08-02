@@ -87,7 +87,7 @@ V4L2Gralloc::~V4L2Gralloc() {
 
 int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
                       uint32_t bytes_per_line,
-                      /*out*/ v4l2_buffer* device_buffer) {
+                      v4l2_buffer* device_buffer) {
   HAL_LOG_ENTER();
 
   // Lock the camera buffer (varies depending on if the buffer is YUV or not).
@@ -95,7 +95,6 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
       camera_buffer, nullptr, bytes_per_line});
   buffer_handle_t buffer = *camera_buffer->buffer;
   void* data;
-  size_t size;
   camera3_stream_t* stream = camera_buffer->stream;
   switch(stream->format) {
     // TODO(b/30119452): support more YCbCr formats.
@@ -103,8 +102,6 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
       android_ycbcr yuv_data;
       mModule->lock_ycbcr(mModule, buffer, stream->usage, 0, 0,
                           stream->width, stream->height, &yuv_data);
-      // YUV_420_888 = 1.5 planes (1 Y plane, 1/4 Cb, 1/4 Cr).
-      size = bytes_per_line * stream->height * 3 / 2;
 
       // Check if gralloc format matches v4l2 format
       // (same padding, not interleaved, contiguous).
@@ -124,16 +121,15 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
         // If not, allocate a contiguous buffer of appropriate size
         // (to be transformed back upon unlock).
         HAL_LOGV("Need to transform V4L2 YUV to gralloc YUV.");
-        data = new uint8_t[size];
+        data = new uint8_t[device_buffer->length];
         // Make a dynamically-allocated copy of yuv_data,
         // since it will be needed at transform time.
         buffer_data->transform_dest.reset(new android_ycbcr(yuv_data));
       }
       break;
     case HAL_PIXEL_FORMAT_BLOB:
-      // Jpeg buffers are just contiguous blobs; always max_size * 1.
-      size = V4L2_MAX_JPEG_SIZE;
-      mModule->lock(mModule, buffer, stream->usage, 0, 0, size, 1, &data);
+      // Jpeg buffers are just contiguous blobs; lock length * 1.
+      mModule->lock(mModule, buffer, stream->usage, 0, 0, device_buffer->length, 1, &data);
       break;
     default:
       return -EINVAL;
@@ -144,7 +140,6 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
                 "void* must be able to fit in the v4l2_buffer m.userptr "
                 "field (unsigned long) for this code to work");
   device_buffer->m.userptr = reinterpret_cast<unsigned long>(data);
-  device_buffer->length = size;
 
   // Note the mapping of data:buffer info for when unlock is called.
   mBufferMap.emplace(data, buffer_data.release());

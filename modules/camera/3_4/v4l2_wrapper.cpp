@@ -16,6 +16,10 @@
 
 #include "v4l2_wrapper.h"
 
+#include <algorithm>
+#include <limits>
+#include <vector>
+
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <sys/stat.h>
@@ -31,6 +35,9 @@
 #include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
+
+const std::vector<std::array<int32_t, 2>> kStandardSizes(
+    {{{1920, 1080}}, {{1280, 720}}, {{640, 480}}, {{320, 240}}});
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
   HAL_LOG_ENTER();
@@ -48,7 +55,8 @@ V4L2Wrapper::V4L2Wrapper(const std::string device_path,
                          std::unique_ptr<V4L2Gralloc> gralloc)
     : device_path_(std::move(device_path)),
       gralloc_(std::move(gralloc)),
-      max_buffers_(0) {
+      max_buffers_(0),
+      connection_count_(0) {
   HAL_LOG_ENTER();
 }
 
@@ -56,28 +64,26 @@ V4L2Wrapper::~V4L2Wrapper() { HAL_LOG_ENTER(); }
 
 int V4L2Wrapper::Connect() {
   HAL_LOG_ENTER();
-  std::lock_guard<std::mutex> lock(device_lock_);
+  std::lock_guard<std::mutex> lock(connection_lock_);
 
   if (connected()) {
-    HAL_LOGE("Camera device %s is already connected. Close it first",
-             device_path_.c_str());
-    return -EIO;
+    HAL_LOGV("Camera device %s is already connected.", device_path_.c_str());
+    ++connection_count_;
+    return 0;
   }
 
   int fd = TEMP_FAILURE_RETRY(open(device_path_.c_str(), O_RDWR));
   if (fd < 0) {
     HAL_LOGE("failed to open %s (%s)", device_path_.c_str(), strerror(errno));
-    return -errno;
+    return -ENODEV;
   }
   device_fd_.reset(fd);
+  ++connection_count_;
 
   // Check if this connection has the extended control query capability.
   v4l2_query_ext_ctrl query;
   query.id = V4L2_CTRL_FLAG_NEXT_CTRL | V4L2_CTRL_FLAG_NEXT_COMPOUND;
-  // Already holding the lock, so don't call IoctlLocked.
-  int res = TEMP_FAILURE_RETRY(
-      ioctl(device_fd_.get(), VIDIOC_QUERY_EXT_CTRL, &query));
-  extended_query_supported_ = (res == 0);
+  extended_query_supported_ = (IoctlLocked(VIDIOC_QUERY_EXT_CTRL, &query) == 0);
 
   // TODO(b/29185945): confirm this is a supported device.
   // This is checked by the HAL, but the device at device_path_ may
@@ -90,7 +96,21 @@ int V4L2Wrapper::Connect() {
 
 void V4L2Wrapper::Disconnect() {
   HAL_LOG_ENTER();
-  std::lock_guard<std::mutex> lock(device_lock_);
+  std::lock_guard<std::mutex> lock(connection_lock_);
+
+  if (connection_count_ == 0) {
+    // Not connected.
+    HAL_LOGE("Camera device %s is not connected, cannot disconnect.",
+             device_path_.c_str(), connection_count_);
+    return;
+  }
+
+  --connection_count_;
+  if (connection_count_ > 0) {
+    HAL_LOGV("Disconnected from camera device %s. %d connections remain.",
+             device_path_.c_str(), connection_count_);
+    return;
+  }
 
   device_fd_.reset();  // Includes close().
   format_.reset();
@@ -102,7 +122,7 @@ void V4L2Wrapper::Disconnect() {
 // Helper function. Should be used instead of ioctl throughout this class.
 template <typename T>
 int V4L2Wrapper::IoctlLocked(int request, T data) {
-  HAL_LOG_ENTER();
+  // Potentially called so many times logging entry is a bad idea.
   std::lock_guard<std::mutex> lock(device_lock_);
 
   if (!connected()) {
@@ -247,6 +267,136 @@ int V4L2Wrapper::SetControl(uint32_t control_id, int32_t desired,
   return 0;
 }
 
+int V4L2Wrapper::GetFormats(std::set<uint32_t>* v4l2_formats) {
+  HAL_LOG_ENTER();
+
+  v4l2_fmtdesc format_query;
+  memset(&format_query, 0, sizeof(format_query));
+  // TODO(b/30000211): multiplanar support.
+  format_query.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+  while (IoctlLocked(VIDIOC_ENUM_FMT, &format_query) >= 0) {
+    v4l2_formats->insert(format_query.pixelformat);
+    ++format_query.index;
+  }
+
+  if (errno != EINVAL) {
+    HAL_LOGE("ENUM_FMT fails at index %d: %s", format_query.index,
+             strerror(errno));
+    return -ENODEV;
+  }
+  return 0;
+}
+
+int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
+                                     std::set<std::array<int32_t, 2>>* sizes) {
+  HAL_LOG_ENTER();
+
+  v4l2_frmsizeenum size_query;
+  memset(&size_query, 0, sizeof(size_query));
+  size_query.pixel_format = v4l2_format;
+  if (IoctlLocked(VIDIOC_ENUM_FRAMESIZES, &size_query) < 0) {
+    HAL_LOGE("ENUM_FRAMESIZES failed: %s", strerror(errno));
+    return -ENODEV;
+  }
+  if (size_query.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+    // Discrete: enumerate all sizes using VIDIOC_ENUM_FRAMESIZES.
+    // Assuming that a driver with discrete frame sizes has a reasonable number
+    // of them.
+    do {
+      sizes->insert({{{static_cast<int32_t>(size_query.discrete.width),
+                       static_cast<int32_t>(size_query.discrete.height)}}});
+      ++size_query.index;
+    } while (IoctlLocked(VIDIOC_ENUM_FRAMESIZES, &size_query) >= 0);
+    if (errno != EINVAL) {
+      HAL_LOGE("ENUM_FRAMESIZES fails at index %d: %s", size_query.index,
+               strerror(errno));
+      return -ENODEV;
+    }
+  } else {
+    // Continuous/Step-wise: based on the stepwise struct returned by the query.
+    // Fully listing all possible sizes, with large enough range/small enough
+    // step size, may produce far too many potential sizes. Instead, find the
+    // closest to a set of standard sizes plus largest possible.
+    sizes->insert({{{static_cast<int32_t>(size_query.stepwise.max_width),
+                     static_cast<int32_t>(size_query.stepwise.max_height)}}});
+    for (const auto& size : kStandardSizes) {
+      // Find the closest size, rounding up.
+      uint32_t desired_width = size[0];
+      uint32_t desired_height = size[1];
+      if (desired_width < size_query.stepwise.min_width ||
+          desired_height < size_query.stepwise.min_height) {
+        HAL_LOGV("Standard size %u x %u is too small for format %d",
+                 desired_width, desired_height, v4l2_format);
+        continue;
+      } else if (desired_width > size_query.stepwise.max_width &&
+                 desired_height > size_query.stepwise.max_height) {
+        HAL_LOGV("Standard size %u x %u is too big for format %d",
+                 desired_width, desired_height, v4l2_format);
+        continue;
+      }
+
+      // Round up.
+      uint32_t width_steps = (desired_width - size_query.stepwise.min_width +
+                              size_query.stepwise.step_width - 1) /
+                             size_query.stepwise.step_width;
+      uint32_t height_steps = (desired_height - size_query.stepwise.min_height +
+                               size_query.stepwise.step_height - 1) /
+                              size_query.stepwise.step_height;
+      sizes->insert(
+          {{{static_cast<int32_t>(size_query.stepwise.min_width +
+                                  width_steps * size_query.stepwise.step_width),
+             static_cast<int32_t>(size_query.stepwise.min_height +
+                                  height_steps *
+                                      size_query.stepwise.step_height)}}});
+    }
+  }
+  return 0;
+}
+
+// Converts a v4l2_fract with units of seconds to an int64_t with units of ns.
+inline int64_t FractToNs(const v4l2_fract& fract) {
+  return (1000000000LL * fract.numerator) / fract.denominator;
+}
+
+int V4L2Wrapper::GetFormatFrameDurationRange(
+    uint32_t v4l2_format, const std::array<int32_t, 2>& size,
+    std::array<int64_t, 2>* duration_range) {
+  // Potentially called so many times logging entry is a bad idea.
+
+  v4l2_frmivalenum duration_query;
+  memset(&duration_query, 0, sizeof(duration_query));
+  duration_query.pixel_format = v4l2_format;
+  duration_query.width = size[0];
+  duration_query.height = size[1];
+  if (IoctlLocked(VIDIOC_ENUM_FRAMEINTERVALS, &duration_query) < 0) {
+    HAL_LOGE("ENUM_FRAMEINTERVALS failed: %s", strerror(errno));
+    return -ENODEV;
+  }
+
+  int64_t min = std::numeric_limits<int64_t>::max();
+  int64_t max = std::numeric_limits<int64_t>::min();
+  if (duration_query.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+    // Discrete: enumerate all durations using VIDIOC_ENUM_FRAMEINTERVALS.
+    do {
+      min = std::min(min, FractToNs(duration_query.discrete));
+      max = std::max(max, FractToNs(duration_query.discrete));
+      ++duration_query.index;
+    } while (IoctlLocked(VIDIOC_ENUM_FRAMEINTERVALS, &duration_query) >= 0);
+    if (errno != EINVAL) {
+      HAL_LOGE("ENUM_FRAMEINTERVALS fails at index %d: %s",
+               duration_query.index, strerror(errno));
+      return -ENODEV;
+    }
+  } else {
+    // Continuous/Step-wise: simply convert the given min and max.
+    min = FractToNs(duration_query.stepwise.min);
+    max = FractToNs(duration_query.stepwise.max);
+  }
+  (*duration_range)[0] = min;
+  (*duration_range)[1] = max;
+  return 0;
+}
+
 int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
                            uint32_t* result_max_buffers) {
   HAL_LOG_ENTER();
@@ -342,20 +492,19 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   v4l2_buffer device_buffer;
   memset(&device_buffer, 0, sizeof(device_buffer));
   device_buffer.type = format_->type();
+  // TODO(b/29334616): when this is async, actually limit the number
+  // of buffers used to the known max, and set this according to the
+  // queue length.
+  device_buffer.index = 0;
 
-  // Use QUERYBUF to ensure our buffer/device is in good shape.
+  // Use QUERYBUF to ensure our buffer/device is in good shape,
+  // and fill out remaining fields.
   if (IoctlLocked(VIDIOC_QUERYBUF, &device_buffer) < 0) {
     HAL_LOGE("QUERYBUF fails: %s", strerror(errno));
     return -ENODEV;
   }
 
-  // Configure the device buffer based on the stream buffer.
-  device_buffer.memory = V4L2_MEMORY_USERPTR;
-  // TODO(b/29334616): when this is async, actually limit the number
-  // of buffers used to the known max, and set this according to the
-  // queue length.
-  device_buffer.index = 0;
-  // Lock the buffer for writing.
+  // Lock the buffer for writing (fills in the user pointer field).
   int res =
       gralloc_->lock(camera_buffer, format_->bytes_per_line(), &device_buffer);
   if (res) {
@@ -363,7 +512,7 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
     return res;
   }
   if (IoctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
-    HAL_LOGE("QBUF (%d) fails: %s", 0, strerror(errno));
+    HAL_LOGE("QBUF fails: %s", strerror(errno));
     gralloc_->unlock(&device_buffer);
     return -ENODEV;
   }
