@@ -49,6 +49,7 @@ v4l2_src_files := \
   v4l2_wrapper.cpp \
 
 v4l2_test_files := \
+  metadata/fixed_property_test.cpp \
   metadata/metadata_test.cpp \
 
 # V4L2 Camera HAL.
