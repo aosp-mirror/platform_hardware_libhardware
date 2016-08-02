@@ -30,19 +30,20 @@ class PartialMetadataInterface {
 
   // The metadata tags this partial metadata is responsible for.
   // See system/media/camera/docs/docs.html for descriptions of each tag.
-  virtual const std::vector<int32_t>& StaticTags() = 0;
-  virtual const std::vector<int32_t>& ControlTags() = 0;
-  virtual const std::vector<int32_t>& DynamicTags() = 0;
+  virtual const std::vector<int32_t>& StaticTags() const = 0;
+  virtual const std::vector<int32_t>& ControlTags() const = 0;
+  virtual const std::vector<int32_t>& DynamicTags() const = 0;
 
   // Add all the static properties this partial metadata
   // is responsible for to |metadata|.
-  virtual int PopulateStaticFields(camera_metadata_t** metadata) = 0;
+  virtual int PopulateStaticFields(camera_metadata_t** metadata) const = 0;
   // Add all the dynamic states this partial metadata
   // is responsible for to |metadata|.
-  virtual int PopulateDynamicFields(camera_metadata_t** metadata) = 0;
+  virtual int PopulateDynamicFields(camera_metadata_t** metadata) const = 0;
   // Check if the requested control values from |metadata| (for controls
   // this partial metadata owns) are supported.
-  virtual bool SupportsRequestValues(const camera_metadata_t* metadata) = 0;
+  virtual bool SupportsRequestValues(
+      const camera_metadata_t* metadata) const = 0;
   // Set all the controls this partial metadata
   // is responsible for from |metadata|.
   virtual int SetRequestValues(const camera_metadata_t* metadata) = 0;
