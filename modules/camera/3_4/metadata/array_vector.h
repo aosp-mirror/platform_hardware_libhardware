@@ -26,9 +26,9 @@ namespace v4l2_camera_hal {
 // Specific methods to get number of arrays/number of elements
 // are provided and an ambiguous "size" is not, to avoid accidental
 // incorrect use.
-template <class T, int N>
+template <class T, size_t N>
 class ArrayVector {
-public:
+ public:
   const T* data() const { return mItems.data(); }
   // The number of arrays.
   size_t num_arrays() const { return mItems.size() / N; }
@@ -43,7 +43,7 @@ public:
     mItems.insert(mItems.end(), values.begin(), values.end());
   }
 
-private:
+ private:
   std::vector<T> mItems;
 };
 

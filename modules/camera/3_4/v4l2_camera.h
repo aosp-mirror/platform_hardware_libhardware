@@ -25,9 +25,9 @@
 
 #include <system/camera_metadata.h>
 
-#include "array_vector.h"
 #include "camera.h"
 #include "common.h"
+#include "metadata/array_vector.h"
 #include "v4l2_gralloc.h"
 #include "v4l2_wrapper.h"
 
