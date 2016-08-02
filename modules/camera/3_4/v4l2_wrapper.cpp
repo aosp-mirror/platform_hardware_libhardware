@@ -231,12 +231,19 @@ int V4L2Wrapper::SetControl(uint32_t control_id, int32_t desired,
                             int32_t* result) {
   HAL_LOG_ENTER();
 
+  // TODO(b/29334616): When async, this may need to check if the stream
+  // is on, and if so, lock it off while setting format. Need to look
+  // into if V4L2 supports adjusting controls while the stream is on.
+
   v4l2_control control{control_id, desired};
   if (IoctlLocked(VIDIOC_S_CTRL, &control) < 0) {
     HAL_LOGE("S_CTRL fails: %s", strerror(errno));
     return -ENODEV;
   }
-  *result = control.value;
+  // If the caller wants to know the result, pass it back.
+  if (result != nullptr) {
+    *result = control.value;
+  }
   return 0;
 }
 

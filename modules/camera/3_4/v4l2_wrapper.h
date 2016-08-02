@@ -45,7 +45,8 @@ class V4L2Wrapper {
   // Manage controls.
   int QueryControl(uint32_t control_id, v4l2_query_ext_ctrl* result);
   int GetControl(uint32_t control_id, int32_t* value);
-  int SetControl(uint32_t control_id, int32_t desired, int32_t* result);
+  int SetControl(uint32_t control_id, int32_t desired,
+                 int32_t* result = nullptr);
   // Manage format.
   int SetFormat(const default_camera_hal::Stream& stream,
                 uint32_t* result_max_buffers);
