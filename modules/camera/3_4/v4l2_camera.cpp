@@ -328,13 +328,7 @@ int V4L2Camera::initStaticInfo(camera_metadata_t** out) {
     return res;
   }
 
-  // No known V4L2 shading map info.
-  int32_t shading_map_size[] = {1, 1};
-  res = info.update(ANDROID_LENS_INFO_SHADING_MAP_SIZE,
-                    shading_map_size, ARRAY_SIZE(shading_map_size));
-  if (res != android::OK) {
-    return res;
-  }
+  // lens.info.shadingMapSize not required for non-full devices.
 
   // All V4L2 devices are considered to be external facing.
   uint8_t facing = ANDROID_LENS_FACING_EXTERNAL;
