@@ -40,6 +40,7 @@ v4l2_c_includes := $(call include-path-for, camera)
 v4l2_src_files := \
   camera.cpp \
   metadata/metadata.cpp \
+  metadata/v4l2_enum_control.cpp \
   stream.cpp \
   stream_format.cpp \
   v4l2_camera.cpp \
@@ -54,6 +55,7 @@ v4l2_test_files := \
   metadata/ignored_control_test.cpp \
   metadata/metadata_test.cpp \
   metadata/optioned_control_test.cpp \
+  metadata/v4l2_enum_control_test.cpp \
 
 # V4L2 Camera HAL.
 # ==============================================================================

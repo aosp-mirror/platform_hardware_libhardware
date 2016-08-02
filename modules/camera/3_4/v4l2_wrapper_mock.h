@@ -28,8 +28,6 @@ namespace v4l2_camera_hal {
 class V4L2WrapperMock : public V4L2Wrapper {
  public:
   V4L2WrapperMock() : V4L2Wrapper("", nullptr){};
-  MOCK_METHOD0(Connect, int());
-  MOCK_METHOD0(Disconnect, void());
   MOCK_METHOD0(StreamOn, int());
   MOCK_METHOD0(StreamOff, int());
   MOCK_METHOD2(QueryControl,
@@ -37,6 +35,12 @@ class V4L2WrapperMock : public V4L2Wrapper {
   MOCK_METHOD2(GetControl, int(uint32_t control_id, int32_t* value));
   MOCK_METHOD3(SetControl,
                int(uint32_t control_id, int32_t desired, int32_t* result));
+  MOCK_METHOD1(GetFormats, int(std::set<uint32_t>*));
+  MOCK_METHOD2(GetFormatFrameSizes,
+               int(uint32_t, std::set<std::array<int32_t, 2>>*));
+  MOCK_METHOD3(GetFormatFrameDurationRange,
+               int(uint32_t, const std::array<int32_t, 2>&,
+                   std::array<int64_t, 2>*));
   MOCK_METHOD2(SetFormat, int(const default_camera_hal::Stream& stream,
                               uint32_t* result_max_buffers));
   MOCK_METHOD1(EnqueueBuffer,

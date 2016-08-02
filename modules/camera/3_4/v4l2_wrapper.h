@@ -43,7 +43,9 @@ class V4L2Wrapper {
    public:
     Connection(std::shared_ptr<V4L2Wrapper> device)
         : device_(std::move(device)), connect_result_(device_->Connect()) {}
-    ~Connection() { if (connect_result_ == 0) device_->Disconnect(); }
+    ~Connection() {
+      if (connect_result_ == 0) device_->Disconnect();
+    }
     // Check whether the connection succeeded or not.
     inline int status() const { return connect_result_; }
 
@@ -53,26 +55,26 @@ class V4L2Wrapper {
   };
 
   // Turn the stream on or off.
-  int StreamOn();
-  int StreamOff();
+  virtual int StreamOn();
+  virtual int StreamOff();
   // Manage controls.
-  int QueryControl(uint32_t control_id, v4l2_query_ext_ctrl* result);
-  int GetControl(uint32_t control_id, int32_t* value);
-  int SetControl(uint32_t control_id, int32_t desired,
-                 int32_t* result = nullptr);
+  virtual int QueryControl(uint32_t control_id, v4l2_query_ext_ctrl* result);
+  virtual int GetControl(uint32_t control_id, int32_t* value);
+  virtual int SetControl(uint32_t control_id, int32_t desired,
+                         int32_t* result = nullptr);
   // Manage format.
-  int GetFormats(std::set<uint32_t>* v4l2_formats);
-  int GetFormatFrameSizes(uint32_t v4l2_format,
-                          std::set<std::array<int32_t, 2>>* sizes);
+  virtual int GetFormats(std::set<uint32_t>* v4l2_formats);
+  virtual int GetFormatFrameSizes(uint32_t v4l2_format,
+                                  std::set<std::array<int32_t, 2>>* sizes);
   // Durations are returned in ns.
-  int GetFormatFrameDurationRange(uint32_t v4l2_format,
-                                  const std::array<int32_t, 2>& size,
-                                  std::array<int64_t, 2>* duration_range);
-  int SetFormat(const default_camera_hal::Stream& stream,
-                uint32_t* result_max_buffers);
+  virtual int GetFormatFrameDurationRange(
+      uint32_t v4l2_format, const std::array<int32_t, 2>& size,
+      std::array<int64_t, 2>* duration_range);
+  virtual int SetFormat(const default_camera_hal::Stream& stream,
+                        uint32_t* result_max_buffers);
   // Manage buffers.
-  int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
-  int DequeueBuffer(v4l2_buffer* buffer);
+  virtual int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
+  virtual int DequeueBuffer(v4l2_buffer* buffer);
 
  private:
   // Constructor is private to allow failing on bad input.

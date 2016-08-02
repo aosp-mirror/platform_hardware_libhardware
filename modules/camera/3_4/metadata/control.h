@@ -46,6 +46,11 @@ class Control : public TaggedPartialMetadata {
   inline int32_t ControlTag() const { return ControlTags()[0]; }
 
   // Get/Set the control value. Return non-0 on failure.
+  // Controls are allowed to be unreliable, so SetValue is best-effort;
+  // GetValue immediately after may not match (SetValue may, for example,
+  // automatically replace invalid values with valid ones,
+  // or have a delay before setting the requested value).
+  // GetValue should always indicate the actual current value of the control.
   virtual int GetValue(T* value) const = 0;
   virtual int SetValue(const T& value) = 0;
   // Helper to check if val is supported by this control.
