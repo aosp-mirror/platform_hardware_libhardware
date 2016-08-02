@@ -39,6 +39,7 @@ v4l2_c_includes := $(call include-path-for, camera)
 
 v4l2_src_files := \
   camera.cpp \
+  metadata/metadata.cpp \
   stream.cpp \
   stream_format.cpp \
   v4l2_camera.cpp \
@@ -48,7 +49,7 @@ v4l2_src_files := \
   v4l2_wrapper.cpp \
 
 v4l2_test_files := \
-  v4l2_metadata_test.cpp \
+  metadata/metadata_test.cpp \
 
 # V4L2 Camera HAL.
 # ==============================================================================

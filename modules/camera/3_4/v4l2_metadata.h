@@ -20,36 +20,18 @@
 #include <hardware/camera3.h>
 
 #include "common.h"
-#include "metadata/partial_metadata_interface.h"
+#include "metadata/metadata.h"
 #include "v4l2_wrapper.h"
 
 namespace v4l2_camera_hal {
-class V4L2Metadata {
+class V4L2Metadata : public Metadata {
  public:
   V4L2Metadata(V4L2Wrapper* device);
   virtual ~V4L2Metadata();
 
-  int FillStaticMetadata(camera_metadata_t** metadata);
-  bool IsValidRequest(const camera_metadata_t* metadata);
-  int SetRequestSettings(const camera_metadata_t* metadata);
-  int FillResultMetadata(camera_metadata_t** metadata);
-
- protected:
-  // Helper for the constructor to fill in metadata components.
-  // Virtual/protected so tests can subclass and override populating with mocks.
-  virtual void PopulateComponents();
-
  private:
-  // Helper for the constructor to fill in metadata components.
-  void AddComponent(std::unique_ptr<PartialMetadataInterface> component);
-
   // Access to the device.
   V4L2Wrapper* device_;
-  // The overall metadata is broken down into several distinct pieces.
-  // Note: it is undefined behavior if multiple components share tags.
-  std::vector<std::unique_ptr<PartialMetadataInterface>> components_;
-
-  friend class V4L2MetadataTest;
 
   DISALLOW_COPY_AND_ASSIGN(V4L2Metadata);
 };
