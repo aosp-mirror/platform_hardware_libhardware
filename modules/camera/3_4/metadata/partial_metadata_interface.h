@@ -104,6 +104,111 @@ class PartialMetadataInterface {
                             const ArrayVector<T, N>& val) {
     return UpdateMetadata(metadata, tag, val.data(), val.total_num_elements());
   }
+
+  // Specialization for vectors of arrays.
+  template <typename T, size_t N>
+  static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+                            const std::vector<std::array<T, N>>& val) {
+    // Convert to array vector so we know all the elements are contiguous.
+    ArrayVector<T, N> array_vector;
+    for (const auto& array : val) {
+      array_vector.push_back(array);
+    }
+    return UpdateMetadata(metadata, tag, array_vector);
+  }
+
+  // Get the data pointer of a given metadata entry. Enforces that |val| must
+  // be a type supported by camera_metadata.
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const uint8_t** val) {
+    *val = entry.data.u8;
+  }
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const int32_t** val) {
+    *val = entry.data.i32;
+  }
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const float** val) {
+    *val = entry.data.f;
+  }
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const int64_t** val) {
+    *val = entry.data.i64;
+  }
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const double** val) {
+    *val = entry.data.d;
+  }
+
+  static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+                             const camera_metadata_rational_t** val) {
+    *val = entry.data.r;
+  }
+
+  // Get a tag value that is expected to be a single item.
+  // Returns:
+  //   -ENOENT: The tag couldn't be found or was empty.
+  //   -EINVAL: The tag contained more than one item.
+  //   -ENODEV: The tag claims to be non-empty, but the data pointer is null.
+  //   0: Success. |*val| will contain the value for |tag|.
+
+  // Generic (one of the types supported by TagValue above).
+  template <typename T>
+  static int SingleTagValue(const android::CameraMetadata& metadata,
+                            int32_t tag, T* val) {
+    camera_metadata_ro_entry_t entry = metadata.find(tag);
+    if (entry.count == 0) {
+      HAL_LOGE("Metadata tag %d is empty.", tag);
+      return -ENOENT;
+    } else if (entry.count != 1) {
+      HAL_LOGE(
+          "Error: expected metadata tag %d to contain exactly 1 value "
+          "(had %d).",
+          tag, entry.count);
+      return -EINVAL;
+    }
+    const T* data = nullptr;
+    GetDataPointer(entry, &data);
+    if (data == nullptr) {
+      HAL_LOGE("Metadata tag %d is empty.", tag);
+      return -ENODEV;
+    }
+    *val = *data;
+    return 0;
+  }
+
+  // Specialization for std::array (of the types supported by TagValue above).
+  template <typename T, size_t N>
+  static int SingleTagValue(const android::CameraMetadata& metadata,
+                            int32_t tag, std::array<T, N>* val) {
+    camera_metadata_ro_entry_t entry = metadata.find(tag);
+    if (entry.count == 0) {
+      HAL_LOGE("Metadata tag %d is empty.", tag);
+      return -ENOENT;
+    } else if (entry.count != N) {
+      HAL_LOGE(
+          "Error: expected metadata tag %d to contain a single array of "
+          "exactly %d values (had %d).",
+          tag, N, entry.count);
+      return -EINVAL;
+    }
+    const T* data = nullptr;
+    GetDataPointer(entry, &data);
+    if (data == nullptr) {
+      HAL_LOGE("Metadata tag %d is empty.", tag);
+      return -ENODEV;
+    }
+    // Fill in the array.
+    for (size_t i = 0; i < N; ++i) {
+      (*val)[i] = data[i];
+    }
+    return 0;
+  }
 };
 
 }  // namespace v4l2_camera_hal
