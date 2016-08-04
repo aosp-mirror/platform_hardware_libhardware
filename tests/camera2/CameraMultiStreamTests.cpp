@@ -334,7 +334,7 @@ public:
             int height,
             const sp<CameraDeviceBase>& device,
             CameraStreamParams param = DEFAULT_STREAM_PARAMETERS,
-            sp<Surface> surface = NULL,
+            const sp<Surface>& surface = NULL,
             bool useCpuConsumer = true) {
         param.mFormat = MapAutoFormat(param.mFormat);
         return new CameraStream(width, height, device,
