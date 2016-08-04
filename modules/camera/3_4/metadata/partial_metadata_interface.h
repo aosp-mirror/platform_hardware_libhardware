@@ -19,6 +19,7 @@
 
 #include <vector>
 
+#include <camera/CameraMetadata.h>
 #include <hardware/camera3.h>
 
 namespace v4l2_camera_hal {
@@ -36,17 +37,18 @@ class PartialMetadataInterface {
 
   // Add all the static properties this partial metadata
   // is responsible for to |metadata|.
-  virtual int PopulateStaticFields(camera_metadata_t** metadata) const = 0;
+  virtual int PopulateStaticFields(android::CameraMetadata* metadata) const = 0;
   // Add all the dynamic states this partial metadata
   // is responsible for to |metadata|.
-  virtual int PopulateDynamicFields(camera_metadata_t** metadata) const = 0;
+  virtual int PopulateDynamicFields(
+      android::CameraMetadata* metadata) const = 0;
   // Check if the requested control values from |metadata| (for controls
   // this partial metadata owns) are supported.
   virtual bool SupportsRequestValues(
-      const camera_metadata_t* metadata) const = 0;
+      const android::CameraMetadata& metadata) const = 0;
   // Set all the controls this partial metadata
   // is responsible for from |metadata|.
-  virtual int SetRequestValues(const camera_metadata_t* metadata) = 0;
+  virtual int SetRequestValues(const android::CameraMetadata& metadata) = 0;
 };
 
 }  // namespace v4l2_camera_hal

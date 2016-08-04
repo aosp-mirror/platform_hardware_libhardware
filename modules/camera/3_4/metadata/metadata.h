@@ -17,6 +17,7 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_H_
 #define V4L2_CAMERA_HAL_METADATA_H_
 
+#include <camera/CameraMetadata.h>
 #include <hardware/camera3.h>
 
 #include "../common.h"
@@ -28,10 +29,10 @@ class Metadata {
   Metadata();
   virtual ~Metadata();
 
-  int FillStaticMetadata(camera_metadata_t** metadata);
-  bool IsValidRequest(const camera_metadata_t* metadata);
-  int SetRequestSettings(const camera_metadata_t* metadata);
-  int FillResultMetadata(camera_metadata_t** metadata);
+  int FillStaticMetadata(android::CameraMetadata* metadata);
+  bool IsValidRequest(const android::CameraMetadata& metadata);
+  int SetRequestSettings(const android::CameraMetadata& metadata);
+  int FillResultMetadata(android::CameraMetadata* metadata);
 
  protected:
   // Helper for the child constructors to fill in metadata components.

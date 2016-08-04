@@ -41,6 +41,10 @@ class MetadataTest : public Test {
 
     component1_.reset(new PartialMetadataInterfaceMock());
     component2_.reset(new PartialMetadataInterfaceMock());
+    metadata_.reset(new android::CameraMetadata());
+    non_empty_metadata_.reset(new android::CameraMetadata());
+    uint8_t val = 1;
+    non_empty_metadata_->update(ANDROID_COLOR_CORRECTION_MODE, &val, 1);
   }
 
   // Once the component mocks have had expectations set,
@@ -65,14 +69,14 @@ class MetadataTest : public Test {
   // Mocks.
   std::unique_ptr<PartialMetadataInterfaceMock> component1_;
   std::unique_ptr<PartialMetadataInterfaceMock> component2_;
+  // Metadata.
+  std::unique_ptr<android::CameraMetadata> metadata_;
+  std::unique_ptr<android::CameraMetadata> non_empty_metadata_;
   // An empty vector to use as necessary.
   std::vector<int32_t> empty_tags_;
 };
 
 TEST_F(MetadataTest, FillStaticSuccess) {
-  android::CameraMetadata metadata(1);
-  camera_metadata_t* metadata_raw = metadata.release();
-
   // Should populate all the component static pieces.
   EXPECT_CALL(*component1_, PopulateStaticFields(_)).WillOnce(Return(0));
   EXPECT_CALL(*component2_, PopulateStaticFields(_)).WillOnce(Return(0));
@@ -93,7 +97,7 @@ TEST_F(MetadataTest, FillStaticSuccess) {
 
   AddComponents();
   // Should succeed. If it didn't, no reason to continue checking output.
-  ASSERT_EQ(dut_->FillStaticMetadata(&metadata_raw), 0);
+  ASSERT_EQ(dut_->FillStaticMetadata(metadata_.get()), 0);
 
   // Meta keys should be filled correctly.
   // Note: sets are used here, but it is undefined behavior if
@@ -114,17 +118,15 @@ TEST_F(MetadataTest, FillStaticSuccess) {
   static_tags.emplace(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS);
 
   // Check against what was filled in in the metadata.
-  metadata.acquire(metadata_raw);
   CompareTags(static_tags,
-              metadata.find(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS));
+              metadata_->find(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS));
   CompareTags(control_tags,
-              metadata.find(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS));
+              metadata_->find(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS));
   CompareTags(dynamic_tags,
-              metadata.find(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS));
+              metadata_->find(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS));
 }
 
 TEST_F(MetadataTest, FillStaticFail) {
-  camera_metadata_t* metadata = nullptr;
   int err = -99;
   // Order undefined, and may or may not exit early; use AtMost.
   EXPECT_CALL(*component1_, PopulateStaticFields(_))
@@ -154,12 +156,10 @@ TEST_F(MetadataTest, FillStaticFail) {
 
   AddComponents();
   // If any component errors, error should be returned
-  EXPECT_EQ(dut_->FillStaticMetadata(&metadata), err);
+  EXPECT_EQ(dut_->FillStaticMetadata(metadata_.get()), err);
 }
 
 TEST_F(MetadataTest, IsValidSuccess) {
-  android::CameraMetadata metadata(1);
-
   // Should check if all the component request values are valid.
   EXPECT_CALL(*component1_, SupportsRequestValues(_)).WillOnce(Return(true));
   EXPECT_CALL(*component2_, SupportsRequestValues(_)).WillOnce(Return(true));
@@ -168,12 +168,10 @@ TEST_F(MetadataTest, IsValidSuccess) {
   // Should succeed.
   // Note: getAndLock is a lock against pointer invalidation, not concurrency,
   // and unlocks on object destruction.
-  EXPECT_TRUE(dut_->IsValidRequest(metadata.getAndLock()));
+  EXPECT_TRUE(dut_->IsValidRequest(*non_empty_metadata_));
 }
 
 TEST_F(MetadataTest, IsValidFail) {
-  android::CameraMetadata metadata(1);
-
   // Should check if all the component request values are valid.
   // Order undefined, and may or may not exit early; use AtMost.
   EXPECT_CALL(*component1_, SupportsRequestValues(_))
@@ -185,12 +183,10 @@ TEST_F(MetadataTest, IsValidFail) {
   // Should fail since one of the components failed.
   // Note: getAndLock is a lock against pointer invalidation, not concurrency,
   // and unlocks on object destruction.
-  EXPECT_FALSE(dut_->IsValidRequest(metadata.getAndLock()));
+  EXPECT_FALSE(dut_->IsValidRequest(*non_empty_metadata_));
 }
 
-TEST_F(MetadataTest, IsValidNull) {
-  camera_metadata_t* metadata = nullptr;
-
+TEST_F(MetadataTest, IsValidEmpty) {
   // Setting null settings is a special case indicating to use the
   // previous (valid) settings. As such it is inherently valid.
   // Should not try to check any components.
@@ -198,12 +194,10 @@ TEST_F(MetadataTest, IsValidNull) {
   EXPECT_CALL(*component2_, SupportsRequestValues(_)).Times(0);
 
   AddComponents();
-  EXPECT_TRUE(dut_->IsValidRequest(metadata));
+  EXPECT_TRUE(dut_->IsValidRequest(*metadata_));
 }
 
 TEST_F(MetadataTest, SetSettingsSuccess) {
-  android::CameraMetadata metadata(1);
-
   // Should check if all the components set successfully.
   EXPECT_CALL(*component1_, SetRequestValues(_)).WillOnce(Return(0));
   EXPECT_CALL(*component2_, SetRequestValues(_)).WillOnce(Return(0));
@@ -212,11 +206,10 @@ TEST_F(MetadataTest, SetSettingsSuccess) {
   // Should succeed.
   // Note: getAndLock is a lock against pointer invalidation, not concurrency,
   // and unlocks on object destruction.
-  EXPECT_EQ(dut_->SetRequestSettings(metadata.getAndLock()), 0);
+  EXPECT_EQ(dut_->SetRequestSettings(*non_empty_metadata_), 0);
 }
 
 TEST_F(MetadataTest, SetSettingsFail) {
-  android::CameraMetadata metadata(1);
   int err = -99;
 
   // Should check if all the components set successfully.
@@ -230,12 +223,10 @@ TEST_F(MetadataTest, SetSettingsFail) {
   // Should fail since one of the components failed.
   // Note: getAndLock is a lock against pointer invalidation, not concurrency,
   // and unlocks on object destruction.
-  EXPECT_EQ(dut_->SetRequestSettings(metadata.getAndLock()), err);
+  EXPECT_EQ(dut_->SetRequestSettings(*non_empty_metadata_), err);
 }
 
-TEST_F(MetadataTest, SetSettingsNull) {
-  camera_metadata_t* metadata = nullptr;
-
+TEST_F(MetadataTest, SetSettingsEmpty) {
   // Setting null settings is a special case indicating to use the
   // previous settings. Should not try to set any components.
   EXPECT_CALL(*component1_, SetRequestValues(_)).Times(0);
@@ -243,23 +234,20 @@ TEST_F(MetadataTest, SetSettingsNull) {
 
   AddComponents();
   // Should succeed.
-  EXPECT_EQ(dut_->SetRequestSettings(metadata), 0);
+  EXPECT_EQ(dut_->SetRequestSettings(*metadata_), 0);
 }
 
 TEST_F(MetadataTest, FillResultSuccess) {
-  camera_metadata_t* metadata = nullptr;
-
   // Should check if all the components fill results successfully.
   EXPECT_CALL(*component1_, PopulateDynamicFields(_)).WillOnce(Return(0));
   EXPECT_CALL(*component2_, PopulateDynamicFields(_)).WillOnce(Return(0));
 
   AddComponents();
   // Should succeed.
-  EXPECT_EQ(dut_->FillResultMetadata(&metadata), 0);
+  EXPECT_EQ(dut_->FillResultMetadata(metadata_.get()), 0);
 }
 
 TEST_F(MetadataTest, FillResultFail) {
-  camera_metadata_t* metadata = nullptr;
   int err = -99;
 
   // Should check if all the components fill results successfully.
@@ -271,7 +259,7 @@ TEST_F(MetadataTest, FillResultFail) {
 
   AddComponents();
   // Should fail since one of the components failed.
-  EXPECT_EQ(dut_->FillResultMetadata(&metadata), err);
+  EXPECT_EQ(dut_->FillResultMetadata(metadata_.get()), err);
 }
 
 }  // namespace v4l2_camera_hal

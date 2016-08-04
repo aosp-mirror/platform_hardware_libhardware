@@ -33,7 +33,7 @@ void Metadata::AddComponent(
   components_.push_back(std::move(component));
 }
 
-int Metadata::FillStaticMetadata(camera_metadata_t** metadata) {
+int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {
   HAL_LOG_ENTER();
 
   std::vector<int32_t> static_tags;
@@ -42,12 +42,21 @@ int Metadata::FillStaticMetadata(camera_metadata_t** metadata) {
   int res = 0;
 
   for (auto& component : components_) {
+    // Prevent components from potentially overriding others.
+    android::CameraMetadata additional_metadata;
     // Populate the fields.
-    res = component->PopulateStaticFields(metadata);
+    res = component->PopulateStaticFields(&additional_metadata);
     if (res) {
-      // Exit on error.
       HAL_LOGE("Failed to get all static properties.");
       return res;
+    }
+    // Add it to the overall result.
+    if (!additional_metadata.isEmpty()) {
+      res = metadata->append(additional_metadata);
+      if (res != android::OK) {
+        HAL_LOGE("Failed to append all static properties.");
+        return res;
+      }
     }
 
     // Note what tags the component adds.
@@ -60,38 +69,36 @@ int Metadata::FillStaticMetadata(camera_metadata_t** metadata) {
   }
 
   // Populate the meta fields.
-  android::CameraMetadata metadata_wrapper(*metadata);
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS);
-  res = metadata_wrapper.update(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
-                                control_tags.data(), control_tags.size());
+  res = metadata->update(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
+                         control_tags.data(), control_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add request keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS);
-  res = metadata_wrapper.update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
-                                dynamic_tags.data(), dynamic_tags.size());
+  res = metadata->update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
+                         dynamic_tags.data(), dynamic_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add result keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS);
-  res = metadata_wrapper.update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
-                                static_tags.data(), static_tags.size());
+  res = metadata->update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+                         static_tags.data(), static_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add characteristics keys meta key.");
     return -ENODEV;
   }
 
-  *metadata = metadata_wrapper.release();
   return 0;
 }
 
-bool Metadata::IsValidRequest(const camera_metadata_t* metadata) {
+bool Metadata::IsValidRequest(const android::CameraMetadata& metadata) {
   HAL_LOG_ENTER();
 
-  // Null means "use previous settings", which are inherently valid.
-  if (metadata == nullptr) return true;
+  // Empty means "use previous settings", which are inherently valid.
+  if (metadata.isEmpty()) return true;
 
   for (auto& component : components_) {
     // Check that all components support the values requested of them.
@@ -105,11 +112,11 @@ bool Metadata::IsValidRequest(const camera_metadata_t* metadata) {
   return true;
 }
 
-int Metadata::SetRequestSettings(const camera_metadata_t* metadata) {
+int Metadata::SetRequestSettings(const android::CameraMetadata& metadata) {
   HAL_LOG_ENTER();
 
-  // Null means "use previous settings".
-  if (metadata == nullptr) return 0;
+  // Empty means "use previous settings".
+  if (metadata.isEmpty()) return 0;
 
   for (auto& component : components_) {
     int res = component->SetRequestValues(metadata);
@@ -123,13 +130,23 @@ int Metadata::SetRequestSettings(const camera_metadata_t* metadata) {
   return 0;
 }
 
-int Metadata::FillResultMetadata(camera_metadata_t** metadata) {
+int Metadata::FillResultMetadata(android::CameraMetadata* metadata) {
   for (auto& component : components_) {
-    int res = component->PopulateDynamicFields(metadata);
+    // Prevent components from potentially overriding others.
+    android::CameraMetadata additional_metadata;
+    int res = component->PopulateDynamicFields(&additional_metadata);
     if (res) {
       // Exit early if possible.
       HAL_LOGE("Failed to get all dynamic result fields.");
       return res;
+    }
+    // Add it to the overall result.
+    if (!additional_metadata.isEmpty()) {
+      res = metadata->append(additional_metadata);
+      if (res != android::OK) {
+        HAL_LOGE("Failed to append all dynamic result fields.");
+        return res;
+      }
     }
   }
 
