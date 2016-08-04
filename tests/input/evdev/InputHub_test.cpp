@@ -50,9 +50,9 @@ public:
         mInputCb(kNoopInputCb), mDeviceAddedCb(kNoopDeviceCb), mDeviceRemovedCb(kNoopDeviceCb) {}
     virtual ~TestInputCallback() = default;
 
-    void setInputCallback(InputCbFunc cb) { mInputCb = cb; }
-    void setDeviceAddedCallback(DeviceCbFunc cb) { mDeviceAddedCb = cb; }
-    void setDeviceRemovedCallback(DeviceCbFunc cb) { mDeviceRemovedCb = cb; }
+    void setInputCallback(const InputCbFunc& cb) { mInputCb = cb; }
+    void setDeviceAddedCallback(const DeviceCbFunc& cb) { mDeviceAddedCb = cb; }
+    void setDeviceRemovedCallback(const DeviceCbFunc& cb) { mDeviceRemovedCb = cb; }
 
     virtual void onInputEvent(const std::shared_ptr<InputDeviceNode>& node, InputEvent& event,
             nsecs_t event_time) override {
