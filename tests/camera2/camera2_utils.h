@@ -65,7 +65,7 @@ class MetadataQueue: public camera2_request_queue_src_ops_t,
 
   private:
     status_t freeBuffers(List<camera_metadata_t*>::iterator start,
-                         List<camera_metadata_t*>::iterator end);
+                         const List<camera_metadata_t*>::iterator& end);
 
     camera2_device_t *mDevice;
 
