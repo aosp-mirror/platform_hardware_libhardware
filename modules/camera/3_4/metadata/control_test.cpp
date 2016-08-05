@@ -22,6 +22,9 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "metadata_common.h"
+#include "test_common.h"
+
 using testing::AtMost;
 using testing::Return;
 using testing::ReturnRef;
@@ -47,37 +50,6 @@ class ControlTest : public Test {
 
   virtual void SetUp() {
     control_.reset(new MockControl<uint8_t>(control_tag_));
-  }
-  // Check that metadata of a given tag matches expectations.
-  virtual void ExpectMetadataEq(const android::CameraMetadata& metadata,
-                                int32_t tag, const uint8_t* expected,
-                                size_t size) {
-    camera_metadata_ro_entry_t entry = metadata.find(tag);
-    ASSERT_EQ(entry.count, size);
-    for (size_t i = 0; i < size; ++i) {
-      EXPECT_EQ(entry.data.u8[i], expected[i]);
-    }
-  }
-  virtual void ExpectMetadataEq(const android::CameraMetadata& metadata,
-                                int32_t tag, const int32_t* expected,
-                                size_t size) {
-    camera_metadata_ro_entry_t entry = metadata.find(tag);
-    ASSERT_EQ(entry.count, size);
-    for (size_t i = 0; i < size; ++i) {
-      EXPECT_EQ(entry.data.i32[i], expected[i]);
-    }
-  }
-  // Single item.
-  template <typename T>
-  void ExpectMetadataEq(const android::CameraMetadata& metadata, int32_t tag,
-                        T expected) {
-    ExpectMetadataEq(metadata, tag, &expected, 1);
-  }
-  // Vector of items.
-  template <typename T>
-  void ExpectMetadataEq(const android::CameraMetadata& metadata, int32_t tag,
-                        const std::vector<T>& expected) {
-    ExpectMetadataEq(metadata, tag, expected.data(), expected.size());
   }
 
   std::unique_ptr<MockControl<uint8_t>> control_;
@@ -128,7 +100,7 @@ TEST_F(ControlTest, PopulateDynamicFail) {
 TEST_F(ControlTest, SupportsRequest) {
   android::CameraMetadata metadata;
   uint8_t test_option = 123;
-  ASSERT_EQ(metadata.update(control_tag_, &test_option, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   EXPECT_CALL(*control_, IsSupported(test_option)).WillOnce(Return(true));
   EXPECT_EQ(control_->SupportsRequestValues(metadata), true);
@@ -137,9 +109,7 @@ TEST_F(ControlTest, SupportsRequest) {
 TEST_F(ControlTest, ArraySupportsRequest) {
   android::CameraMetadata metadata;
   std::array<uint8_t, 2> test_option = {{12, 34}};
-  ASSERT_EQ(
-      metadata.update(control_tag_, test_option.data(), test_option.size()),
-      android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   MockControl<std::array<uint8_t, 2>> test_control(control_tag_);
   EXPECT_CALL(test_control, IsSupported(test_option)).WillOnce(Return(true));
@@ -149,7 +119,7 @@ TEST_F(ControlTest, ArraySupportsRequest) {
 TEST_F(ControlTest, SupportsRequestFail) {
   android::CameraMetadata metadata;
   uint8_t test_option = 123;
-  ASSERT_EQ(metadata.update(control_tag_, &test_option, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   EXPECT_CALL(*control_, IsSupported(test_option)).WillOnce(Return(false));
   EXPECT_EQ(control_->SupportsRequestValues(metadata), false);
@@ -159,8 +129,7 @@ TEST_F(ControlTest, SupportsRequestInvalidNumber) {
   // Start with a request for multiple values.
   android::CameraMetadata metadata;
   std::vector<uint8_t> test_data = {1, 2, 3};
-  ASSERT_EQ(metadata.update(control_tag_, test_data.data(), test_data.size()),
-            android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_data), 0);
   EXPECT_EQ(control_->SupportsRequestValues(metadata), false);
 }
 
@@ -168,7 +137,7 @@ TEST_F(ControlTest, ArraySupportsRequestInvalidNumber) {
   // Start with a request for a single (non-array) value.
   android::CameraMetadata metadata;
   uint8_t test_data = 1;
-  ASSERT_EQ(metadata.update(control_tag_, &test_data, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_data), 0);
 
   MockControl<std::array<uint8_t, 2>> test_control(control_tag_);
   EXPECT_EQ(test_control.SupportsRequestValues(metadata), false);
@@ -182,7 +151,7 @@ TEST_F(ControlTest, SupportsRequestEmpty) {
 TEST_F(ControlTest, SetRequest) {
   android::CameraMetadata metadata(1);
   uint8_t test_option = 123;
-  ASSERT_EQ(metadata.update(control_tag_, &test_option, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   EXPECT_CALL(*control_, SetValue(test_option)).WillOnce(Return(0));
   // Make the request.
@@ -192,9 +161,7 @@ TEST_F(ControlTest, SetRequest) {
 TEST_F(ControlTest, ArraySetRequest) {
   android::CameraMetadata metadata;
   std::array<uint8_t, 2> test_option = {{12, 34}};
-  ASSERT_EQ(
-      metadata.update(control_tag_, test_option.data(), test_option.size()),
-      android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   MockControl<std::array<uint8_t, 2>> test_control(control_tag_);
   EXPECT_CALL(test_control, SetValue(test_option)).WillOnce(Return(0));
@@ -204,7 +171,7 @@ TEST_F(ControlTest, ArraySetRequest) {
 TEST_F(ControlTest, SetRequestFail) {
   android::CameraMetadata metadata(1);
   uint8_t test_option = 123;
-  ASSERT_EQ(metadata.update(control_tag_, &test_option, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_option), 0);
 
   int err = -99;
   EXPECT_CALL(*control_, SetValue(test_option)).WillOnce(Return(err));
@@ -215,8 +182,7 @@ TEST_F(ControlTest, SetRequestInvalidNumber) {
   // Start with a request for multiple values.
   android::CameraMetadata metadata;
   std::vector<uint8_t> test_data = {1, 2, 3};
-  ASSERT_EQ(metadata.update(control_tag_, test_data.data(), test_data.size()),
-            android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_data), 0);
   EXPECT_EQ(control_->SetRequestValues(metadata), -EINVAL);
 }
 
@@ -224,7 +190,7 @@ TEST_F(ControlTest, ArraySetRequestInvalidNumber) {
   // Start with a request for a single (non-array) value.
   android::CameraMetadata metadata;
   uint8_t test_data = 1;
-  ASSERT_EQ(metadata.update(control_tag_, &test_data, 1), android::OK);
+  ASSERT_EQ(UpdateMetadata(&metadata, control_tag_, test_data), 0);
 
   MockControl<std::array<uint8_t, 2>> test_control(control_tag_);
   EXPECT_EQ(test_control.SetRequestValues(metadata), -EINVAL);

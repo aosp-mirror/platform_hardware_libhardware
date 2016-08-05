@@ -20,6 +20,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "test_common.h"
+
 using testing::AtMost;
 using testing::Return;
 using testing::ReturnRef;
@@ -49,37 +51,6 @@ class OptionedControlTest : public Test {
   virtual void SetUp() {
     control_.reset(
         new MockOptionedControl<uint8_t>(control_tag_, options_tag_, options_));
-  }
-  // Check that metadata of a given tag matches expectations.
-  virtual void ExpectMetadataEq(const android::CameraMetadata& metadata,
-                                int32_t tag, const uint8_t* expected,
-                                size_t size) {
-    camera_metadata_ro_entry_t entry = metadata.find(tag);
-    ASSERT_EQ(entry.count, size);
-    for (size_t i = 0; i < size; ++i) {
-      EXPECT_EQ(entry.data.u8[i], expected[i]);
-    }
-  }
-  virtual void ExpectMetadataEq(const android::CameraMetadata& metadata,
-                                int32_t tag, const int32_t* expected,
-                                size_t size) {
-    camera_metadata_ro_entry_t entry = metadata.find(tag);
-    ASSERT_EQ(entry.count, size);
-    for (size_t i = 0; i < size; ++i) {
-      EXPECT_EQ(entry.data.i32[i], expected[i]);
-    }
-  }
-  // Single item.
-  template <typename T>
-  void ExpectMetadataEq(const android::CameraMetadata& metadata, int32_t tag,
-                        T expected) {
-    ExpectMetadataEq(metadata, tag, &expected, 1);
-  }
-  // Vector of items.
-  template <typename T>
-  void ExpectMetadataEq(const android::CameraMetadata& metadata, int32_t tag,
-                        const std::vector<T>& expected) {
-    ExpectMetadataEq(metadata, tag, expected.data(), expected.size());
   }
 
   std::unique_ptr<OptionedControl<uint8_t>> control_;

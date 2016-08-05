@@ -24,6 +24,7 @@
 
 #include "../common.h"
 #include "control.h"
+#include "metadata_common.h"
 
 namespace v4l2_camera_hal {
 
@@ -68,7 +69,7 @@ int OptionedControl<T>::PopulateStaticFields(
   HAL_LOG_ENTER();
 
   // Populate the available options.
-  return Control<T>::UpdateMetadata(metadata, OptionsTag(), options_);
+  return UpdateMetadata(metadata, OptionsTag(), options_);
 }
 
 template <typename T>

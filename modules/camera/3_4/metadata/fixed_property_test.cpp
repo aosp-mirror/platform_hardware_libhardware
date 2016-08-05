@@ -24,6 +24,8 @@
 #include <gtest/gtest.h>
 
 #include "array_vector.h"
+#include "metadata_common.h"
+#include "test_common.h"
 
 using testing::AtMost;
 using testing::Return;
@@ -67,9 +69,7 @@ TEST_F(FixedPropertyTest, PopulateStaticSingleNumber) {
   // Should only have added 1 entry.
   EXPECT_EQ(metadata.entryCount(), 1);
   // Should have added the right entry.
-  camera_metadata_entry_t entry = metadata.find(int_tag_);
-  ASSERT_EQ(entry.count, 1);
-  EXPECT_EQ(*entry.data.i32, data);
+  ExpectMetadataEq(metadata, int_tag_, data);
 }
 
 TEST_F(FixedPropertyTest, PopulateStaticVector) {
@@ -85,11 +85,7 @@ TEST_F(FixedPropertyTest, PopulateStaticVector) {
   // Should only have added 1 entry.
   EXPECT_EQ(metadata.entryCount(), 1);
   // Should have added the right entry.
-  camera_metadata_entry_t entry = metadata.find(float_tag_);
-  ASSERT_EQ(entry.count, data.size());
-  for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(entry.data.f[i], data[i]);
-  }
+  ExpectMetadataEq(metadata, float_tag_, data);
 }
 
 TEST_F(FixedPropertyTest, PopulateStaticArray) {
@@ -105,11 +101,7 @@ TEST_F(FixedPropertyTest, PopulateStaticArray) {
   // Should only have added 1 entry.
   EXPECT_EQ(metadata.entryCount(), 1);
   // Should have added the right entry.
-  camera_metadata_entry_t entry = metadata.find(float_tag_);
-  ASSERT_EQ(entry.count, data.size());
-  for (size_t i = 0; i < data.size(); ++i) {
-    EXPECT_EQ(entry.data.f[i], data[i]);
-  }
+  ExpectMetadataEq(metadata, float_tag_, data);
 }
 
 TEST_F(FixedPropertyTest, PopulateStaticArrayVector) {
@@ -127,11 +119,7 @@ TEST_F(FixedPropertyTest, PopulateStaticArrayVector) {
   // Should only have added 1 entry.
   EXPECT_EQ(metadata.entryCount(), 1);
   // Should have added the right entry.
-  camera_metadata_entry_t entry = metadata.find(byte_tag_);
-  ASSERT_EQ(entry.count, data.total_num_elements());
-  for (size_t i = 0; i < data.total_num_elements(); ++i) {
-    EXPECT_EQ(entry.data.u8[i], data.data()[i]);
-  }
+  ExpectMetadataEq(metadata, byte_tag_, data);
 }
 
 TEST_F(FixedPropertyTest, PopulateDynamic) {

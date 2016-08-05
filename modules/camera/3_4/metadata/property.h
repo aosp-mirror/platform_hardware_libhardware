@@ -18,6 +18,7 @@
 #define V4L2_CAMERA_HAL_METADATA_PROPERTY_H_
 
 #include "../common.h"
+#include "metadata_common.h"
 #include "tagged_partial_metadata.h"
 
 namespace v4l2_camera_hal {
