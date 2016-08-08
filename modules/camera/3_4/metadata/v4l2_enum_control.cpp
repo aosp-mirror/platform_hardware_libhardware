@@ -32,10 +32,11 @@ V4L2EnumControl* V4L2EnumControl::NewV4L2EnumControl(
     HAL_LOGE("Failed to query control %d.", v4l2_control);
     return nullptr;
   }
-  if (control_query.type != V4L2_CTRL_TYPE_MENU) {
+  if (control_query.type != V4L2_CTRL_TYPE_MENU &&
+      control_query.type != V4L2_CTRL_TYPE_BOOLEAN) {
     HAL_LOGE(
-        "Enum controls can only be constructed from V4L2 menu controls (%d is "
-        "of type %d)",
+        "Enum controls can only be constructed from V4L2 menu and boolean "
+        "controls (%d is of type %d)",
         v4l2_control, control_query.type);
     return nullptr;
   }

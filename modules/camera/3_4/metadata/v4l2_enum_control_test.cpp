@@ -77,7 +77,7 @@ TEST_F(V4L2EnumControlTest, NewV4L2EnumSuccess) {
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
   query_result.minimum = 1;
-  query_result.maximum = 5;
+  query_result.maximum = 7;
   query_result.step = 2;
   EXPECT_CALL(*device_, QueryControl(v4l2_control_, _))
       .WillOnce(DoAll(SetArgPointee<1>(query_result), Return(0)));
@@ -104,7 +104,8 @@ TEST_F(V4L2EnumControlTest, NewV4L2EnumSuccess) {
   // Should populate the options according to capabilities returned.
   android::CameraMetadata metadata;
   ASSERT_EQ(test_control->PopulateStaticFields(&metadata), 0);
-  // Min 1, max 5, step 2 means {1,3,5} converted to metadata values.
+  // Min 1, max 7, step 2 means {1,3,5} converted to metadata values.
+  // There is no 7 in the map, so it shouldn't be present.
   std::vector<uint8_t> expected_options;
   expected_options.push_back(V4L2ToMetadata(1));
   expected_options.push_back(V4L2ToMetadata(3));
