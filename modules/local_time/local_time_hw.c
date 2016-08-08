@@ -28,6 +28,9 @@
 #include <hardware/hardware.h>
 #include <hardware/local_time_hal.h>
 
+// We only support gcc and clang, both of which support this attribute.
+#define UNUSED_ARGUMENT __attribute((unused))
+
 struct stub_local_time_device {
     struct local_time_hw_device device;
 };
@@ -51,7 +54,8 @@ static int64_t ltdev_get_local_time(struct local_time_hw_device* dev)
     return (int64_t)now;
 }
 
-static uint64_t ltdev_get_local_freq(struct local_time_hw_device* dev)
+static uint64_t ltdev_get_local_freq(
+        struct local_time_hw_device* dev UNUSED_ARGUMENT)
 {
     // For better or worse, linux clock_gettime routines normalize all clock
     // frequencies to 1GHz
