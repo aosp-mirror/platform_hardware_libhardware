@@ -51,7 +51,8 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   AddComponent(std::unique_ptr<PartialMetadataInterface>(
       new FixedProperty<std::array<int32_t, 3>>(
           ANDROID_CONTROL_MAX_REGIONS, {{/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0}})));
-  AddEnumControlOrDefault(V4L2_CID_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE,
+  AddEnumControlOrDefault(V4L2_CID_EXPOSURE_AUTO,
+                          ANDROID_CONTROL_AE_MODE,
                           ANDROID_CONTROL_AE_AVAILABLE_MODES,
                           {{V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON},
                            {V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF}},
@@ -76,8 +77,10 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // V4L2: FLUORESCENT_H, HORIZON, FLASH.
   std::unique_ptr<PartialMetadataInterface> awb(
       V4L2EnumControl::NewV4L2EnumControl(
-          device_, V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
-          ANDROID_CONTROL_AWB_MODE, ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+          device_,
+          V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+          ANDROID_CONTROL_AWB_MODE,
+          ANDROID_CONTROL_AWB_AVAILABLE_MODES,
           {{V4L2_WHITE_BALANCE_MANUAL, ANDROID_CONTROL_AWB_MODE_OFF},
            {V4L2_WHITE_BALANCE_AUTO, ANDROID_CONTROL_AWB_MODE_AUTO},
            {V4L2_WHITE_BALANCE_INCANDESCENT,
@@ -93,7 +96,8 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   } else {
     // Fall back to simpler AWB or even just an ignored control.
     AddEnumControlOrDefault(
-        V4L2_CID_AUTO_WHITE_BALANCE, ANDROID_CONTROL_AWB_MODE,
+        V4L2_CID_AUTO_WHITE_BALANCE,
+        ANDROID_CONTROL_AWB_MODE,
         ANDROID_CONTROL_AWB_AVAILABLE_MODES,
         {{0, ANDROID_CONTROL_AWB_MODE_OFF}, {1, ANDROID_CONTROL_AWB_MODE_AUTO}},
         ANDROID_CONTROL_AWB_MODE_AUTO);
@@ -106,7 +110,8 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // is reported to avoid ambiguity).
   // V4L2: BACKLIGHT, DAWN_DUSK, FALL_COLORS, TEXT.
   AddEnumControlOrDefault(
-      V4L2_CID_SCENE_MODE, ANDROID_CONTROL_SCENE_MODE,
+      V4L2_CID_SCENE_MODE,
+      ANDROID_CONTROL_SCENE_MODE,
       ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
       {{V4L2_SCENE_MODE_NONE, ANDROID_CONTROL_SCENE_MODE_DISABLED},
        {V4L2_SCENE_MODE_BEACH_SNOW, ANDROID_CONTROL_SCENE_MODE_BEACH},
@@ -123,7 +128,8 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // V4L2: ANTIQUE, ART_FREEZE, EMBOSS, GRASS_GREEN, SKETCH, SKIN_WHITEN,
   // SKY_BLUE, SILHOUETTE, VIVID, SET_CBCR.
   AddEnumControlOrDefault(
-      V4L2_CID_COLORFX, ANDROID_CONTROL_EFFECT_MODE,
+      V4L2_CID_COLORFX,
+      ANDROID_CONTROL_EFFECT_MODE,
       ANDROID_CONTROL_AVAILABLE_EFFECTS,
       {{V4L2_COLORFX_NONE, ANDROID_CONTROL_EFFECT_MODE_OFF},
        {V4L2_COLORFX_BW, ANDROID_CONTROL_EFFECT_MODE_MONO},
@@ -136,17 +142,19 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // Not sure if V4L2 does or doesn't do this, but HAL documentation says
   // all devices must support FAST, and FAST can be equivalent to OFF, so
   // either way it's fine to list.
-  AddComponent(
-      std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<uint8_t>(
-          ANDROID_EDGE_MODE, ANDROID_EDGE_AVAILABLE_EDGE_MODES,
-          {ANDROID_EDGE_MODE_FAST}, ANDROID_EDGE_MODE_FAST)));
+  AddComponent(std::unique_ptr<PartialMetadataInterface>(
+      new IgnoredControl<uint8_t>(ANDROID_EDGE_MODE,
+                                  ANDROID_EDGE_AVAILABLE_EDGE_MODES,
+                                  {ANDROID_EDGE_MODE_FAST},
+                                  ANDROID_EDGE_MODE_FAST)));
 
   // TODO(30510395): subcomponents of hotpixel.
   // No known V4L2 hot pixel correction. But it might be happening,
   // so we report FAST/HIGH_QUALITY.
   AddComponent(
       std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<uint8_t>(
-          ANDROID_HOT_PIXEL_MODE, ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
+          ANDROID_HOT_PIXEL_MODE,
+          ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
           {ANDROID_HOT_PIXEL_MODE_FAST, ANDROID_HOT_PIXEL_MODE_HIGH_QUALITY},
           ANDROID_HOT_PIXEL_MODE_FAST)));
   // ON only needs to be supported for RAW capable devices.
@@ -160,20 +168,23 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // TODO(30510395): subcomponents focus/lens.
   // No way to actually get the aperture and focal length
   // in V4L2, but they're required keys, so fake them.
-  AddComponent(
-      std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<float>(
-          ANDROID_LENS_APERTURE, ANDROID_LENS_INFO_AVAILABLE_APERTURES, {2.0},
-          2.0)));  // RPi camera v2 is f/2.0.
-  AddComponent(
-      std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<float>(
-          ANDROID_LENS_FOCAL_LENGTH, ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
-          {3.04}, 3.04)));  // RPi camera v2 is 3.04mm.
+  AddComponent(std::unique_ptr<PartialMetadataInterface>(
+      new IgnoredControl<float>(ANDROID_LENS_APERTURE,
+                                ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+                                {2.0},
+                                2.0)));  // RPi camera v2 is f/2.0.
+  AddComponent(std::unique_ptr<PartialMetadataInterface>(
+      new IgnoredControl<float>(ANDROID_LENS_FOCAL_LENGTH,
+                                ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
+                                {3.04},
+                                3.04)));  // RPi camera v2 is 3.04mm.
   // No known way to get filter densities from V4L2,
   // report 0 to indicate this control is not supported.
-  AddComponent(
-      std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<float>(
-          ANDROID_LENS_FILTER_DENSITY,
-          ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES, {0.0}, 0.0)));
+  AddComponent(std::unique_ptr<PartialMetadataInterface>(
+      new IgnoredControl<float>(ANDROID_LENS_FILTER_DENSITY,
+                                ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
+                                {0.0},
+                                0.0)));
   // V4L2 focal units do not correspond to a particular physical unit.
   AddComponent(
       std::unique_ptr<PartialMetadataInterface>(new FixedProperty<uint8_t>(
@@ -184,7 +195,8 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // so report FAST/HIGH_QUALITY.
   AddComponent(
       std::unique_ptr<PartialMetadataInterface>(new IgnoredControl<uint8_t>(
-          ANDROID_SHADING_MODE, ANDROID_SHADING_AVAILABLE_MODES,
+          ANDROID_SHADING_MODE,
+          ANDROID_SHADING_AVAILABLE_MODES,
           {ANDROID_SHADING_MODE_FAST, ANDROID_SHADING_MODE_HIGH_QUALITY},
           ANDROID_SHADING_MODE_FAST)));
   // ON only needs to be supported for RAW capable devices.
@@ -224,8 +236,10 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // since V4L2 doesn't actually allow for thumbnail size control.
   AddComponent(std::unique_ptr<PartialMetadataInterface>(
       new IgnoredControl<std::array<int32_t, 2>>(
-          ANDROID_JPEG_THUMBNAIL_SIZE, ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
-          {{{0, 0}}}, {{0, 0}})));
+          ANDROID_JPEG_THUMBNAIL_SIZE,
+          ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
+          {{{0, 0}}},
+          {{0, 0}})));
   // TODO(b/29939583): V4L2 can only support 1 stream at a time.
   // For now, just reporting minimum allowable for LIMITED devices.
   AddComponent(std::unique_ptr<PartialMetadataInterface>(
@@ -296,20 +310,25 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
           {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE})));
 }
 
-V4L2Metadata::~V4L2Metadata() { HAL_LOG_ENTER(); }
+V4L2Metadata::~V4L2Metadata() {
+  HAL_LOG_ENTER();
+}
 
 void V4L2Metadata::AddEnumControlOrDefault(
-    int v4l2_control, int32_t control_tag, int32_t options_tag,
-    const std::map<int32_t, uint8_t>& v4l2_to_metadata, uint8_t default_value) {
+    int v4l2_control,
+    int32_t control_tag,
+    int32_t options_tag,
+    const std::map<int32_t, uint8_t>& v4l2_to_metadata,
+    uint8_t default_value) {
   HAL_LOG_ENTER();
 
   std::unique_ptr<PartialMetadataInterface> control(
-      V4L2EnumControl::NewV4L2EnumControl(device_, v4l2_control, control_tag,
-                                          options_tag, v4l2_to_metadata));
+      V4L2EnumControl::NewV4L2EnumControl(
+          device_, v4l2_control, control_tag, options_tag, v4l2_to_metadata));
 
   if (!control) {
-    control.reset(new IgnoredControl<uint8_t>(control_tag, options_tag,
-                                              {default_value}, default_value));
+    control.reset(new IgnoredControl<uint8_t>(
+        control_tag, options_tag, {default_value}, default_value));
   }
 
   AddComponent(std::move(control));

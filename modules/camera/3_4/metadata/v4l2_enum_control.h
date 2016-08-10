@@ -36,16 +36,20 @@ class V4L2EnumControl : public OptionedControl<uint8_t> {
   // Functionally equivalent to "new V4L2EnumControl"
   // except that it may return nullptr in case of failure.
   static V4L2EnumControl* NewV4L2EnumControl(
-      std::shared_ptr<V4L2Wrapper> device, int v4l2_control,
-      int32_t control_tag, int32_t options_tag,
+      std::shared_ptr<V4L2Wrapper> device,
+      int v4l2_control,
+      int32_t control_tag,
+      int32_t options_tag,
       const std::map<int32_t, uint8_t>& v4l2_to_metadata);
 
  private:
   // Constructor private to allow failing on bad input.
   // Use NewV4L2EnumControl instead.
   // The values in |v4l2_to_metadata| must be a superset of |options|.
-  V4L2EnumControl(std::shared_ptr<V4L2Wrapper> device, int v4l2_control,
-                  int32_t control_tag, int32_t options_tag,
+  V4L2EnumControl(std::shared_ptr<V4L2Wrapper> device,
+                  int v4l2_control,
+                  int32_t control_tag,
+                  int32_t options_tag,
                   const std::map<int32_t, uint8_t> v4l2_to_metadata,
                   std::vector<uint8_t> options);
 

@@ -36,7 +36,8 @@ class OptionedControlTest : public Test {
   template <typename T>
   class MockOptionedControl : public OptionedControl<T> {
    public:
-    MockOptionedControl(int32_t control_tag, int32_t options_tag,
+    MockOptionedControl(int32_t control_tag,
+                        int32_t options_tag,
                         std::vector<T> options)
         : OptionedControl<T>(control_tag, options_tag, options){};
     MOCK_CONST_METHOD1_T(GetValue, int(T* value));

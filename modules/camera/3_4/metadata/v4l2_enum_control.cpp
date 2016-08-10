@@ -21,8 +21,11 @@
 namespace v4l2_camera_hal {
 
 V4L2EnumControl* V4L2EnumControl::NewV4L2EnumControl(
-    std::shared_ptr<V4L2Wrapper> device, int v4l2_control, int32_t control_tag,
-    int32_t options_tag, const std::map<int32_t, uint8_t>& v4l2_to_metadata) {
+    std::shared_ptr<V4L2Wrapper> device,
+    int v4l2_control,
+    int32_t control_tag,
+    int32_t options_tag,
+    const std::map<int32_t, uint8_t>& v4l2_to_metadata) {
   HAL_LOG_ENTER();
 
   // Query the device.
@@ -37,7 +40,8 @@ V4L2EnumControl* V4L2EnumControl::NewV4L2EnumControl(
     HAL_LOGE(
         "Enum controls can only be constructed from V4L2 menu and boolean "
         "controls (%d is of type %d)",
-        v4l2_control, control_query.type);
+        v4l2_control,
+        control_query.type);
     return nullptr;
   }
 
@@ -46,7 +50,8 @@ V4L2EnumControl* V4L2EnumControl::NewV4L2EnumControl(
   int32_t control_max = static_cast<int32_t>(control_query.maximum);
   // Query maximum is inclusive.
   for (int32_t i = static_cast<int32_t>(control_query.minimum);
-       i <= control_max; i += control_query.step) {
+       i <= control_max;
+       i += control_query.step) {
     auto map_entry = v4l2_to_metadata.find(i);
     if (map_entry == v4l2_to_metadata.end()) {
       HAL_LOGW("Control %d has unknown option %d.", v4l2_control, i);
@@ -60,13 +65,20 @@ V4L2EnumControl* V4L2EnumControl::NewV4L2EnumControl(
   }
 
   // Construct the device.
-  return new V4L2EnumControl(device, v4l2_control, control_tag, options_tag,
-                             std::move(v4l2_to_metadata), std::move(options));
+  return new V4L2EnumControl(device,
+                             v4l2_control,
+                             control_tag,
+                             options_tag,
+                             std::move(v4l2_to_metadata),
+                             std::move(options));
 }
 
 V4L2EnumControl::V4L2EnumControl(
-    std::shared_ptr<V4L2Wrapper> device, int v4l2_control, int32_t control_tag,
-    int32_t options_tag, const std::map<int32_t, uint8_t> v4l2_to_metadata,
+    std::shared_ptr<V4L2Wrapper> device,
+    int v4l2_control,
+    int32_t control_tag,
+    int32_t options_tag,
+    const std::map<int32_t, uint8_t> v4l2_to_metadata,
     std::vector<uint8_t> options)
     : OptionedControl<uint8_t>(control_tag, options_tag, std::move(options)),
       device_(device),

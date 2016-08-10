@@ -41,8 +41,8 @@ class IgnoredControlTest : public Test {
         default_option_(options_[2]) {}
 
   virtual void SetUp() {
-    control_.reset(new IgnoredControl<uint8_t>(control_tag_, options_tag_,
-                                               options_, default_option_));
+    control_.reset(new IgnoredControl<uint8_t>(
+        control_tag_, options_tag_, options_, default_option_));
   }
 
   std::unique_ptr<IgnoredControl<uint8_t>> control_;

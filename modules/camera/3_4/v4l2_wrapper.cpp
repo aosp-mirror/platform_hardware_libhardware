@@ -60,7 +60,9 @@ V4L2Wrapper::V4L2Wrapper(const std::string device_path,
   HAL_LOG_ENTER();
 }
 
-V4L2Wrapper::~V4L2Wrapper() { HAL_LOG_ENTER(); }
+V4L2Wrapper::~V4L2Wrapper() {
+  HAL_LOG_ENTER();
+}
 
 int V4L2Wrapper::Connect() {
   HAL_LOG_ENTER();
@@ -101,14 +103,16 @@ void V4L2Wrapper::Disconnect() {
   if (connection_count_ == 0) {
     // Not connected.
     HAL_LOGE("Camera device %s is not connected, cannot disconnect.",
-             device_path_.c_str(), connection_count_);
+             device_path_.c_str(),
+             connection_count_);
     return;
   }
 
   --connection_count_;
   if (connection_count_ > 0) {
     HAL_LOGV("Disconnected from camera device %s. %d connections remain.",
-             device_path_.c_str(), connection_count_);
+             device_path_.c_str(),
+             connection_count_);
     return;
   }
 
@@ -247,7 +251,8 @@ int V4L2Wrapper::GetControl(uint32_t control_id, int32_t* value) {
   return 0;
 }
 
-int V4L2Wrapper::SetControl(uint32_t control_id, int32_t desired,
+int V4L2Wrapper::SetControl(uint32_t control_id,
+                            int32_t desired,
                             int32_t* result) {
   HAL_LOG_ENTER();
 
@@ -280,8 +285,8 @@ int V4L2Wrapper::GetFormats(std::set<uint32_t>* v4l2_formats) {
   }
 
   if (errno != EINVAL) {
-    HAL_LOGE("ENUM_FMT fails at index %d: %s", format_query.index,
-             strerror(errno));
+    HAL_LOGE(
+        "ENUM_FMT fails at index %d: %s", format_query.index, strerror(errno));
     return -ENODEV;
   }
   return 0;
@@ -308,7 +313,8 @@ int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
       ++size_query.index;
     } while (IoctlLocked(VIDIOC_ENUM_FRAMESIZES, &size_query) >= 0);
     if (errno != EINVAL) {
-      HAL_LOGE("ENUM_FRAMESIZES fails at index %d: %s", size_query.index,
+      HAL_LOGE("ENUM_FRAMESIZES fails at index %d: %s",
+               size_query.index,
                strerror(errno));
       return -ENODEV;
     }
@@ -326,12 +332,16 @@ int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
       if (desired_width < size_query.stepwise.min_width ||
           desired_height < size_query.stepwise.min_height) {
         HAL_LOGV("Standard size %u x %u is too small for format %d",
-                 desired_width, desired_height, v4l2_format);
+                 desired_width,
+                 desired_height,
+                 v4l2_format);
         continue;
       } else if (desired_width > size_query.stepwise.max_width &&
                  desired_height > size_query.stepwise.max_height) {
         HAL_LOGV("Standard size %u x %u is too big for format %d",
-                 desired_width, desired_height, v4l2_format);
+                 desired_width,
+                 desired_height,
+                 v4l2_format);
         continue;
       }
 
@@ -359,7 +369,8 @@ inline int64_t FractToNs(const v4l2_fract& fract) {
 }
 
 int V4L2Wrapper::GetFormatFrameDurationRange(
-    uint32_t v4l2_format, const std::array<int32_t, 2>& size,
+    uint32_t v4l2_format,
+    const std::array<int32_t, 2>& size,
     std::array<int64_t, 2>* duration_range) {
   // Potentially called so many times logging entry is a bad idea.
 
@@ -384,7 +395,8 @@ int V4L2Wrapper::GetFormatFrameDurationRange(
     } while (IoctlLocked(VIDIOC_ENUM_FRAMEINTERVALS, &duration_query) >= 0);
     if (errno != EINVAL) {
       HAL_LOGE("ENUM_FRAMEINTERVALS fails at index %d: %s",
-               duration_query.index, strerror(errno));
+               duration_query.index,
+               strerror(errno));
       return -ENODEV;
     }
   } else {

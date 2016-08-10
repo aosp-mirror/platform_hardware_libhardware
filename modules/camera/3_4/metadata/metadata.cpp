@@ -22,9 +22,13 @@
 
 namespace v4l2_camera_hal {
 
-Metadata::Metadata() { HAL_LOG_ENTER(); }
+Metadata::Metadata() {
+  HAL_LOG_ENTER();
+}
 
-Metadata::~Metadata() { HAL_LOG_ENTER(); }
+Metadata::~Metadata() {
+  HAL_LOG_ENTER();
+}
 
 void Metadata::AddComponent(
     std::unique_ptr<PartialMetadataInterface> component) {
@@ -71,21 +75,24 @@ int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {
   // Populate the meta fields.
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS);
   res = metadata->update(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
-                         control_tags.data(), control_tags.size());
+                         control_tags.data(),
+                         control_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add request keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS);
   res = metadata->update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
-                         dynamic_tags.data(), dynamic_tags.size());
+                         dynamic_tags.data(),
+                         dynamic_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add result keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS);
   res = metadata->update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
-                         static_tags.data(), static_tags.size());
+                         static_tags.data(),
+                         static_tags.size());
   if (res != android::OK) {
     HAL_LOGE("Failed to add characteristics keys meta key.");
     return -ENODEV;
@@ -98,7 +105,8 @@ bool Metadata::IsValidRequest(const android::CameraMetadata& metadata) {
   HAL_LOG_ENTER();
 
   // Empty means "use previous settings", which are inherently valid.
-  if (metadata.isEmpty()) return true;
+  if (metadata.isEmpty())
+    return true;
 
   for (auto& component : components_) {
     // Check that all components support the values requested of them.
@@ -116,7 +124,8 @@ int Metadata::SetRequestSettings(const android::CameraMetadata& metadata) {
   HAL_LOG_ENTER();
 
   // Empty means "use previous settings".
-  if (metadata.isEmpty()) return 0;
+  if (metadata.isEmpty())
+    return 0;
 
   for (auto& component : components_) {
     int res = component->SetRequestValues(metadata);

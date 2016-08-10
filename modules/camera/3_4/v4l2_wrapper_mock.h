@@ -39,10 +39,12 @@ class V4L2WrapperMock : public V4L2Wrapper {
   MOCK_METHOD2(GetFormatFrameSizes,
                int(uint32_t, std::set<std::array<int32_t, 2>>*));
   MOCK_METHOD3(GetFormatFrameDurationRange,
-               int(uint32_t, const std::array<int32_t, 2>&,
+               int(uint32_t,
+                   const std::array<int32_t, 2>&,
                    std::array<int64_t, 2>*));
-  MOCK_METHOD2(SetFormat, int(const default_camera_hal::Stream& stream,
-                              uint32_t* result_max_buffers));
+  MOCK_METHOD2(SetFormat,
+               int(const default_camera_hal::Stream& stream,
+                   uint32_t* result_max_buffers));
   MOCK_METHOD1(EnqueueBuffer,
                int(const camera3_stream_buffer_t* camera_buffer));
   MOCK_METHOD1(DequeueBuffer, int(v4l2_buffer* buffer));

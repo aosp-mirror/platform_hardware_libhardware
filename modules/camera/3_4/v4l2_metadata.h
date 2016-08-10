@@ -37,7 +37,9 @@ class V4L2Metadata : public Metadata {
   // Attempt to construct and add an enum control. If construction fails,
   // use an IgnoredControl with only the default value instead.
   void AddEnumControlOrDefault(
-      int v4l2_control, int32_t control_tag, int32_t options_tag,
+      int v4l2_control,
+      int32_t control_tag,
+      int32_t options_tag,
       const std::map<int32_t, uint8_t>& v4l2_to_metadata,
       uint8_t default_value);
 

@@ -43,8 +43,12 @@ class V4L2EnumControlTest : public Test {
 
   virtual void SetUp() {
     device_.reset(new V4L2WrapperMock());
-    control_.reset(new V4L2EnumControl(device_, v4l2_control_, control_tag_,
-                                       options_tag_, options_map_, options_));
+    control_.reset(new V4L2EnumControl(device_,
+                                       v4l2_control_,
+                                       control_tag_,
+                                       options_tag_,
+                                       options_map_,
+                                       options_));
   }
 
   virtual uint8_t V4L2ToMetadata(int32_t value) {
@@ -83,8 +87,8 @@ TEST_F(V4L2EnumControlTest, NewV4L2EnumSuccess) {
       .WillOnce(DoAll(SetArgPointee<1>(query_result), Return(0)));
 
   std::unique_ptr<V4L2EnumControl> test_control(
-      V4L2EnumControl::NewV4L2EnumControl(device_, v4l2_control_, control_tag_,
-                                          options_tag_, options_map_));
+      V4L2EnumControl::NewV4L2EnumControl(
+          device_, v4l2_control_, control_tag_, options_tag_, options_map_));
   // Shouldn't be null.
   ASSERT_NE(test_control.get(), nullptr);
 
@@ -119,8 +123,8 @@ TEST_F(V4L2EnumControlTest, NewV4L2EnumFailed) {
   EXPECT_CALL(*device_, QueryControl(v4l2_control_, _)).WillOnce(Return(err));
 
   std::unique_ptr<V4L2EnumControl> test_control(
-      V4L2EnumControl::NewV4L2EnumControl(device_, v4l2_control_, control_tag_,
-                                          options_tag_, options_map_));
+      V4L2EnumControl::NewV4L2EnumControl(
+          device_, v4l2_control_, control_tag_, options_tag_, options_map_));
   // Should return null to indicate error.
   ASSERT_EQ(test_control.get(), nullptr);
 }
@@ -136,8 +140,8 @@ TEST_F(V4L2EnumControlTest, NewV4L2EnumInvalid) {
       .WillOnce(DoAll(SetArgPointee<1>(query_result), Return(0)));
 
   std::unique_ptr<V4L2EnumControl> test_control(
-      V4L2EnumControl::NewV4L2EnumControl(device_, v4l2_control_, control_tag_,
-                                          options_tag_, options_map_));
+      V4L2EnumControl::NewV4L2EnumControl(
+          device_, v4l2_control_, control_tag_, options_tag_, options_map_));
   // Should return null to indicate error.
   ASSERT_FALSE(test_control);
 }
@@ -167,8 +171,8 @@ TEST_F(V4L2EnumControlTest, SetInvalidValue) {
 TEST_F(V4L2EnumControlTest, SetUnmapped) {
   // If the enum control is validly constructed, this should never happen.
   // Purposefully misconstruct a device for this test (empty map).
-  V4L2EnumControl test_control(device_, v4l2_control_, control_tag_,
-                               options_tag_, {}, options_);
+  V4L2EnumControl test_control(
+      device_, v4l2_control_, control_tag_, options_tag_, {}, options_);
   EXPECT_EQ(test_control.SetValue(options_[0]), -ENODEV);
 }
 

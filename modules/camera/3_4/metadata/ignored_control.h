@@ -31,8 +31,10 @@ namespace v4l2_camera_hal {
 template <typename T>
 class IgnoredControl : public OptionedControl<T> {
  public:
-  IgnoredControl(int32_t control_tag, int32_t options_tag,
-                 std::vector<T> options, T default_option)
+  IgnoredControl(int32_t control_tag,
+                 int32_t options_tag,
+                 std::vector<T> options,
+                 T default_option)
       : OptionedControl<T>(control_tag, options_tag, options),
         // Note: default option is not enforced as being in |options|,
         // but it may be confusing if it isn't.

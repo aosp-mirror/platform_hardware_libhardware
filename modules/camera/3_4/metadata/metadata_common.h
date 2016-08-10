@@ -53,8 +53,10 @@ namespace v4l2_camera_hal {
 
 // Generic (pointer & size).
 template <typename T>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
-                          const T* data, size_t count) {
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
+                          const T* data,
+                          size_t count) {
   int res = metadata->update(tag, data, count);
   if (res) {
     HAL_LOGE("Failed to update metadata tag %d", tag);
@@ -65,35 +67,40 @@ static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
 
 // Generic (single item reference).
 template <typename T>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
                           const T& val) {
   return UpdateMetadata(metadata, tag, &val, 1);
 }
 
 // Specialization for vectors.
 template <typename T>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
                           const std::vector<T>& val) {
   return UpdateMetadata(metadata, tag, val.data(), val.size());
 }
 
 // Specialization for arrays.
 template <typename T, size_t N>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
                           const std::array<T, N>& val) {
   return UpdateMetadata(metadata, tag, val.data(), N);
 }
 
 // Specialization for ArrayVectors.
 template <typename T, size_t N>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
                           const ArrayVector<T, N>& val) {
   return UpdateMetadata(metadata, tag, val.data(), val.total_num_elements());
 }
 
 // Specialization for vectors of arrays.
 template <typename T, size_t N>
-static int UpdateMetadata(android::CameraMetadata* metadata, int32_t tag,
+static int UpdateMetadata(android::CameraMetadata* metadata,
+                          int32_t tag,
                           const std::vector<std::array<T, N>>& val) {
   // Convert to array vector so we know all the elements are contiguous.
   ArrayVector<T, N> array_vector;
@@ -154,7 +161,8 @@ static void GetDataPointer(camera_metadata_ro_entry_t& entry,
 
 // Singleton.
 template <typename T>
-static int SingleTagValue(const android::CameraMetadata& metadata, int32_t tag,
+static int SingleTagValue(const android::CameraMetadata& metadata,
+                          int32_t tag,
                           T* val) {
   camera_metadata_ro_entry_t entry = metadata.find(tag);
   if (entry.count == 0) {
@@ -164,7 +172,8 @@ static int SingleTagValue(const android::CameraMetadata& metadata, int32_t tag,
     HAL_LOGE(
         "Error: expected metadata tag %d to contain exactly 1 value "
         "(had %d).",
-        tag, entry.count);
+        tag,
+        entry.count);
     return -EINVAL;
   }
   const T* data = nullptr;
@@ -179,7 +188,8 @@ static int SingleTagValue(const android::CameraMetadata& metadata, int32_t tag,
 
 // Specialization for std::array.
 template <typename T, size_t N>
-static int SingleTagValue(const android::CameraMetadata& metadata, int32_t tag,
+static int SingleTagValue(const android::CameraMetadata& metadata,
+                          int32_t tag,
                           std::array<T, N>* val) {
   camera_metadata_ro_entry_t entry = metadata.find(tag);
   if (entry.count == 0) {
@@ -189,7 +199,9 @@ static int SingleTagValue(const android::CameraMetadata& metadata, int32_t tag,
     HAL_LOGE(
         "Error: expected metadata tag %d to contain a single array of "
         "exactly %d values (had %d).",
-        tag, N, entry.count);
+        tag,
+        N,
+        entry.count);
     return -EINVAL;
   }
   const T* data = nullptr;

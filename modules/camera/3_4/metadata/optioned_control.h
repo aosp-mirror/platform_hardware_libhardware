@@ -33,7 +33,8 @@ namespace v4l2_camera_hal {
 template <typename T>
 class OptionedControl : public Control<T> {
  public:
-  OptionedControl(int32_t control_tag, int32_t options_tag,
+  OptionedControl(int32_t control_tag,
+                  int32_t options_tag,
                   std::vector<T> options);
 
   virtual int PopulateStaticFields(
@@ -57,7 +58,8 @@ class OptionedControl : public Control<T> {
 // -----------------------------------------------------------------------------
 
 template <typename T>
-OptionedControl<T>::OptionedControl(int32_t control_tag, int32_t options_tag,
+OptionedControl<T>::OptionedControl(int32_t control_tag,
+                                    int32_t options_tag,
                                     std::vector<T> options)
     : Control<T>(control_tag, {options_tag}), options_(std::move(options)) {
   HAL_LOG_ENTER();
