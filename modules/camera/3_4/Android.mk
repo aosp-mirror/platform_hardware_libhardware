@@ -39,6 +39,7 @@ v4l2_c_includes := $(call include-path-for, camera)
 
 v4l2_src_files := \
   camera.cpp \
+  metadata/enum_converter.cpp \
   metadata/metadata.cpp \
   metadata/v4l2_enum_control.cpp \
   stream.cpp \
@@ -51,6 +52,7 @@ v4l2_src_files := \
 
 v4l2_test_files := \
   metadata/control_test.cpp \
+  metadata/enum_converter_test.cpp \
   metadata/fixed_property_test.cpp \
   metadata/ignored_control_test.cpp \
   metadata/metadata_test.cpp \
