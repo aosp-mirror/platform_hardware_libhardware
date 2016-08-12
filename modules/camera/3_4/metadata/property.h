@@ -19,20 +19,26 @@
 
 #include "../common.h"
 #include "metadata_common.h"
-#include "tagged_partial_metadata.h"
+#include "partial_metadata_interface.h"
 
 namespace v4l2_camera_hal {
 
 // A Property is a PartialMetadata that only has a single static tag.
 template <typename T>
-class Property : public TaggedPartialMetadata {
+class Property : public PartialMetadataInterface {
  public:
-  Property(int32_t tag) : TaggedPartialMetadata({tag}, {}, {}){};
+  Property(int32_t tag, T value) : tag_(tag), value_(value){};
+
+  virtual std::vector<int32_t> StaticTags() const override { return {tag_}; };
+
+  virtual std::vector<int32_t> ControlTags() const override { return {}; };
+
+  virtual std::vector<int32_t> DynamicTags() const override { return {}; };
 
   virtual int PopulateStaticFields(
       android::CameraMetadata* metadata) const override {
     HAL_LOG_ENTER();
-    return UpdateMetadata(metadata, Tag(), Value());
+    return UpdateMetadata(metadata, tag_, value_);
   };
 
   virtual int PopulateDynamicFields(
@@ -53,11 +59,9 @@ class Property : public TaggedPartialMetadata {
     return 0;
   };
 
- protected:
-  // Simpler access to tag.
-  inline int32_t Tag() const { return StaticTags()[0]; }
-  // Get the value associated with this property.
-  virtual const T& Value() const = 0;
+ private:
+  int32_t tag_;
+  T value_;
 };
 
 }  // namespace v4l2_camera_hal

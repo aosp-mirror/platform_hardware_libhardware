@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "fixed_property.h"
+#include "property.h"
 
 #include <array>
 #include <vector>
@@ -35,7 +35,7 @@ using testing::_;
 
 namespace v4l2_camera_hal {
 
-class FixedPropertyTest : public Test {
+class PropertyTest : public Test {
  protected:
   // Need tags that match the data types being passed.
   static constexpr int32_t byte_tag_ = ANDROID_CONTROL_SCENE_MODE_OVERRIDES;
@@ -44,8 +44,8 @@ class FixedPropertyTest : public Test {
   static constexpr int32_t int_tag2_ = ANDROID_JPEG_ORIENTATION;
 };
 
-TEST_F(FixedPropertyTest, Tags) {
-  FixedProperty<int32_t> property(int_tag_, 1);
+TEST_F(PropertyTest, Tags) {
+  Property<int32_t> property(int_tag_, 1);
 
   // Should have only the single tag it was constructed with.
   EXPECT_EQ(property.ControlTags().size(), 0);
@@ -56,10 +56,10 @@ TEST_F(FixedPropertyTest, Tags) {
   EXPECT_EQ(property.StaticTags()[0], expected_tag);
 }
 
-TEST_F(FixedPropertyTest, PopulateStaticSingleNumber) {
+TEST_F(PropertyTest, PopulateStaticSingleNumber) {
   // Set up a fixed property.
   int32_t data = 1234;
-  FixedProperty<int32_t> property(int_tag_, data);
+  Property<int32_t> property(int_tag_, data);
 
   // Populate static fields.
   android::CameraMetadata metadata;
@@ -72,10 +72,12 @@ TEST_F(FixedPropertyTest, PopulateStaticSingleNumber) {
   ExpectMetadataEq(metadata, int_tag_, data);
 }
 
-TEST_F(FixedPropertyTest, PopulateStaticVector) {
+// TODO(b/30839858): These tests are really testing the metadata_common.h
+// UpdateMetadata methods, and shouldn't be conducted here.
+TEST_F(PropertyTest, PopulateStaticVector) {
   // Set up a fixed property.
   std::vector<float> data({0.1, 2.3, 4.5, 6.7});
-  FixedProperty<std::vector<float>> property(float_tag_, data);
+  Property<std::vector<float>> property(float_tag_, data);
 
   // Populate static fields.
   android::CameraMetadata metadata;
@@ -88,10 +90,10 @@ TEST_F(FixedPropertyTest, PopulateStaticVector) {
   ExpectMetadataEq(metadata, float_tag_, data);
 }
 
-TEST_F(FixedPropertyTest, PopulateStaticArray) {
+TEST_F(PropertyTest, PopulateStaticArray) {
   // Set up a fixed property.
   std::array<float, 4> data({{0.1, 2.3, 4.5, 6.7}});
-  FixedProperty<std::array<float, 4>> property(float_tag_, data);
+  Property<std::array<float, 4>> property(float_tag_, data);
 
   // Populate static fields.
   android::CameraMetadata metadata;
@@ -104,12 +106,12 @@ TEST_F(FixedPropertyTest, PopulateStaticArray) {
   ExpectMetadataEq(metadata, float_tag_, data);
 }
 
-TEST_F(FixedPropertyTest, PopulateStaticArrayVector) {
+TEST_F(PropertyTest, PopulateStaticArrayVector) {
   // Set up a fixed property.
   ArrayVector<uint8_t, 3> data;
   data.push_back({{1, 2, 3}});
   data.push_back({{4, 5, 6}});
-  FixedProperty<ArrayVector<uint8_t, 3>> property(byte_tag_, data);
+  Property<ArrayVector<uint8_t, 3>> property(byte_tag_, data);
 
   // Populate static fields.
   android::CameraMetadata metadata;
@@ -122,8 +124,8 @@ TEST_F(FixedPropertyTest, PopulateStaticArrayVector) {
   ExpectMetadataEq(metadata, byte_tag_, data);
 }
 
-TEST_F(FixedPropertyTest, PopulateDynamic) {
-  FixedProperty<int32_t> property(int_tag_, 1);
+TEST_F(PropertyTest, PopulateDynamic) {
+  Property<int32_t> property(int_tag_, 1);
 
   android::CameraMetadata metadata;
   EXPECT_EQ(property.PopulateDynamicFields(&metadata), 0);
@@ -132,14 +134,14 @@ TEST_F(FixedPropertyTest, PopulateDynamic) {
   EXPECT_TRUE(metadata.isEmpty());
 }
 
-TEST_F(FixedPropertyTest, SupportsRequest) {
-  FixedProperty<int32_t> property(int_tag_, 1);
+TEST_F(PropertyTest, SupportsRequest) {
+  Property<int32_t> property(int_tag_, 1);
   android::CameraMetadata metadata;
   EXPECT_EQ(property.SupportsRequestValues(metadata), true);
 }
 
-TEST_F(FixedPropertyTest, SetRequest) {
-  FixedProperty<int32_t> property(int_tag_, 1);
+TEST_F(PropertyTest, SetRequest) {
+  Property<int32_t> property(int_tag_, 1);
   android::CameraMetadata metadata;
   EXPECT_EQ(property.SetRequestValues(metadata), 0);
 }

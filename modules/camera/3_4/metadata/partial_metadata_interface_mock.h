@@ -28,9 +28,9 @@ namespace v4l2_camera_hal {
 class PartialMetadataInterfaceMock : public PartialMetadataInterface {
  public:
   PartialMetadataInterfaceMock() : PartialMetadataInterface(){};
-  MOCK_CONST_METHOD0(StaticTags, const std::vector<int32_t>&());
-  MOCK_CONST_METHOD0(ControlTags, const std::vector<int32_t>&());
-  MOCK_CONST_METHOD0(DynamicTags, const std::vector<int32_t>&());
+  MOCK_CONST_METHOD0(StaticTags, std::vector<int32_t>());
+  MOCK_CONST_METHOD0(ControlTags, std::vector<int32_t>());
+  MOCK_CONST_METHOD0(DynamicTags, std::vector<int32_t>());
   MOCK_CONST_METHOD1(PopulateStaticFields,
                      int(android::CameraMetadata* metadata));
   MOCK_CONST_METHOD1(PopulateDynamicFields,

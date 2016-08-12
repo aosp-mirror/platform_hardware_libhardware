@@ -19,6 +19,7 @@
 #include <camera/CameraMetadata.h>
 
 #include "../common.h"
+#include "metadata_common.h"
 
 namespace v4l2_camera_hal {
 
@@ -64,35 +65,38 @@ int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {
     }
 
     // Note what tags the component adds.
-    const std::vector<int32_t>* tags = &component->StaticTags();
-    static_tags.insert(static_tags.end(), tags->begin(), tags->end());
-    tags = &component->ControlTags();
-    control_tags.insert(control_tags.end(), tags->begin(), tags->end());
-    tags = &component->DynamicTags();
-    dynamic_tags.insert(dynamic_tags.end(), tags->begin(), tags->end());
+    std::vector<int32_t> tags = component->StaticTags();
+    std::move(tags.begin(),
+              tags.end(),
+              std::inserter(static_tags, static_tags.end()));
+    tags = component->ControlTags();
+    std::move(tags.begin(),
+              tags.end(),
+              std::inserter(control_tags, control_tags.end()));
+    tags = component->DynamicTags();
+    std::move(tags.begin(),
+              tags.end(),
+              std::inserter(dynamic_tags, dynamic_tags.end()));
   }
 
   // Populate the meta fields.
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS);
-  res = metadata->update(ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS,
-                         control_tags.data(),
-                         control_tags.size());
+  res = UpdateMetadata(
+      metadata, ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS, control_tags);
   if (res != android::OK) {
     HAL_LOGE("Failed to add request keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS);
-  res = metadata->update(ANDROID_REQUEST_AVAILABLE_RESULT_KEYS,
-                         dynamic_tags.data(),
-                         dynamic_tags.size());
+  res = UpdateMetadata(
+      metadata, ANDROID_REQUEST_AVAILABLE_RESULT_KEYS, dynamic_tags);
   if (res != android::OK) {
     HAL_LOGE("Failed to add result keys meta key.");
     return -ENODEV;
   }
   static_tags.push_back(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS);
-  res = metadata->update(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
-                         static_tags.data(),
-                         static_tags.size());
+  res = UpdateMetadata(
+      metadata, ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS, static_tags);
   if (res != android::OK) {
     HAL_LOGE("Failed to add characteristics keys meta key.");
     return -ENODEV;

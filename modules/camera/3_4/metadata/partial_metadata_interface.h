@@ -34,9 +34,9 @@ class PartialMetadataInterface {
 
   // The metadata tags this partial metadata is responsible for.
   // See system/media/camera/docs/docs.html for descriptions of each tag.
-  virtual const std::vector<int32_t>& StaticTags() const = 0;
-  virtual const std::vector<int32_t>& ControlTags() const = 0;
-  virtual const std::vector<int32_t>& DynamicTags() const = 0;
+  virtual std::vector<int32_t> StaticTags() const = 0;
+  virtual std::vector<int32_t> ControlTags() const = 0;
+  virtual std::vector<int32_t> DynamicTags() const = 0;
 
   // Add all the static properties this partial metadata
   // is responsible for to |metadata|.

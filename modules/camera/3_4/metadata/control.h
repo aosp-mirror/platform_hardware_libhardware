@@ -22,18 +22,29 @@
 #include <system/camera_metadata.h>
 
 #include "../common.h"
+#include "menu_control_options.h"
 #include "metadata_common.h"
-#include "tagged_partial_metadata.h"
+#include "no_effect_control_delegate.h"
+#include "partial_metadata_interface.h"
+#include "tagged_control_delegate.h"
+#include "tagged_control_options.h"
 
 namespace v4l2_camera_hal {
 
 // A Control is a PartialMetadata with values that can be gotten/set.
 template <typename T>
-class Control : public TaggedPartialMetadata {
+class Control : public PartialMetadataInterface {
  public:
-  Control(int32_t control_tag, std::vector<int32_t> static_tags = {});
+  // Options are optional (i.e. nullable), delegate is not.
+  Control(std::unique_ptr<TaggedControlDelegate<T>> delegate,
+          std::unique_ptr<TaggedControlOptions<T>> options = nullptr);
 
-  // Child classes still need to implement PopulateStaticFields.
+  virtual std::vector<int32_t> StaticTags() const override;
+  virtual std::vector<int32_t> ControlTags() const override;
+  virtual std::vector<int32_t> DynamicTags() const override;
+
+  virtual int PopulateStaticFields(
+      android::CameraMetadata* metadata) const override;
   virtual int PopulateDynamicFields(
       android::CameraMetadata* metadata) const override;
   virtual bool SupportsRequestValues(
@@ -41,20 +52,15 @@ class Control : public TaggedPartialMetadata {
   virtual int SetRequestValues(
       const android::CameraMetadata& metadata) override;
 
- protected:
-  // Simpler access to tag.
-  inline int32_t ControlTag() const { return ControlTags()[0]; }
+  // Factory methods for some common combinations of delegates & options.
+  // NoEffectMenuControl: Some menu options, but they have no effect.
+  // The default value will be the first element of |options|.
+  static std::unique_ptr<Control<T>> NoEffectMenuControl(
+      int32_t delegate_tag, int32_t options_tag, const std::vector<T>& options);
 
-  // Get/Set the control value. Return non-0 on failure.
-  // Controls are allowed to be unreliable, so SetValue is best-effort;
-  // GetValue immediately after may not match (SetValue may, for example,
-  // automatically replace invalid values with valid ones,
-  // or have a delay before setting the requested value).
-  // GetValue should always indicate the actual current value of the control.
-  virtual int GetValue(T* value) const = 0;
-  virtual int SetValue(const T& value) = 0;
-  // Helper to check if val is supported by this control.
-  virtual bool IsSupported(const T& val) const = 0;
+ protected:
+  std::unique_ptr<TaggedControlDelegate<T>> delegate_;
+  std::unique_ptr<TaggedControlOptions<T>> options_;
 
   DISALLOW_COPY_AND_ASSIGN(Control);
 };
@@ -62,11 +68,42 @@ class Control : public TaggedPartialMetadata {
 // -----------------------------------------------------------------------------
 
 template <typename T>
-Control<T>::Control(int32_t control_tag, std::vector<int32_t> static_tags)
-    // Controls use the same tag for setting the control
-    // and getting the dynamic value.
-    : TaggedPartialMetadata(static_tags, {control_tag}, {control_tag}) {
+Control<T>::Control(std::unique_ptr<TaggedControlDelegate<T>> delegate,
+                    std::unique_ptr<TaggedControlOptions<T>> options)
+    : delegate_(std::move(delegate)), options_(std::move(options)) {
   HAL_LOG_ENTER();
+}
+
+template <typename T>
+std::vector<int32_t> Control<T>::StaticTags() const {
+  std::vector<int32_t> result;
+  if (options_) {
+    result.push_back(options_->tag());
+  }
+  return result;
+}
+
+template <typename T>
+std::vector<int32_t> Control<T>::ControlTags() const {
+  return {delegate_->tag()};
+}
+
+template <typename T>
+std::vector<int32_t> Control<T>::DynamicTags() const {
+  return {delegate_->tag()};
+}
+
+template <typename T>
+int Control<T>::PopulateStaticFields(android::CameraMetadata* metadata) const {
+  HAL_LOG_ENTER();
+
+  if (!options_) {
+    HAL_LOGV("No options for control, nothing to populate.");
+    return 0;
+  }
+
+  return UpdateMetadata(
+      metadata, options_->tag(), options_->MetadataRepresentation());
 }
 
 template <typename T>
@@ -75,11 +112,11 @@ int Control<T>::PopulateDynamicFields(android::CameraMetadata* metadata) const {
 
   // Populate the current setting.
   T value;
-  int res = GetValue(&value);
+  int res = delegate_->GetValue(&value);
   if (res) {
     return res;
   }
-  return UpdateMetadata(metadata, ControlTag(), value);
+  return UpdateMetadata(metadata, delegate_->tag(), value);
 }
 
 template <typename T>
@@ -91,18 +128,25 @@ bool Control<T>::SupportsRequestValues(
     return true;
   }
 
-  // Check that the requested setting is in the supported options.
+  // Get the requested setting for this control.
   T requested;
-  int res = SingleTagValue(metadata, ControlTag(), &requested);
+  int res = SingleTagValue(metadata, delegate_->tag(), &requested);
   if (res == -ENOENT) {
     // Nothing requested of this control, that's fine.
     return true;
   } else if (res) {
     HAL_LOGE("Failure while searching for request value for tag %d",
-             ControlTag());
+             delegate_->tag());
     return false;
   }
-  return IsSupported(requested);
+
+  // Check that the requested setting is in the supported options.
+  if (!options_) {
+    HAL_LOGV("No options for control %d; request implicitly supported.",
+             delegate_->tag());
+    return true;
+  }
+  return options_->IsSupported(requested);
 }
 
 template <typename T>
@@ -115,17 +159,41 @@ int Control<T>::SetRequestValues(const android::CameraMetadata& metadata) {
 
   // Get the requested value.
   T requested;
-  int res = SingleTagValue(metadata, ControlTag(), &requested);
+  int res = SingleTagValue(metadata, delegate_->tag(), &requested);
   if (res == -ENOENT) {
     // Nothing requested of this control, nothing to do.
     return 0;
   } else if (res) {
     HAL_LOGE("Failure while searching for request value for tag %d",
-             ControlTag());
+             delegate_->tag());
     return res;
   }
 
-  return SetValue(requested);
+  // Check that the value is supported.
+  if (options_ && !options_->IsSupported(requested)) {
+    HAL_LOGE("Unsupported value requested for control %d.", delegate_->tag());
+    return -EINVAL;
+  }
+
+  return delegate_->SetValue(requested);
+}
+
+template <typename T>
+std::unique_ptr<Control<T>> Control<T>::NoEffectMenuControl(
+    int32_t delegate_tag, int32_t options_tag, const std::vector<T>& options) {
+  HAL_LOG_ENTER();
+
+  if (options.empty()) {
+    HAL_LOGE("At least one option must be provided.");
+    return nullptr;
+  }
+
+  return std::make_unique<Control<T>>(
+      std::make_unique<TaggedControlDelegate<T>>(
+          delegate_tag,
+          std::make_unique<NoEffectControlDelegate<T>>(options[0])),
+      std::make_unique<TaggedControlOptions<T>>(
+          options_tag, std::make_unique<MenuControlOptions<T>>(options)));
 }
 
 }  // namespace v4l2_camera_hal

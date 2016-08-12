@@ -28,7 +28,6 @@
 
 using testing::AtMost;
 using testing::Return;
-using testing::ReturnRef;
 using testing::Test;
 using testing::_;
 
@@ -88,12 +87,12 @@ TEST_F(MetadataTest, FillStaticSuccess) {
   std::vector<int32_t> control_tags_2({7, 8});
   std::vector<int32_t> dynamic_tags_1({9, 10});
   std::vector<int32_t> dynamic_tags_2({11, 12});
-  EXPECT_CALL(*component1_, StaticTags()).WillOnce(ReturnRef(static_tags_1));
-  EXPECT_CALL(*component1_, ControlTags()).WillOnce(ReturnRef(control_tags_1));
-  EXPECT_CALL(*component1_, DynamicTags()).WillOnce(ReturnRef(dynamic_tags_1));
-  EXPECT_CALL(*component2_, StaticTags()).WillOnce(ReturnRef(static_tags_2));
-  EXPECT_CALL(*component2_, ControlTags()).WillOnce(ReturnRef(control_tags_2));
-  EXPECT_CALL(*component2_, DynamicTags()).WillOnce(ReturnRef(dynamic_tags_2));
+  EXPECT_CALL(*component1_, StaticTags()).WillOnce(Return(static_tags_1));
+  EXPECT_CALL(*component1_, ControlTags()).WillOnce(Return(control_tags_1));
+  EXPECT_CALL(*component1_, DynamicTags()).WillOnce(Return(dynamic_tags_1));
+  EXPECT_CALL(*component2_, StaticTags()).WillOnce(Return(static_tags_2));
+  EXPECT_CALL(*component2_, ControlTags()).WillOnce(Return(control_tags_2));
+  EXPECT_CALL(*component2_, DynamicTags()).WillOnce(Return(dynamic_tags_2));
 
   AddComponents();
   // Should succeed. If it didn't, no reason to continue checking output.
@@ -137,22 +136,22 @@ TEST_F(MetadataTest, FillStaticFail) {
   // May or may not exit early, may still try to populate meta tags.
   EXPECT_CALL(*component1_, StaticTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
   EXPECT_CALL(*component1_, ControlTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
   EXPECT_CALL(*component1_, DynamicTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
   EXPECT_CALL(*component2_, StaticTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
   EXPECT_CALL(*component2_, ControlTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
   EXPECT_CALL(*component2_, DynamicTags())
       .Times(AtMost(1))
-      .WillOnce(ReturnRef(empty_tags_));
+      .WillOnce(Return(empty_tags_));
 
   AddComponents();
   // If any component errors, error should be returned
