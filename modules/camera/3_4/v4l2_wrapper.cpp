@@ -241,13 +241,32 @@ int V4L2Wrapper::QueryControl(uint32_t control_id,
 int V4L2Wrapper::GetControl(uint32_t control_id, int32_t* value) {
   HAL_LOG_ENTER();
 
-  v4l2_control control;
-  control.id = control_id;
-  if (IoctlLocked(VIDIOC_G_CTRL, &control) < 0) {
-    HAL_LOGE("G_CTRL fails: %s", strerror(errno));
-    return -ENODEV;
+  // For extended controls (any control class other than "user"),
+  // G_EXT_CTRL must be used instead of G_CTRL.
+  if (V4L2_CTRL_ID2CLASS(control_id) != V4L2_CTRL_CLASS_USER) {
+    v4l2_ext_control control;
+    v4l2_ext_controls controls;
+    memset(&control, 0, sizeof(control));
+    memset(&controls, 0, sizeof(controls));
+
+    control.id = control_id;
+    controls.ctrl_class = V4L2_CTRL_ID2CLASS(control_id);
+    controls.count = 1;
+    controls.controls = &control;
+
+    if (IoctlLocked(VIDIOC_G_EXT_CTRLS, &controls) < 0) {
+      HAL_LOGE("G_EXT_CTRLS fails: %s", strerror(errno));
+      return -ENODEV;
+    }
+    *value = control.value;
+  } else {
+    v4l2_control control{control_id, 0};
+    if (IoctlLocked(VIDIOC_G_CTRL, &control) < 0) {
+      HAL_LOGE("G_CTRL fails: %s", strerror(errno));
+      return -ENODEV;
+    }
+    *value = control.value;
   }
-  *value = control.value;
   return 0;
 }
 
@@ -255,19 +274,43 @@ int V4L2Wrapper::SetControl(uint32_t control_id,
                             int32_t desired,
                             int32_t* result) {
   HAL_LOG_ENTER();
+  int32_t result_value = 0;
 
   // TODO(b/29334616): When async, this may need to check if the stream
   // is on, and if so, lock it off while setting format. Need to look
   // into if V4L2 supports adjusting controls while the stream is on.
 
-  v4l2_control control{control_id, desired};
-  if (IoctlLocked(VIDIOC_S_CTRL, &control) < 0) {
-    HAL_LOGE("S_CTRL fails: %s", strerror(errno));
-    return -ENODEV;
+  // For extended controls (any control class other than "user"),
+  // S_EXT_CTRL must be used instead of S_CTRL.
+  if (V4L2_CTRL_ID2CLASS(control_id) != V4L2_CTRL_CLASS_USER) {
+    v4l2_ext_control control;
+    v4l2_ext_controls controls;
+    memset(&control, 0, sizeof(control));
+    memset(&controls, 0, sizeof(controls));
+
+    control.id = control_id;
+    control.value = desired;
+    controls.ctrl_class = V4L2_CTRL_ID2CLASS(control_id);
+    controls.count = 1;
+    controls.controls = &control;
+
+    if (IoctlLocked(VIDIOC_S_EXT_CTRLS, &controls) < 0) {
+      HAL_LOGE("S_EXT_CTRLS fails: %s", strerror(errno));
+      return -ENODEV;
+    }
+    result_value = control.value;
+  } else {
+    v4l2_control control{control_id, desired};
+    if (IoctlLocked(VIDIOC_S_CTRL, &control) < 0) {
+      HAL_LOGE("S_CTRL fails: %s", strerror(errno));
+      return -ENODEV;
+    }
+    result_value = control.value;
   }
+
   // If the caller wants to know the result, pass it back.
   if (result != nullptr) {
-    *result = control.value;
+    *result = result_value;
   }
   return 0;
 }
