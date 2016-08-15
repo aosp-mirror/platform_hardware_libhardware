@@ -170,10 +170,9 @@ void Stream::dump(int fd) {
     // ToDo: prettyprint usage mask flags
     dprintf(fd, "Gralloc Usage Mask: %#" PRIx32 "\n", mStream->usage);
     dprintf(fd, "Max Buffer Count: %" PRIu32 "\n", mStream->max_buffers);
-    dprintf(fd, "Number of Buffers in use by HAL: %" PRIu32 "\n", mBuffers.size());
+    dprintf(fd, "Number of Buffers in use by HAL: %zu\n", mBuffers.size());
     for (size_t i = 0; i < mBuffers.size(); i++) {
-        dprintf(fd, "Buffer %" PRIu32 "/%" PRIu32 ": %p\n", i, mBuffers.size(),
-                mBuffers[i]);
+        dprintf(fd, "Buffer %zu/%zu: %p\n", i, mBuffers.size(), mBuffers[i]);
     }
 }
 

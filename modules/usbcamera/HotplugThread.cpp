@@ -39,6 +39,7 @@ void HotplugThread::requestExit() {
 }
 
 bool HotplugThread::threadLoop() {
+    (void)mModule;  // silence warning about unused member.
 
     /**
      * Check camera connection status change, if connected, do below:

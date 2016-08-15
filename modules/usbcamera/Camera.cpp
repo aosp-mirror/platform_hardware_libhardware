@@ -484,9 +484,9 @@ void Camera::dump(int fd) {
     // TODO: dump all settings
     dprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
 
-    dprintf(fd, "Number of streams: %d\n", mStreams.size());
+    dprintf(fd, "Number of streams: %zu\n", mStreams.size());
     for (size_t i = 0; i < mStreams.size(); i++) {
-        dprintf(fd, "Stream %d/%d:\n", i, mStreams.size());
+        dprintf(fd, "Stream %zu/%zu:\n", i, mStreams.size());
         mStreams[i]->dump(fd);
     }
 }
