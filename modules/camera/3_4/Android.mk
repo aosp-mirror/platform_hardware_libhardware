@@ -55,8 +55,10 @@ v4l2_test_files := \
   metadata/enum_converter_test.cpp \
   metadata/fixed_property_test.cpp \
   metadata/ignored_control_test.cpp \
+  metadata/map_converter_test.cpp \
   metadata/metadata_test.cpp \
   metadata/optioned_control_test.cpp \
+  metadata/ranged_converter_test.cpp \
   metadata/v4l2_enum_control_test.cpp \
 
 # V4L2 Camera HAL.
