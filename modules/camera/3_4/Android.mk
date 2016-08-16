@@ -63,6 +63,8 @@ v4l2_test_files := \
   metadata/optioned_control_test.cpp \
   metadata/ranged_converter_test.cpp \
   metadata/slider_control_options_test.cpp \
+  metadata/tagged_control_delegate_test.cpp \
+  metadata/tagged_control_options_test.cpp \
   metadata/v4l2_control_delegate_test.cpp \
   metadata/v4l2_enum_control_test.cpp \
 
