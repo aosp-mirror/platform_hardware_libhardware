@@ -22,9 +22,7 @@
 #include <system/camera_metadata.h>
 
 #include "../common.h"
-#include "menu_control_options.h"
 #include "metadata_common.h"
-#include "no_effect_control_delegate.h"
 #include "partial_metadata_interface.h"
 #include "tagged_control_delegate.h"
 #include "tagged_control_options.h"
@@ -52,13 +50,7 @@ class Control : public PartialMetadataInterface {
   virtual int SetRequestValues(
       const android::CameraMetadata& metadata) override;
 
-  // Factory methods for some common combinations of delegates & options.
-  // NoEffectMenuControl: Some menu options, but they have no effect.
-  // The default value will be the first element of |options|.
-  static std::unique_ptr<Control<T>> NoEffectMenuControl(
-      int32_t delegate_tag, int32_t options_tag, const std::vector<T>& options);
-
- protected:
+ private:
   std::unique_ptr<TaggedControlDelegate<T>> delegate_;
   std::unique_ptr<TaggedControlOptions<T>> options_;
 
@@ -176,24 +168,6 @@ int Control<T>::SetRequestValues(const android::CameraMetadata& metadata) {
   }
 
   return delegate_->SetValue(requested);
-}
-
-template <typename T>
-std::unique_ptr<Control<T>> Control<T>::NoEffectMenuControl(
-    int32_t delegate_tag, int32_t options_tag, const std::vector<T>& options) {
-  HAL_LOG_ENTER();
-
-  if (options.empty()) {
-    HAL_LOGE("At least one option must be provided.");
-    return nullptr;
-  }
-
-  return std::make_unique<Control<T>>(
-      std::make_unique<TaggedControlDelegate<T>>(
-          delegate_tag,
-          std::make_unique<NoEffectControlDelegate<T>>(options[0])),
-      std::make_unique<TaggedControlOptions<T>>(
-          options_tag, std::make_unique<MenuControlOptions<T>>(options)));
 }
 
 }  // namespace v4l2_camera_hal

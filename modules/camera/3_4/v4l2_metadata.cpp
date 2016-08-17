@@ -20,6 +20,8 @@
 
 #include "common.h"
 #include "metadata/control.h"
+#include "metadata/control_factory.h"
+#include "metadata/enum_converter.h"
 #include "metadata/property.h"
 
 namespace v4l2_camera_hal {
@@ -36,7 +38,7 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // V4L2 enum controls. Will add the other properties as more PartialMetadata
   // subclasses get implemented.
 
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
       ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
       {ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
@@ -48,37 +50,46 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   AddComponent(std::unique_ptr<PartialMetadataInterface>(
       new Property<std::array<int32_t, 3>>(ANDROID_CONTROL_MAX_REGIONS,
                                            {{/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0}})));
-  AddEnumControlOrDefault(V4L2_CID_EXPOSURE_AUTO,
-                          ANDROID_CONTROL_AE_MODE,
-                          ANDROID_CONTROL_AE_AVAILABLE_MODES,
-                          {{V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON},
-                           {V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF}},
-                          ANDROID_CONTROL_AE_MODE_ON);
-  AddEnumControlOrDefault(V4L2_CID_POWER_LINE_FREQUENCY,
-                          ANDROID_CONTROL_AE_ANTIBANDING_MODE,
-                          ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
-                          {{V4L2_CID_POWER_LINE_FREQUENCY_DISABLED,
-                            ANDROID_CONTROL_AE_ANTIBANDING_MODE_OFF},
-                           {V4L2_CID_POWER_LINE_FREQUENCY_50HZ,
-                            ANDROID_CONTROL_AE_ANTIBANDING_MODE_50HZ},
-                           {V4L2_CID_POWER_LINE_FREQUENCY_60HZ,
-                            ANDROID_CONTROL_AE_ANTIBANDING_MODE_60HZ},
-                           {V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
-                            ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO}},
-                          ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO);
+  AddComponent(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
+      ANDROID_CONTROL_AE_MODE,
+      ANDROID_CONTROL_AE_AVAILABLE_MODES,
+      device_,
+      V4L2_CID_EXPOSURE_AUTO,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
+          {{V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON},
+           {V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF}})),
+      ANDROID_CONTROL_AE_MODE_ON));
+  AddComponent(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
+      ANDROID_CONTROL_AE_ANTIBANDING_MODE,
+      ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
+      device_,
+      V4L2_CID_POWER_LINE_FREQUENCY,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(
+          new EnumConverter({{V4L2_CID_POWER_LINE_FREQUENCY_DISABLED,
+                              ANDROID_CONTROL_AE_ANTIBANDING_MODE_OFF},
+                             {V4L2_CID_POWER_LINE_FREQUENCY_50HZ,
+                              ANDROID_CONTROL_AE_ANTIBANDING_MODE_50HZ},
+                             {V4L2_CID_POWER_LINE_FREQUENCY_60HZ,
+                              ANDROID_CONTROL_AE_ANTIBANDING_MODE_60HZ},
+                             {V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
+                              ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO}})),
+      ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO));
   // V4L2 offers multiple white balance interfaces. Try the advanced one before
   // falling
   // back to the simpler version.
   // Modes from each API that don't match up:
   // Android: WARM_FLUORESCENT, TWILIGHT.
   // V4L2: FLUORESCENT_H, HORIZON, FLASH.
-  /* TODO(b/30900438): Use v4l2 control factory.
-  std::unique_ptr<PartialMetadataInterface> awb(
-      V4L2EnumControl::NewV4L2EnumControl(
-          device_,
-          V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
-          ANDROID_CONTROL_AWB_MODE,
-          ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+  std::unique_ptr<PartialMetadataInterface> awb(V4L2Control<
+                                                uint8_t>(
+      ControlType::kMenu,
+      ANDROID_CONTROL_AWB_MODE,
+      ANDROID_CONTROL_AWB_AVAILABLE_MODES,
+      device_,
+      V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
           {{V4L2_WHITE_BALANCE_MANUAL, ANDROID_CONTROL_AWB_MODE_OFF},
            {V4L2_WHITE_BALANCE_AUTO, ANDROID_CONTROL_AWB_MODE_AUTO},
            {V4L2_WHITE_BALANCE_INCANDESCENT,
@@ -88,73 +99,83 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
            {V4L2_WHITE_BALANCE_DAYLIGHT, ANDROID_CONTROL_AWB_MODE_DAYLIGHT},
            {V4L2_WHITE_BALANCE_CLOUDY,
             ANDROID_CONTROL_AWB_MODE_CLOUDY_DAYLIGHT},
-           {V4L2_WHITE_BALANCE_SHADE, ANDROID_CONTROL_AWB_MODE_SHADE}}));
+           {V4L2_WHITE_BALANCE_SHADE, ANDROID_CONTROL_AWB_MODE_SHADE}}))));
   if (awb) {
     AddComponent(std::move(awb));
   } else {
     // Fall back to simpler AWB or even just an ignored control.
-    AddEnumControlOrDefault(
-        V4L2_CID_AUTO_WHITE_BALANCE,
+    AddComponent(V4L2ControlOrDefault<uint8_t>(
+        ControlType::kMenu,
         ANDROID_CONTROL_AWB_MODE,
         ANDROID_CONTROL_AWB_AVAILABLE_MODES,
-        {{0, ANDROID_CONTROL_AWB_MODE_OFF}, {1, ANDROID_CONTROL_AWB_MODE_AUTO}},
-        ANDROID_CONTROL_AWB_MODE_AUTO);
+        device_,
+        V4L2_CID_AUTO_WHITE_BALANCE,
+        std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(
+            new EnumConverter({{0, ANDROID_CONTROL_AWB_MODE_OFF},
+                               {1, ANDROID_CONTROL_AWB_MODE_AUTO}})),
+        ANDROID_CONTROL_AWB_MODE_AUTO));
   }
-  */
   // TODO(b/30510395): subcomponents of scene modes
   // (may itself be a subcomponent of 3A).
   // Modes from each API that don't match up:
   // Android: FACE_PRIORITY, ACTION, NIGHT_PORTRAIT, THEATRE, STEADYPHOTO,
-  // BARCODE, HIGH_SPEED_VIDEO, SNOW (combined with BEACH in V4L2. Only BEACH
-  // is reported to avoid ambiguity).
+  // BARCODE, HIGH_SPEED_VIDEO.
   // V4L2: BACKLIGHT, DAWN_DUSK, FALL_COLORS, TEXT.
-  AddEnumControlOrDefault(
-      V4L2_CID_SCENE_MODE,
+  AddComponent(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
       ANDROID_CONTROL_SCENE_MODE,
       ANDROID_CONTROL_AVAILABLE_SCENE_MODES,
-      {{V4L2_SCENE_MODE_NONE, ANDROID_CONTROL_SCENE_MODE_DISABLED},
-       {V4L2_SCENE_MODE_BEACH_SNOW, ANDROID_CONTROL_SCENE_MODE_BEACH},
-       {V4L2_SCENE_MODE_CANDLE_LIGHT, ANDROID_CONTROL_SCENE_MODE_CANDLELIGHT},
-       {V4L2_SCENE_MODE_FIREWORKS, ANDROID_CONTROL_SCENE_MODE_FIREWORKS},
-       {V4L2_SCENE_MODE_LANDSCAPE, ANDROID_CONTROL_SCENE_MODE_LANDSCAPE},
-       {V4L2_SCENE_MODE_NIGHT, ANDROID_CONTROL_SCENE_MODE_NIGHT},
-       {V4L2_SCENE_MODE_PARTY_INDOOR, ANDROID_CONTROL_SCENE_MODE_PARTY},
-       {V4L2_SCENE_MODE_SPORTS, ANDROID_CONTROL_SCENE_MODE_SPORTS},
-       {V4L2_SCENE_MODE_SUNSET, ANDROID_CONTROL_SCENE_MODE_SUNSET}},
-      ANDROID_CONTROL_SCENE_MODE_DISABLED);
+      device_,
+      V4L2_CID_SCENE_MODE,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
+          {{V4L2_SCENE_MODE_NONE, ANDROID_CONTROL_SCENE_MODE_DISABLED},
+           {V4L2_SCENE_MODE_BEACH_SNOW, ANDROID_CONTROL_SCENE_MODE_BEACH},
+           {V4L2_SCENE_MODE_BEACH_SNOW, ANDROID_CONTROL_SCENE_MODE_SNOW},
+           {V4L2_SCENE_MODE_CANDLE_LIGHT,
+            ANDROID_CONTROL_SCENE_MODE_CANDLELIGHT},
+           {V4L2_SCENE_MODE_FIREWORKS, ANDROID_CONTROL_SCENE_MODE_FIREWORKS},
+           {V4L2_SCENE_MODE_LANDSCAPE, ANDROID_CONTROL_SCENE_MODE_LANDSCAPE},
+           {V4L2_SCENE_MODE_NIGHT, ANDROID_CONTROL_SCENE_MODE_NIGHT},
+           {V4L2_SCENE_MODE_PARTY_INDOOR, ANDROID_CONTROL_SCENE_MODE_PARTY},
+           {V4L2_SCENE_MODE_SPORTS, ANDROID_CONTROL_SCENE_MODE_SPORTS},
+           {V4L2_SCENE_MODE_SUNSET, ANDROID_CONTROL_SCENE_MODE_SUNSET}})),
+      ANDROID_CONTROL_SCENE_MODE_DISABLED));
   // Modes from each API that don't match up:
   // Android: POSTERIZE, WHITEBOARD, BLACKBOARD.
   // V4L2: ANTIQUE, ART_FREEZE, EMBOSS, GRASS_GREEN, SKETCH, SKIN_WHITEN,
   // SKY_BLUE, SILHOUETTE, VIVID, SET_CBCR.
-  AddEnumControlOrDefault(
-      V4L2_CID_COLORFX,
+  AddComponent(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
       ANDROID_CONTROL_EFFECT_MODE,
       ANDROID_CONTROL_AVAILABLE_EFFECTS,
-      {{V4L2_COLORFX_NONE, ANDROID_CONTROL_EFFECT_MODE_OFF},
-       {V4L2_COLORFX_BW, ANDROID_CONTROL_EFFECT_MODE_MONO},
-       {V4L2_COLORFX_NEGATIVE, ANDROID_CONTROL_EFFECT_MODE_NEGATIVE},
-       {V4L2_COLORFX_SOLARIZATION, ANDROID_CONTROL_EFFECT_MODE_SOLARIZE},
-       {V4L2_COLORFX_SEPIA, ANDROID_CONTROL_EFFECT_MODE_SEPIA},
-       {V4L2_COLORFX_AQUA, ANDROID_CONTROL_EFFECT_MODE_AQUA}},
-      ANDROID_CONTROL_EFFECT_MODE_OFF);
+      device_,
+      V4L2_CID_COLORFX,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
+          {{V4L2_COLORFX_NONE, ANDROID_CONTROL_EFFECT_MODE_OFF},
+           {V4L2_COLORFX_BW, ANDROID_CONTROL_EFFECT_MODE_MONO},
+           {V4L2_COLORFX_NEGATIVE, ANDROID_CONTROL_EFFECT_MODE_NEGATIVE},
+           {V4L2_COLORFX_SOLARIZATION, ANDROID_CONTROL_EFFECT_MODE_SOLARIZE},
+           {V4L2_COLORFX_SEPIA, ANDROID_CONTROL_EFFECT_MODE_SEPIA},
+           {V4L2_COLORFX_AQUA, ANDROID_CONTROL_EFFECT_MODE_AQUA}})),
+      ANDROID_CONTROL_EFFECT_MODE_OFF));
 
   // Not sure if V4L2 does or doesn't do this, but HAL documentation says
   // all devices must support FAST, and FAST can be equivalent to OFF, so
   // either way it's fine to list.
-  AddComponent(
-      Control<uint8_t>::NoEffectMenuControl(ANDROID_EDGE_MODE,
-                                            ANDROID_EDGE_AVAILABLE_EDGE_MODES,
-                                            {ANDROID_EDGE_MODE_FAST}));
+  AddComponent(NoEffectMenuControl<uint8_t>(
+      ANDROID_EDGE_MODE,
+      ANDROID_EDGE_AVAILABLE_EDGE_MODES,
+      {ANDROID_EDGE_MODE_FAST}));
 
   // TODO(30510395): subcomponents of hotpixel.
   // No known V4L2 hot pixel correction. But it might be happening,
   // so we report FAST/HIGH_QUALITY.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_HOT_PIXEL_MODE,
       ANDROID_HOT_PIXEL_AVAILABLE_HOT_PIXEL_MODES,
       {ANDROID_HOT_PIXEL_MODE_FAST, ANDROID_HOT_PIXEL_MODE_HIGH_QUALITY}));
   // ON only needs to be supported for RAW capable devices.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE,
       ANDROID_STATISTICS_INFO_AVAILABLE_HOT_PIXEL_MAP_MODES,
       {ANDROID_STATISTICS_HOT_PIXEL_MAP_MODE_OFF}));
@@ -162,17 +183,17 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // TODO(30510395): subcomponents focus/lens.
   // No way to actually get the aperture and focal length
   // in V4L2, but they're required keys, so fake them.
-  AddComponent(
-      Control<float>::NoEffectMenuControl(ANDROID_LENS_APERTURE,
-                                          ANDROID_LENS_INFO_AVAILABLE_APERTURES,
-                                          {2.0}));  // RPi camera v2 is f/2.0.
-  AddComponent(Control<float>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<float>(
+      ANDROID_LENS_APERTURE,
+      ANDROID_LENS_INFO_AVAILABLE_APERTURES,
+      {2.0}));  // RPi camera v2 is f/2.0.
+  AddComponent(NoEffectMenuControl<float>(
       ANDROID_LENS_FOCAL_LENGTH,
       ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
       {3.04}));  // RPi camera v2 is 3.04mm.
   // No known way to get filter densities from V4L2,
   // report 0 to indicate this control is not supported.
-  AddComponent(Control<float>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<float>(
       ANDROID_LENS_FILTER_DENSITY,
       ANDROID_LENS_INFO_AVAILABLE_FILTER_DENSITIES,
       {0.0}));
@@ -183,31 +204,35 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // info.hyperfocalDistance not required for UNCALIBRATED.
   // No known V4L2 lens shading. But it might be happening,
   // so report FAST/HIGH_QUALITY.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_SHADING_MODE,
       ANDROID_SHADING_AVAILABLE_MODES,
       {ANDROID_SHADING_MODE_FAST, ANDROID_SHADING_MODE_HIGH_QUALITY}));
   // ON only needs to be supported for RAW capable devices.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_STATISTICS_LENS_SHADING_MAP_MODE,
       ANDROID_STATISTICS_INFO_AVAILABLE_LENS_SHADING_MAP_MODES,
       {ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF}));
   // V4L2 doesn't differentiate between OPTICAL and VIDEO stabilization,
   // so only report one (and report the other as OFF).
-  AddEnumControlOrDefault(V4L2_CID_IMAGE_STABILIZATION,
-                          ANDROID_CONTROL_VIDEO_STABILIZATION_MODE,
-                          ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
-                          {{0, ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF},
-                           {1, ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_ON}},
-                          ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF);
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
+      ANDROID_CONTROL_VIDEO_STABILIZATION_MODE,
+      ANDROID_CONTROL_AVAILABLE_VIDEO_STABILIZATION_MODES,
+      device_,
+      V4L2_CID_IMAGE_STABILIZATION,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
+          {{0, ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF},
+           {1, ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_ON}})),
+      ANDROID_CONTROL_VIDEO_STABILIZATION_MODE_OFF));
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
       ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
       {ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF}));
 
   // Unable to control noise reduction in V4L2 devices,
   // but FAST is allowed to be the same as OFF.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_NOISE_REDUCTION_MODE,
       ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
       {ANDROID_NOISE_REDUCTION_MODE_FAST}));
@@ -216,7 +241,7 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
   // For now, no thumbnails available (only [0,0], the "no thumbnail" size).
   // TODO(b/29580107): Could end up with a mismatch between request & result,
   // since V4L2 doesn't actually allow for thumbnail size control.
-  AddComponent(Control<std::array<int32_t, 2>>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<std::array<int32_t, 2>>(
       ANDROID_JPEG_THUMBNAIL_SIZE,
       ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
       {{{0, 0}}}));
@@ -265,7 +290,7 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
 
   // TODO(30510395): subcomponents of face detection.
   // Face detection not supported.
-  AddComponent(Control<uint8_t>::NoEffectMenuControl(
+  AddComponent(NoEffectMenuControl<uint8_t>(
       ANDROID_STATISTICS_FACE_DETECT_MODE,
       ANDROID_STATISTICS_INFO_AVAILABLE_FACE_DETECT_MODES,
       {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF}));
@@ -286,22 +311,6 @@ V4L2Metadata::V4L2Metadata(std::shared_ptr<V4L2Wrapper> device)
 
 V4L2Metadata::~V4L2Metadata() {
   HAL_LOG_ENTER();
-}
-
-void V4L2Metadata::AddEnumControlOrDefault(
-    int v4l2_control,
-    int32_t control_tag,
-    int32_t options_tag,
-    const std::map<int32_t, uint8_t>& v4l2_to_metadata,
-    uint8_t default_value) {
-  HAL_LOG_ENTER();
-  // TODO(b/30900438): Replace this function with a V4L2 control factory.
-
-  std::unique_ptr<PartialMetadataInterface> control(
-      Control<uint8_t>::NoEffectMenuControl(
-          control_tag, options_tag, {default_value}));
-
-  AddComponent(std::move(control));
 }
 
 }  // namespace v4l2_camera_hal

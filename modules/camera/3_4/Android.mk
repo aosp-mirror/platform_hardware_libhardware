@@ -50,6 +50,7 @@ v4l2_src_files := \
   v4l2_wrapper.cpp \
 
 v4l2_test_files := \
+  metadata/control_factory_test.cpp \
   metadata/control_test.cpp \
   metadata/enum_converter_test.cpp \
   metadata/ignored_control_delegate_test.cpp \

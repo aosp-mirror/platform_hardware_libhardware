@@ -28,7 +28,6 @@
 using testing::AtMost;
 using testing::Expectation;
 using testing::Return;
-using testing::ReturnRef;
 using testing::SetArgPointee;
 using testing::Test;
 using testing::_;
@@ -62,6 +61,35 @@ class ControlTest : public Test {
     }
   }
 
+  virtual void ExpectTags(bool with_options = true) {
+    if (with_options) {
+      ASSERT_EQ(control_->StaticTags().size(), 1);
+      EXPECT_EQ(control_->StaticTags()[0], options_tag_);
+    } else {
+      EXPECT_TRUE(control_->StaticTags().empty());
+    }
+    // Controls use the same delgate, and thus tag, for getting and setting.
+    ASSERT_EQ(control_->ControlTags().size(), 1);
+    EXPECT_EQ(control_->ControlTags()[0], delegate_tag_);
+    ASSERT_EQ(control_->DynamicTags().size(), 1);
+    EXPECT_EQ(control_->DynamicTags()[0], delegate_tag_);
+  }
+
+  virtual void ExpectOptions(const std::vector<uint8_t>& options) {
+    // Options should be available.
+    android::CameraMetadata metadata;
+    ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
+    EXPECT_EQ(metadata.entryCount(), 1);
+    ExpectMetadataEq(metadata, options_tag_, options);
+  }
+
+  virtual void ExpectValue(uint8_t value) {
+    android::CameraMetadata metadata;
+    ASSERT_EQ(control_->PopulateDynamicFields(&metadata), 0);
+    EXPECT_EQ(metadata.entryCount(), 1);
+    ExpectMetadataEq(metadata, delegate_tag_, value);
+  }
+
   std::unique_ptr<Control<uint8_t>> control_;
   std::unique_ptr<ControlDelegateInterfaceMock<uint8_t>> mock_delegate_;
   std::unique_ptr<ControlOptionsInterfaceMock<uint8_t>> mock_options_;
@@ -74,24 +102,12 @@ class ControlTest : public Test {
 
 TEST_F(ControlTest, Tags) {
   PrepareControl();
-  ASSERT_EQ(control_->StaticTags().size(), 1);
-  EXPECT_EQ(control_->StaticTags()[0], options_tag_);
-  // Controls use the same delgate, and thus tag, for getting and setting.
-  ASSERT_EQ(control_->ControlTags().size(), 1);
-  EXPECT_EQ(control_->ControlTags()[0], delegate_tag_);
-  ASSERT_EQ(control_->DynamicTags().size(), 1);
-  EXPECT_EQ(control_->DynamicTags()[0], delegate_tag_);
+  ExpectTags();
 }
 
 TEST_F(ControlTest, TagsNoOptions) {
   PrepareControl(false);
-  // No options, so no options tag.
-  ASSERT_EQ(control_->StaticTags().size(), 0);
-  // Controls use the same delgate, and thus tag, for getting and setting.
-  ASSERT_EQ(control_->ControlTags().size(), 1);
-  EXPECT_EQ(control_->ControlTags()[0], delegate_tag_);
-  ASSERT_EQ(control_->DynamicTags().size(), 1);
-  EXPECT_EQ(control_->DynamicTags()[0], delegate_tag_);
+  ExpectTags(false);
 }
 
 TEST_F(ControlTest, PopulateStatic) {
@@ -99,13 +115,7 @@ TEST_F(ControlTest, PopulateStatic) {
   EXPECT_CALL(*mock_options_, MetadataRepresentation())
       .WillOnce(Return(expected));
   PrepareControl();
-
-  android::CameraMetadata metadata;
-  ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
-  // Should only have added 1 entry.
-  EXPECT_EQ(metadata.entryCount(), 1);
-  // Should have added the right entry.
-  ExpectMetadataEq(metadata, options_tag_, expected);
+  ExpectOptions(expected);
 }
 
 TEST_F(ControlTest, PopulateStaticNoOptions) {
@@ -121,14 +131,7 @@ TEST_F(ControlTest, PopulateDynamic) {
   EXPECT_CALL(*mock_delegate_, GetValue(_))
       .WillOnce(DoAll(SetArgPointee<0>(test_option), Return(0)));
   PrepareControl();
-
-  android::CameraMetadata metadata;
-  ASSERT_EQ(control_->PopulateDynamicFields(&metadata), 0);
-
-  // Should only have added 1 entry.
-  EXPECT_EQ(metadata.entryCount(), 1);
-  // Should have added the right entry.
-  ExpectMetadataEq(metadata, delegate_tag_, test_option);
+  ExpectValue(test_option);
 }
 
 TEST_F(ControlTest, PopulateDynamicNoOptions) {
@@ -137,14 +140,7 @@ TEST_F(ControlTest, PopulateDynamicNoOptions) {
   EXPECT_CALL(*mock_delegate_, GetValue(_))
       .WillOnce(DoAll(SetArgPointee<0>(test_option), Return(0)));
   PrepareControl(false);
-
-  android::CameraMetadata metadata;
-  EXPECT_EQ(control_->PopulateDynamicFields(&metadata), 0);
-
-  // Should only have added 1 entry.
-  EXPECT_EQ(metadata.entryCount(), 1);
-  // Should have added the right entry.
-  ExpectMetadataEq(metadata, delegate_tag_, test_option);
+  ExpectValue(test_option);
 }
 
 TEST_F(ControlTest, PopulateDynamicFail) {
@@ -301,33 +297,6 @@ TEST_F(ControlTest, SetRequestEmpty) {
   android::CameraMetadata metadata;
   PrepareControl();
   EXPECT_EQ(control_->SetRequestValues(metadata), 0);
-}
-
-TEST_F(ControlTest, NoEffectMenuFactory) {
-  std::vector<uint8_t> test_options = {9, 8, 12};
-  std::unique_ptr<Control<uint8_t>> dut = Control<uint8_t>::NoEffectMenuControl(
-      delegate_tag_, options_tag_, test_options);
-  ASSERT_NE(dut, nullptr);
-
-  ASSERT_EQ(dut->StaticTags().size(), 1);
-  EXPECT_EQ(dut->StaticTags()[0], options_tag_);
-  // Controls use the same delgate, and thus tag, for getting and setting.
-  ASSERT_EQ(dut->ControlTags().size(), 1);
-  EXPECT_EQ(dut->ControlTags()[0], delegate_tag_);
-  ASSERT_EQ(dut->DynamicTags().size(), 1);
-  EXPECT_EQ(dut->DynamicTags()[0], delegate_tag_);
-
-  // Options should be available.
-  android::CameraMetadata metadata;
-  ASSERT_EQ(dut->PopulateStaticFields(&metadata), 0);
-  EXPECT_EQ(metadata.entryCount(), 1);
-  ExpectMetadataEq(metadata, options_tag_, test_options);
-
-  // Default value should be test_options[0].
-  metadata.clear();
-  ASSERT_EQ(dut->PopulateDynamicFields(&metadata), 0);
-  EXPECT_EQ(metadata.entryCount(), 1);
-  ExpectMetadataEq(metadata, delegate_tag_, test_options[0]);
 }
 
 }  // namespace v4l2_camera_hal
