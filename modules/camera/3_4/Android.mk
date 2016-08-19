@@ -39,6 +39,7 @@ v4l2_c_includes := $(call include-path-for, camera)
 
 v4l2_src_files := \
   camera.cpp \
+  format_metadata_factory.cpp \
   metadata/enum_converter.cpp \
   metadata/metadata.cpp \
   stream.cpp \
@@ -46,10 +47,11 @@ v4l2_src_files := \
   v4l2_camera.cpp \
   v4l2_camera_hal.cpp \
   v4l2_gralloc.cpp \
-  v4l2_metadata.cpp \
+  v4l2_metadata_factory.cpp \
   v4l2_wrapper.cpp \
 
 v4l2_test_files := \
+  format_metadata_factory_test.cpp \
   metadata/control_factory_test.cpp \
   metadata/control_test.cpp \
   metadata/enum_converter_test.cpp \

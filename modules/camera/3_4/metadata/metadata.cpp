@@ -23,19 +23,13 @@
 
 namespace v4l2_camera_hal {
 
-Metadata::Metadata() {
+Metadata::Metadata(PartialMetadataSet components)
+    : components_(std::move(components)) {
   HAL_LOG_ENTER();
 }
 
 Metadata::~Metadata() {
   HAL_LOG_ENTER();
-}
-
-void Metadata::AddComponent(
-    std::unique_ptr<PartialMetadataInterface> component) {
-  HAL_LOG_ENTER();
-
-  components_.push_back(std::move(component));
 }
 
 int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {

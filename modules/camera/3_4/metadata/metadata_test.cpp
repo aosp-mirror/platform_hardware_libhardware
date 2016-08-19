@@ -24,7 +24,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "metadata/partial_metadata_interface_mock.h"
+#include "metadata_common.h"
+#include "partial_metadata_interface_mock.h"
 
 using testing::AtMost;
 using testing::Return;
@@ -36,7 +37,8 @@ namespace v4l2_camera_hal {
 class MetadataTest : public Test {
  protected:
   virtual void SetUp() {
-    dut_.reset(new Metadata());
+    // Clear the DUT. AddComponents must be called before using it.
+    dut_.reset();
 
     component1_.reset(new PartialMetadataInterfaceMock());
     component2_.reset(new PartialMetadataInterfaceMock());
@@ -51,8 +53,10 @@ class MetadataTest : public Test {
   virtual void AddComponents() {
     // Don't mind moving; Gmock/Gtest fails on leaked mocks unless disabled by
     // runtime flags.
-    dut_->AddComponent(std::move(component1_));
-    dut_->AddComponent(std::move(component2_));
+    PartialMetadataSet components;
+    components.insert(std::move(component1_));
+    components.insert(std::move(component2_));
+    dut_.reset(new Metadata(std::move(components)));
   }
 
   virtual void CompareTags(const std::set<int32_t>& expected,

@@ -27,7 +27,7 @@ namespace v4l2_camera_hal {
 template <typename T>
 class Property : public PartialMetadataInterface {
  public:
-  Property(int32_t tag, T value) : tag_(tag), value_(value){};
+  Property(int32_t tag, T value) : tag_(tag), value_(std::move(value)){};
 
   virtual std::vector<int32_t> StaticTags() const override { return {tag_}; };
 

@@ -17,16 +17,18 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_H_
 #define V4L2_CAMERA_HAL_METADATA_H_
 
+#include <set>
+
 #include <camera/CameraMetadata.h>
 #include <hardware/camera3.h>
 
 #include "../common.h"
-#include "partial_metadata_interface.h"
+#include "metadata_common.h"
 
 namespace v4l2_camera_hal {
 class Metadata {
  public:
-  Metadata();
+  Metadata(PartialMetadataSet components);
   virtual ~Metadata();
 
   int FillStaticMetadata(android::CameraMetadata* metadata);
@@ -34,16 +36,10 @@ class Metadata {
   int SetRequestSettings(const android::CameraMetadata& metadata);
   int FillResultMetadata(android::CameraMetadata* metadata);
 
- protected:
-  // Helper for the child constructors to fill in metadata components.
-  void AddComponent(std::unique_ptr<PartialMetadataInterface> component);
-
  private:
   // The overall metadata is broken down into several distinct pieces.
   // Note: it is undefined behavior if multiple components share tags.
-  std::vector<std::unique_ptr<PartialMetadataInterface>> components_;
-
-  friend class MetadataTest;
+  PartialMetadataSet components_;
 
   DISALLOW_COPY_AND_ASSIGN(Metadata);
 };
