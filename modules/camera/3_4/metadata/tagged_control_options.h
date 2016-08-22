@@ -39,6 +39,10 @@ class TaggedControlOptions : public ControlOptionsInterface<T> {
   virtual bool IsSupported(const T& value) override {
     return options_->IsSupported(value);
   };
+  virtual int DefaultValueForTemplate(int template_type,
+                                      T* default_value) override {
+    return options_->DefaultValueForTemplate(template_type, default_value);
+  }
 
  private:
   const int32_t tag_;

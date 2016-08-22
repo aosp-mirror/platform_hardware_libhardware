@@ -22,6 +22,7 @@
 #include <camera/CameraMetadata.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <hardware/camera3.h>
 
 #include "array_vector.h"
 #include "metadata_common.h"
@@ -132,6 +133,17 @@ TEST_F(PropertyTest, PopulateDynamic) {
 
   // Shouldn't have added anything.
   EXPECT_TRUE(metadata.isEmpty());
+}
+
+TEST_F(PropertyTest, PopulateTemplate) {
+  Property<int32_t> property(int_tag_, 1);
+
+  for (int i = 1; i < CAMERA3_TEMPLATE_COUNT; ++i) {
+    android::CameraMetadata metadata;
+    EXPECT_EQ(property.PopulateTemplateRequest(i, &metadata), 0);
+    // Shouldn't have added anything.
+    EXPECT_TRUE(metadata.isEmpty());
+  }
 }
 
 TEST_F(PropertyTest, SupportsRequest) {

@@ -31,6 +31,7 @@ class ControlOptionsInterfaceMock : public ControlOptionsInterface<T> {
   ControlOptionsInterfaceMock(){};
   MOCK_METHOD0_T(MetadataRepresentation, std::vector<T>());
   MOCK_METHOD1_T(IsSupported, bool(const T&));
+  MOCK_METHOD2_T(DefaultValueForTemplate, int(int, T*));
 };
 
 }  // namespace v4l2_camera_hal

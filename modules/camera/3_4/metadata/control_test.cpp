@@ -155,6 +155,29 @@ TEST_F(ControlTest, PopulateDynamicFail) {
   EXPECT_TRUE(metadata.isEmpty());
 }
 
+TEST_F(ControlTest, PopulateTemplate) {
+  int template_type = 3;
+  uint8_t default_value = 123;
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_type, _))
+      .WillOnce(DoAll(SetArgPointee<1>(default_value), Return(0)));
+  PrepareControl();
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), 0);
+  ExpectMetadataEq(metadata, delegate_tag_, default_value);
+}
+
+TEST_F(ControlTest, PopulateTemplateFail) {
+  int template_type = 3;
+  int err = 10;
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_type, _))
+      .WillOnce(Return(err));
+  PrepareControl();
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), err);
+}
+
 TEST_F(ControlTest, SupportsRequest) {
   android::CameraMetadata metadata;
   uint8_t test_option = 123;

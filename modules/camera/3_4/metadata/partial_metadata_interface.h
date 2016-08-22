@@ -45,6 +45,10 @@ class PartialMetadataInterface {
   // is responsible for to |metadata|.
   virtual int PopulateDynamicFields(
       android::CameraMetadata* metadata) const = 0;
+  // Add default request values for a given template type for all the controls
+  // this partial metadata owns.
+  virtual int PopulateTemplateRequest(
+      int template_type, android::CameraMetadata* metadata) const = 0;
   // Check if the requested control values from |metadata| (for controls
   // this partial metadata owns) are supported. Empty/null values for owned
   // control tags indicate no change, and are thus inherently supported.

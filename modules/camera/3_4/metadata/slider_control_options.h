@@ -17,8 +17,11 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_SLIDER_CONTROL_OPTIONS_H_
 #define V4L2_CAMERA_HAL_METADATA_SLIDER_CONTROL_OPTIONS_H_
 
+#include <errno.h>
+
 #include <vector>
 
+#include "../common.h"
 #include "control_options_interface.h"
 
 namespace v4l2_camera_hal {
@@ -27,6 +30,7 @@ namespace v4l2_camera_hal {
 template <typename T>
 class SliderControlOptions : public ControlOptionsInterface<T> {
  public:
+  // |min| must be <= |max|.
   SliderControlOptions(T min, T max) : min_(min), max_(max) {}
 
   virtual std::vector<T> MetadataRepresentation() override {
@@ -35,6 +39,17 @@ class SliderControlOptions : public ControlOptionsInterface<T> {
   virtual bool IsSupported(const T& option) override {
     return option >= min_ && option <= max_;
   };
+  virtual int DefaultValueForTemplate(int template_type,
+                                      T* default_value) override {
+    // TODO(b/31017806): More complex logic, depend on template_type.
+    if (min_ > max_) {
+      HAL_LOGE("No valid default slider option, min is greater than max.");
+      return -ENODEV;
+    }
+    // Default to the min value.
+    *default_value = min_;
+    return 0;
+  }
 
  private:
   T min_;

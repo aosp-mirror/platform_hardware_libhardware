@@ -17,6 +17,7 @@
 #include "metadata.h"
 
 #include <camera/CameraMetadata.h>
+#include <hardware/camera3.h>
 
 #include "../common.h"
 #include "metadata_common.h"
@@ -96,6 +97,7 @@ int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {
     return -ENODEV;
   }
 
+  // TODO(b/31018853): cache result.
   return 0;
 }
 
@@ -118,6 +120,39 @@ bool Metadata::IsValidRequest(const android::CameraMetadata& metadata) {
   return true;
 }
 
+int Metadata::GetRequestTemplate(int template_type,
+                                 android::CameraMetadata* template_metadata) {
+  HAL_LOG_ENTER();
+
+  // Templates are numbered 1 through COUNT-1 for some reason.
+  if (template_type < 1 || template_type >= CAMERA3_TEMPLATE_COUNT) {
+    HAL_LOGE("Unrecognized template type %d.", template_type);
+    return -EINVAL;
+  }
+
+  for (auto& component : components_) {
+    // Prevent components from potentially overriding others.
+    android::CameraMetadata additional_metadata;
+    int res =
+        component->PopulateTemplateRequest(template_type, &additional_metadata);
+    if (res) {
+      HAL_LOGE("Failed to get all default request fields.");
+      return res;
+    }
+    // Add it to the overall result.
+    if (!additional_metadata.isEmpty()) {
+      res = template_metadata->append(additional_metadata);
+      if (res != android::OK) {
+        HAL_LOGE("Failed to append all default request fields.");
+        return res;
+      }
+    }
+  }
+
+  // TODO(b/31018853): cache result.
+  return 0;
+}
+
 int Metadata::SetRequestSettings(const android::CameraMetadata& metadata) {
   HAL_LOG_ENTER();
 
@@ -128,7 +163,6 @@ int Metadata::SetRequestSettings(const android::CameraMetadata& metadata) {
   for (auto& component : components_) {
     int res = component->SetRequestValues(metadata);
     if (res) {
-      // Exit early if possible.
       HAL_LOGE("Failed to set all requested settings.");
       return res;
     }
@@ -143,7 +177,6 @@ int Metadata::FillResultMetadata(android::CameraMetadata* metadata) {
     android::CameraMetadata additional_metadata;
     int res = component->PopulateDynamicFields(&additional_metadata);
     if (res) {
-      // Exit early if possible.
       HAL_LOGE("Failed to get all dynamic result fields.");
       return res;
     }

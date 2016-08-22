@@ -31,13 +31,13 @@ class PartialMetadataInterfaceMock : public PartialMetadataInterface {
   MOCK_CONST_METHOD0(StaticTags, std::vector<int32_t>());
   MOCK_CONST_METHOD0(ControlTags, std::vector<int32_t>());
   MOCK_CONST_METHOD0(DynamicTags, std::vector<int32_t>());
-  MOCK_CONST_METHOD1(PopulateStaticFields,
-                     int(android::CameraMetadata* metadata));
-  MOCK_CONST_METHOD1(PopulateDynamicFields,
-                     int(android::CameraMetadata* metadata));
+  MOCK_CONST_METHOD1(PopulateStaticFields, int(android::CameraMetadata*));
+  MOCK_CONST_METHOD1(PopulateDynamicFields, int(android::CameraMetadata*));
+  MOCK_CONST_METHOD2(PopulateTemplateRequest,
+                     int(int, android::CameraMetadata*));
   MOCK_CONST_METHOD1(SupportsRequestValues,
-                     bool(const android::CameraMetadata& metadata));
-  MOCK_METHOD1(SetRequestValues, int(const android::CameraMetadata& metadata));
+                     bool(const android::CameraMetadata&));
+  MOCK_METHOD1(SetRequestValues, int(const android::CameraMetadata&));
 };
 
 }  // namespace v4l2_camera_hal

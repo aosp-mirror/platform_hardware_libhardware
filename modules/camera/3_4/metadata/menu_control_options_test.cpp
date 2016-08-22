@@ -19,6 +19,7 @@
 #include <memory>
 
 #include <gtest/gtest.h>
+#include <hardware/camera3.h>
 
 using testing::Test;
 
@@ -44,6 +45,25 @@ TEST_F(MenuControlOptionsTest, IsSupported) {
   }
   // And at least one unsupported.
   EXPECT_FALSE(dut_->IsSupported(99));
+}
+
+TEST_F(MenuControlOptionsTest, DefaultValue) {
+  // All default values should be supported.
+  // For some reason, the templates have values in the range [1, COUNT).
+  for (int i = 1; i < CAMERA3_TEMPLATE_COUNT; ++i) {
+    int value = -1;
+    EXPECT_EQ(dut_->DefaultValueForTemplate(i, &value), 0);
+    EXPECT_TRUE(dut_->IsSupported(value));
+  }
+}
+
+TEST_F(MenuControlOptionsTest, NoDefaultValue) {
+  // Invalid options don't have a valid default.
+  MenuControlOptions<int> bad_options({});
+  for (int i = 1; i < CAMERA3_TEMPLATE_COUNT; ++i) {
+    int value = -1;
+    EXPECT_EQ(bad_options.DefaultValueForTemplate(i, &value), -ENODEV);
+  }
 }
 
 }  // namespace v4l2_camera_hal

@@ -45,6 +45,8 @@ class Control : public PartialMetadataInterface {
       android::CameraMetadata* metadata) const override;
   virtual int PopulateDynamicFields(
       android::CameraMetadata* metadata) const override;
+  virtual int PopulateTemplateRequest(
+      int template_type, android::CameraMetadata* metadata) const override;
   virtual bool SupportsRequestValues(
       const android::CameraMetadata& metadata) const override;
   virtual int SetRequestValues(
@@ -105,6 +107,20 @@ int Control<T>::PopulateDynamicFields(android::CameraMetadata* metadata) const {
   // Populate the current setting.
   T value;
   int res = delegate_->GetValue(&value);
+  if (res) {
+    return res;
+  }
+  return UpdateMetadata(metadata, delegate_->tag(), value);
+}
+
+template <typename T>
+int Control<T>::PopulateTemplateRequest(
+    int template_type, android::CameraMetadata* metadata) const {
+  HAL_LOG_ENTER();
+
+  // Populate with a default.
+  T value;
+  int res = options_->DefaultValueForTemplate(template_type, &value);
   if (res) {
     return res;
   }

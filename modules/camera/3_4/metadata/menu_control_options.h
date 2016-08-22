@@ -17,6 +17,9 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_MENU_CONTROL_OPTIONS_H_
 #define V4L2_CAMERA_HAL_METADATA_MENU_CONTROL_OPTIONS_H_
 
+#include <errno.h>
+
+#include "../common.h"
 #include "control_options_interface.h"
 
 namespace v4l2_camera_hal {
@@ -25,6 +28,7 @@ namespace v4l2_camera_hal {
 template <typename T>
 class MenuControlOptions : public ControlOptionsInterface<T> {
  public:
+  // |options| must be non-empty.
   MenuControlOptions(std::vector<T> options) : options_(options) {}
 
   virtual std::vector<T> MetadataRepresentation() override { return options_; };
@@ -32,6 +36,17 @@ class MenuControlOptions : public ControlOptionsInterface<T> {
     return (std::find(options_.begin(), options_.end(), option) !=
             options_.end());
   };
+  virtual int DefaultValueForTemplate(int template_type,
+                                      T* default_value) override {
+    // TODO(b/31017806): More complex logic, depend on template_type.
+    // Default to the first option.
+    if (options_.empty()) {
+      HAL_LOGE("Can't get default value, options are empty.");
+      return -ENODEV;
+    }
+    *default_value = options_[0];
+    return 0;
+  }
 
  private:
   std::vector<T> options_;

@@ -33,6 +33,10 @@ class ControlOptionsInterface {
   virtual std::vector<T> MetadataRepresentation() = 0;
   // Get whether or not a given value is acceptable.
   virtual bool IsSupported(const T& option);
+  // Get a default option for a given template type, from the available options.
+  // Because a default must be available, any ControlOptions should have at
+  // least one supported value.
+  virtual int DefaultValueForTemplate(int template_type, T* default_value);
 };
 
 }  // namespace v4l2_camera_hal

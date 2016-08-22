@@ -78,4 +78,25 @@ TEST_F(TaggedControlOptionsTest, IsSupportedFalse) {
   ASSERT_EQ(dut_->IsSupported(value), supported);
 }
 
+TEST_F(TaggedControlOptionsTest, DefaultValue) {
+  uint8_t value = 99;
+  int template_id = 3;
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_id, _))
+      .WillOnce(DoAll(SetArgPointee<1>(value), Return(0)));
+  PrepareDUT();
+  uint8_t actual = value + 1;
+  EXPECT_EQ(dut_->DefaultValueForTemplate(template_id, &actual), 0);
+  EXPECT_EQ(actual, value);
+}
+
+TEST_F(TaggedControlOptionsTest, DefaultValueFail) {
+  int err = 12;
+  int template_id = 3;
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_id, _))
+      .WillOnce(Return(err));
+  PrepareDUT();
+  uint8_t unused;
+  EXPECT_EQ(dut_->DefaultValueForTemplate(template_id, &unused), err);
+}
+
 }  // namespace v4l2_camera_hal

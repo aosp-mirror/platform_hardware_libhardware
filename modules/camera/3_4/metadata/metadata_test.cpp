@@ -200,6 +200,45 @@ TEST_F(MetadataTest, IsValidEmpty) {
   EXPECT_TRUE(dut_->IsValidRequest(*metadata_));
 }
 
+TEST_F(MetadataTest, GetTemplateSuccess) {
+  int template_type = 3;
+
+  // Should check if all the components fill the template successfully.
+  EXPECT_CALL(*component1_, PopulateTemplateRequest(template_type, _))
+      .WillOnce(Return(0));
+  EXPECT_CALL(*component2_, PopulateTemplateRequest(template_type, _))
+      .WillOnce(Return(0));
+
+  AddComponents();
+  // Should succeed.
+  EXPECT_EQ(dut_->GetRequestTemplate(template_type, metadata_.get()), 0);
+}
+
+TEST_F(MetadataTest, GetTemplateFail) {
+  int err = -99;
+  int template_type = 3;
+
+  // Should check if all the components fill the template successfully.
+  // Order undefined, and may or may not exit early; use AtMost.
+  EXPECT_CALL(*component1_, PopulateTemplateRequest(template_type, _))
+      .Times(AtMost(1))
+      .WillOnce(Return(0));
+  EXPECT_CALL(*component2_, PopulateTemplateRequest(template_type, _))
+      .WillOnce(Return(err));
+
+  AddComponents();
+  // Should fail since one of the components failed.
+  EXPECT_EQ(dut_->GetRequestTemplate(template_type, metadata_.get()), err);
+}
+
+TEST_F(MetadataTest, GetTemplateInvalid) {
+  int template_type = 99;  // Invalid template type.
+
+  AddComponents();
+  // Should fail fast since template type is invalid.
+  EXPECT_EQ(dut_->GetRequestTemplate(template_type, metadata_.get()), -EINVAL);
+}
+
 TEST_F(MetadataTest, SetSettingsSuccess) {
   // Should check if all the components set successfully.
   EXPECT_CALL(*component1_, SetRequestValues(_)).WillOnce(Return(0));

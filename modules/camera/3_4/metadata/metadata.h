@@ -33,6 +33,8 @@ class Metadata {
 
   int FillStaticMetadata(android::CameraMetadata* metadata);
   bool IsValidRequest(const android::CameraMetadata& metadata);
+  int GetRequestTemplate(int template_type,
+                         android::CameraMetadata* template_metadata);
   int SetRequestSettings(const android::CameraMetadata& metadata);
   int FillResultMetadata(android::CameraMetadata* metadata);
 

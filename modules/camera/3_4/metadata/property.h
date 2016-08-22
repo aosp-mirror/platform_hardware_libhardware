@@ -47,6 +47,12 @@ class Property : public PartialMetadataInterface {
     return 0;
   };
 
+  virtual int PopulateTemplateRequest(
+      int template_type, android::CameraMetadata* metadata) const override {
+    HAL_LOG_ENTER();
+    return 0;
+  };
+
   virtual bool SupportsRequestValues(
       const android::CameraMetadata& metadata) const override {
     HAL_LOG_ENTER();

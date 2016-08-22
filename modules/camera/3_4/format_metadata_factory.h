@@ -29,6 +29,8 @@
 
 namespace v4l2_camera_hal {
 
+// A factory method to construct all the format-related
+// partial metadata for a V4L2 device.
 int AddFormatComponents(
     std::shared_ptr<V4L2Wrapper> device,
     std::insert_iterator<PartialMetadataSet> insertion_point);
