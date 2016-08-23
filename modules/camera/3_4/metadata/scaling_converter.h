@@ -46,8 +46,7 @@ ScalingConverter<TMetadata, TV4L2>::ScalingConverter(
     TMetadata v4l2_to_metadata_numerator,
     TMetadata v4l2_to_metadata_denominator)
     : v4l2_to_metadata_numerator_(v4l2_to_metadata_numerator),
-      v4l2_to_metadata_denominator_(v4l2_to_metadata_denominator),
-{
+      v4l2_to_metadata_denominator_(v4l2_to_metadata_denominator) {
   HAL_LOG_ENTER();
 }
 

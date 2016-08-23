@@ -25,8 +25,17 @@
 #include "metadata/enum_converter.h"
 #include "metadata/metadata_common.h"
 #include "metadata/property.h"
+#include "metadata/scaling_converter.h"
+#include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
+
+// According to spec, each unit of V4L2_CID_AUTO_EXPOSURE_BIAS is 0.001 EV.
+const camera_metadata_rational_t kAeCompensationUnit = {1, 1000};
+// According to spec, each unit of V4L2_CID_EXPOSURE_ABSOLUTE is 100 us.
+const int64_t kV4L2ExposureTimeStepNs = 100000;
+// According to spec, each unit of V4L2_CID_ISO_SENSITIVITY is ISO/1000.
+const int32_t kV4L2SensitivityDenominator = 1000;
 
 int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                     std::unique_ptr<Metadata>* result) {
@@ -54,6 +63,26 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<std::array<int32_t, 3>>(ANDROID_CONTROL_MAX_REGIONS,
                                            {{/*AE*/ 0, /*AWB*/ 0, /*AF*/ 0}})));
+  // TODO(b/30921166): V4L2_CID_AUTO_EXPOSURE_BIAS is an int menu, so
+  // this will be falling back to NoEffect until int menu support is added.
+  components.insert(V4L2ControlOrDefault<int32_t>(
+      ControlType::kSlider,
+      ANDROID_CONTROL_AE_EXPOSURE_COMPENSATION,
+      ANDROID_CONTROL_AE_COMPENSATION_RANGE,
+      device,
+      V4L2_CID_AUTO_EXPOSURE_BIAS,
+      // No scaling necessary, AE_COMPENSATION_STEP handles this.
+      std::make_shared<ScalingConverter<int32_t, int32_t>>(1, 1),
+      0));
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<camera_metadata_rational_t>(
+          ANDROID_CONTROL_AE_COMPENSATION_STEP, kAeCompensationUnit)));
+  // TODO(b/31021522): Autofocus subcomponent, AFTrigger.
+  components.insert(
+      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AF_MODE,
+                                   ANDROID_CONTROL_AF_AVAILABLE_MODES,
+                                   {ANDROID_CONTROL_AF_MODE_OFF}));
+  // TODO(b/31022735): AE & AF triggers.
   components.insert(V4L2ControlOrDefault<uint8_t>(
       ControlType::kMenu,
       ANDROID_CONTROL_AE_MODE,
@@ -80,6 +109,34 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                              {V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
                               ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO}})),
       ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO));
+  std::unique_ptr<PartialMetadataInterface> exposure_time =
+      V4L2Control<int64_t>(ControlType::kSlider,
+                           ANDROID_SENSOR_EXPOSURE_TIME,
+                           ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE,
+                           device,
+                           V4L2_CID_EXPOSURE_ABSOLUTE,
+                           std::make_shared<ScalingConverter<int64_t, int32_t>>(
+                               kV4L2ExposureTimeStepNs, 1));
+  // TODO(b/31037072): Sensitivity has additional V4L2 controls
+  // (V4L2_CID_ISO_SENSITIVITY_AUTO), so this control currently has
+  // undefined behavior.
+  // TODO(b/30921166): V4L2_CID_ISO_SENSITIVITY is an int menu, so
+  // this will return nullptr until that is added.
+  std::unique_ptr<PartialMetadataInterface> sensitivity =
+      V4L2Control<int32_t>(ControlType::kSlider,
+                           ANDROID_SENSOR_SENSITIVITY,
+                           ANDROID_SENSOR_INFO_SENSITIVITY_RANGE,
+                           device,
+                           V4L2_CID_ISO_SENSITIVITY,
+                           std::make_shared<ScalingConverter<int32_t, int32_t>>(
+                               1, kV4L2SensitivityDenominator));
+  if (exposure_time && sensitivity) {
+    // TODO(b/30510395): as part of coordinated 3A component,
+    // if these aren't available don't advertise AE mode OFF, only AUTO.
+    components.insert(std::move(exposure_time));
+    components.insert(std::move(sensitivity));
+  }
+
   // V4L2 offers multiple white balance interfaces. Try the advanced one before
   // falling
   // back to the simpler version.
@@ -118,6 +175,13 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                                {1, ANDROID_CONTROL_AWB_MODE_AUTO}})),
         ANDROID_CONTROL_AWB_MODE_AUTO));
   }
+  // TODO(b/31022153): 3A locks.
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<uint8_t>(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
+                            ANDROID_CONTROL_AE_LOCK_AVAILABLE_FALSE)));
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<uint8_t>(ANDROID_CONTROL_AWB_LOCK_AVAILABLE,
+                            ANDROID_CONTROL_AWB_LOCK_AVAILABLE_FALSE)));
   // TODO(b/30510395): subcomponents of scene modes
   // (may itself be a subcomponent of 3A).
   // Modes from each API that don't match up:
@@ -143,6 +207,7 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
            {V4L2_SCENE_MODE_SPORTS, ANDROID_CONTROL_SCENE_MODE_SPORTS},
            {V4L2_SCENE_MODE_SUNSET, ANDROID_CONTROL_SCENE_MODE_SUNSET}})),
       ANDROID_CONTROL_SCENE_MODE_DISABLED));
+  // TODO(b/31022612): Scene mode overrides.
   // Modes from each API that don't match up:
   // Android: POSTERIZE, WHITEBOARD, BLACKBOARD.
   // V4L2: ANTIQUE, ART_FREEZE, EMBOSS, GRASS_GREEN, SKETCH, SKIN_WHITEN,
@@ -161,6 +226,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
            {V4L2_COLORFX_SEPIA, ANDROID_CONTROL_EFFECT_MODE_SEPIA},
            {V4L2_COLORFX_AQUA, ANDROID_CONTROL_EFFECT_MODE_AQUA}})),
       ANDROID_CONTROL_EFFECT_MODE_OFF));
+  // TODO(b/31021654): This should behave as a top level switch, not no effect.
+  components.insert(
+      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_MODE,
+                                   ANDROID_CONTROL_AVAILABLE_MODES,
+                                   {ANDROID_CONTROL_MODE_AUTO}));
 
   // Not sure if V4L2 does or doesn't do this, but HAL documentation says
   // all devices must support FAST, and FAST can be equivalent to OFF, so
@@ -169,6 +239,12 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       NoEffectMenuControl<uint8_t>(ANDROID_EDGE_MODE,
                                    ANDROID_EDGE_AVAILABLE_EDGE_MODES,
                                    {ANDROID_EDGE_MODE_FAST}));
+
+  // TODO(b/31023454): subcomponents of flash.
+  // Missing android.flash.mode control, since it uses a different enum.
+  components.insert(
+      std::unique_ptr<PartialMetadataInterface>(new Property<uint8_t>(
+          ANDROID_FLASH_INFO_AVAILABLE, ANDROID_FLASH_INFO_AVAILABLE_FALSE)));
 
   // TODO(30510395): subcomponents of hotpixel.
   // No known V4L2 hot pixel correction. But it might be happening,
@@ -190,6 +266,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       NoEffectMenuControl<float>(ANDROID_LENS_APERTURE,
                                  ANDROID_LENS_INFO_AVAILABLE_APERTURES,
                                  {2.0}));  // RPi camera v2 is f/2.0.
+  // Always assume external-facing.
+  components.insert(
+      std::unique_ptr<PartialMetadataInterface>(new Property<uint8_t>(
+          ANDROID_LENS_FACING, ANDROID_LENS_FACING_EXTERNAL)));
   components.insert(
       NoEffectMenuControl<float>(ANDROID_LENS_FOCAL_LENGTH,
                                  ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
@@ -205,6 +285,15 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       std::unique_ptr<PartialMetadataInterface>(new Property<uint8_t>(
           ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
           ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION_UNCALIBRATED)));
+  // TODO(b/31022711): Focus distance component.
+  // Using a NoEffectMenuControl for now because for
+  // fixed-focus it meets expectations. Framework may allow
+  // setting any value and expect it to be clamped to 0, in which
+  // case this will have unexpected behavior (failing on non-0 settings).
+  components.insert(
+      NoEffectMenuControl<float>(ANDROID_LENS_FOCUS_DISTANCE,
+                                 ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
+                                 {0}));
   // info.hyperfocalDistance not required for UNCALIBRATED.
   // No known V4L2 lens shading. But it might be happening,
   // so report FAST/HIGH_QUALITY.
@@ -233,6 +322,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
       ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
       {ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF}));
+  // TODO(b/31017806): This should definitely have a different default depending
+  // on template.
+  components.insert(NoEffectOptionlessControl<uint8_t>(
+      ANDROID_CONTROL_CAPTURE_INTENT,
+      ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE));
 
   // Unable to control noise reduction in V4L2 devices,
   // but FAST is allowed to be the same as OFF.
@@ -249,6 +343,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       ANDROID_JPEG_THUMBNAIL_SIZE,
       ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
       {{{0, 0}}}));
+  // TODO(b/31022752): Get this from the device,
+  // not constant (from V4L2Gralloc.h).
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<int32_t>(ANDROID_JPEG_MAX_SIZE, V4L2_MAX_JPEG_SIZE)));
+  // TODO(b/31021672): Other JPEG controls (GPS, quality, orientation).
   // TODO(b/29939583): V4L2 can only support 1 stream at a time.
   // For now, just reporting minimum allowable for LIMITED devices.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
@@ -271,14 +370,29 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       std::unique_ptr<PartialMetadataInterface>(new Property<int32_t>(
           ANDROID_SYNC_MAX_LATENCY, ANDROID_SYNC_MAX_LATENCY_UNKNOWN)));
 
-  // TODO(30510395): subcomponents of cropping/sensors.
+  // TODO(b/31022480): subcomponents of cropping/sensors.
+  // Need ANDROID_SCALER_CROP_REGION control support.
   // V4L2 VIDIOC_CROPCAP doesn't give a way to query this;
   // it's driver dependent. For now, assume freeform, and
   // some cameras may just behave badly.
   // TODO(b/29579652): Figure out a way to determine this.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<float>(ANDROID_SCALER_AVAILABLE_MAX_DIGITAL_ZOOM, 1)));
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_SCALER_CROPPING_TYPE,
                             ANDROID_SCALER_CROPPING_TYPE_FREEFORM)));
+  // Spoof pixel array size for now, eventually get from CROPCAP.
+  std::array<int32_t, 2> pixel_array_size = {{640, 480}};
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<std::array<int32_t, 2>>(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
+                                           pixel_array_size)));
+  // Active array size is {x-offset, y-offset, width, height}, relative to
+  // the pixel array size, with {0, 0} being the top left. Since there's no way
+  // to get this in V4L2, assume the full pixel array is the active array.
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<std::array<int32_t, 4>>(
+          ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
+          {{0, 0, pixel_array_size[0], pixel_array_size[1]}})));
   // No way to get in V4L2, so faked. RPi camera v2 is 3.674 x 2.760 mm.
   // Physical size is used in framework calculations (field of view,
   // pixel pitch, etc.), so faking it may have unexpected results.
@@ -290,9 +404,13 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
                             ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN)));
-  // Noo way to actually get orientation from V4L2.
+  // No way to actually get orientation from V4L2.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<int32_t>(ANDROID_SENSOR_ORIENTATION, 0)));
+  // TODO(b/31023611): Should actually do something for this, and range should
+  // be dependent on the stream configuration being used.
+  components.insert(NoEffectOptionlessControl<int64_t>(
+      ANDROID_SENSOR_FRAME_DURATION, 33333333L));  // 1/30 s.
 
   // TODO(30510395): subcomponents of face detection.
   // Face detection not supported.
@@ -302,6 +420,12 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF}));
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<int32_t>(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT, 0)));
+
+  // TOOD(b/31023265): V4L2_CID_FLASH_INDICATOR_INTENSITY could be queried
+  // to see if there's a transmit LED. Would need to translate HAL off/on
+  // enum to slider min/max value. For now, no LEDs available.
+  components.insert(std::unique_ptr<PartialMetadataInterface>(
+      new Property<uint8_t>(ANDROID_LED_AVAILABLE_LEDS, {})));
 
   /* Capabilities. */
   // The V4L2Metadata pretends to at least meet the
@@ -313,6 +437,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       new Property<std::vector<uint8_t>>(
           ANDROID_REQUEST_AVAILABLE_CAPABILITIES,
           {ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE})));
+
+  // Request is unused, and can be any value,
+  // but that value needs to be propagated.
+  components.insert(NoEffectOptionlessControl<int32_t>(ANDROID_REQUEST_ID, 0));
 
   int res =
       AddFormatComponents(device, std::inserter(components, components.end()));

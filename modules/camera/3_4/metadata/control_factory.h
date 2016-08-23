@@ -33,6 +33,12 @@ enum class ControlType { kMenu, kSlider };
 
 // Static functions to create controls. Nullptr is returned on failures.
 
+// NoEffectOptionlessControl: A control that accepts any value,
+// and has no effect. A default value is given.
+template <typename T>
+static std::unique_ptr<Control<T>> NoEffectOptionlessControl(
+    int32_t delegate_tag, T default_value);
+
 // NoEffectMenuControl: Some menu options, but they have no effect.
 // The default value will be the first element of |options|.
 template <typename T>
@@ -78,6 +84,18 @@ static std::unique_ptr<Control<T>> V4L2ControlOrDefault(
     const T& default_value);
 
 // -----------------------------------------------------------------------------
+
+template <typename T>
+std::unique_ptr<Control<T>> NoEffectOptionlessControl(int32_t delegate_tag,
+                                                      T default_value) {
+  HAL_LOG_ENTER();
+
+  return std::make_unique<Control<T>>(
+      std::make_unique<TaggedControlDelegate<T>>(
+          delegate_tag,
+          std::make_unique<NoEffectControlDelegate<T>>(default_value)),
+      nullptr);
+}
 
 template <typename T>
 std::unique_ptr<Control<T>> NoEffectMenuControl(int32_t delegate_tag,

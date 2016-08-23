@@ -178,6 +178,30 @@ TEST_F(ControlTest, PopulateTemplateFail) {
   EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), err);
 }
 
+TEST_F(ControlTest, PopulateTemplateOptionless) {
+  int template_type = 3;
+  uint8_t value = 12;
+  // Should use delegate instead of options if no options.
+  EXPECT_CALL(*mock_delegate_, GetValue(_))
+      .WillOnce(DoAll(SetArgPointee<0>(value), Return(0)));
+  PrepareControl(false);
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), 0);
+  ExpectMetadataEq(metadata, delegate_tag_, value);
+}
+
+TEST_F(ControlTest, PopulateTemplateOptionlessFail) {
+  int template_type = 3;
+  int err = 10;
+  // Should use delegate instead of options if no options.
+  EXPECT_CALL(*mock_delegate_, GetValue(_)).WillOnce(Return(err));
+  PrepareControl(false);
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), err);
+}
+
 TEST_F(ControlTest, SupportsRequest) {
   android::CameraMetadata metadata;
   uint8_t test_option = 123;

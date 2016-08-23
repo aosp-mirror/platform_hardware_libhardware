@@ -120,10 +120,18 @@ int Control<T>::PopulateTemplateRequest(
 
   // Populate with a default.
   T value;
-  int res = options_->DefaultValueForTemplate(template_type, &value);
+  int res;
+  if (options_) {
+    res = options_->DefaultValueForTemplate(template_type, &value);
+  } else {
+    // If there's no options (and thus no default option),
+    // fall back to whatever the current value is.
+    res = delegate_->GetValue(&value);
+  }
   if (res) {
     return res;
   }
+
   return UpdateMetadata(metadata, delegate_->tag(), value);
 }
 
