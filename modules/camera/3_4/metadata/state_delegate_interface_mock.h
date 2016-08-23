@@ -14,25 +14,24 @@
  * limitations under the License.
  */
 
-#ifndef V4L2_CAMERA_HAL_FORMAT_METADATA_FACTORY_H_
-#define V4L2_CAMERA_HAL_FORMAT_METADATA_FACTORY_H_
+// Mock for state delegate interfaces.
 
-#include <iterator>
-#include <memory>
-#include <set>
+#ifndef V4L2_CAMERA_HAL_METADATA_STATE_DELEGATE_INTERFACE_MOCK_H_
+#define V4L2_CAMERA_HAL_METADATA_STATE_DELEGATE_INTERFACE_MOCK_H_
 
-#include "common.h"
-#include "metadata/metadata_common.h"
-#include "v4l2_wrapper.h"
+#include <gmock/gmock.h>
+
+#include "state_delegate_interface.h"
 
 namespace v4l2_camera_hal {
 
-// A factory method to construct all the format-related
-// partial metadata for a V4L2 device.
-int AddFormatComponents(
-    std::shared_ptr<V4L2Wrapper> device,
-    std::insert_iterator<PartialMetadataSet> insertion_point);
+template <typename T>
+class StateDelegateInterfaceMock : public StateDelegateInterface<T> {
+ public:
+  StateDelegateInterfaceMock(){};
+  MOCK_METHOD1_T(GetValue, int(T*));
+};
 
 }  // namespace v4l2_camera_hal
 
-#endif  // V4L2_CAMERA_HAL_FORMAT_METADATA_FACTORY_H_
+#endif  // V4L2_CAMERA_HAL_METADATA_CONTROL_DELEGATE_INTERFACE_MOCK_H_

@@ -52,7 +52,6 @@ v4l2_src_files := \
 
 v4l2_test_files := \
   format_metadata_factory_test.cpp \
-  metadata/control_factory_test.cpp \
   metadata/control_test.cpp \
   metadata/enum_converter_test.cpp \
   metadata/ignored_control_delegate_test.cpp \
@@ -60,9 +59,11 @@ v4l2_test_files := \
   metadata/menu_control_options_test.cpp \
   metadata/metadata_test.cpp \
   metadata/no_effect_control_delegate_test.cpp \
+  metadata/partial_metadata_factory_test.cpp \
   metadata/property_test.cpp \
   metadata/ranged_converter_test.cpp \
   metadata/slider_control_options_test.cpp \
+  metadata/state_test.cpp \
   metadata/tagged_control_delegate_test.cpp \
   metadata/tagged_control_options_test.cpp \
   metadata/v4l2_control_delegate_test.cpp \

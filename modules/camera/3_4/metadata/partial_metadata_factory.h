@@ -23,6 +23,7 @@
 #include "no_effect_control_delegate.h"
 #include "ranged_converter.h"
 #include "slider_control_options.h"
+#include "state.h"
 #include "tagged_control_delegate.h"
 #include "tagged_control_options.h"
 #include "v4l2_control_delegate.h"
@@ -31,7 +32,11 @@ namespace v4l2_camera_hal {
 
 enum class ControlType { kMenu, kSlider };
 
-// Static functions to create controls. Nullptr is returned on failures.
+// Static functions to create partial metadata. Nullptr is returned on failures.
+
+// FixedState: A state that doesn't change.
+template <typename T>
+static std::unique_ptr<State<T>> FixedState(int32_t tag, T value);
 
 // NoEffectOptionlessControl: A control that accepts any value,
 // and has no effect. A default value is given.
@@ -84,6 +89,17 @@ static std::unique_ptr<Control<T>> V4L2ControlOrDefault(
     const T& default_value);
 
 // -----------------------------------------------------------------------------
+
+template <typename T>
+std::unique_ptr<State<T>> FixedState(int32_t tag, T value) {
+  HAL_LOG_ENTER();
+
+  // Take advantage of ControlDelegate inheriting from StateDelegate;
+  // This will only expose GetValue, not SetValue, so the default will
+  // always be returned.
+  return std::make_unique<State<T>>(
+      tag, std::make_unique<NoEffectControlDelegate<T>>(value));
+}
 
 template <typename T>
 std::unique_ptr<Control<T>> NoEffectOptionlessControl(int32_t delegate_tag,

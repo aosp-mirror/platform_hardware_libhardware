@@ -19,9 +19,9 @@
 #include <gtest/gtest.h>
 
 #include "../v4l2_wrapper_mock.h"
-#include "control_factory.h"
 #include "converter_interface_mock.h"
 #include "metadata_common.h"
+#include "partial_metadata_factory.h"
 #include "test_common.h"
 
 using testing::AtMost;
@@ -33,7 +33,7 @@ using testing::_;
 
 namespace v4l2_camera_hal {
 
-class ControlFactoryTest : public Test {
+class PartialMetadataFactoryTest : public Test {
  protected:
   virtual void SetUp() {
     mock_device_.reset(new V4L2WrapperMock());
@@ -43,7 +43,7 @@ class ControlFactoryTest : public Test {
     control_.reset();
   }
 
-  virtual void ExpectTags() {
+  virtual void ExpectControlTags() {
     ASSERT_EQ(control_->StaticTags().size(), 1);
     EXPECT_EQ(control_->StaticTags()[0], options_tag_);
     ASSERT_EQ(control_->ControlTags().size(), 1);
@@ -52,7 +52,7 @@ class ControlFactoryTest : public Test {
     EXPECT_EQ(control_->DynamicTags()[0], delegate_tag_);
   }
 
-  virtual void ExpectOptions(const std::vector<uint8_t>& options) {
+  virtual void ExpectControlOptions(const std::vector<uint8_t>& options) {
     // Options should be available.
     android::CameraMetadata metadata;
     ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
@@ -60,7 +60,7 @@ class ControlFactoryTest : public Test {
     ExpectMetadataEq(metadata, options_tag_, options);
   }
 
-  virtual void ExpectValue(uint8_t value) {
+  virtual void ExpectControlValue(uint8_t value) {
     android::CameraMetadata metadata;
     ASSERT_EQ(control_->PopulateDynamicFields(&metadata), 0);
     EXPECT_EQ(metadata.entryCount(), 1);
@@ -77,63 +77,78 @@ class ControlFactoryTest : public Test {
       ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES;
 };
 
-TEST_F(ControlFactoryTest, NoEffectMenu) {
+TEST_F(PartialMetadataFactoryTest, FixedState) {
+  uint8_t value = 13;
+  std::unique_ptr<State<uint8_t>> state = FixedState(delegate_tag_, value);
+
+  ASSERT_EQ(state->StaticTags().size(), 0);
+  ASSERT_EQ(state->ControlTags().size(), 0);
+  ASSERT_EQ(state->DynamicTags().size(), 1);
+  EXPECT_EQ(state->DynamicTags()[0], delegate_tag_);
+
+  android::CameraMetadata metadata;
+  ASSERT_EQ(state->PopulateDynamicFields(&metadata), 0);
+  EXPECT_EQ(metadata.entryCount(), 1);
+  ExpectMetadataEq(metadata, delegate_tag_, value);
+}
+
+TEST_F(PartialMetadataFactoryTest, NoEffectMenu) {
   std::vector<uint8_t> test_options = {9, 8, 12};
   control_ =
       NoEffectMenuControl<uint8_t>(delegate_tag_, options_tag_, test_options);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Options should be available.
-  ExpectOptions(test_options);
+  ExpectControlOptions(test_options);
   // Default value should be test_options[0].
-  ExpectValue(test_options[0]);
+  ExpectControlValue(test_options[0]);
 }
 
-TEST_F(ControlFactoryTest, NoEffectGenericMenu) {
+TEST_F(PartialMetadataFactoryTest, NoEffectGenericMenu) {
   uint8_t default_val = 9;
   control_ = NoEffectControl<uint8_t>(
       ControlType::kMenu, delegate_tag_, options_tag_, default_val);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Options should be available.
-  ExpectOptions({default_val});
+  ExpectControlOptions({default_val});
   // |default_val| should be default option.
-  ExpectValue(default_val);
+  ExpectControlValue(default_val);
 }
 
-TEST_F(ControlFactoryTest, NoEffectSlider) {
+TEST_F(PartialMetadataFactoryTest, NoEffectSlider) {
   std::vector<uint8_t> test_range = {9, 12};
   control_ = NoEffectSliderControl<uint8_t>(
       delegate_tag_, options_tag_, test_range[0], test_range[1]);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Single option should be available.
-  ExpectOptions(test_range);
+  ExpectControlOptions(test_range);
   // Default value should be the minimum (test_range[0]).
-  ExpectValue(test_range[0]);
+  ExpectControlValue(test_range[0]);
 }
 
-TEST_F(ControlFactoryTest, NoEffectGenericSlider) {
+TEST_F(PartialMetadataFactoryTest, NoEffectGenericSlider) {
   uint8_t default_val = 9;
   control_ = NoEffectControl<uint8_t>(
       ControlType::kSlider, delegate_tag_, options_tag_, default_val);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Range containing only |default_val| should be available.
-  ExpectOptions({default_val, default_val});
+  ExpectControlOptions({default_val, default_val});
   // |default_val| should be default option.
-  ExpectValue(default_val);
+  ExpectControlValue(default_val);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryQueryFail) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryQueryFail) {
   int control_id = 55;
   // Should query the device.
   EXPECT_CALL(*mock_device_, QueryControl(control_id, _)).WillOnce(Return(-1));
@@ -147,7 +162,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryQueryFail) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryQueryBadType) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryQueryBadType) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_CTRL_CLASS;
@@ -164,7 +179,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryQueryBadType) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryQueryBadRange) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryQueryBadRange) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
@@ -183,7 +198,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryQueryBadRange) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryTypeRequestMenuMismatch) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryTypeRequestMenuMismatch) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_INTEGER;
@@ -207,7 +222,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryTypeRequestMenuMismatch) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryTypeRequestSliderMismatch) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryTypeRequestSliderMismatch) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
@@ -231,7 +246,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryTypeRequestSliderMismatch) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryMenu) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryMenu) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
@@ -262,11 +277,11 @@ TEST_F(ControlFactoryTest, V4L2FactoryMenu) {
                                   mock_converter_);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
-  ExpectOptions(expected_options);
+  ExpectControlTags();
+  ExpectControlOptions(expected_options);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryMenuConversionFail) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryMenuConversionFail) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
@@ -289,7 +304,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryMenuConversionFail) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryMenuNoConversions) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryMenuNoConversions) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_MENU;
@@ -313,7 +328,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryMenuNoConversions) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryInteger) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryInteger) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_INTEGER;
@@ -342,8 +357,8 @@ TEST_F(ControlFactoryTest, V4L2FactoryInteger) {
                                   mock_converter_);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
-  ExpectOptions(expected_options);
+  ExpectControlTags();
+  ExpectControlOptions(expected_options);
 
   // Should be fitting converted values to steps.
   uint8_t set_val = 10;
@@ -357,7 +372,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryInteger) {
   EXPECT_EQ(control_->SetRequestValues(metadata), 0);
 }
 
-TEST_F(ControlFactoryTest, V4L2FactoryIntegerFailedConversion) {
+TEST_F(PartialMetadataFactoryTest, V4L2FactoryIntegerFailedConversion) {
   int control_id = 55;
   v4l2_query_ext_ctrl query_result;
   query_result.type = V4L2_CTRL_TYPE_INTEGER;
@@ -380,7 +395,7 @@ TEST_F(ControlFactoryTest, V4L2FactoryIntegerFailedConversion) {
   ASSERT_EQ(control_, nullptr);
 }
 
-TEST_F(ControlFactoryTest, V4L2FallbackMenu) {
+TEST_F(PartialMetadataFactoryTest, V4L2FallbackMenu) {
   uint8_t default_val = 9;
   int control_id = 55;
 
@@ -397,15 +412,15 @@ TEST_F(ControlFactoryTest, V4L2FallbackMenu) {
                                            default_val);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Options should be available.
-  ExpectOptions({default_val});
+  ExpectControlOptions({default_val});
   // |default_val| should be default option.
-  ExpectValue(default_val);
+  ExpectControlValue(default_val);
 }
 
-TEST_F(ControlFactoryTest, V4L2FallbackSlider) {
+TEST_F(PartialMetadataFactoryTest, V4L2FallbackSlider) {
   uint8_t default_val = 9;
   int control_id = 55;
 
@@ -422,12 +437,12 @@ TEST_F(ControlFactoryTest, V4L2FallbackSlider) {
                                            default_val);
   ASSERT_NE(control_, nullptr);
 
-  ExpectTags();
+  ExpectControlTags();
 
   // Range containing only |default_val| should be available.
-  ExpectOptions({default_val, default_val});
+  ExpectControlOptions({default_val, default_val});
   // |default_val| should be default option.
-  ExpectValue(default_val);
+  ExpectControlValue(default_val);
 }
 
 }  // namespace v4l2_camera_hal

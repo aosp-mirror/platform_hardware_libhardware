@@ -21,9 +21,9 @@
 #include "common.h"
 #include "format_metadata_factory.h"
 #include "metadata/control.h"
-#include "metadata/control_factory.h"
 #include "metadata/enum_converter.h"
 #include "metadata/metadata_common.h"
+#include "metadata/partial_metadata_factory.h"
 #include "metadata/property.h"
 #include "metadata/scaling_converter.h"
 #include "v4l2_gralloc.h"
@@ -82,6 +82,12 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AF_MODE,
                                    ANDROID_CONTROL_AF_AVAILABLE_MODES,
                                    {ANDROID_CONTROL_AF_MODE_OFF}));
+  // TODO(b/31021522): Should read autofocus state from
+  // V4L2_CID_AUTO_FOCUS_STATUS bitmask. The framework gets a little more
+  // complex than that does; there's a whole state-machine table in
+  // the docs (system/media/camera/docs/docs.html).
+  components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AF_STATE,
+                                        ANDROID_CONTROL_AF_STATE_INACTIVE));
   // TODO(b/31022735): AE & AF triggers.
   components.insert(V4L2ControlOrDefault<uint8_t>(
       ControlType::kMenu,
@@ -136,7 +142,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
     components.insert(std::move(exposure_time));
     components.insert(std::move(sensitivity));
   }
-
+  // Can't get AE status from V4L2.
+  // TODO(b/30510395): If AE mode is OFF, this should switch to INACTIVE.
+  components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AE_STATE,
+                                        ANDROID_CONTROL_AE_STATE_CONVERGED));
   // V4L2 offers multiple white balance interfaces. Try the advanced one before
   // falling
   // back to the simpler version.
@@ -175,6 +184,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                                {1, ANDROID_CONTROL_AWB_MODE_AUTO}})),
         ANDROID_CONTROL_AWB_MODE_AUTO));
   }
+  // TODO(b/31041577): Handle AWB state machine correctly.
+  components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AWB_STATE,
+                                        ANDROID_CONTROL_AWB_STATE_CONVERGED));
   // TODO(b/31022153): 3A locks.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
@@ -245,6 +257,8 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(
       std::unique_ptr<PartialMetadataInterface>(new Property<uint8_t>(
           ANDROID_FLASH_INFO_AVAILABLE, ANDROID_FLASH_INFO_AVAILABLE_FALSE)));
+  components.insert(FixedState<uint8_t>(ANDROID_FLASH_STATE,
+                                        ANDROID_FLASH_STATE_UNAVAILABLE));
 
   // TODO(30510395): subcomponents of hotpixel.
   // No known V4L2 hot pixel correction. But it might be happening,
@@ -295,6 +309,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                                  ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
                                  {0}));
   // info.hyperfocalDistance not required for UNCALIBRATED.
+  // No way to know when the lens is moving or not in V4L2.
+  components.insert(
+      FixedState<uint8_t>(ANDROID_LENS_STATE, ANDROID_LENS_STATE_STATIONARY));
   // No known V4L2 lens shading. But it might be happening,
   // so report FAST/HIGH_QUALITY.
   components.insert(NoEffectMenuControl<uint8_t>(
@@ -369,6 +386,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(
       std::unique_ptr<PartialMetadataInterface>(new Property<int32_t>(
           ANDROID_SYNC_MAX_LATENCY, ANDROID_SYNC_MAX_LATENCY_UNKNOWN)));
+  // Never know when controls are synced.
+  components.insert(FixedState<int64_t>(ANDROID_SYNC_FRAME_NUMBER,
+                                        ANDROID_SYNC_FRAME_NUMBER_UNKNOWN));
 
   // TODO(b/31022480): subcomponents of cropping/sensors.
   // Need ANDROID_SCALER_CROP_REGION control support.
@@ -404,6 +424,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
                             ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN)));
+  // TODO(b/29457051): Actually get a timestamp here. For now spoofing as non-0.
+  components.insert(FixedState<int64_t>(ANDROID_SENSOR_TIMESTAMP, 1));
+  // No way to actually get shutter skew from V4L2.
+  components.insert(
+      FixedState<int64_t>(ANDROID_SENSOR_ROLLING_SHUTTER_SKEW, 0));
   // No way to actually get orientation from V4L2.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<int32_t>(ANDROID_SENSOR_ORIENTATION, 0)));
