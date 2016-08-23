@@ -35,6 +35,10 @@ Metadata::~Metadata() {
 
 int Metadata::FillStaticMetadata(android::CameraMetadata* metadata) {
   HAL_LOG_ENTER();
+  if (!metadata) {
+    HAL_LOGE("Can't fill null metadata.");
+    return -EINVAL;
+  }
 
   std::vector<int32_t> static_tags;
   std::vector<int32_t> control_tags;
@@ -123,6 +127,10 @@ bool Metadata::IsValidRequest(const android::CameraMetadata& metadata) {
 int Metadata::GetRequestTemplate(int template_type,
                                  android::CameraMetadata* template_metadata) {
   HAL_LOG_ENTER();
+  if (!template_metadata) {
+    HAL_LOGE("Can't fill null template.");
+    return -EINVAL;
+  }
 
   // Templates are numbered 1 through COUNT-1 for some reason.
   if (template_type < 1 || template_type >= CAMERA3_TEMPLATE_COUNT) {
@@ -172,6 +180,12 @@ int Metadata::SetRequestSettings(const android::CameraMetadata& metadata) {
 }
 
 int Metadata::FillResultMetadata(android::CameraMetadata* metadata) {
+  HAL_LOG_ENTER();
+  if (!metadata) {
+    HAL_LOGE("Can't fill null metadata.");
+    return -EINVAL;
+  }
+
   for (auto& component : components_) {
     // Prevent components from potentially overriding others.
     android::CameraMetadata additional_metadata;

@@ -19,9 +19,12 @@
 #ifndef DEFAULT_CAMERA_HAL_CAMERA_H_
 #define DEFAULT_CAMERA_HAL_CAMERA_H_
 
+#include <camera/CameraMetadata.h>
 #include <hardware/hardware.h>
 #include <hardware/camera3.h>
 #include <utils/Mutex.h>
+
+#include "metadata/metadata.h"
 #include "stream.h"
 
 namespace default_camera_hal {
@@ -58,9 +61,11 @@ class Camera {
         // Disconnect from the device: close dev nodes, etc.
         virtual void disconnect() = 0;
         // Initialize static camera characteristics for individual device
-        virtual int initStaticInfo(camera_metadata_t **out) = 0;
-        // Initialize device info: facing, orientation, resource cost,
-        // and conflicting devices (/conflicting devices length)
+        virtual int initStaticInfo(android::CameraMetadata* out) = 0;
+        // Initialize a template of the given type
+        virtual int initTemplate(int type, android::CameraMetadata* out) = 0;
+        // Initialize device info: resource cost and conflicting devices
+        // (/conflicting devices length)
         virtual void initDeviceInfo(struct camera_info *info) = 0;
         // Verify stream configuration is device-compatible
         virtual bool isSupportedStreamSet(Stream** streams, int count,
@@ -70,7 +75,10 @@ class Camera {
         virtual int setupStream(Stream* stream, uint32_t* max_buffers) = 0;
         // Verify settings are valid for a capture
         virtual bool isValidCaptureSettings(
-            const camera_metadata_t *settings) = 0;
+            const android::CameraMetadata& settings) = 0;
+        // Set settings for a capture
+        virtual int setSettings(
+            const android::CameraMetadata& new_settings) = 0;
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
         // Enqueue a buffer to receive data from the camera
@@ -79,10 +87,8 @@ class Camera {
         // Get the shutter time and updated settings for the most recent frame.
         // The metadata parameter is both an input and output; frame-specific
         // result fields should be appended to what is passed in.
-        virtual int getResultSettings(camera_metadata_t **metadata,
+        virtual int getResultSettings(android::CameraMetadata* metadata,
                                       uint64_t *timestamp) = 0;
-        // Accessor used by initDevice() to set the templates' metadata
-        int setTemplate(int type, const camera_metadata_t *static_info);
         // Prettyprint template names
         const char* templateToString(int type);
 
@@ -97,8 +103,6 @@ class Camera {
         bool isValidStreamSet(Stream **array, int count, uint32_t mode);
         // Calculate usage and max_bufs of each stream
         int setupStreams(Stream **array, int count);
-        // Copy new settings for re-use and clean up old settings.
-        void setSettings(const camera_metadata_t *new_settings);
         // Verify settings are valid for reprocessing an input buffer
         bool isValidReprocessSettings(const camera_metadata_t *settings);
         // Process an output buffer
@@ -111,8 +115,11 @@ class Camera {
 
         // Identifier used by framework to distinguish cameras
         const int mId;
-        // camera_metadata structure containing static characteristics
-        camera_metadata_t *mStaticInfo;
+        // CameraMetadata containing static characteristics
+        std::unique_ptr<const android::CameraMetadata> mStaticInfo;
+        // Flag indicating if settings have been set since
+        // the last configure_streams() call.
+        bool mSettingsSet;
         // Busy flag indicates camera is in use
         bool mBusy;
         // Camera device operations handle shared by all devices
@@ -128,10 +135,8 @@ class Camera {
         Stream **mStreams;
         // Number of streams in mStreams
         int mNumStreams;
-        // Static array of standard camera settings templates
-        camera_metadata_t *mTemplates[CAMERA3_TEMPLATE_COUNT];
-        // Most recent request settings seen, memoized to be reused
-        camera_metadata_t *mSettings;
+        // Standard camera settings templates
+        std::unique_ptr<const android::CameraMetadata> mTemplates[CAMERA3_TEMPLATE_COUNT];
 };
 }  // namespace default_camera_hal
 

@@ -41,13 +41,16 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                     std::unique_ptr<Metadata>* result) {
   HAL_LOG_ENTER();
 
-  // TODO: Temporarily connect to the device so that V4L2-specific components
-  // can make any necessary queries.
+  // Open a temporary connection to the device for all the V4L2 querying
+  // that will be happening (this could be done for each component individually,
+  // but doing it here prevents connecting and disconnecting for each one).
+  V4L2Wrapper::Connection temp_connection = V4L2Wrapper::Connection(device);
+  if (temp_connection.status()) {
+    HAL_LOGE("Failed to connect to device: %d.", temp_connection.status());
+    return temp_connection.status();
+  }
 
-  // TODO(b/30140438): Add all metadata components used by V4L2Camera here.
-  // Currently these are all the fixed properties, ignored controls, and
-  // V4L2 enum controls. Will add the other properties as more PartialMetadata
-  // subclasses get implemented.
+  // TODO(b/30035628): Add states.
 
   PartialMetadataSet components;
 

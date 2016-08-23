@@ -17,6 +17,7 @@
 #include "v4l2_wrapper.h"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 #include <vector>
 
@@ -36,8 +37,8 @@
 
 namespace v4l2_camera_hal {
 
-const std::vector<std::array<int32_t, 2>> kStandardSizes(
-    {{{1920, 1080}}, {{1280, 720}}, {{640, 480}}, {{320, 240}}});
+const int32_t kStandardSizes[][2] = {
+    {1920, 1080}, {1280, 720}, {640, 480}, {320, 240}};
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
   HAL_LOG_ENTER();
@@ -103,16 +104,14 @@ void V4L2Wrapper::Disconnect() {
   if (connection_count_ == 0) {
     // Not connected.
     HAL_LOGE("Camera device %s is not connected, cannot disconnect.",
-             device_path_.c_str(),
-             connection_count_);
+             device_path_.c_str());
     return;
   }
 
   --connection_count_;
   if (connection_count_ > 0) {
     HAL_LOGV("Disconnected from camera device %s. %d connections remain.",
-             device_path_.c_str(),
-             connection_count_);
+             device_path_.c_str());
     return;
   }
 
@@ -368,7 +367,7 @@ int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
     // closest to a set of standard sizes plus largest possible.
     sizes->insert({{{static_cast<int32_t>(size_query.stepwise.max_width),
                      static_cast<int32_t>(size_query.stepwise.max_height)}}});
-    for (const auto& size : kStandardSizes) {
+    for (const auto size : kStandardSizes) {
       // Find the closest size, rounding up.
       uint32_t desired_width = size[0];
       uint32_t desired_height = size[1];

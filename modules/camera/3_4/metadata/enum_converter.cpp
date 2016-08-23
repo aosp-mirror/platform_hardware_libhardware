@@ -49,7 +49,7 @@ int EnumConverter::MetadataToV4L2(uint8_t value, int32_t* conversion) {
   }
 
   if (count == 0) {
-    HAL_LOGE("Couldn't find V4L2 conversion of metadata value %d.", value);
+    HAL_LOGV("Couldn't find V4L2 conversion of metadata value %d.", value);
     return -EINVAL;
   } else if (count > 1) {
     HAL_LOGV(
@@ -64,7 +64,7 @@ int EnumConverter::V4L2ToMetadata(int32_t value, uint8_t* conversion) {
 
   auto element_range = v4l2_to_metadata_.equal_range(value);
   if (element_range.first == element_range.second) {
-    HAL_LOGE("Couldn't find metadata conversion of V4L2 value %d.", value);
+    HAL_LOGV("Couldn't find metadata conversion of V4L2 value %d.", value);
     return -EINVAL;
   }
 

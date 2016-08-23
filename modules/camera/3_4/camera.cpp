@@ -25,6 +25,8 @@
 #include <system/camera_metadata.h>
 #include <system/graphics.h>
 #include <utils/Mutex.h>
+
+#include "metadata/metadata_common.h"
 #include "stream.h"
 
 //#define LOG_NDEBUG 0
@@ -52,12 +54,11 @@ static int close_device(hw_device_t* dev)
 
 Camera::Camera(int id)
   : mId(id),
-    mStaticInfo(NULL),
+    mSettingsSet(false),
     mBusy(false),
     mCallbackOps(NULL),
     mStreams(NULL),
-    mNumStreams(0),
-    mSettings(NULL)
+    mNumStreams(0)
 {
     memset(&mTemplates, 0, sizeof(mTemplates));
     memset(&mDevice, 0, sizeof(mDevice));
@@ -70,17 +71,6 @@ Camera::Camera(int id)
 
 Camera::~Camera()
 {
-    if (mStaticInfo != NULL) {
-        free_camera_metadata(mStaticInfo);
-    }
-    if (mSettings != NULL) {
-        free_camera_metadata(mSettings);
-    }
-    for (camera_metadata_t* metadata : mTemplates) {
-        if (metadata != NULL) {
-            free_camera_metadata(metadata);
-        }
-    }
 }
 
 int Camera::openDevice(const hw_module_t *module, hw_device_t **device)
@@ -111,11 +101,52 @@ int Camera::getInfo(struct camera_info *info)
     info->device_version = mDevice.common.version;
     initDeviceInfo(info);
     if (mStaticInfo == NULL) {
-      if (initStaticInfo(&mStaticInfo)) {
-        return -ENODEV;
-      }
+        std::unique_ptr<android::CameraMetadata> static_info =
+            std::make_unique<android::CameraMetadata>();
+        if (initStaticInfo(static_info.get())) {
+            return -ENODEV;
+        }
+        mStaticInfo = std::move(static_info);
     }
-    info->static_camera_characteristics = mStaticInfo;
+    // The "locking" here only causes non-const methods to fail,
+    // which is not a problem since the CameraMetadata being locked
+    // is already const. Destructing automatically "unlocks".
+    info->static_camera_characteristics = mStaticInfo->getAndLock();
+
+    // Get facing & orientation from the static info.
+    uint8_t facing = 0;
+    int res = v4l2_camera_hal::SingleTagValue(
+        *mStaticInfo, ANDROID_LENS_FACING, &facing);
+    if (res) {
+        ALOGE("%s:%d: Failed to get facing from static metadata.",
+              __func__, mId);
+        return res;
+    }
+    switch (facing) {
+        case (ANDROID_LENS_FACING_FRONT):
+            info->facing = CAMERA_FACING_FRONT;
+            break;
+        case (ANDROID_LENS_FACING_BACK):
+            info->facing = CAMERA_FACING_BACK;
+            break;
+        case (ANDROID_LENS_FACING_EXTERNAL):
+            info->facing = CAMERA_FACING_EXTERNAL;
+            break;
+        default:
+            ALOGE("%s:%d: Invalid facing from metadata: %d.",
+                  __func__, mId, facing);
+            return -ENODEV;
+    }
+    int32_t orientation = 0;
+    res = v4l2_camera_hal::SingleTagValue(
+        *mStaticInfo, ANDROID_SENSOR_ORIENTATION, &orientation);
+    if (res) {
+        ALOGE("%s:%d: Failed to get orientation from static metadata.",
+              __func__, mId);
+        return res;
+    }
+    info->orientation = static_cast<int>(orientation);
+
     return 0;
 }
 
@@ -155,6 +186,9 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     camera3_stream_t *astream;
     Stream **newStreams = NULL;
     int res = 0;
+
+    // Must provide new settings after configureStreams.
+    mSettingsSet = false;
 
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
     ATRACE_CALL();
@@ -215,8 +249,6 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     mStreams = newStreams;
     mNumStreams = stream_config->num_streams;
 
-    // Clear out last seen settings metadata
-    setSettings(NULL);
     return 0;
 
 err_out:
@@ -332,9 +364,23 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
         return NULL;
     }
 
-    // Will return NULL (indicating unsupported) if the template is not
-    // initialized.
-    return mTemplates[type];
+    if (!mTemplates[type]) {
+        // Initialize this template if it hasn't been initialized yet.
+        std::unique_ptr<android::CameraMetadata> new_template =
+            std::make_unique<android::CameraMetadata>();
+        int res = initTemplate(type, new_template.get());
+        if (res || !new_template) {
+            ALOGE("%s:%d: Failed to generate template of type: %d",
+                  __func__, mId, type);
+            return NULL;
+        }
+        mTemplates[type] = std::move(new_template);
+    }
+
+    // The "locking" here only causes non-const methods to fail,
+    // which is not a problem since the CameraMetadata being locked
+    // is already const. Destructing automatically "unlocks".
+    return mTemplates[type]->getAndLock();
 }
 
 int Camera::processCaptureRequest(camera3_capture_request_t *request)
@@ -353,14 +399,10 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
             request->frame_number, request->settings);
 
     // NULL indicates use last settings
-    if (request->settings == NULL) {
-        if (mSettings == NULL) {
-            ALOGE("%s:%d: NULL settings without previous set Frame:%d Req:%p",
-                    __func__, mId, request->frame_number, request);
-            return -EINVAL;
-        }
-    } else {
-        setSettings(request->settings);
+    if (request->settings == NULL && !mSettingsSet) {
+        ALOGE("%s:%d: NULL settings without previous set Frame:%d Req:%p",
+              __func__, mId, request->frame_number, request);
+        return -EINVAL;
     }
 
     if (request->input_buffer != NULL) {
@@ -375,19 +417,31 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
     } else {
         ALOGV("%s:%d: Capturing new frame.", __func__, mId);
 
-        if (!isValidCaptureSettings(request->settings)) {
+        // Make a copy since CameraMetadata doesn't support weak ownership,
+        // but |request| is supposed to maintain ownership.
+        android::CameraMetadata request_settings;
+        request_settings = request->settings;
+        if (!isValidCaptureSettings(request_settings)) {
             ALOGE("%s:%d: Invalid settings for capture request: %p",
                     __func__, mId, request->settings);
             return -EINVAL;
         }
+        // Settings are valid, go ahead and set them.
+        res = setSettings(request_settings);
+        if (res) {
+          ALOGE("%s:%d: Failed to set valid settings for capture request: %p",
+                __func__, mId, request->settings);
+          return res;
+        }
+        mSettingsSet = true;
     }
 
+    // Setup and process output buffers.
     if (request->num_output_buffers <= 0) {
         ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
                 request->num_output_buffers);
         return -EINVAL;
     }
-
     camera3_capture_result result;
     result.num_output_buffers = request->num_output_buffers;
     std::vector<camera3_stream_buffer_t> output_buffers(
@@ -404,33 +458,15 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
     // one call to process_capture_request at a time, this call is guaranteed
     // to correspond with the most recently enqueued buffer.
 
-    // Not wrapped in a unique_ptr since control is immediately
-    // handed off to the device via getResultSettings.
-    // TODO(b/30035628): This shouldn't even be an issue actually -
-    // the result settings returned should be a completely new
-    // object allocated by the function, not passed in and back
-    // out (the cloning of the request metadata is just a shim
-    // to fill in all the control fields until the device actually
-    // checks their real values).
-    camera_metadata_t* result_metadata = clone_camera_metadata(
-        request->settings);
-    if (!result_metadata) {
-        return -ENODEV;
-    }
+    android::CameraMetadata result_metadata;
     uint64_t timestamp = 0;
     // TODO(b/29334616): this may also want to use a callback, since
     // the shutter may not happen immediately.
     res = getResultSettings(&result_metadata, &timestamp);
-    // Upon getting result settings (for now from this function,
-    // eventually by callback, the Camera regains responsibility for
-    // the metadata, so immediately wrap it in a unique_ptr, before
-    // potentially returning due to failure.
-    std::unique_ptr<camera_metadata_t, void(*)(camera_metadata_t *)>
-        returned_metadata(result_metadata, free_camera_metadata);
     if (res) {
         return res;
     }
-    result.result = returned_metadata.get();
+    result.result = result_metadata.release();
 
     // Notify the framework with the shutter time.
     result.frame_number = request->frame_number;
@@ -442,17 +478,6 @@ int Camera::processCaptureRequest(camera3_capture_request_t *request)
     mCallbackOps->process_capture_result(mCallbackOps, &result);
 
     return 0;
-}
-
-void Camera::setSettings(const camera_metadata_t *new_settings)
-{
-    if (mSettings != NULL) {
-        free_camera_metadata(mSettings);
-        mSettings = NULL;
-    }
-
-    if (new_settings != NULL)
-        mSettings = clone_camera_metadata(new_settings);
 }
 
 bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
@@ -536,7 +561,6 @@ void Camera::dump(int fd)
     dprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
 
     // TODO: dump all settings
-    dprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
 
     dprintf(fd, "Number of streams: %d\n", mNumStreams);
     for (int i = 0; i < mNumStreams; i++) {
@@ -561,31 +585,6 @@ const char* Camera::templateToString(int type)
     }
     // TODO: support vendor templates
     return "Invalid template type!";
-}
-
-int Camera::setTemplate(int type, const camera_metadata_t *settings)
-{
-    android::Mutex::Autolock al(mDeviceLock);
-
-    if (!isValidTemplateType(type)) {
-        ALOGE("%s:%d: Invalid template request type: %d", __func__, mId, type);
-        return -EINVAL;
-    }
-
-    if (mTemplates[type] != NULL) {
-        ALOGE("%s:%d: Setting already constructed template type %s(%d)",
-                __func__, mId, templateToString(type), type);
-        return -EINVAL;
-    }
-
-    // Make a durable copy of the underlying metadata
-    mTemplates[type] = clone_camera_metadata(settings);
-    if (mTemplates[type] == NULL) {
-        ALOGE("%s:%d: Failed to clone metadata %p for template type %s(%d)",
-                __func__, mId, settings, templateToString(type), type);
-        return -EINVAL;
-    }
-    return 0;
 }
 
 extern "C" {

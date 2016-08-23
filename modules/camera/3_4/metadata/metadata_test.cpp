@@ -162,6 +162,11 @@ TEST_F(MetadataTest, FillStaticFail) {
   EXPECT_EQ(dut_->FillStaticMetadata(metadata_.get()), err);
 }
 
+TEST_F(MetadataTest, FillStaticNull) {
+  AddComponents();
+  EXPECT_EQ(dut_->FillStaticMetadata(nullptr), -EINVAL);
+}
+
 TEST_F(MetadataTest, IsValidSuccess) {
   // Should check if all the component request values are valid.
   EXPECT_CALL(*component1_, SupportsRequestValues(_)).WillOnce(Return(true));
@@ -229,6 +234,11 @@ TEST_F(MetadataTest, GetTemplateFail) {
   AddComponents();
   // Should fail since one of the components failed.
   EXPECT_EQ(dut_->GetRequestTemplate(template_type, metadata_.get()), err);
+}
+
+TEST_F(MetadataTest, GetTemplateNull) {
+  AddComponents();
+  EXPECT_EQ(dut_->GetRequestTemplate(1, nullptr), -EINVAL);
 }
 
 TEST_F(MetadataTest, GetTemplateInvalid) {
@@ -302,6 +312,11 @@ TEST_F(MetadataTest, FillResultFail) {
   AddComponents();
   // Should fail since one of the components failed.
   EXPECT_EQ(dut_->FillResultMetadata(metadata_.get()), err);
+}
+
+TEST_F(MetadataTest, FillResultNull) {
+  AddComponents();
+  EXPECT_EQ(dut_->FillResultMetadata(nullptr), -EINVAL);
 }
 
 }  // namespace v4l2_camera_hal
