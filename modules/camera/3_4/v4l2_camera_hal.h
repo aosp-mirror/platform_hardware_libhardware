@@ -34,7 +34,7 @@ namespace v4l2_camera_hal {
  * default CameraHAL from /hardware/libhardware/modules/camera.
  */
 class V4L2CameraHAL {
-public:
+ public:
   V4L2CameraHAL();
   ~V4L2CameraHAL();
 
@@ -43,23 +43,25 @@ public:
   int getCameraInfo(int camera_id, camera_info_t* info);
   int setCallbacks(const camera_module_callbacks_t* callbacks);
   void getVendorTagOps(vendor_tag_ops_t* ops);
-  int openLegacy(const hw_module_t* module, const char* id,
-                 uint32_t halVersion, hw_device_t** device);
+  int openLegacy(const hw_module_t* module,
+                 const char* id,
+                 uint32_t halVersion,
+                 hw_device_t** device);
   int setTorchMode(const char* camera_id, bool enabled);
 
   // Hardware Module Interface (see <hardware/hardware.h>).
   int openDevice(const hw_module_t* mod, const char* name, hw_device_t** dev);
 
-private:
+ private:
   // Vector of cameras.
   std::vector<std::unique_ptr<default_camera_hal::Camera>> mCameras;
   // Callback handle.
-  const camera_module_callbacks_t *mCallbacks;
+  const camera_module_callbacks_t* mCallbacks;
 
   DISALLOW_COPY_AND_ASSIGN(V4L2CameraHAL);
 };
 
-} // namespace v4l2_camera_hal
+}  // namespace v4l2_camera_hal
 
 extern camera_module_t HAL_MODULE_INFO_SYM;
 

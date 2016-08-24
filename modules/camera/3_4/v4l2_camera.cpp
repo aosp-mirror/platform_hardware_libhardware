@@ -18,8 +18,8 @@
 
 #include <fcntl.h>
 #include <linux/videodev2.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include <cstdlib>
 
@@ -36,8 +36,7 @@
 namespace v4l2_camera_hal {
 
 // Helper function for managing metadata.
-static std::vector<int32_t> getMetadataKeys(
-    const camera_metadata_t* metadata) {
+static std::vector<int32_t> getMetadataKeys(const camera_metadata_t* metadata) {
   std::vector<int32_t> keys;
   size_t num_entries = get_camera_metadata_entry_count(metadata);
   for (size_t i = 0; i < num_entries; ++i) {
@@ -67,7 +66,8 @@ V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
   return new V4L2Camera(id, std::move(v4l2_wrapper), std::move(metadata));
 }
 
-V4L2Camera::V4L2Camera(int id, std::shared_ptr<V4L2Wrapper> v4l2_wrapper,
+V4L2Camera::V4L2Camera(int id,
+                       std::shared_ptr<V4L2Wrapper> v4l2_wrapper,
                        std::unique_ptr<Metadata> metadata)
     : default_camera_hal::Camera(id),
       device_(std::move(v4l2_wrapper)),
@@ -102,8 +102,8 @@ int V4L2Camera::connect() {
   // by disabling cameras that get disconnected and checking newly connected
   // cameras, so connect() is never called on an unsupported camera)
 
-  // TODO(b/29158098): Inform service of any flashes that are no longer available
-  // because this camera is in use.
+  // TODO(b/29158098): Inform service of any flashes that are no longer
+  // available because this camera is in use.
   return 0;
 }
 
@@ -126,14 +126,14 @@ int V4L2Camera::initStaticInfo(android::CameraMetadata* out) {
   }
 
   // Extract max streams for use in verifying stream configs.
-  res = SingleTagValue(*out, ANDROID_REQUEST_MAX_NUM_INPUT_STREAMS,
-                       &max_input_streams_);
+  res = SingleTagValue(
+      *out, ANDROID_REQUEST_MAX_NUM_INPUT_STREAMS, &max_input_streams_);
   if (res) {
     HAL_LOGE("Failed to get max num input streams from static metadata.");
     return res;
   }
-  res = SingleTagValue(*out, ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS,
-                       &max_output_streams_);
+  res = SingleTagValue(
+      *out, ANDROID_REQUEST_MAX_NUM_OUTPUT_STREAMS, &max_output_streams_);
   if (res) {
     HAL_LOGE("Failed to get max num output streams from static metadata.");
     return res;
@@ -231,7 +231,8 @@ int V4L2Camera::getResultSettings(android::CameraMetadata* metadata,
 }
 
 bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
-                                      int count, uint32_t mode) {
+                                      int count,
+                                      uint32_t mode) {
   HAL_LOG_ENTER();
 
   if (mode != CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE) {
@@ -270,21 +271,28 @@ bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
           break;
         case kFormatCategoryUnknown:  // Fall through.
         default:
-          HAL_LOGE("Unsupported format for stream %d: %d", i, stream->getFormat());
+          HAL_LOGE(
+              "Unsupported format for stream %d: %d", i, stream->getFormat());
           return false;
       }
     }
   }
 
-  if (num_input > max_input_streams_ ||
-      num_raw > max_output_streams_[0] ||
+  if (num_input > max_input_streams_ || num_raw > max_output_streams_[0] ||
       num_non_stalling > max_output_streams_[1] ||
       num_stalling > max_output_streams_[2]) {
-    HAL_LOGE("Invalid stream configuration: %d input, %d RAW, %d non-stalling, "
-             "%d stalling (max supported: %d input, %d RAW, %d non-stalling, "
-             "%d stalling)", max_input_streams_, max_output_streams_[0],
-             max_output_streams_[1], max_output_streams_[2], num_input,
-             num_raw, num_non_stalling, num_stalling);
+    HAL_LOGE(
+        "Invalid stream configuration: %d input, %d RAW, %d non-stalling, "
+        "%d stalling (max supported: %d input, %d RAW, %d non-stalling, "
+        "%d stalling)",
+        max_input_streams_,
+        max_output_streams_[0],
+        max_output_streams_[1],
+        max_output_streams_[2],
+        num_input,
+        num_raw,
+        num_non_stalling,
+        num_stalling);
     return false;
   }
 
@@ -301,11 +309,17 @@ bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
     const default_camera_hal::Stream* stream = streams[i];
     if (stream->getFormat() != format || stream->getWidth() != width ||
         stream->getHeight() != height) {
-      HAL_LOGE("V4L2 only supports 1 stream configuration at a time "
-               "(stream 0 is format %d, width %u, height %u, "
-               "stream %d is format %d, width %u, height %u).",
-               format, width, height, i, stream->getFormat(),
-               stream->getWidth(), stream->getHeight());
+      HAL_LOGE(
+          "V4L2 only supports 1 stream configuration at a time "
+          "(stream 0 is format %d, width %u, height %u, "
+          "stream %d is format %d, width %u, height %u).",
+          format,
+          width,
+          height,
+          i,
+          stream->getFormat(),
+          stream->getWidth(),
+          stream->getHeight());
       return false;
     }
   }
@@ -342,7 +356,8 @@ int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
   return 0;
 }
 
-bool V4L2Camera::isValidCaptureSettings(const android::CameraMetadata& settings) {
+bool V4L2Camera::isValidCaptureSettings(
+    const android::CameraMetadata& settings) {
   HAL_LOG_ENTER();
 
   return metadata_->IsValidRequest(settings);

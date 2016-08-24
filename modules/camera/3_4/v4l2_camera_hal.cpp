@@ -22,8 +22,8 @@
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -86,8 +86,8 @@ V4L2CameraHAL::V4L2CameraHAL() : mCameras(), mCallbacks(NULL) {
     }
     // Read V4L2 capabilities.
     if (TEMP_FAILURE_RETRY(ioctl(fd, VIDIOC_QUERYCAP, &cap)) != 0) {
-      HAL_LOGE("VIDIOC_QUERYCAP on %s fail: %s.", node.c_str(),
-               strerror(errno));
+      HAL_LOGE(
+          "VIDIOC_QUERYCAP on %s fail: %s.", node.c_str(), strerror(errno));
     } else if (!(cap.capabilities & V4L2_CAP_VIDEO_CAPTURE)) {
       HAL_LOGE("%s is not a V4L2 video capture device.", node.c_str());
     } else {
@@ -137,8 +137,10 @@ void V4L2CameraHAL::getVendorTagOps(vendor_tag_ops_t* ops) {
   // "leave ops unchanged if no vendor tags are defined."
 }
 
-int V4L2CameraHAL::openLegacy(const hw_module_t* module, const char* id,
-                              uint32_t halVersion, hw_device_t** device) {
+int V4L2CameraHAL::openLegacy(const hw_module_t* module,
+                              const char* id,
+                              uint32_t halVersion,
+                              hw_device_t** device) {
   HAL_LOG_ENTER();
   // Not supported.
   return -ENOSYS;
@@ -151,13 +153,14 @@ int V4L2CameraHAL::setTorchMode(const char* camera_id, bool enabled) {
   return -ENOSYS;
 }
 
-int V4L2CameraHAL::openDevice(const hw_module_t* module, const char* name,
+int V4L2CameraHAL::openDevice(const hw_module_t* module,
+                              const char* name,
                               hw_device_t** device) {
   HAL_LOG_ENTER();
 
   if (module != &HAL_MODULE_INFO_SYM.common) {
-    HAL_LOGE("Invalid module %p expected %p", module,
-             &HAL_MODULE_INFO_SYM.common);
+    HAL_LOGE(
+        "Invalid module %p expected %p", module, &HAL_MODULE_INFO_SYM.common);
     return -EINVAL;
   }
 
@@ -182,7 +185,7 @@ static int get_camera_info(int id, struct camera_info* info) {
   return gCameraHAL.getCameraInfo(id, info);
 }
 
-static int set_callbacks(const camera_module_callbacks_t *callbacks) {
+static int set_callbacks(const camera_module_callbacks_t* callbacks) {
   return gCameraHAL.setCallbacks(callbacks);
 }
 
@@ -190,8 +193,10 @@ static void get_vendor_tag_ops(vendor_tag_ops_t* ops) {
   return gCameraHAL.getVendorTagOps(ops);
 }
 
-static int open_legacy(const hw_module_t* module, const char* id,
-                       uint32_t halVersion, hw_device_t** device) {
+static int open_legacy(const hw_module_t* module,
+                       const char* id,
+                       uint32_t halVersion,
+                       hw_device_t** device) {
   return gCameraHAL.openLegacy(module, id, halVersion, device);
 }
 
@@ -199,7 +204,8 @@ static int set_torch_mode(const char* camera_id, bool enabled) {
   return gCameraHAL.setTorchMode(camera_id, enabled);
 }
 
-static int open_dev(const hw_module_t* module, const char* name,
+static int open_dev(const hw_module_t* module,
+                    const char* name,
                     hw_device_t** device) {
   return gCameraHAL.openDevice(module, name, device);
 }
@@ -207,27 +213,26 @@ static int open_dev(const hw_module_t* module, const char* name,
 }  // namespace v4l2_camera_hal
 
 static hw_module_methods_t v4l2_module_methods = {
-  .open = v4l2_camera_hal::open_dev
-};
+    .open = v4l2_camera_hal::open_dev};
 
-camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
-  .common = {
-    .tag =                 HARDWARE_MODULE_TAG,
-    .module_api_version =  CAMERA_MODULE_API_VERSION_2_4,
-    .hal_api_version =     HARDWARE_HAL_API_VERSION,
-    .id =                  CAMERA_HARDWARE_MODULE_ID,
-    .name =                "V4L2 Camera HAL v3",
-    .author =              "The Android Open Source Project",
-    .methods =             &v4l2_module_methods,
-    .dso =                 nullptr,
-    .reserved =            {0},
-  },
-  .get_number_of_cameras =  v4l2_camera_hal::get_number_of_cameras,
-  .get_camera_info =        v4l2_camera_hal::get_camera_info,
-  .set_callbacks =          v4l2_camera_hal::set_callbacks,
-  .get_vendor_tag_ops =     v4l2_camera_hal::get_vendor_tag_ops,
-  .open_legacy =            v4l2_camera_hal::open_legacy,
-  .set_torch_mode =         v4l2_camera_hal::set_torch_mode,
-  .init =                   nullptr,
-  .reserved =               {nullptr, nullptr, nullptr, nullptr, nullptr}
-};
+camera_module_t HAL_MODULE_INFO_SYM __attribute__((visibility("default"))) = {
+    .common =
+        {
+            .tag = HARDWARE_MODULE_TAG,
+            .module_api_version = CAMERA_MODULE_API_VERSION_2_4,
+            .hal_api_version = HARDWARE_HAL_API_VERSION,
+            .id = CAMERA_HARDWARE_MODULE_ID,
+            .name = "V4L2 Camera HAL v3",
+            .author = "The Android Open Source Project",
+            .methods = &v4l2_module_methods,
+            .dso = nullptr,
+            .reserved = {0},
+        },
+    .get_number_of_cameras = v4l2_camera_hal::get_number_of_cameras,
+    .get_camera_info = v4l2_camera_hal::get_camera_info,
+    .set_callbacks = v4l2_camera_hal::set_callbacks,
+    .get_vendor_tag_ops = v4l2_camera_hal::get_vendor_tag_ops,
+    .open_legacy = v4l2_camera_hal::open_legacy,
+    .set_torch_mode = v4l2_camera_hal::set_torch_mode,
+    .init = nullptr,
+    .reserved = {nullptr, nullptr, nullptr, nullptr, nullptr}};
