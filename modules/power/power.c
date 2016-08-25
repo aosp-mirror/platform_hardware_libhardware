@@ -25,16 +25,21 @@
 #include <hardware/hardware.h>
 #include <hardware/power.h>
 
-static void power_init(struct power_module *module)
+// We only support clang and g++.
+#define UNUSED_ARGUMENT __attribute((unused))
+
+static void power_init(struct power_module *module UNUSED_ARGUMENT)
 {
 }
 
-static void power_set_interactive(struct power_module *module, int on)
+static void power_set_interactive(struct power_module *module UNUSED_ARGUMENT,
+                                  int on UNUSED_ARGUMENT)
 {
 }
 
-static void power_hint(struct power_module *module, power_hint_t hint,
-                       void *data) {
+static void power_hint(struct power_module *module UNUSED_ARGUMENT,
+                       power_hint_t hint,
+                       void *data UNUSED_ARGUMENT) {
     switch (hint) {
     default:
         break;
