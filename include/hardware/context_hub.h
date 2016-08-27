@@ -78,17 +78,17 @@ __BEGIN_DECLS
 #define NANOAPP_VENDOR_ALL_APPS       0x0000000000FFFFFFULL
 
 #define NANOAPP_VENDOR(name) \
-    (((uint64_t)name[0] << 56) | \
-    ((uint64_t)name[1] << 48) | \
-    ((uint64_t)name[2] << 40) | \
-    ((uint64_t)name[3] << 32) | \
-    ((uint64_t)name[4] << 24))
+    (((uint64_t)(name)[0] << 56) | \
+    ((uint64_t)(name)[1] << 48) | \
+    ((uint64_t)(name)[2] << 40) | \
+    ((uint64_t)(name)[3] << 32) | \
+    ((uint64_t)(name)[4] << 24))
 
 /*
  * generates the NANOAPP ID from vendor id and app seq# id
  */
 #define NANO_APP_ID(vendor, seq_id) \
-	(((uint64_t)vendor & NANOAPP_VENDORS_ALL) | ((uint64_t)seq_id & NANOAPP_VENDOR_ALL_APPS))
+	(((uint64_t)(vendor) & NANOAPP_VENDORS_ALL) | ((uint64_t)(seq_id) & NANOAPP_VENDOR_ALL_APPS))
 
 struct hub_app_name_t {
     uint64_t id;
