@@ -136,12 +136,13 @@ VendorTags::~VendorTags()
 {
 }
 
-int VendorTags::getTagCount(const vendor_tag_ops_t* ops)
+int VendorTags::getTagCount(const vendor_tag_ops_t* /*ops*/)
 {
     return mTagCount;
 }
 
-void VendorTags::getAllTags(const vendor_tag_ops_t* ops, uint32_t* tag_array)
+void VendorTags::getAllTags(const vendor_tag_ops_t* /*ops*/,
+        uint32_t* tag_array)
 {
     if (tag_array == NULL) {
         ALOGE("%s: NULL tag_array", __func__);
@@ -156,7 +157,8 @@ void VendorTags::getAllTags(const vendor_tag_ops_t* ops, uint32_t* tag_array)
     }
 }
 
-const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops, uint32_t tag)
+const char* VendorTags::getSectionName(const vendor_tag_ops_t* /*ops*/,
+        uint32_t tag)
 {
     const Section* section = getSection(tag);
 
@@ -166,7 +168,8 @@ const char* VendorTags::getSectionName(const vendor_tag_ops_t* ops, uint32_t tag
     return section->name;
 }
 
-const char* VendorTags::getTagName(const vendor_tag_ops_t* ops, uint32_t tag)
+const char* VendorTags::getTagName(const vendor_tag_ops_t* /*ops*/,
+        uint32_t tag)
 {
     const Entry* entry = getEntry(tag);
 
@@ -176,7 +179,7 @@ const char* VendorTags::getTagName(const vendor_tag_ops_t* ops, uint32_t tag)
     return entry->name;
 }
 
-int VendorTags::getTagType(const vendor_tag_ops_t* ops, uint32_t tag)
+int VendorTags::getTagType(const vendor_tag_ops_t* /*ops*/, uint32_t tag)
 {
     const Entry* entry = getEntry(tag);
 
