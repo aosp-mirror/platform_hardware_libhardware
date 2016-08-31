@@ -165,29 +165,29 @@ static int open_dev(const hw_module_t* mod, const char* name, hw_device_t** dev)
 }
 
 static hw_module_methods_t gCameraModuleMethods = {
-    open : open_dev
+    .open = open_dev
 };
 
 camera_module_t HAL_MODULE_INFO_SYM __attribute__ ((visibility("default"))) = {
-    common : {
-        tag                : HARDWARE_MODULE_TAG,
-        module_api_version : CAMERA_MODULE_API_VERSION_2_2,
-        hal_api_version    : HARDWARE_HAL_API_VERSION,
-        id                 : CAMERA_HARDWARE_MODULE_ID,
-        name               : "Default Camera HAL",
-        author             : "The Android Open Source Project",
-        methods            : &gCameraModuleMethods,
-        dso                : NULL,
-        reserved           : {0},
+    .common = {
+        .tag                = HARDWARE_MODULE_TAG,
+        .module_api_version = CAMERA_MODULE_API_VERSION_2_2,
+        .hal_api_version    = HARDWARE_HAL_API_VERSION,
+        .id                 = CAMERA_HARDWARE_MODULE_ID,
+        .name               = "Default Camera HAL",
+        .author             = "The Android Open Source Project",
+        .methods            = &gCameraModuleMethods,
+        .dso                = NULL,
+        .reserved           = {0},
     },
-    get_number_of_cameras : get_number_of_cameras,
-    get_camera_info       : get_camera_info,
-    set_callbacks         : set_callbacks,
-    get_vendor_tag_ops    : get_vendor_tag_ops,
-    open_legacy           : NULL,
-    set_torch_mode        : NULL,
-    init                  : NULL,
-    reserved              : {0},
+    .get_number_of_cameras = get_number_of_cameras,
+    .get_camera_info       = get_camera_info,
+    .set_callbacks         = set_callbacks,
+    .get_vendor_tag_ops    = get_vendor_tag_ops,
+    .open_legacy           = NULL,
+    .set_torch_mode        = NULL,
+    .init                  = NULL,
+    .reserved              = {0},
 };
 } // extern "C"
 
