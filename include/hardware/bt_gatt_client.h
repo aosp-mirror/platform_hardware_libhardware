@@ -187,18 +187,6 @@ typedef void (*scan_filter_param_callback)(int action, int client_if, int status
 /** Callback invoked when a scan filter configuration command has completed */
 typedef void (*scan_filter_status_callback)(int enable, int client_if, int status);
 
-/** Callback invoked when multi-adv enable operation has completed */
-typedef void (*multi_adv_enable_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv param update operation has completed */
-typedef void (*multi_adv_update_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv instance data set operation has completed */
-typedef void (*multi_adv_data_callback)(int client_if, int status);
-
-/** Callback invoked when multi-adv disable operation has completed */
-typedef void (*multi_adv_disable_callback)(int client_if, int status);
-
 /**
  * Callback notifying an application that a remote device connection is currently congested
  * and cannot receive any more data. An application should avoid sending more data until
@@ -253,10 +241,6 @@ typedef struct {
     scan_filter_cfg_callback            scan_filter_cfg_cb;
     scan_filter_param_callback          scan_filter_param_cb;
     scan_filter_status_callback         scan_filter_status_cb;
-    multi_adv_enable_callback           multi_adv_enable_cb;
-    multi_adv_update_callback           multi_adv_update_cb;
-    multi_adv_data_callback             multi_adv_data_cb;
-    multi_adv_disable_callback          multi_adv_disable_cb;
     congestion_callback                 congestion_cb;
     batchscan_cfg_storage_callback      batchscan_cfg_storage_cb;
     batchscan_enable_disable_callback   batchscan_enb_disable_cb;
@@ -355,13 +339,6 @@ typedef struct {
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
     int (*get_device_type)( const bt_bdaddr_t *bd_addr );
 
-    /** Set the advertising data or scan response data */
-    bt_status_t (*set_adv_data)(int client_if, bool set_scan_rsp, bool include_name,
-                    bool include_txpower, int min_interval, int max_interval, int appearance,
-                    vector<uint8_t> manufacturer_data,
-                    vector<uint8_t> service_data,
-                    vector<uint8_t> service_uuid);
-
     /** Configure the MTU for a given connection */
     bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
@@ -371,22 +348,6 @@ typedef struct {
 
     /** Sets the LE scan interval and window in units of N*0.625 msec */
     bt_status_t (*set_scan_parameters)(int client_if, int scan_interval, int scan_window);
-
-    /* Setup the parameters as per spec, user manual specified values and enable multi ADV */
-    bt_status_t (*multi_adv_enable)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power, int timeout_s);
-
-    /* Update the parameters as per spec, user manual specified values and restart multi ADV */
-    bt_status_t (*multi_adv_update)(int client_if, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power, int timeout_s);
-
-    /* Setup the data for the specified instance */
-    bt_status_t (*multi_adv_set_inst_data)(int client_if, bool set_scan_rsp, bool include_name,
-                    bool incl_txpower, int appearance, vector<uint8_t> manufacturer_data,
-                    vector<uint8_t> service_data, vector<uint8_t> service_uuid);
-
-    /* Disable the multi adv instance */
-    bt_status_t (*multi_adv_disable)(int client_if);
 
     /* Configure the batchscan storage */
     bt_status_t (*batchscan_cfg_storage)(int client_if, int batch_scan_full_max,
