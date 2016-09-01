@@ -264,7 +264,8 @@ int ExampleCamera::setZslTemplate(Metadata m)
     return setTemplate(CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG, m.get());
 }
 
-bool ExampleCamera::isValidCaptureSettings(const camera_metadata_t* settings)
+bool ExampleCamera::isValidCaptureSettings(
+        const camera_metadata_t* /*settings*/)
 {
     // TODO: reject settings that cannot be captured
     return true;
