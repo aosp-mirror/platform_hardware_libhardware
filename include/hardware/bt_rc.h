@@ -19,15 +19,49 @@
 
 __BEGIN_DECLS
 
+/* Change this macro to use multiple RC */
+#define BT_RC_NUM_APP 1
+
 /* Macros */
 #define BTRC_MAX_ATTR_STR_LEN       255
 #define BTRC_UID_SIZE               8
 #define BTRC_MAX_APP_SETTINGS       8
 #define BTRC_MAX_FOLDER_DEPTH       4
 #define BTRC_MAX_APP_ATTR_SIZE      16
-#define BTRC_MAX_ELEM_ATTR_SIZE     7
+#define BTRC_MAX_ELEM_ATTR_SIZE     8
+#define BTRC_FEATURE_MASK_SIZE      16
+
+
+/* Macros for valid scopes in get_folder_items */
+#define BTRC_SCOPE_PLAYER_LIST  0x00 /* Media Player List */
+#define BTRC_SCOPE_FILE_SYSTEM  0x01 /* Virtual File System */
+#define BTRC_SCOPE_SEARCH  0x02 /* Search */
+#define BTRC_SCOPE_NOW_PLAYING   0x03 /* Now Playing */
+
+/* Macros for supported character encoding */
+#define BTRC_CHARSET_ID_UTF8  0x006A
+
+/* Macros for item types */
+#define BTRC_ITEM_PLAYER  0x01 /* Media Player */
+#define BTRC_ITEM_FOLDER  0x02 /* Folder */
+#define BTRC_ITEM_MEDIA   0x03 /* Media File */
+
+/* Macros for media types */
+#define BTRC_MEDIA_TYPE_AUDIO  0x00 /* audio */
+#define BTRC_MEDIA_TYPE_VIDEO  0x01 /* video */
+
+/* Macros for num attributes */
+#define BTRC_NUM_ATTR_NONE 0xFF /* No attributes required */
+#define BTRC_NUM_ATTR_ALL  0X00 /* All attributes required */
+
+#define BTRC_HANDLE_NONE 0xFF
 
 typedef uint8_t btrc_uid_t[BTRC_UID_SIZE];
+
+typedef enum {
+    BTRC_CONNECTION_STATE_DISCONNECTED = 0,
+    BTRC_CONNECTION_STATE_CONNECTED
+} btrc_connection_state_t;
 
 typedef enum {
     BTRC_FEAT_NONE = 0x00,    /* AVRCP 1.0 */
@@ -52,6 +86,11 @@ typedef enum {
     BTRC_EVT_TRACK_REACHED_START = 0x04,
     BTRC_EVT_PLAY_POS_CHANGED = 0x05,
     BTRC_EVT_APP_SETTINGS_CHANGED = 0x08,
+    BTRC_EVT_NOW_PLAYING_CONTENT_CHANGED = 0x09,
+    BTRC_EVT_AVAL_PLAYER_CHANGE = 0x0a,
+    BTRC_EVT_ADDR_PLAYER_CHANGE = 0x0b,
+    BTRC_EVT_UIDS_CHANGED = 0x0c,
+    BTRC_EVT_VOL_CHANGED = 0x0d,
 } btrc_event_id_t;
 
 typedef enum {
@@ -94,8 +133,31 @@ typedef enum {
     BTRC_STS_BAD_PARAM      = 0x01, /* Invalid parameter */
     BTRC_STS_NOT_FOUND      = 0x02, /* Specified parameter is wrong or not found */
     BTRC_STS_INTERNAL_ERR   = 0x03, /* Internal Error */
-    BTRC_STS_NO_ERROR       = 0x04  /* Operation Success */
+    BTRC_STS_NO_ERROR       = 0x04, /* Operation Success */
+    BTRC_STS_UID_CHANGED    = 0x05, /* UIDs changed */
+    BTRC_STS_RESERVED       = 0x06, /* Reserved */
+    BTRC_STS_INV_DIRN       = 0x07, /* Invalid direction */
+    BTRC_STS_INV_DIRECTORY  = 0x08, /* Invalid directory */
+    BTRC_STS_INV_ITEM       = 0x09, /* Invalid Item */
+    BTRC_STS_INV_SCOPE      = 0x0a, /* Invalid scope */
+    BTRC_STS_INV_RANGE      = 0x0b, /* Invalid range */
+    BTRC_STS_DIRECTORY      = 0x0c, /* UID is a directory */
+    BTRC_STS_MEDIA_IN_USE   = 0x0d, /* Media in use */
+    BTRC_STS_PLAY_LIST_FULL = 0x0e, /* Playing list full */
+    BTRC_STS_SRCH_NOT_SPRTD = 0x0f, /* Search not supported */
+    BTRC_STS_SRCH_IN_PROG   = 0x10, /* Search in progress */
+    BTRC_STS_INV_PLAYER     = 0x11, /* Invalid player */
+    BTRC_STS_PLAY_NOT_BROW  = 0x12, /* Player not browsable */
+    BTRC_STS_PLAY_NOT_ADDR  = 0x13, /* Player not addressed */
+    BTRC_STS_INV_RESULTS    = 0x14, /* Invalid results */
+    BTRC_STS_NO_AVBL_PLAY   = 0x15, /* No available players */
+    BTRC_STS_ADDR_PLAY_CHGD = 0x16, /* Addressed player changed */
 } btrc_status_t;
+
+typedef struct {
+    uint16_t player_id;
+    uint16_t uid_counter;
+} btrc_addr_player_changed_t;
 
 typedef struct {
     uint8_t num_attr;
@@ -133,12 +195,25 @@ typedef struct {
     uint8_t  attr_count;
 } btrc_getfolderitem_t;
 
+typedef struct {
+    uint16_t type;
+    uint16_t uid_counter;
+} btrc_uids_changed_t;
+
+typedef struct {
+    uint16_t type;
+} btrc_now_playing_changed_t;
+
 typedef union
 {
     btrc_play_status_t play_status;
     btrc_uid_t track; /* queue position in NowPlaying */
     uint32_t song_pos;
+    uint16_t uid_counter;
     btrc_player_settings_t player_setting;
+    btrc_addr_player_changed_t addr_player_changed;
+    btrc_uids_changed_t uids_changed;
+    btrc_now_playing_changed_t now_playing_changed;
 } btrc_register_notification_t;
 
 typedef struct {
@@ -151,55 +226,141 @@ typedef struct {
     uint8_t text[BTRC_MAX_ATTR_STR_LEN];
 } btrc_element_attr_val_t;
 
+typedef struct {
+    uint16_t  player_id;
+    uint8_t   major_type;
+    uint32_t  sub_type;
+    uint8_t   play_status;
+    uint8_t   features[BTRC_FEATURE_MASK_SIZE];
+    uint16_t  charset_id;
+    uint8_t   name[BTRC_MAX_ATTR_STR_LEN];
+} btrc_item_player_t;
+
+typedef struct {
+    uint8_t   uid[BTRC_UID_SIZE];
+    uint8_t   type;
+    uint8_t   playable;
+    uint16_t  charset_id;
+    uint8_t   name[BTRC_MAX_ATTR_STR_LEN];
+} btrc_item_folder_t;
+
+typedef struct {
+    uint8_t  uid[BTRC_UID_SIZE];
+    uint8_t  type;
+    uint16_t charset_id;
+    uint8_t  name[BTRC_MAX_ATTR_STR_LEN];
+    int      num_attrs;
+    btrc_element_attr_val_t* p_attrs;
+} btrc_item_media_t;
+
+typedef struct {
+    uint8_t item_type;
+    union
+    {
+        btrc_item_player_t player;
+        btrc_item_folder_t folder;
+        btrc_item_media_t  media;
+    };
+} btrc_folder_items_t;
+
+typedef struct {
+    uint16_t  str_len;
+    uint8_t   p_str[BTRC_MAX_ATTR_STR_LEN];
+} btrc_br_folder_name_t;
+
 /** Callback for the controller's supported feautres */
 typedef void (* btrc_remote_features_callback)(bt_bdaddr_t *bd_addr,
                                                       btrc_remote_features_t features);
 
 /** Callback for play status request */
-typedef void (* btrc_get_play_status_callback)();
+typedef void (* btrc_get_play_status_callback)(bt_bdaddr_t *bd_addr);
 
 /** Callback for list player application attributes (Shuffle, Repeat,...) */
-typedef void (* btrc_list_player_app_attr_callback)();
+typedef void (* btrc_list_player_app_attr_callback)(bt_bdaddr_t *bd_addr);
 
 /** Callback for list player application attributes (Shuffle, Repeat,...) */
-typedef void (* btrc_list_player_app_values_callback)(btrc_player_attr_t attr_id);
+typedef void (* btrc_list_player_app_values_callback)(btrc_player_attr_t attr_id,
+    bt_bdaddr_t *bd_addr);
 
 /** Callback for getting the current player application settings value
 **  num_attr: specifies the number of attribute ids contained in p_attrs
 */
-typedef void (* btrc_get_player_app_value_callback) (uint8_t num_attr, btrc_player_attr_t *p_attrs);
+typedef void (* btrc_get_player_app_value_callback) (uint8_t num_attr,
+    btrc_player_attr_t *p_attrs, bt_bdaddr_t *bd_addr);
 
 /** Callback for getting the player application settings attributes' text
 **  num_attr: specifies the number of attribute ids contained in p_attrs
 */
-typedef void (* btrc_get_player_app_attrs_text_callback) (uint8_t num_attr, btrc_player_attr_t *p_attrs);
+typedef void (* btrc_get_player_app_attrs_text_callback) (uint8_t num_attr,
+    btrc_player_attr_t *p_attrs, bt_bdaddr_t *bd_addr);
 
 /** Callback for getting the player application settings values' text
 **  num_attr: specifies the number of value ids contained in p_vals
 */
-typedef void (* btrc_get_player_app_values_text_callback) (uint8_t attr_id, uint8_t num_val, uint8_t *p_vals);
+typedef void (* btrc_get_player_app_values_text_callback) (uint8_t attr_id, uint8_t num_val,
+    uint8_t *p_vals, bt_bdaddr_t *bd_addr);
 
 /** Callback for setting the player application settings values */
-typedef void (* btrc_set_player_app_value_callback) (btrc_player_settings_t *p_vals);
+typedef void (* btrc_set_player_app_value_callback) (btrc_player_settings_t *p_vals,
+    bt_bdaddr_t *bd_addr);
 
 /** Callback to fetch the get element attributes of the current song
 **  num_attr: specifies the number of attributes requested in p_attrs
 */
-typedef void (* btrc_get_element_attr_callback) (uint8_t num_attr, btrc_media_attr_t *p_attrs);
+typedef void (* btrc_get_element_attr_callback) (uint8_t num_attr, btrc_media_attr_t *p_attrs,
+    bt_bdaddr_t *bd_addr);
 
 /** Callback for register notification (Play state change/track change/...)
 **  param: Is only valid if event_id is BTRC_EVT_PLAY_POS_CHANGED
 */
-typedef void (* btrc_register_notification_callback) (btrc_event_id_t event_id, uint32_t param);
+typedef void (* btrc_register_notification_callback) (btrc_event_id_t event_id, uint32_t param,
+    bt_bdaddr_t *bd_addr);
 
 /* AVRCP 1.4 Enhancements */
 /** Callback for volume change on CT
 **  volume: Current volume setting on the CT (0-127)
 */
-typedef void (* btrc_volume_change_callback) (uint8_t volume, uint8_t ctype);
+typedef void (* btrc_volume_change_callback) (uint8_t volume, uint8_t ctype, bt_bdaddr_t *bd_addr);
 
 /** Callback for passthrough commands */
-typedef void (* btrc_passthrough_cmd_callback) (int id, int key_state);
+typedef void (* btrc_passthrough_cmd_callback) (int id, int key_state, bt_bdaddr_t *bd_addr);
+
+/** Callback for set addressed player response on TG **/
+typedef void (* btrc_set_addressed_player_callback) (uint16_t player_id, bt_bdaddr_t *bd_addr);
+
+/** Callback for set browsed player response on TG **/
+typedef void (* btrc_set_browsed_player_callback) (uint16_t player_id, bt_bdaddr_t *bd_addr);
+
+/** Callback for get folder items on TG
+**  num_attr: specifies the number of attributes requested in p_attr_ids
+*/
+typedef void (* btrc_get_folder_items_callback) (uint8_t scope, uint32_t start_item,
+              uint32_t end_item, uint8_t num_attr, uint32_t *p_attr_ids, bt_bdaddr_t *bd_addr);
+
+/** Callback for changing browsed path on TG **/
+typedef void (* btrc_change_path_callback) (uint8_t direction,
+                uint8_t* folder_uid, bt_bdaddr_t *bd_addr);
+
+/** Callback to fetch the get item attributes of the media item
+**  num_attr: specifies the number of attributes requested in p_attrs
+*/
+typedef void (* btrc_get_item_attr_callback) (uint8_t scope, uint8_t* uid, uint16_t uid_counter,
+                uint8_t num_attr, btrc_media_attr_t *p_attrs, bt_bdaddr_t *bd_addr);
+
+/** Callback for play request for the media item indicated by an identifier */
+typedef void (* btrc_play_item_callback) (uint8_t scope,
+                uint16_t uid_counter, uint8_t* uid, bt_bdaddr_t *bd_addr);
+
+/** Callback to fetch total number of items from a folder **/
+typedef void (* btrc_get_total_num_of_items_callback) (uint8_t scope, bt_bdaddr_t *bd_addr);
+
+/** Callback for conducting recursive search on a current browsed path for a specified string */
+typedef void (* btrc_search_callback) (uint16_t charset_id,
+                uint16_t str_len, uint8_t* p_str, bt_bdaddr_t *bd_addr);
+
+/** Callback to add a specified media item indicated by an identifier to now playing queue. */
+typedef void (* btrc_add_to_now_playing_callback) (uint8_t scope,
+                uint8_t* uid, uint16_t  uid_counter, bt_bdaddr_t *bd_addr);
 
 /** BT-RC Target callback structure. */
 typedef struct {
@@ -217,6 +378,15 @@ typedef struct {
     btrc_register_notification_callback         register_notification_cb;
     btrc_volume_change_callback                 volume_change_cb;
     btrc_passthrough_cmd_callback               passthrough_cmd_cb;
+    btrc_set_addressed_player_callback          set_addressed_player_cb;
+    btrc_set_browsed_player_callback            set_browsed_player_cb;
+    btrc_get_folder_items_callback              get_folder_items_cb;
+    btrc_change_path_callback                   change_path_cb;
+    btrc_get_item_attr_callback                 get_item_attr_cb;
+    btrc_play_item_callback                     play_item_cb;
+    btrc_get_total_num_of_items_callback        get_total_num_of_items_cb;
+    btrc_search_callback                        search_cb;
+    btrc_add_to_now_playing_callback            add_to_now_playing_cb;
 } btrc_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Target interface. */
@@ -234,40 +404,45 @@ typedef struct {
     **  2. Song duration/length
     **  3. Song position
     */
-    bt_status_t (*get_play_status_rsp)( btrc_play_status_t play_status, uint32_t song_len, uint32_t song_pos);
+    bt_status_t (*get_play_status_rsp)( bt_bdaddr_t *bd_addr, btrc_play_status_t play_status,
+        uint32_t song_len, uint32_t song_pos);
 
     /** Lists the support player application attributes (Shuffle/Repeat/...)
     **  num_attr: Specifies the number of attributes contained in the pointer p_attrs
     */
-    bt_status_t (*list_player_app_attr_rsp)( int num_attr, btrc_player_attr_t *p_attrs);
+    bt_status_t (*list_player_app_attr_rsp)( bt_bdaddr_t *bd_addr, int num_attr,
+        btrc_player_attr_t *p_attrs);
 
     /** Lists the support player application attributes (Shuffle Off/On/Group)
     **  num_val: Specifies the number of values contained in the pointer p_vals
     */
-    bt_status_t (*list_player_app_value_rsp)( int num_val, uint8_t *p_vals);
+    bt_status_t (*list_player_app_value_rsp)( bt_bdaddr_t *bd_addr, int num_val, uint8_t *p_vals);
 
     /** Returns the current application attribute values for each of the specified attr_id */
-    bt_status_t (*get_player_app_value_rsp)( btrc_player_settings_t *p_vals);
+    bt_status_t (*get_player_app_value_rsp)( bt_bdaddr_t *bd_addr, btrc_player_settings_t *p_vals);
 
     /** Returns the application attributes text ("Shuffle"/"Repeat"/...)
     **  num_attr: Specifies the number of attributes' text contained in the pointer p_attrs
     */
-    bt_status_t (*get_player_app_attr_text_rsp)( int num_attr, btrc_player_setting_text_t *p_attrs);
+    bt_status_t (*get_player_app_attr_text_rsp)( bt_bdaddr_t *bd_addr, int num_attr,
+        btrc_player_setting_text_t *p_attrs);
 
     /** Returns the application attributes text ("Shuffle"/"Repeat"/...)
     **  num_attr: Specifies the number of attribute values' text contained in the pointer p_vals
     */
-    bt_status_t (*get_player_app_value_text_rsp)( int num_val, btrc_player_setting_text_t *p_vals);
+    bt_status_t (*get_player_app_value_text_rsp)( bt_bdaddr_t *bd_addr, int num_val,
+        btrc_player_setting_text_t *p_vals);
 
     /** Returns the current songs' element attributes text ("Title"/"Album"/"Artist")
     **  num_attr: Specifies the number of attributes' text contained in the pointer p_attrs
     */
-    bt_status_t (*get_element_attr_rsp)( uint8_t num_attr, btrc_element_attr_val_t *p_attrs);
+    bt_status_t (*get_element_attr_rsp)( bt_bdaddr_t *bd_addr, uint8_t num_attr,
+        btrc_element_attr_val_t *p_attrs);
 
     /** Response to set player attribute request ("Shuffle"/"Repeat")
     **  rsp_status: Status of setting the player attributes for the current media player
     */
-    bt_status_t (*set_player_app_value_rsp)(btrc_status_t rsp_status);
+    bt_status_t (*set_player_app_value_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status);
 
     /* Response to the register notification request (Play state change/track change/...).
     ** event_id: Refers to the event_id this notification change corresponds too
@@ -287,12 +462,47 @@ typedef struct {
     */
     bt_status_t (*set_volume)(uint8_t volume);
 
+    /* Set addressed player response from TG to CT */
+    bt_status_t (*set_addressed_player_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status);
+
+    /* Set browsed player response from TG to CT */
+    bt_status_t (*set_browsed_player_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status,
+        uint32_t num_items, uint16_t charset_id, uint8_t folder_depth,
+        btrc_br_folder_name_t *p_folders);
+
+    /* Get folder item list response from TG to CT */
+     bt_status_t (*get_folder_items_list_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status,
+        uint16_t uid_counter, uint8_t num_items, btrc_folder_items_t *p_items);
+
+    /* Change path response from TG to CT */
+    bt_status_t (*change_path_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status,
+        uint32_t num_items);
+
+    /** Returns the element's attributes num_attr: Specifies the number of attributes' text
+     * contained in the pointer p_attrs
+     */
+    bt_status_t (*get_item_attr_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status,
+        uint8_t num_attr, btrc_element_attr_val_t *p_attrs);
+
+    /* play media item response from TG to CT */
+    bt_status_t (*play_item_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status);
+
+    /* get total number of items response from TG to CT*/
+    bt_status_t (*get_total_num_of_items_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status,
+        uint32_t uid_counter, uint32_t num_items);
+
+    /* Search VFS response from TG to CT */
+    bt_status_t (*search_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status, uint32_t uid_counter,
+        uint32_t num_items);
+
+    /* add_to_now playing list response from TG to CT */
+    bt_status_t (*add_to_now_playing_rsp)(bt_bdaddr_t *bd_addr, btrc_status_t rsp_status);
+
     /** Closes the interface. */
     void  (*cleanup)( void );
 } btrc_interface_t;
 
-
-typedef void (* btrc_passthrough_rsp_callback) (int id, int key_state);
+typedef void (* btrc_passthrough_rsp_callback) (int id, int key_state, bt_bdaddr_t *bd_addr);
 
 typedef void (* btrc_groupnavigation_rsp_callback) (int id, int key_state);
 
