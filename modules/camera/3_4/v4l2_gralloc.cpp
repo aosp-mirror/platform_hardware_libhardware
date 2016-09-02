@@ -25,6 +25,7 @@
 #include <system/graphics.h>
 
 #include "common.h"
+#include "stream_format.h"
 
 namespace v4l2_camera_hal {
 
@@ -96,9 +97,9 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
   buffer_handle_t buffer = *camera_buffer->buffer;
   void* data;
   camera3_stream_t* stream = camera_buffer->stream;
-  switch(stream->format) {
+  switch(StreamFormat::HalToV4L2PixelFormat(stream->format)) {
     // TODO(b/30119452): support more YCbCr formats.
-    case HAL_PIXEL_FORMAT_YCbCr_420_888:
+    case V4L2_PIX_FMT_YUV420:
       android_ycbcr yuv_data;
       mModule->lock_ycbcr(mModule, buffer, stream->usage, 0, 0,
                           stream->width, stream->height, &yuv_data);
@@ -127,9 +128,14 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
         buffer_data->transform_dest.reset(new android_ycbcr(yuv_data));
       }
       break;
-    case HAL_PIXEL_FORMAT_BLOB:
+    case V4L2_PIX_FMT_JPEG:
       // Jpeg buffers are just contiguous blobs; lock length * 1.
       mModule->lock(mModule, buffer, stream->usage, 0, 0, device_buffer->length, 1, &data);
+      break;
+    case V4L2_PIX_FMT_BGR32:  // Fall-through.
+    case V4L2_PIX_FMT_RGB32:
+      // RGB formats have nice agreed upon representation. Unless using android flex formats.
+      mModule->lock(mModule, buffer, stream->usage, 0, 0, stream->width, stream->height, &data);
       break;
     default:
       return -EINVAL;
