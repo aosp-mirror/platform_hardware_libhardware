@@ -2,7 +2,6 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += hardware/libhardware/modules/input/evdev
-LOCAL_C_INCLUDES += $(TOP)/external/gmock/include
 
 LOCAL_SRC_FILES:= \
     BitUtils_test.cpp \
