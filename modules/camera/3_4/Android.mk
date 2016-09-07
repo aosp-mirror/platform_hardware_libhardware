@@ -42,6 +42,8 @@ v4l2_src_files := \
   format_metadata_factory.cpp \
   metadata/enum_converter.cpp \
   metadata/metadata.cpp \
+  metadata/metadata_reader.cpp \
+  static_properties.cpp \
   stream.cpp \
   stream_format.cpp \
   v4l2_camera.cpp \
@@ -57,6 +59,7 @@ v4l2_test_files := \
   metadata/ignored_control_delegate_test.cpp \
   metadata/map_converter_test.cpp \
   metadata/menu_control_options_test.cpp \
+  metadata/metadata_reader_test.cpp \
   metadata/metadata_test.cpp \
   metadata/no_effect_control_delegate_test.cpp \
   metadata/partial_metadata_factory_test.cpp \
@@ -67,6 +70,7 @@ v4l2_test_files := \
   metadata/tagged_control_delegate_test.cpp \
   metadata/tagged_control_options_test.cpp \
   metadata/v4l2_control_delegate_test.cpp \
+  static_properties_test.cpp \
 
 # V4L2 Camera HAL.
 # ==============================================================================

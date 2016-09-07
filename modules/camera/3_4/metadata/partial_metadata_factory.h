@@ -223,9 +223,6 @@ std::unique_ptr<Control<T>> V4L2Control(
           HAL_LOGE("Error converting value %d for control %d.", i, control_id);
           return nullptr;
         }
-        if (control_id == V4L2_CID_COLORFX) {
-          HAL_LOGE("Adding color effect %d (%d)", i, metadata_val);
-        }
         options.push_back(metadata_val);
       }
       // Check to make sure there's at least one option.
