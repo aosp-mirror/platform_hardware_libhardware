@@ -160,7 +160,7 @@ static void GetDataPointer(camera_metadata_ro_entry_t& entry,
 //
 // Returns:
 //   -ENOENT: The tag couldn't be found or was empty.
-//   -EINVAL: The tag contained more than one item.
+//   -EINVAL: The tag contained more than one item, or |val| is null.
 //   -ENODEV: The tag claims to be non-empty, but the data pointer is null.
 //   0: Success. |*val| will contain the value for |tag|.
 
@@ -169,6 +169,10 @@ template <typename T>
 static int SingleTagValue(const android::CameraMetadata& metadata,
                           int32_t tag,
                           T* val) {
+  if (!val) {
+    HAL_LOGE("Null pointer passed to SingleTagValue.");
+    return -EINVAL;
+  }
   camera_metadata_ro_entry_t entry = metadata.find(tag);
   if (entry.count == 0) {
     HAL_LOGE("Metadata tag %d is empty.", tag);
@@ -196,6 +200,10 @@ template <typename T, size_t N>
 static int SingleTagValue(const android::CameraMetadata& metadata,
                           int32_t tag,
                           std::array<T, N>* val) {
+  if (!val) {
+    HAL_LOGE("Null pointer passed to SingleTagValue.");
+    return -EINVAL;
+  }
   camera_metadata_ro_entry_t entry = metadata.find(tag);
   if (entry.count == 0) {
     HAL_LOGE("Metadata tag %d is empty.", tag);
@@ -218,6 +226,84 @@ static int SingleTagValue(const android::CameraMetadata& metadata,
   // Fill in the array.
   for (size_t i = 0; i < N; ++i) {
     (*val)[i] = data[i];
+  }
+  return 0;
+}
+
+// VectorTagValue(metadata, tag, val)
+//
+// Get the value of the |tag| entry in |metadata|.
+// |tag| is expected to refer to an entry with a vector
+// of the templated type. For arrays, an error will be
+// returned if it the wrong number of items are present.
+//
+// Returns:
+//   -ENOENT: The tag couldn't be found or was empty. While technically an
+//            empty vector may be valid, this error is returned for consistency
+//            with SingleTagValue.
+//   -EINVAL: The tag contained an invalid number of entries (e.g. 6 entries for
+//            a vector of length 4 arrays), or |val| is null.
+//   -ENODEV: The tag claims to be non-empty, but the data pointer is null.
+//   0: Success. |*val| will contain the values for |tag|.
+template <typename T>
+static int VectorTagValue(const android::CameraMetadata& metadata,
+                          int32_t tag,
+                          std::vector<T>* val) {
+  if (!val) {
+    HAL_LOGE("Null pointer passed to VectorTagValue.");
+    return -EINVAL;
+  }
+  camera_metadata_ro_entry_t entry = metadata.find(tag);
+  if (entry.count == 0) {
+    return -ENOENT;
+  }
+  const T* data = nullptr;
+  GetDataPointer(entry, &data);
+  if (data == nullptr) {
+    HAL_LOGE("Metadata tag %d claims to have elements but is empty.", tag);
+    return -ENODEV;
+  }
+  // Copy the data for |tag| into the output vector.
+  *val = std::vector<T>(data, data + entry.count);
+  return 0;
+}
+
+// Specialization for std::array.
+template <typename T, size_t N>
+static int VectorTagValue(const android::CameraMetadata& metadata,
+                          int32_t tag,
+                          std::vector<std::array<T, N>>* val) {
+  if (!val) {
+    HAL_LOGE("Null pointer passed to VectorTagValue.");
+    return -EINVAL;
+  }
+  camera_metadata_ro_entry_t entry = metadata.find(tag);
+  if (entry.count == 0) {
+    return -ENOENT;
+  }
+  if (entry.count % N != 0) {
+    HAL_LOGE(
+        "Error: expected metadata tag %d to contain a vector of arrays of "
+        "length %d (had %d entries, which is not divisible by %d).",
+        tag,
+        N,
+        entry.count,
+        N);
+    return -EINVAL;
+  }
+  const T* data = nullptr;
+  GetDataPointer(entry, &data);
+  if (data == nullptr) {
+    HAL_LOGE("Metadata tag %d claims to have elements but is empty.", tag);
+    return -ENODEV;
+  }
+  // Copy the data for |tag| into separate arrays for the output vector.
+  size_t num_arrays = entry.count / N;
+  *val = std::vector<std::array<T, N>>(num_arrays);
+  for (size_t i = 0; i < num_arrays; ++i) {
+    for (size_t j = 0; j < N; ++j) {
+      val->at(i)[j] = data[i * N + j];
+    }
   }
   return 0;
 }

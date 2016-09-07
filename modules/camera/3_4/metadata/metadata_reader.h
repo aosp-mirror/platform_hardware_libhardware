@@ -17,11 +17,13 @@
 #ifndef DEFAULT_CAMERA_HAL_METADATA_METADATA_READER_H_
 #define DEFAULT_CAMERA_HAL_METADATA_METADATA_READER_H_
 
+#include <map>
 #include <memory>
 
 #include <camera/CameraMetadata.h>
 
 #include "../common.h"
+#include "types.h"
 
 namespace default_camera_hal {
 
@@ -51,6 +53,15 @@ class MetadataReader {
   // The |facing| returned will be one of the enum values from system/camera.h.
   virtual int Facing(int* facing) const;
   virtual int Orientation(int* orientation) const;
+  virtual int MaxInputStreams(int32_t* max_input_streams) const;
+  virtual int MaxOutputStreams(int32_t* max_raw_output_streams,
+                               int32_t* max_non_stalling_output_streams,
+                               int32_t* max_stalling_output_streams) const;
+  virtual int StreamConfigurations(
+      std::vector<StreamConfiguration>* configs) const;
+  virtual int StreamStallDurations(
+      std::vector<StreamStallDuration>* stalls) const;
+  virtual int ReprocessFormats(ReprocessFormatMap* reprocess_map) const;
 
  private:
   std::unique_ptr<const android::CameraMetadata> metadata_;
