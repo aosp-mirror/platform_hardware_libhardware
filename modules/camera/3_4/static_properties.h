@@ -18,15 +18,34 @@
 #define DEFAULT_CAMERA_HAL_STATIC_PROPERTIES_H_
 
 #include <memory>
+#include <set>
+
+#include <hardware/camera3.h>
 
 #include "common.h"
 #include "metadata/metadata_reader.h"
+#include "metadata/types.h"
 
 namespace default_camera_hal {
 
 // StaticProperties provides a wrapper around useful static metadata entries.
 class StaticProperties {
  public:
+  // Helpful types for interpreting some static properties.
+  struct StreamCapabilities {
+    int64_t stall_duration;
+    int32_t input_supported;
+    int32_t output_supported;
+    // Default constructor ensures no support
+    // and an invalid stall duration.
+    StreamCapabilities()
+        : stall_duration(-1), input_supported(0), output_supported(0) {}
+  };
+  // Map stream spec (format, size) to their
+  // capabilities (input, output, stall).
+  typedef std::map<StreamSpec, StreamCapabilities, StreamSpec::Compare>
+      CapabilitiesMap;
+
   // Use this method to create StaticProperties objects.
   // Functionally equivalent to "new StaticProperties",
   // except that it may return nullptr in case of failure (missing entries).
@@ -34,6 +53,7 @@ class StaticProperties {
       std::unique_ptr<const MetadataReader> metadata_reader);
   virtual ~StaticProperties(){};
 
+  // Simple accessors.
   int facing() const { return facing_; };
   int orientation() const { return orientation_; };
   // Carrying on the promise of the underlying reader,
@@ -42,16 +62,47 @@ class StaticProperties {
     return metadata_reader_->raw_metadata();
   };
 
+  // Validators (check that values are consistent with the capabilities
+  // this object represents/base requirements of the camera HAL).
+  bool StreamConfigurationSupported(
+      const camera3_stream_configuration_t* stream_config);
+  // Check that the inputs and outputs for a request don't conflict.
+  bool ReprocessingSupported(
+      const camera3_stream_t* input_stream,
+      const std::set<const camera3_stream_t*>& output_streams);
+
  private:
   // Constructor private to allow failing on bad input.
   // Use NewStaticProperties instead.
   StaticProperties(std::unique_ptr<const MetadataReader> metadata_reader,
                    int facing,
-                   int orientation);
+                   int orientation,
+                   int32_t max_input_streams,
+                   int32_t max_raw_output_streams,
+                   int32_t max_non_stalling_output_streams,
+                   int32_t max_stalling_output_streams,
+                   CapabilitiesMap stream_capabilities,
+                   ReprocessFormatMap supported_reprocess_outputs);
+
+  // Helper functions for StreamConfigurationSupported.
+  bool SanityCheckStreamConfiguration(
+      const camera3_stream_configuration_t* stream_config);
+  bool InputStreamsSupported(
+      const camera3_stream_configuration_t* stream_config);
+  bool OutputStreamsSupported(
+      const camera3_stream_configuration_t* stream_config);
+  bool OperationModeSupported(
+      const camera3_stream_configuration_t* stream_config);
 
   const std::unique_ptr<const MetadataReader> metadata_reader_;
   const int facing_;
   const int orientation_;
+  const int32_t max_input_streams_;
+  const int32_t max_raw_output_streams_;
+  const int32_t max_non_stalling_output_streams_;
+  const int32_t max_stalling_output_streams_;
+  const CapabilitiesMap stream_capabilities_;
+  const ReprocessFormatMap supported_reprocess_outputs_;
 
   DISALLOW_COPY_AND_ASSIGN(StaticProperties);
 };
