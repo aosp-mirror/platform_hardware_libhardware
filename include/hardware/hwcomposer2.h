@@ -86,6 +86,12 @@ typedef enum {
      * (such as position, size, etc.) need to be performed through the
      * validate/present cycle. */
     HWC2_CAPABILITY_SIDEBAND_STREAM = 1,
+
+    /* Specifies that the device will apply a color transform even when either
+     * the client or the device has chosen that all layers should be composed by
+     * the client. This will prevent the client from applying the color
+     * transform during its composition step. */
+    HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM = 2,
 } hwc2_capability_t;
 
 /* Possible composition types for a given layer */
@@ -325,6 +331,8 @@ static inline const char* getCapabilityName(hwc2_capability_t capability) {
     switch (capability) {
         case HWC2_CAPABILITY_INVALID: return "Invalid";
         case HWC2_CAPABILITY_SIDEBAND_STREAM: return "SidebandStream";
+        case HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM:
+                return "SkipClientColorTransform";
         default: return "Unknown";
     }
 }
@@ -540,6 +548,7 @@ TO_STRING(hwc2_callback_descriptor_t, Callback, getCallbackDescriptorName)
 enum class Capability : int32_t {
     Invalid = HWC2_CAPABILITY_INVALID,
     SidebandStream = HWC2_CAPABILITY_SIDEBAND_STREAM,
+    SkipClientColorTransform = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
 };
 TO_STRING(hwc2_capability_t, Capability, getCapabilityName)
 
@@ -1467,6 +1476,10 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_COLOR_MODE)(
  * If the device is not capable of either using the hint or the matrix to apply
  * the desired color transform, it should force all layers to client composition
  * during validateDisplay.
+ *
+ * If HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM is present, then the client
+ * will never apply the color transform during client composition, even if all
+ * layers are being composed by the client.
  *
  * The matrix provided is an affine color transformation of the following form:
  *
