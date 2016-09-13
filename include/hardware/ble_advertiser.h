@@ -31,24 +31,20 @@ __BEGIN_DECLS
 typedef void (*register_advertiser_callback)(int status, int advertiser_id,
                                              bt_uuid_t *uuid);
 
-/** Callback invoked when multi-adv enable operation has completed */
-typedef void (*multi_adv_enable_callback)(int advertiser_id, int status);
-
-/** Callback invoked when multi-adv param update operation has completed */
-typedef void (*multi_adv_update_callback)(int advertiser_id, int status);
+/** Callback invoked when multi-adv param set_params operation has completed */
+typedef void (*multi_adv_set_params_callback)(int advertiser_id, int status);
 
 /** Callback invoked when multi-adv instance data set operation has completed */
 typedef void (*multi_adv_data_callback)(int advertiser_id, int status);
 
-/** Callback invoked when multi-adv disable operation has completed */
-typedef void (*multi_adv_disable_callback)(int advertiser_id, int status);
+/** Callback invoked when multi-adv enable operation has completed */
+typedef void (*multi_adv_enable_callback)(int advertiser_id, int status, bool enable);
 
 typedef struct {
     register_advertiser_callback        register_advertiser_cb;
-    multi_adv_enable_callback           multi_adv_enable_cb;
-    multi_adv_update_callback           multi_adv_update_cb;
+    multi_adv_set_params_callback       multi_adv_set_params_cb;
     multi_adv_data_callback             multi_adv_data_cb;
-    multi_adv_disable_callback          multi_adv_disable_cb;
+    multi_adv_enable_callback           multi_adv_enable_cb;
 } ble_advertiser_callbacks_t;
 
 typedef struct {
@@ -65,21 +61,18 @@ typedef struct {
                     vector<uint8_t> service_data,
                     vector<uint8_t> service_uuid);
 
-    /* Set up the parameters as per spec, user manual specified values and enable multi ADV */
-    bt_status_t (*multi_adv_enable)(int advertiser_id, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power, int timeout_s);
+    /* Set the parameters as per spec, user manual specified values */
+    bt_status_t (*multi_adv_set_params)(int advertiser_id, int min_interval,int max_interval,int adv_type,
+                 int chnl_map, int tx_power);
 
-    /* Update the parameters as per spec, user manual specified values and restart multi ADV */
-    bt_status_t (*multi_adv_update)(int advertiser_id, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power, int timeout_s);
 
     /* Setup the data for the specified instance */
     bt_status_t (*multi_adv_set_inst_data)(int advertiser_id, bool set_scan_rsp, bool include_name,
                     bool incl_txpower, int appearance, vector<uint8_t> manufacturer_data,
                     vector<uint8_t> service_data, vector<uint8_t> service_uuid);
 
-    /* Disable the multi adv instance */
-    bt_status_t (*multi_adv_disable)(int advertiser_id);
+    /* Enable the advertising instance as per spec */
+    bt_status_t (*multi_adv_enable)(int advertiser_id, bool enable, int timeout_s);
 
 } ble_advertiser_interface_t;
 
