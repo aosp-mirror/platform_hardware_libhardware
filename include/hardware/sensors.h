@@ -798,6 +798,7 @@ enum {
 /**
  * SENSOR_TYPE_DYNAMIC_SENSOR_META
  * trigger-mode: special
+ * wake-up sensor: yes
  *
  * A sensor event of this type is received when a dynamic sensor is added to or removed from the
  * system. At most one sensor of this type can be present in one sensor HAL implementation and
@@ -828,6 +829,8 @@ enum {
  * and type. For physical sensors of the same model, all sensors will have the same values in
  * sensor_t, but the UUID should be unique and persistent for each individual unit. An all zero UUID
  * indicates it is not possible to differentiate individual sensor unit.
+ *
+ * It is recommended to implement this type as wake up sensor.
  *
  */
 #define SENSOR_TYPE_DYNAMIC_SENSOR_META                         (32)
