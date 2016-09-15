@@ -150,6 +150,13 @@ typedef struct effect_descriptor_s {
 //  | Effect offload supported  | 22        | 0 The effect cannot be offloaded to an audio DSP
 //  |                           |           | 1 The effect can be offloaded to an audio DSP
 //  +---------------------------+-----------+-----------------------------------
+//  | Process function not      | 23        | 0 The effect implements a process function.
+//  | implemented               |           | 1 The effect does not implement a process function:
+//  |                           |           |   enabling the effect has no impact on latency or
+//  |                           |           |   CPU load.
+//  |                           |           |   Effect implementations setting this flag do not have
+//  |                           |           |   to implement a process function.
+//  +---------------------------+-----------+-----------------------------------
 
 // Insert mode
 #define EFFECT_FLAG_TYPE_SHIFT          0
@@ -239,6 +246,14 @@ typedef struct effect_descriptor_s {
 #define EFFECT_FLAG_OFFLOAD_MASK        (((1 << EFFECT_FLAG_OFFLOAD_SIZE) -1) \
                                           << EFFECT_FLAG_OFFLOAD_SHIFT)
 #define EFFECT_FLAG_OFFLOAD_SUPPORTED   (1 << EFFECT_FLAG_OFFLOAD_SHIFT)
+
+// Effect has no process indication
+#define EFFECT_FLAG_NO_PROCESS_SHIFT       (EFFECT_FLAG_OFFLOAD_SHIFT + \
+                                                    EFFECT_FLAG_OFFLOAD_SIZE)
+#define EFFECT_FLAG_NO_PROCESS_SIZE        1
+#define EFFECT_FLAG_NO_PROCESS_MASK        (((1 << EFFECT_FLAG_NO_PROCESS_SIZE) -1) \
+                                          << EFFECT_FLAG_NO_PROCESS_SHIFT)
+#define EFFECT_FLAG_NO_PROCESS          (1 << EFFECT_FLAG_NO_PROCESS_SHIFT)
 
 #define EFFECT_MAKE_API_VERSION(M, m)  (((M)<<16) | ((m) & 0xFFFF))
 #define EFFECT_API_VERSION_MAJOR(v)    ((v)>>16)
