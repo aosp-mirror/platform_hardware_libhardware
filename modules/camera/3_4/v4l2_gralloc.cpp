@@ -31,8 +31,11 @@ namespace v4l2_camera_hal {
 
 // Copy |height| lines from |src| to |dest|,
 // where |src| and |dest| may have different line lengths.
-void copyWithPadding(uint8_t* dest, const uint8_t* src, size_t dest_stride,
-                     size_t src_stride, size_t height) {
+void copyWithPadding(uint8_t* dest,
+                     const uint8_t* src,
+                     size_t dest_stride,
+                     size_t src_stride,
+                     size_t height) {
   size_t copy_stride = dest_stride;
   if (copy_stride > src_stride) {
     // Adding padding, not reducing. 0 out the extra memory.
@@ -41,8 +44,8 @@ void copyWithPadding(uint8_t* dest, const uint8_t* src, size_t dest_stride,
   }
   uint8_t* dest_line_start = dest;
   const uint8_t* src_line_start = src;
-  for (size_t row = 0; row < height; ++row,
-           dest_line_start += dest_stride, src_line_start += src_stride) {
+  for (size_t row = 0; row < height;
+       ++row, dest_line_start += dest_stride, src_line_start += src_stride) {
     memcpy(dest_line_start, src_line_start, copy_stride);
   }
 }
@@ -62,10 +65,11 @@ V4L2Gralloc* V4L2Gralloc::NewV4L2Gralloc() {
 
   // This class only supports Gralloc v0, not Gralloc V1.
   if (gralloc->common.module_api_version > GRALLOC_MODULE_API_VERSION_0_3) {
-    HAL_LOGE("Invalid gralloc version %x. Only 0.3 (%x) "
-             "and below are supported by this HAL.",
-             gralloc->common.module_api_version,
-             GRALLOC_MODULE_API_VERSION_0_3);
+    HAL_LOGE(
+        "Invalid gralloc version %x. Only 0.3 (%x) "
+        "and below are supported by this HAL.",
+        gralloc->common.module_api_version,
+        GRALLOC_MODULE_API_VERSION_0_3);
     return nullptr;
   }
 
@@ -74,8 +78,7 @@ V4L2Gralloc* V4L2Gralloc::NewV4L2Gralloc() {
 
 // Private. As checked by above factory, module will be non-null
 // and a supported version.
-V4L2Gralloc::V4L2Gralloc(const gralloc_module_t* module)
-    : mModule(module) {
+V4L2Gralloc::V4L2Gralloc(const gralloc_module_t* module) : mModule(module) {
   HAL_LOG_ENTER();
 }
 
@@ -92,29 +95,39 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
   HAL_LOG_ENTER();
 
   // Lock the camera buffer (varies depending on if the buffer is YUV or not).
-  std::unique_ptr<BufferData> buffer_data(new BufferData {
-      camera_buffer, nullptr, bytes_per_line});
+  std::unique_ptr<BufferData> buffer_data(
+      new BufferData{camera_buffer, nullptr, bytes_per_line});
   buffer_handle_t buffer = *camera_buffer->buffer;
   void* data;
   camera3_stream_t* stream = camera_buffer->stream;
-  switch(StreamFormat::HalToV4L2PixelFormat(stream->format)) {
+  int ret = 0;
+  switch (StreamFormat::HalToV4L2PixelFormat(stream->format)) {
     // TODO(b/30119452): support more YCbCr formats.
     case V4L2_PIX_FMT_YUV420:
       android_ycbcr yuv_data;
-      mModule->lock_ycbcr(mModule, buffer, stream->usage, 0, 0,
-                          stream->width, stream->height, &yuv_data);
+      ret = mModule->lock_ycbcr(mModule,
+                                buffer,
+                                stream->usage,
+                                0,
+                                0,
+                                stream->width,
+                                stream->height,
+                                &yuv_data);
+      if (ret) {
+        HAL_LOGE("Failed to lock ycbcr buffer: %d", ret);
+        return ret;
+      }
 
       // Check if gralloc format matches v4l2 format
       // (same padding, not interleaved, contiguous).
       if (yuv_data.ystride == bytes_per_line &&
-          yuv_data.cstride == bytes_per_line / 2 &&
-          yuv_data.chroma_step == 1 &&
+          yuv_data.cstride == bytes_per_line / 2 && yuv_data.chroma_step == 1 &&
           (reinterpret_cast<uint8_t*>(yuv_data.cb) ==
            reinterpret_cast<uint8_t*>(yuv_data.y) +
-           (stream->height * yuv_data.ystride)) &&
+               (stream->height * yuv_data.ystride)) &&
           (reinterpret_cast<uint8_t*>(yuv_data.cr) ==
            reinterpret_cast<uint8_t*>(yuv_data.cb) +
-           (stream->height / 2 * yuv_data.cstride))) {
+               (stream->height / 2 * yuv_data.cstride))) {
         // If so, great, point to the beginning.
         HAL_LOGV("V4L2 YUV matches gralloc YUV.");
         data = yuv_data.y;
@@ -130,15 +143,43 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
       break;
     case V4L2_PIX_FMT_JPEG:
       // Jpeg buffers are just contiguous blobs; lock length * 1.
-      mModule->lock(mModule, buffer, stream->usage, 0, 0, device_buffer->length, 1, &data);
+      ret = mModule->lock(mModule,
+                          buffer,
+                          stream->usage,
+                          0,
+                          0,
+                          device_buffer->length,
+                          1,
+                          &data);
+      if (ret) {
+        HAL_LOGE("Failed to lock jpeg buffer: %d", ret);
+        return ret;
+      }
       break;
     case V4L2_PIX_FMT_BGR32:  // Fall-through.
     case V4L2_PIX_FMT_RGB32:
-      // RGB formats have nice agreed upon representation. Unless using android flex formats.
-      mModule->lock(mModule, buffer, stream->usage, 0, 0, stream->width, stream->height, &data);
+      // RGB formats have nice agreed upon representation. Unless using android
+      // flex formats.
+      ret = mModule->lock(mModule,
+                          buffer,
+                          stream->usage,
+                          0,
+                          0,
+                          stream->width,
+                          stream->height,
+                          &data);
+      if (ret) {
+        HAL_LOGE("Failed to lock RGB buffer: %d", ret);
+        return ret;
+      }
       break;
     default:
       return -EINVAL;
+  }
+
+  if (!data) {
+    ALOGE("Gralloc lock returned null ptr");
+    return -ENODEV;
   }
 
   // Set up the device buffer.
@@ -200,11 +241,14 @@ int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
       memcpy(yuv_data->y, data, y_len);
     } else {
       HAL_LOGV("Changing padding on Y plane from %u to %u.",
-               bytes_per_line, yuv_data->ystride);
+               bytes_per_line,
+               yuv_data->ystride);
       // Wrong padding from V4L2.
       copyWithPadding(reinterpret_cast<uint8_t*>(yuv_data->y),
                       reinterpret_cast<uint8_t*>(data),
-                      yuv_data->ystride, bytes_per_line, height);
+                      yuv_data->ystride,
+                      bytes_per_line,
+                      height);
     }
     // C data.
     // TODO(b/30119452): These calculations assume YCbCr_420_888.
@@ -222,19 +266,25 @@ int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
         memcpy(yuv_data->cr, cr_device, c_len);
       } else {
         HAL_LOGV("Changing padding on C plane from %u to %u.",
-                 c_bytes_per_line, yuv_data->cstride);
+                 c_bytes_per_line,
+                 yuv_data->cstride);
         // Wrong padding from V4L2.
         copyWithPadding(reinterpret_cast<uint8_t*>(yuv_data->cb),
-                        cb_device, yuv_data->cstride,
-                        c_bytes_per_line, height / 2);
+                        cb_device,
+                        yuv_data->cstride,
+                        c_bytes_per_line,
+                        height / 2);
         copyWithPadding(reinterpret_cast<uint8_t*>(yuv_data->cr),
-                        cr_device, yuv_data->cstride,
-                        c_bytes_per_line, height / 2);
+                        cr_device,
+                        yuv_data->cstride,
+                        c_bytes_per_line,
+                        height / 2);
       }
     } else {
       // Desire semiplanar (cb and cr interleaved).
       HAL_LOGV("Interleaving cb and cr. Padding going from %u to %u.",
-               c_bytes_per_line, yuv_data->cstride);
+               c_bytes_per_line,
+               yuv_data->cstride);
       uint32_t c_height = height / 2;
       uint32_t c_width = camera_buffer->stream->width / 2;
       // Zero out destination
@@ -244,8 +294,10 @@ int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
 
       // Interleaving means we need to copy the cb and cr bytes one by one.
       for (size_t line = 0; line < c_height; ++line,
-               cb_gralloc += yuv_data->cstride, cr_gralloc += yuv_data->cstride,
-               cb_device += c_bytes_per_line, cr_device += c_bytes_per_line) {
+                  cb_gralloc += yuv_data->cstride,
+                  cr_gralloc += yuv_data->cstride,
+                  cb_device += c_bytes_per_line,
+                  cr_device += c_bytes_per_line) {
         for (size_t i = 0; i < c_width; ++i) {
           *(cb_gralloc + (i * step)) = *(cb_device + i);
           *(cr_gralloc + (i * step)) = *(cr_device + i);
@@ -276,7 +328,7 @@ int V4L2Gralloc::unlockAllBuffers() {
     // When there is a transform to be made, the buffer returned by lock()
     // is dynamically allocated (to hold the pre-transform data).
     if (entry.second->transform_dest) {
-      delete [] reinterpret_cast<uint8_t*>(entry.first);
+      delete[] reinterpret_cast<uint8_t*>(entry.first);
     }
     // The BufferData entry is always dynamically allocated in lock().
     delete entry.second;

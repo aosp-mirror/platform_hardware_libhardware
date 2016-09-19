@@ -33,7 +33,7 @@ static constexpr size_t V4L2_MAX_JPEG_SIZE = 6000000;
 // V4L2Gralloc is a wrapper around relevant parts of a gralloc module,
 // with some assistive transformations.
 class V4L2Gralloc {
-public:
+ public:
   // Use this method to create V4L2Gralloc objects. Functionally equivalent
   // to "new V4L2Gralloc", except that it may return nullptr in case of failure.
   static V4L2Gralloc* NewV4L2Gralloc();
@@ -49,7 +49,7 @@ public:
   // Release all held locks.
   int unlockAllBuffers();
 
-private:
+ private:
   // Constructor is private to allow failing on bad input.
   // Use NewV4L2Gralloc instead.
   V4L2Gralloc(const gralloc_module_t* module);

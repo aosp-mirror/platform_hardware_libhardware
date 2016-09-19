@@ -335,9 +335,9 @@ int Camera::setupStreams(Stream **streams, int count)
     for (int i = 0; i < count; i++) {
         uint32_t usage = 0;
         if (streams[i]->isOutputType())
-            usage |= GRALLOC_USAGE_HW_CAMERA_WRITE;
+            usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
         if (streams[i]->isInputType())
-            usage |= GRALLOC_USAGE_HW_CAMERA_READ;
+            usage |= GRALLOC_USAGE_SW_READ_OFTEN;
         streams[i]->setUsage(usage);
 
         uint32_t max_buffers;
