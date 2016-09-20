@@ -39,10 +39,12 @@ v4l2_c_includes := $(call include-path-for, camera)
 
 v4l2_src_files := \
   camera.cpp \
+  capture_request.cpp \
   format_metadata_factory.cpp \
   metadata/enum_converter.cpp \
   metadata/metadata.cpp \
   metadata/metadata_reader.cpp \
+  request_tracker.cpp \
   static_properties.cpp \
   stream.cpp \
   stream_format.cpp \
@@ -70,6 +72,7 @@ v4l2_test_files := \
   metadata/tagged_control_delegate_test.cpp \
   metadata/tagged_control_options_test.cpp \
   metadata/v4l2_control_delegate_test.cpp \
+  request_tracker_test.cpp \
   static_properties_test.cpp \
 
 # V4L2 Camera HAL.
