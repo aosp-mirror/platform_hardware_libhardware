@@ -24,6 +24,7 @@
 #include <hardware/camera3.h>
 #include <utils/Mutex.h>
 
+#include "capture_request.h"
 #include "metadata/metadata.h"
 #include "stream.h"
 
@@ -51,7 +52,7 @@ class Camera {
         int initialize(const camera3_callback_ops_t *callback_ops);
         int configureStreams(camera3_stream_configuration_t *stream_list);
         const camera_metadata_t *constructDefaultRequestSettings(int type);
-        int processCaptureRequest(camera3_capture_request_t *request);
+        int processCaptureRequest(camera3_capture_request_t *temp_request);
         void dump(int fd);
 
 
@@ -73,22 +74,19 @@ class Camera {
         // Set up the device for a stream, and get the maximum number of
         // buffers that stream can handle (max_buffers is an output parameter)
         virtual int setupStream(Stream* stream, uint32_t* max_buffers) = 0;
-        // Verify settings are valid for a capture
-        virtual bool isValidCaptureSettings(
-            const android::CameraMetadata& settings) = 0;
-        // Set settings for a capture
-        virtual int setSettings(
-            const android::CameraMetadata& new_settings) = 0;
+        // Verify settings are valid for a capture or reprocessing
+        virtual bool isValidRequest(const CaptureRequest& request) = 0;
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
-        // Enqueue a buffer to receive data from the camera
-        virtual int enqueueBuffer(
-            const camera3_stream_buffer_t *camera_buffer) = 0;
-        // Get the shutter time and updated settings for the most recent frame.
-        // The metadata parameter is both an input and output; frame-specific
-        // result fields should be appended to what is passed in.
-        virtual int getResultSettings(android::CameraMetadata* metadata,
-                                      uint64_t *timestamp) = 0;
+        // Enqueue a request to receive data from the camera
+        virtual int enqueueRequest(
+            std::shared_ptr<CaptureRequest> request) = 0;
+
+        // Callback for when the device has filled in the requested data.
+        // Fills in the result struct, validates the data, sends appropriate
+        // notifications, and returns the result to the framework.
+        void completeRequest(
+            std::shared_ptr<CaptureRequest> request, int err);
         // Prettyprint template names
         const char* templateToString(int type);
 
@@ -105,9 +103,8 @@ class Camera {
         int setupStreams(Stream **array, int count);
         // Verify settings are valid for reprocessing an input buffer
         bool isValidReprocessSettings(const camera_metadata_t *settings);
-        // Process an output buffer
-        int processCaptureBuffer(const camera3_stream_buffer_t *in,
-                                 camera3_stream_buffer_t *out);
+        // Pre-process an output buffer
+        int preprocessCaptureBuffer(camera3_stream_buffer_t *buffer);
         // Send a shutter notify message with start of exposure time
         void notifyShutter(uint32_t frame_number, uint64_t timestamp);
         // Is type a valid template type (and valid index into mTemplates)

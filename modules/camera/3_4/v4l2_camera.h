@@ -20,6 +20,7 @@
 #define V4L2_CAMERA_HAL_V4L2_CAMERA_H_
 
 #include <array>
+#include <queue>
 #include <string>
 
 #include <camera/CameraMetadata.h>
@@ -70,21 +71,30 @@ class V4L2Camera : public default_camera_hal::Camera {
   // buffers that stream can handle (max_buffers is an output parameter).
   int setupStream(default_camera_hal::Stream* stream,
                   uint32_t* max_buffers) override;
-  // Verify settings are valid for a capture with this device.
-  bool isValidCaptureSettings(const android::CameraMetadata& settings) override;
-  // Set settings for a capture.
-  int setSettings(const android::CameraMetadata& new_settings) override;
-  // Enqueue a buffer to receive data from the camera.
-  int enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) override;
-  // Get the shutter time and updated settings for the most recent frame.
-  // The metadata parameter is both an input and output; frame-specific
-  // result fields should be appended to what is passed in.
-  int getResultSettings(android::CameraMetadata* metadata, uint64_t* timestamp);
+  // Verify settings are valid for a capture or reprocessing.
+  bool isValidRequest(
+      const default_camera_hal::CaptureRequest& request) override;
+  // Enqueue a request to receive data from the camera.
+  int enqueueRequest(
+      std::shared_ptr<default_camera_hal::CaptureRequest> request) override;
+
+  // Async request processing.
+  // Dequeue a request from the waiting queue.
+  std::shared_ptr<default_camera_hal::CaptureRequest> dequeueRequest();
+  // Pass buffers for enqueued requests to the device.
+  void enqueueRequestBuffers();
+  // Retreive buffers from the device.
+  void dequeueRequestBuffers();
 
   // V4L2 helper.
   std::shared_ptr<V4L2Wrapper> device_;
   std::unique_ptr<V4L2Wrapper::Connection> connection_;
   std::unique_ptr<Metadata> metadata_;
+  std::mutex request_queue_lock_;
+  std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>>
+      request_queue_;
+  std::mutex in_flight_lock_;
+  std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>> in_flight_;
 
   int32_t max_input_streams_;
   std::array<int, 3> max_output_streams_;  // {raw, non-stalling, stalling}.

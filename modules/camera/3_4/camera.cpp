@@ -383,121 +383,119 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
     return mTemplates[type]->getAndLock();
 }
 
-int Camera::processCaptureRequest(camera3_capture_request_t *request)
+int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 {
     int res;
 
-    ALOGV("%s:%d: request=%p", __func__, mId, request);
+    ALOGV("%s:%d: request=%p", __func__, mId, temp_request);
     ATRACE_CALL();
 
-    if (request == NULL) {
+    if (temp_request == NULL) {
         ALOGE("%s:%d: NULL request recieved", __func__, mId);
         return -EINVAL;
     }
 
-    ALOGV("%s:%d: Request Frame:%d Settings:%p", __func__, mId,
-            request->frame_number, request->settings);
+    // Make a persistent copy of request, since otherwise it won't live
+    // past the end of this method.
+    std::shared_ptr<CaptureRequest> request = std::make_shared<CaptureRequest>(temp_request);
 
-    // NULL indicates use last settings
-    if (request->settings == NULL && !mSettingsSet) {
-        ALOGE("%s:%d: NULL settings without previous set Frame:%d Req:%p",
-              __func__, mId, request->frame_number, request);
+    ALOGV("%s:%d: Request Frame:%d", __func__, mId,
+            request->frame_number);
+
+    // Null/Empty indicates use last settings
+    if (request->settings.isEmpty() && !mSettingsSet) {
+        ALOGE("%s:%d: NULL settings without previous set Frame:%d",
+              __func__, mId, request->frame_number);
         return -EINVAL;
     }
 
     if (request->input_buffer != NULL) {
         ALOGV("%s:%d: Reprocessing input buffer %p", __func__, mId,
-                request->input_buffer);
-
-        if (!isValidReprocessSettings(request->settings)) {
-            ALOGE("%s:%d: Invalid settings for reprocess request: %p",
-                    __func__, mId, request->settings);
-            return -EINVAL;
-        }
+              request->input_buffer.get());
     } else {
         ALOGV("%s:%d: Capturing new frame.", __func__, mId);
-
-        // Make a copy since CameraMetadata doesn't support weak ownership,
-        // but |request| is supposed to maintain ownership.
-        android::CameraMetadata request_settings;
-        request_settings = request->settings;
-        if (!isValidCaptureSettings(request_settings)) {
-            ALOGE("%s:%d: Invalid settings for capture request: %p",
-                    __func__, mId, request->settings);
-            return -EINVAL;
-        }
-        // Settings are valid, go ahead and set them.
-        res = setSettings(request_settings);
-        if (res) {
-          ALOGE("%s:%d: Failed to set valid settings for capture request: %p",
-                __func__, mId, request->settings);
-          return res;
-        }
-        mSettingsSet = true;
     }
 
-    // Setup and process output buffers.
-    if (request->num_output_buffers <= 0) {
-        ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
-                request->num_output_buffers);
+    if (!isValidRequest(*request)) {
+        ALOGE("%s:%d: Invalid request.", __func__, mId);
         return -EINVAL;
     }
-    camera3_capture_result result;
-    result.num_output_buffers = request->num_output_buffers;
-    std::vector<camera3_stream_buffer_t> output_buffers(
-        result.num_output_buffers);
-    for (unsigned int i = 0; i < request->num_output_buffers; i++) {
-        res = processCaptureBuffer(&request->output_buffers[i],
-                                   &output_buffers[i]);
+    // Valid settings have been provided (mSettingsSet is a misnomer;
+    // all that matters is that a previous request with valid settings
+    // has been passed to the device, not that they've been set).
+    mSettingsSet = true;
+
+    // Pre-process output buffers.
+    if (request->output_buffers.size() <= 0) {
+        ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
+              request->output_buffers.size());
+        return -EINVAL;
+    }
+    for (auto& output_buffer : request->output_buffers) {
+        res = preprocessCaptureBuffer(&output_buffer);
         if (res)
             return -ENODEV;
     }
-    result.output_buffers = &output_buffers[0];
 
-    // Get metadata for this frame. Since the framework guarantees only
-    // one call to process_capture_request at a time, this call is guaranteed
-    // to correspond with the most recently enqueued buffer.
+    // Send the request off to the device for completion.
+    enqueueRequest(request);
 
-    android::CameraMetadata result_metadata;
-    uint64_t timestamp = 0;
-    // TODO(b/29334616): this may also want to use a callback, since
-    // the shutter may not happen immediately.
-    res = getResultSettings(&result_metadata, &timestamp);
-    if (res) {
-        return res;
-    }
-    result.result = result_metadata.release();
-
-    // Notify the framework with the shutter time.
-    result.frame_number = request->frame_number;
-    notifyShutter(result.frame_number, timestamp);
-
-    // TODO(b/29334616): asynchronously return results (the following should
-    // be done once all enqueued buffers for the request complete and callback).
-    result.partial_result = 1;
-    mCallbackOps->process_capture_result(mCallbackOps, &result);
-
+    // Request is now in flight. The device will call completeRequest
+    // asynchronously when it is done filling buffers and metadata.
+    // TODO(b/31653306): Track requests in flight to ensure not too many are
+    // sent at a time, and so they can be dumped even if the device loses them.
     return 0;
 }
 
-bool Camera::isValidReprocessSettings(const camera_metadata_t* /*settings*/)
+void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
 {
-    // TODO: reject settings that cannot be reprocessed
-    // input buffers unimplemented, use this to reject reprocessing requests
-    ALOGE("%s:%d: Input buffer reprocessing not implemented", __func__, mId);
-    return false;
+    // TODO(b/31653306): make sure this is actually a request in flight,
+    // and not a random new one or a cancelled one. If so, stop tracking.
+
+    if (err) {
+        ALOGE("%s:%d: Error completing request for frame %d.",
+              __func__, mId, request->frame_number);
+        // TODO(b/31653322): Send REQUEST error.
+        return;
+    }
+
+    // Notify the framework with the shutter time (extracted from the result).
+    int64_t timestamp = 0;
+    // TODO(b/31360070): The general metadata methods should be part of the
+    // default_camera_hal namespace, not the v4l2_camera_hal namespace.
+    int res = v4l2_camera_hal::SingleTagValue(
+        request->settings, ANDROID_SENSOR_TIMESTAMP, &timestamp);
+    if (res) {
+        // TODO(b/31653322): Send RESULT error.
+        ALOGE("%s:%d: Request for frame %d is missing required metadata.",
+              __func__, mId, request->frame_number);
+        return;
+    }
+    notifyShutter(request->frame_number, timestamp);
+
+    // TODO(b/31653322): Check all returned buffers for errors
+    // (if any, send BUFFER error).
+
+    // Fill in the result struct
+    // (it only needs to live until the end of the framework callback).
+    camera3_capture_result_t result {
+        request->frame_number,
+        request->settings.getAndLock(),
+        request->output_buffers.size(),
+        request->output_buffers.data(),
+        request->input_buffer.get(),
+        1  // Total result; only 1 part.
+    };
+    mCallbackOps->process_capture_result(mCallbackOps, &result);
 }
 
-int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
-        camera3_stream_buffer_t *out)
+int Camera::preprocessCaptureBuffer(camera3_stream_buffer_t *buffer)
 {
     int res;
-    // TODO(b/29334616): This probably should be non-blocking (currently blocks
-    // here and on gralloc lock). Perhaps caller should put "in" in a queue
-    // initially, then have a thread that dequeues from there and calls this
-    // function.
-    if (in->acquire_fence != -1) {
-        res = sync_wait(in->acquire_fence, CAMERA_SYNC_TIMEOUT);
+    // TODO(b/29334616): This probably should be non-blocking; part
+    // of the asynchronous request processing.
+    if (buffer->acquire_fence != -1) {
+        res = sync_wait(buffer->acquire_fence, CAMERA_SYNC_TIMEOUT);
         if (res == -ETIME) {
             ALOGE("%s:%d: Timeout waiting on buffer acquire fence",
                     __func__, mId);
@@ -509,41 +507,17 @@ int Camera::processCaptureBuffer(const camera3_stream_buffer_t *in,
         }
     }
 
-    out->stream = in->stream;
-    out->buffer = in->buffer;
-    out->status = CAMERA3_BUFFER_STATUS_OK;
+    // Acquire fence has been waited upon.
+    buffer->acquire_fence = -1;
+    // No release fence waiting unless the device sets it.
+    buffer->release_fence = -1;
 
-    // Enqueue buffer for software-painting
-    res = enqueueBuffer(out);
-    if (res) {
-      return res;
-    }
-
-    // TODO(b/29334616): This should be part of a callback made when the
-    // enqueued buffer finishes painting.
-    // TODO: use driver-backed release fences
-    out->acquire_fence = -1;
-    out->release_fence = -1;
+    buffer->status = CAMERA3_BUFFER_STATUS_OK;
     return 0;
 }
 
 void Camera::notifyShutter(uint32_t frame_number, uint64_t timestamp)
 {
-    int res;
-    struct timespec ts;
-
-    // If timestamp is 0, get timestamp from right now instead
-    if (timestamp == 0) {
-        ALOGW("%s:%d: No timestamp provided, using CLOCK_BOOTTIME",
-                __func__, mId);
-        res = clock_gettime(CLOCK_BOOTTIME, &ts);
-        if (res == 0) {
-            timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
-        } else {
-            ALOGE("%s:%d: No timestamp and failed to get CLOCK_BOOTTIME %s(%d)",
-                    __func__, mId, strerror(errno), errno);
-        }
-    }
     camera3_notify_msg_t m;
     memset(&m, 0, sizeof(m));
     m.type = CAMERA3_MSG_SHUTTER;

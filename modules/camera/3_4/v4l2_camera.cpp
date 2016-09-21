@@ -164,70 +164,130 @@ int V4L2Camera::initDevice() {
   return 0;
 }
 
-int V4L2Camera::enqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
+int V4L2Camera::enqueueRequest(
+    std::shared_ptr<default_camera_hal::CaptureRequest> request) {
   HAL_LOG_ENTER();
 
-  int res = device_->EnqueueBuffer(camera_buffer);
-  if (res) {
-    HAL_LOGE("Device failed to enqueue buffer.");
-    return res;
+  // Assume request validated before calling this function.
+  // (For now, always exactly 1 output buffer, no inputs).
+
+  {
+    std::lock_guard<std::mutex> guard(request_queue_lock_);
+    request_queue_.push(request);
   }
 
-  // Turn on the stream.
-  // TODO(b/29334616): Lock around stream on/off access, only start stream
-  // if not already on. (For now, since it's synchronous, it will always be
-  // turned off before another call to this function).
-  res = device_->StreamOn();
-  if (res) {
-    HAL_LOGE("Device failed to turn on stream.");
-    return res;
-  }
-
-  // TODO(b/29334616): Enqueueing and dequeueing should be separate worker
-  // threads, not in the same function.
-
-  // Dequeue the buffer.
-  v4l2_buffer result_buffer;
-  res = device_->DequeueBuffer(&result_buffer);
-  if (res) {
-    HAL_LOGE("Device failed to dequeue buffer.");
-    return res;
-  }
-
-  // All done, cleanup.
-  // TODO(b/29334616): Lock around stream on/off access, only stop stream if
-  // buffer queue is empty (synchronously, there's only ever 1 buffer in the
-  // queue at a time, so this is safe).
-  res = device_->StreamOff();
-  if (res) {
-    HAL_LOGE("Device failed to turn off stream.");
-    return res;
-  }
+  // TODO(b/29334616): Enqueueing of request buffers should be
+  // done by a consumer thread loop instead of here
+  enqueueRequestBuffers();
 
   return 0;
 }
 
-int V4L2Camera::getResultSettings(android::CameraMetadata* metadata,
-                                  uint64_t* timestamp) {
-  HAL_LOG_ENTER();
+std::shared_ptr<default_camera_hal::CaptureRequest>
+V4L2Camera::dequeueRequest() {
+  std::lock_guard<std::mutex> guard(request_queue_lock_);
+  if (request_queue_.empty()) {
+    return nullptr;
+  }
+  std::shared_ptr<default_camera_hal::CaptureRequest> request =
+      request_queue_.front();
+  request_queue_.pop();
+  return request;
+}
 
-  // Get the results.
-  int res = metadata_->FillResultMetadata(metadata);
-  if (res) {
-    HAL_LOGE("Failed to fill result metadata.");
-    return res;
+void V4L2Camera::enqueueRequestBuffers() {
+  // Get a request from the queue.
+  std::shared_ptr<default_camera_hal::CaptureRequest> request =
+      dequeueRequest();
+  if (!request) {
+    return;
   }
 
-  // Extract the timestamp.
-  int64_t frame_time = 0;
-  res = SingleTagValue(*metadata, ANDROID_SENSOR_TIMESTAMP, &frame_time);
-  if (res) {
-    HAL_LOGE("Failed to extract timestamp from result metadata");
-    return res;
-  }
-  *timestamp = static_cast<uint64_t>(frame_time);
+  // Assume request validated before being added to the queue
+  // (For now, always exactly 1 output buffer, no inputs).
+  {
+    std::lock_guard<std::mutex> guard(in_flight_lock_);
 
-  return 0;
+    // Set the requested settings
+    int res = metadata_->SetRequestSettings(request->settings);
+    if (res) {
+      HAL_LOGE("Failed to set settings.");
+      completeRequest(request, res);
+      return;
+    }
+
+    // Replace the requested settings with a snapshot of
+    // the used settings/state.
+    res = metadata_->FillResultMetadata(&request->settings);
+    if (res) {
+      HAL_LOGE("Failed to fill result metadata.");
+      completeRequest(request, res);
+      return;
+    }
+
+    // Actually enqueue the buffer for capture.
+    res = device_->EnqueueBuffer(&request->output_buffers[0]);
+    if (res) {
+      HAL_LOGE("Device failed to enqueue buffer.");
+      completeRequest(request, res);
+      return;
+    }
+
+    if (in_flight_.empty()) {
+      // Nothing in flight, stream should be off, so it needs to be turned on.
+      res = device_->StreamOn();
+      if (res) {
+        HAL_LOGE("Device failed to turn on stream.");
+        completeRequest(request, res);
+        return;
+      }
+    }
+    in_flight_.push(request);
+  }
+
+  // TODO(b/29334616): Dequeueing of request buffers should be
+  // done by a consumer thread loop instead of here
+  dequeueRequestBuffers();
+}
+
+void V4L2Camera::dequeueRequestBuffers() {
+  std::shared_ptr<default_camera_hal::CaptureRequest> request;
+  {
+    std::lock_guard<std::mutex> guard(in_flight_lock_);
+    if (in_flight_.empty()) {
+      return;
+    }
+
+    request = in_flight_.front();
+    in_flight_.pop();
+
+    // Dequeue the buffer. For now, since each request has only 1 buffer,
+    // and the in_flight_lock_ is held while enqueueing and dequeuing
+    // from the device, just assume that the dequeued buffer corresponds
+    // to the dequeued request.
+    // TODO(b/31657008): in_flight_ should map buffer handles to requests;
+    // this consumer should just dequeue whatever it gets, then match
+    // that to a handle.
+    v4l2_buffer result_buffer;
+    int res = device_->DequeueBuffer(&result_buffer);
+    if (res) {
+      HAL_LOGE("Device failed to dequeue buffer.");
+      completeRequest(request, res);
+      return;
+    }
+
+    // All done, turn off the stream if it's empty.
+    if (in_flight_.empty()) {
+      res = device_->StreamOff();
+      if (res) {
+        HAL_LOGE("Device failed to turn off stream.");
+        completeRequest(request, res);
+        return;
+      }
+    }
+  }
+
+  completeRequest(request, 0);
 }
 
 bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
@@ -356,17 +416,22 @@ int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
   return 0;
 }
 
-bool V4L2Camera::isValidCaptureSettings(
-    const android::CameraMetadata& settings) {
+bool V4L2Camera::isValidRequest(
+    const default_camera_hal::CaptureRequest& request) {
   HAL_LOG_ENTER();
 
-  return metadata_->IsValidRequest(settings);
-}
+  if (request.input_buffer != nullptr) {
+    HAL_LOGE("Input buffer reprocessing not implemented.");
+    return false;
+  } else if (request.output_buffers.size() > 1) {
+    HAL_LOGE("Only 1 output buffer allowed per request.");
+    return false;
+  } else if (!metadata_->IsValidRequest(request.settings)) {
+    HAL_LOGE("Invalid request settings.");
+    return false;
+  }
 
-int V4L2Camera::setSettings(const android::CameraMetadata& new_settings) {
-  HAL_LOG_ENTER();
-
-  return metadata_->SetRequestSettings(new_settings);
+  return true;
 }
 
 }  // namespace v4l2_camera_hal
