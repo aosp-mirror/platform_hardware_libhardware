@@ -272,7 +272,7 @@ typedef struct
    uint8_t c256[16]; /* Simple Pairing Hash C-256 */
    uint8_t r256[16]; /* Simple Pairing Randomizer R-256 */
    uint8_t sm_tk[16]; /* Security Manager TK Value */
-   uint8_t le_sc_c[16]; /* LE Secure Connections Random Value */
+   uint8_t le_sc_c[16]; /* LE Secure Connections Confirmation Value */
    uint8_t le_sc_r[16]; /* LE Secure Connections Random Value */
 } bt_out_of_band_data_t;
 
