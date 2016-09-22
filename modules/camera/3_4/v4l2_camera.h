@@ -20,10 +20,13 @@
 #define V4L2_CAMERA_HAL_V4L2_CAMERA_H_
 
 #include <array>
+#include <condition_variable>
 #include <queue>
 #include <string>
 
 #include <camera/CameraMetadata.h>
+#include <utils/StrongPointer.h>
+#include <utils/Thread.h>
 
 #include "camera.h"
 #include "common.h"
@@ -78,13 +81,16 @@ class V4L2Camera : public default_camera_hal::Camera {
   int enqueueRequest(
       std::shared_ptr<default_camera_hal::CaptureRequest> request) override;
 
-  // Async request processing.
+  // Async request processing helpers.
   // Dequeue a request from the waiting queue.
+  // Blocks until a request is available.
   std::shared_ptr<default_camera_hal::CaptureRequest> dequeueRequest();
+
+  // Thread functions. Return true to loop, false to exit.
   // Pass buffers for enqueued requests to the device.
-  void enqueueRequestBuffers();
+  bool enqueueRequestBuffers();
   // Retreive buffers from the device.
-  void dequeueRequestBuffers();
+  bool dequeueRequestBuffers();
 
   // V4L2 helper.
   std::shared_ptr<V4L2Wrapper> device_;
@@ -95,6 +101,11 @@ class V4L2Camera : public default_camera_hal::Camera {
       request_queue_;
   std::mutex in_flight_lock_;
   std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>> in_flight_;
+  // Threads require holding an Android strong pointer.
+  android::sp<android::Thread> buffer_enqueuer_;
+  android::sp<android::Thread> buffer_dequeuer_;
+  std::condition_variable requests_available_;
+  std::condition_variable buffers_in_flight_;
 
   int32_t max_input_streams_;
   std::array<int, 3> max_output_streams_;  // {raw, non-stalling, stalling}.
@@ -104,4 +115,4 @@ class V4L2Camera : public default_camera_hal::Camera {
 
 }  // namespace v4l2_camera_hal
 
-#endif  // V4L2_CAMERA_HAL_V4L2_CAMERA_H
+#endif  // V4L2_CAMERA_HAL_V4L2_CAMERA_H_

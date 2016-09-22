@@ -156,8 +156,9 @@ int V4L2Wrapper::StreamOff() {
   HAL_LOG_ENTER();
 
   if (!format_) {
-    HAL_LOGE("Stream format must be set to turn off stream.");
-    return -ENODEV;
+    // Can't have turned on the stream wihtout format being set,
+    // so nothing to turn off here.
+    return 0;
   }
 
   int32_t type = format_->type();
