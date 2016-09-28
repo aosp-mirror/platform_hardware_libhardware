@@ -22,6 +22,7 @@
 #include <mutex>
 #include <set>
 #include <string>
+#include <vector>
 
 #include <nativehelper/ScopedFd.h>
 
@@ -107,8 +108,12 @@ class V4L2Wrapper {
   bool extended_query_supported_;
   // The format this device is set up for.
   std::unique_ptr<StreamFormat> format_;
-  // The maximum number of buffers this device can handle in its current format.
-  uint32_t max_buffers_;
+  // Map indecies to buffer status. True if the index is in-flight.
+  // |buffers_.size()| will always be the maximum number of buffers this device
+  // can handle in its current format.
+  std::vector<bool> buffers_;
+  // Lock protecting use of the buffer tracker.
+  std::mutex buffer_queue_lock_;
   // Lock protecting use of the device.
   std::mutex device_lock_;
   // Lock protecting connecting/disconnecting the device.

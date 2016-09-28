@@ -56,7 +56,6 @@ V4L2Wrapper::V4L2Wrapper(const std::string device_path,
                          std::unique_ptr<V4L2Gralloc> gralloc)
     : device_path_(std::move(device_path)),
       gralloc_(std::move(gralloc)),
-      max_buffers_(0),
       connection_count_(0) {
   HAL_LOG_ENTER();
 }
@@ -117,7 +116,7 @@ void V4L2Wrapper::Disconnect() {
 
   device_fd_.reset();  // Includes close().
   format_.reset();
-  max_buffers_ = 0;
+  buffers_.clear();
   // Closing the device releases all queued buffers back to the user.
   gralloc_->unlockAllBuffers();
 }
@@ -493,7 +492,7 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
     HAL_LOGE("Failed to set up buffers for new format.");
     return res;
   }
-  *result_max_buffers = max_buffers_;
+  *result_max_buffers = buffers_.size();
   return 0;
 }
 
@@ -526,12 +525,12 @@ int V4L2Wrapper::SetupBuffers() {
   }
 
   // V4L2 will set req_buffers.count to a number of buffers it can handle.
-  max_buffers_ = req_buffers.count;
-  // Sanity check.
-  if (max_buffers_ < 1) {
+  if (req_buffers.count < 1) {
     HAL_LOGE("REQBUFS claims it can't handle any buffers.");
     return -ENODEV;
   }
+  buffers_.resize(req_buffers.count, false);
+
   return 0;
 }
 
@@ -543,14 +542,31 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
     return -ENODEV;
   }
 
+  // Find a free buffer index. Could use some sort of persistent hinting
+  // here to improve expected efficiency, but buffers_.size() is expected
+  // to be low enough (<10 experimentally) that it's not worth it.
+  int index = -1;
+  {
+    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+    for (int i = 0; i < buffers_.size(); ++i) {
+      if (!buffers_[i]) {
+        index = i;
+        break;
+      }
+    }
+  }
+  if (index < 0) {
+    // Note: The HAL should be tracking the number of buffers in flight
+    // for each stream, and should never overflow the device.
+    HAL_LOGE("Cannot enqueue buffer: stream is already full.");
+    return -ENODEV;
+  }
+
   // Set up a v4l2 buffer struct.
   v4l2_buffer device_buffer;
   memset(&device_buffer, 0, sizeof(device_buffer));
   device_buffer.type = format_->type();
-  // TODO(b/29334616): when this is async, actually limit the number
-  // of buffers used to the known max, and set this according to the
-  // queue length.
-  device_buffer.index = 0;
+  device_buffer.index = index;
 
   // Use QUERYBUF to ensure our buffer/device is in good shape,
   // and fill out remaining fields.
@@ -572,6 +588,10 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
     return -ENODEV;
   }
 
+  // Mark the buffer as in flight.
+  std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+  buffers_[index] = true;
+
   return 0;
 }
 
@@ -589,6 +609,12 @@ int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
   if (IoctlLocked(VIDIOC_DQBUF, buffer) < 0) {
     HAL_LOGE("DQBUF fails: %s", strerror(errno));
     return -ENODEV;
+  }
+
+  // Mark the buffer as no longer in flight.
+  {
+    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+    buffers_[buffer->index] = false;
   }
 
   // Now that we're done painting the buffer, we can unlock it.
