@@ -451,11 +451,10 @@ void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
 {
     // TODO(b/31653306): make sure this is actually a request in flight,
     // and not a random new one or a cancelled one. If so, stop tracking.
-
     if (err) {
         ALOGE("%s:%d: Error completing request for frame %d.",
               __func__, mId, request->frame_number);
-        // TODO(b/31653322): Send REQUEST error.
+        completeRequestWithError(request);
         return;
     }
 
@@ -466,9 +465,11 @@ void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
     int res = v4l2_camera_hal::SingleTagValue(
         request->settings, ANDROID_SENSOR_TIMESTAMP, &timestamp);
     if (res) {
-        // TODO(b/31653322): Send RESULT error.
         ALOGE("%s:%d: Request for frame %d is missing required metadata.",
               __func__, mId, request->frame_number);
+        // TODO(b/31653322): Send RESULT error.
+        // For now sending REQUEST error instead.
+        completeRequestWithError(request);
         return;
     }
     notifyShutter(request->frame_number, timestamp);
@@ -476,17 +477,7 @@ void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
     // TODO(b/31653322): Check all returned buffers for errors
     // (if any, send BUFFER error).
 
-    // Fill in the result struct
-    // (it only needs to live until the end of the framework callback).
-    camera3_capture_result_t result {
-        request->frame_number,
-        request->settings.getAndLock(),
-        request->output_buffers.size(),
-        request->output_buffers.data(),
-        request->input_buffer.get(),
-        1  // Total result; only 1 part.
-    };
-    mCallbackOps->process_capture_result(mCallbackOps, &result);
+    sendResult(request);
 }
 
 int Camera::preprocessCaptureBuffer(camera3_stream_buffer_t *buffer)
@@ -518,12 +509,44 @@ int Camera::preprocessCaptureBuffer(camera3_stream_buffer_t *buffer)
 
 void Camera::notifyShutter(uint32_t frame_number, uint64_t timestamp)
 {
-    camera3_notify_msg_t m;
-    memset(&m, 0, sizeof(m));
-    m.type = CAMERA3_MSG_SHUTTER;
-    m.message.shutter.frame_number = frame_number;
-    m.message.shutter.timestamp = timestamp;
-    mCallbackOps->notify(mCallbackOps, &m);
+    camera3_notify_msg_t message;
+    memset(&message, 0, sizeof(message));
+    message.type = CAMERA3_MSG_SHUTTER;
+    message.message.shutter.frame_number = frame_number;
+    message.message.shutter.timestamp = timestamp;
+    mCallbackOps->notify(mCallbackOps, &message);
+}
+
+void Camera::completeRequestWithError(std::shared_ptr<CaptureRequest> request)
+{
+    // Send an error notification.
+    camera3_notify_msg_t message;
+    memset(&message, 0, sizeof(message));
+    message.type = CAMERA3_MSG_ERROR;
+    message.message.error.frame_number = request->frame_number;
+    message.message.error.error_stream = nullptr;
+    message.message.error.error_code = CAMERA3_MSG_ERROR_REQUEST;
+    mCallbackOps->notify(mCallbackOps, &message);
+
+    // TODO(b/31856611): Ensure all the buffers indicate their error status.
+
+    // Send the errored out result.
+    sendResult(request);
+}
+
+void Camera::sendResult(std::shared_ptr<CaptureRequest> request) {
+    // Fill in the result struct
+    // (it only needs to live until the end of the framework callback).
+    camera3_capture_result_t result {
+        request->frame_number,
+        request->settings.getAndLock(),
+        request->output_buffers.size(),
+        request->output_buffers.data(),
+        request->input_buffer.get(),
+        1  // Total result; only 1 part.
+    };
+    // Make the framework callback.
+    mCallbackOps->process_capture_result(mCallbackOps, &result);
 }
 
 void Camera::dump(int fd)

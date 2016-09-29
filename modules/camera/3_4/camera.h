@@ -107,6 +107,10 @@ class Camera {
         int preprocessCaptureBuffer(camera3_stream_buffer_t *buffer);
         // Send a shutter notify message with start of exposure time
         void notifyShutter(uint32_t frame_number, uint64_t timestamp);
+        // Send an error message and return the errored out result.
+        void completeRequestWithError(std::shared_ptr<CaptureRequest> request);
+        // Send a capture result for a request.
+        void sendResult(std::shared_ptr<CaptureRequest> request);
         // Is type a valid template type (and valid index into mTemplates)
         bool isValidTemplateType(int type);
 
