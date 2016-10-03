@@ -58,7 +58,8 @@ Camera::Camera(int id)
     mBusy(false),
     mCallbackOps(NULL),
     mStreams(NULL),
-    mNumStreams(0)
+    mNumStreams(0),
+    mInFlightTracker(new RequestTracker)
 {
     memset(&mTemplates, 0, sizeof(mTemplates));
     memset(&mDevice, 0, sizeof(mDevice));
@@ -249,6 +250,9 @@ int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
     mStreams = newStreams;
     mNumStreams = stream_config->num_streams;
 
+    // Update the request tracker.
+    mInFlightTracker->SetStreamConfiguration(*stream_config);
+
     return 0;
 
 err_out:
@@ -256,7 +260,10 @@ err_out:
     destroyStreams(newStreams, stream_config->num_streams);
     // Set error if it wasn't specified.
     if (!res) {
-      res = -EINVAL;
+        res = -EINVAL;
+    } else if (res != -EINVAL) {
+        // Fatal error, clear stream configuration.
+        mInFlightTracker->ClearStreamConfiguration();
     }
     return res;
 }
@@ -437,25 +444,38 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
             return -ENODEV;
     }
 
+    // Add the request to tracking.
+    if (!mInFlightTracker->Add(request)) {
+        ALOGE("%s:%d: Failed to track request for frame %d.",
+              __func__, mId, request->frame_number);
+        return -ENODEV;
+    }
+
     // Send the request off to the device for completion.
     enqueueRequest(request);
 
     // Request is now in flight. The device will call completeRequest
     // asynchronously when it is done filling buffers and metadata.
-    // TODO(b/31653306): Track requests in flight to ensure not too many are
-    // sent at a time, and so they can be dumped even if the device loses them.
     return 0;
 }
 
 void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
 {
-    // TODO(b/31653306): make sure this is actually a request in flight,
-    // and not a random new one or a cancelled one. If so, stop tracking.
-    if (err) {
-        ALOGE("%s:%d: Error completing request for frame %d.",
-              __func__, mId, request->frame_number);
-        completeRequestWithError(request);
+    if (!mInFlightTracker->Remove(request)) {
+        ALOGE("%s:%d: Completed request %p is not being tracked.",
+              __func__, mId, request.get());
         return;
+    }
+
+    // Since |request| has been removed from the tracking, this method
+    // MUST call sendResult (can still return a result in an error state, e.g.
+    // through completeRequestWithError) so the frame doesn't get lost.
+
+    if (err) {
+      ALOGE("%s:%d: Error completing request for frame %d.",
+            __func__, mId, request->frame_number);
+      completeRequestWithError(request);
+      return;
     }
 
     // Notify the framework with the shutter time (extracted from the result).

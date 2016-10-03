@@ -39,10 +39,10 @@ class RequestTrackerTest : public Test {
     dut_->SetStreamConfiguration(config);
   }
 
-  std::unique_ptr<CaptureRequest> GenerateCaptureRequest(
+  std::shared_ptr<CaptureRequest> GenerateCaptureRequest(
       uint32_t frame, std::vector<camera3_stream_t*> streams) {
-    std::unique_ptr<CaptureRequest> request =
-        std::make_unique<CaptureRequest>();
+    std::shared_ptr<CaptureRequest> request =
+        std::make_shared<CaptureRequest>();
 
     // Set the frame number and buffers.
     request->frame_number = frame;
@@ -52,19 +52,19 @@ class RequestTrackerTest : public Test {
       request->output_buffers.push_back(buffer);
     }
 
-    return std::move(request);
+    return request;
   }
 
   void AddRequest(uint32_t frame,
                   std::vector<camera3_stream_t*> streams,
                   bool expected = true) {
-    std::unique_ptr<CaptureRequest> request =
+    std::shared_ptr<CaptureRequest> request =
         GenerateCaptureRequest(frame, streams);
     EXPECT_EQ(dut_->CanAddRequest(*request), expected);
     if (expected) {
       EXPECT_FALSE(dut_->InFlight(frame));
     }
-    EXPECT_EQ(dut_->Add(std::move(request)), expected);
+    EXPECT_EQ(dut_->Add(request), expected);
     if (expected) {
       EXPECT_TRUE(dut_->InFlight(frame));
     }
@@ -73,7 +73,7 @@ class RequestTrackerTest : public Test {
   camera3_stream_t stream1_;
   camera3_stream_t stream2_;
   std::vector<camera3_stream_t*> streams_;
-  std::unique_ptr<RequestTracker> dut_;
+  std::shared_ptr<RequestTracker> dut_;
 };
 
 TEST_F(RequestTrackerTest, AddValid) {
@@ -87,13 +87,13 @@ TEST_F(RequestTrackerTest, AddInput) {
 
   // Add a request
   uint32_t frame = 42;
-  std::unique_ptr<CaptureRequest> expected = GenerateCaptureRequest(frame, {});
+  std::shared_ptr<CaptureRequest> expected = GenerateCaptureRequest(frame, {});
   // Set the input buffer instead of any outputs.
   expected->input_buffer.reset(
       new camera3_stream_buffer_t{&stream1_, nullptr, 0, -1, -1});
   stream1_.max_buffers = 1;
 
-  EXPECT_TRUE(dut_->Add(std::move(expected)));
+  EXPECT_TRUE(dut_->Add(expected));
   EXPECT_TRUE(dut_->InFlight(frame));
   // Should have added to the count of buffers for stream 1.
   EXPECT_TRUE(dut_->StreamFull(&stream1_));
@@ -154,38 +154,20 @@ TEST_F(RequestTrackerTest, RemoveValid) {
 
   // Add a request
   uint32_t frame = 42;
-  std::unique_ptr<CaptureRequest> request =
+  std::shared_ptr<CaptureRequest> request =
       GenerateCaptureRequest(frame, {&stream1_});
-  CaptureRequest* expected = request.get();
-  EXPECT_TRUE(dut_->Add(std::move(request)));
+  EXPECT_TRUE(dut_->Add(request));
   EXPECT_TRUE(dut_->InFlight(frame));
   AddRequest(frame + 1, {&stream1_});
   EXPECT_FALSE(dut_->Empty());
 
   // Remove it.
-  request.reset();
-  EXPECT_TRUE(dut_->Remove(frame, &request));
+  EXPECT_TRUE(dut_->Remove(request));
   // Should have removed only the desired request.
   EXPECT_FALSE(dut_->Empty());
-
-  // Should have returned the desired request.
-  EXPECT_EQ(request.get(), expected);
 }
 
-TEST_F(RequestTrackerTest, RemoveNoResult) {
-  EXPECT_TRUE(dut_->Empty());
-
-  // Add a request
-  uint32_t frame = 42;
-  AddRequest(frame, {&stream1_});
-  EXPECT_FALSE(dut_->Empty());
-
-  // Remove it, but don't ask for the returned request.
-  EXPECT_TRUE(dut_->Remove(frame));
-  EXPECT_TRUE(dut_->Empty());
-}
-
-TEST_F(RequestTrackerTest, RemoveInvalid) {
+TEST_F(RequestTrackerTest, RemoveInvalidFrame) {
   EXPECT_TRUE(dut_->Empty());
 
   // Add a request
@@ -195,40 +177,58 @@ TEST_F(RequestTrackerTest, RemoveInvalid) {
 
   // Try to remove a different one.
   uint32_t bad_frame = frame + 1;
+  std::shared_ptr<CaptureRequest> bad_request =
+      GenerateCaptureRequest(bad_frame, {&stream1_});
   EXPECT_FALSE(dut_->InFlight(bad_frame));
-  EXPECT_FALSE(dut_->Remove(frame + 1));
+  EXPECT_FALSE(dut_->Remove(bad_request));
   EXPECT_FALSE(dut_->Empty());
+}
+
+TEST_F(RequestTrackerTest, RemoveInvalidData) {
+  EXPECT_TRUE(dut_->Empty());
+
+  // Add a request
+  uint32_t frame = 42;
+  AddRequest(frame, {&stream1_});
+  EXPECT_FALSE(dut_->Empty());
+
+  // Try to remove a different one.
+  // Even though this request looks the same, that fact that it is
+  // a pointer to a different object means it should fail.
+  std::shared_ptr<CaptureRequest> bad_request =
+      GenerateCaptureRequest(frame, {&stream1_});
+  EXPECT_TRUE(dut_->InFlight(frame));
+  EXPECT_FALSE(dut_->Remove(bad_request));
+  EXPECT_FALSE(dut_->Empty());
+}
+
+TEST_F(RequestTrackerTest, RemoveNull) {
+  EXPECT_FALSE(dut_->Remove(nullptr));
 }
 
 TEST_F(RequestTrackerTest, ClearRequests) {
   // Create some requests.
   uint32_t frame1 = 42;
   uint32_t frame2 = frame1 + 1;
-  std::unique_ptr<CaptureRequest> request1 =
+  std::shared_ptr<CaptureRequest> request1 =
       GenerateCaptureRequest(frame1, {&stream1_});
-  std::unique_ptr<CaptureRequest> request2 =
+  std::shared_ptr<CaptureRequest> request2 =
       GenerateCaptureRequest(frame2, {&stream2_});
-  std::set<CaptureRequest*> expected;
-  expected.insert(request1.get());
-  expected.insert(request2.get());
+  std::set<std::shared_ptr<CaptureRequest>> expected;
+  expected.insert(request1);
+  expected.insert(request2);
 
   // Insert them.
-  EXPECT_TRUE(dut_->Add(std::move(request1)));
-  EXPECT_TRUE(dut_->Add(std::move(request2)));
+  EXPECT_TRUE(dut_->Add(request1));
+  EXPECT_TRUE(dut_->Add(request2));
   EXPECT_TRUE(dut_->InFlight(frame1));
   EXPECT_TRUE(dut_->InFlight(frame2));
   EXPECT_FALSE(dut_->Empty());
-  std::set<std::unique_ptr<CaptureRequest>> actual_wrapped;
+  std::set<std::shared_ptr<CaptureRequest>> actual;
 
   // Clear them out.
-  dut_->Clear(&actual_wrapped);
+  dut_->Clear(&actual);
   EXPECT_TRUE(dut_->Empty());
-
-  // Get the hard pointer values for comparison.
-  std::set<CaptureRequest*> actual;
-  for (const auto& actual_request : actual_wrapped) {
-    actual.insert(actual_request.get());
-  }
   EXPECT_EQ(actual, expected);
 }
 

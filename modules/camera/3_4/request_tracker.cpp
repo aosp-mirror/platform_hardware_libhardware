@@ -53,7 +53,7 @@ std::set<camera3_stream_t*> RequestStreams(const CaptureRequest& request) {
   return std::move(result);
 }
 
-bool RequestTracker::Add(std::unique_ptr<CaptureRequest> request) {
+bool RequestTracker::Add(std::shared_ptr<CaptureRequest> request) {
   if (!CanAddRequest(*request)) {
     return false;
   }
@@ -64,40 +64,42 @@ bool RequestTracker::Add(std::unique_ptr<CaptureRequest> request) {
   }
 
   // Store the request.
-  frames_in_flight_[request->frame_number] = std::move(request);
+  frames_in_flight_[request->frame_number] = request;
 
   return true;
 }
 
-bool RequestTracker::Remove(uint32_t frame_number,
-                            std::unique_ptr<CaptureRequest>* request) {
+bool RequestTracker::Remove(std::shared_ptr<CaptureRequest> request) {
   // Get the request.
-  std::unique_ptr<CaptureRequest> stored_request =
-      std::move(frames_in_flight_[frame_number]);
-  if (!stored_request) {
-    ALOGE("%s: Frame %u is not in flight.", __func__, frame_number);
+  const auto frame_number_request = frames_in_flight_.find(request->frame_number);
+  if (frame_number_request == frames_in_flight_.end()) {
+    ALOGE("%s: Frame %u is not in flight.", __func__, request->frame_number);
+    return false;
+  } else if (request != frame_number_request->second) {
+    ALOGE(
+        "%s: Request for frame %u cannot be removed: "
+        "does not matched the stored request.",
+        __func__,
+        request->frame_number);
     return false;
   }
-  frames_in_flight_.erase(frame_number);
+
+  frames_in_flight_.erase(frame_number_request);
 
   // Decrement the counts of used streams.
-  for (const auto stream : RequestStreams(*stored_request)) {
+  for (const auto stream : RequestStreams(*request)) {
     --buffers_in_flight_[stream];
   }
 
-  // Return the request if requested.
-  if (request) {
-    *request = std::move(stored_request);
-  }
   return true;
 }
 
 void RequestTracker::Clear(
-    std::set<std::unique_ptr<CaptureRequest>>* requests) {
+    std::set<std::shared_ptr<CaptureRequest>>* requests) {
   // If desired, extract all the currently in-flight requests.
   if (requests) {
     for (auto& frame_number_request : frames_in_flight_) {
-      requests->insert(std::move(frame_number_request.second));
+      requests->insert(frame_number_request.second);
     }
   }
 

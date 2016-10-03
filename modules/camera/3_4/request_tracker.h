@@ -45,14 +45,13 @@ class RequestTracker {
   // Tracking methods.
   // Track a request.
   // False if a request of the same frame number is already being tracked
-  virtual bool Add(std::unique_ptr<CaptureRequest> request);
-  // Stop tracking and retreive a request by frame number.
-  // False if the given frame number is not being tracked.
-  virtual bool Remove(uint32_t frame_number,
-                      std::unique_ptr<CaptureRequest>* request = nullptr);
+  virtual bool Add(std::shared_ptr<CaptureRequest> request);
+  // Stop tracking a request.
+  // False if the given request is not being tracked.
+  virtual bool Remove(std::shared_ptr<CaptureRequest> request = nullptr);
   // Empty out all requests being tracked.
   virtual void Clear(
-      std::set<std::unique_ptr<CaptureRequest>>* requests = nullptr);
+      std::set<std::shared_ptr<CaptureRequest>>* requests = nullptr);
 
   // Accessors to check availability.
   // Check that a request isn't already in flight, and won't overflow any
@@ -69,7 +68,7 @@ class RequestTracker {
   // Track for each stream, how many buffers are in flight.
   std::map<const camera3_stream_t*, size_t> buffers_in_flight_;
   // Track the frames in flight.
-  std::map<uint32_t, std::unique_ptr<CaptureRequest>> frames_in_flight_;
+  std::map<uint32_t, std::shared_ptr<CaptureRequest>> frames_in_flight_;
 
   DISALLOW_COPY_AND_ASSIGN(RequestTracker);
 };

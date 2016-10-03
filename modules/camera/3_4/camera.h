@@ -26,6 +26,7 @@
 
 #include "capture_request.h"
 #include "metadata/metadata.h"
+#include "request_tracker.h"
 #include "stream.h"
 
 namespace default_camera_hal {
@@ -138,6 +139,8 @@ class Camera {
         int mNumStreams;
         // Standard camera settings templates
         std::unique_ptr<const android::CameraMetadata> mTemplates[CAMERA3_TEMPLATE_COUNT];
+        // Track in flight requests.
+        std::unique_ptr<RequestTracker> mInFlightTracker;
 };
 }  // namespace default_camera_hal
 
