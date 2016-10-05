@@ -518,7 +518,7 @@ inline keymaster_key_param_t keymaster_param_date(keymaster_tag_t tag, uint64_t 
 
 #define KEYMASTER_SIMPLE_COMPARE(a, b) (a < b) ? -1 : ((a > b) ? 1 : 0)
 inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymaster_key_param_t* b) {
-    int retval = KEYMASTER_SIMPLE_COMPARE(a->tag, b->tag);
+    int retval = KEYMASTER_SIMPLE_COMPARE((uint32_t)a->tag, (uint32_t)b->tag);
     if (retval != 0)
         return retval;
 
