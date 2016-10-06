@@ -290,7 +290,7 @@ typedef struct gralloc1_device {
 static inline int gralloc1_open(const struct hw_module_t* module,
         gralloc1_device_t** device) {
     return module->methods->open(module, GRALLOC_HARDWARE_MODULE_ID,
-            (struct hw_device_t**) device);
+            TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int gralloc1_close(gralloc1_device_t* device) {

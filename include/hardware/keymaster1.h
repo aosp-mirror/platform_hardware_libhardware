@@ -536,7 +536,7 @@ typedef struct keymaster1_device keymaster1_device_t;
 /* Convenience API for opening and closing keymaster devices */
 
 static inline int keymaster1_open(const struct hw_module_t* module, keymaster1_device_t** device) {
-    return module->methods->open(module, KEYSTORE_KEYMASTER, (struct hw_device_t**)device);
+    return module->methods->open(module, KEYSTORE_KEYMASTER, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int keymaster1_close(keymaster1_device_t* device) {
