@@ -35,9 +35,6 @@ typedef struct {
 
     /** GATT Server callbacks */
     const btgatt_server_callbacks_t* server;
-
-    /** Advertiser callbacks */
-    const ble_advertiser_callbacks_t* advertiser;
 } btgatt_callbacks_t;
 
 /** Represents the standard Bluetooth GATT interface. */
@@ -60,7 +57,7 @@ typedef struct {
     const btgatt_server_interface_t* server;
 
     /** Pointer to the advertiser interface methods.*/
-    const ble_advertiser_interface_t* advertiser;
+    BleAdvertiserInterface* advertiser;
 } btgatt_interface_t;
 
 __END_DECLS
