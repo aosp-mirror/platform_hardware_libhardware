@@ -146,7 +146,7 @@ enum {
 typedef struct camera2_jpeg_blob {
     uint16_t jpeg_blob_id;
     uint32_t jpeg_size;
-};
+} camera2_jpeg_blob_t;
 
 enum {
     CAMERA2_JPEG_BLOB_ID = 0x00FF
