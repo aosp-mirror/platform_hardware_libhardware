@@ -1152,7 +1152,7 @@ struct sensors_module_t {
 
     /**
      * Enumerate all available sensors. The list is returned in "list".
-     * @return number of sensors in the list
+     * return number of sensors in the list
      */
     int (*get_sensors_list)(struct sensors_module_t* module,
             struct sensor_t const** list);
@@ -1163,7 +1163,7 @@ struct sensors_module_t {
      *  0 - Normal operation. Default state of the module.
      *  1 - Loopback mode. Data is injected for the supported
      *      sensors by the sensor service in this mode.
-     * @return 0 on success
+     * return 0 on success
      *         -EINVAL if requested mode is not supported
      *         -EPERM if operation is not allowed
      */
@@ -1379,7 +1379,7 @@ typedef struct sensors_poll_device_1 {
     /*
      * Inject a single sensor sample to be to this device.
      * data points to the sensor event to be injected
-     * @return 0 on success
+     * return 0 on success
      *         -EPERM if operation is not allowed
      *         -EINVAL if sensor event cannot be injected
      */
