@@ -65,7 +65,7 @@ typedef struct vibrator_device {
 
 static inline int vibrator_open(const struct hw_module_t* module, vibrator_device_t** device)
 {
-    return module->methods->open(module, VIBRATOR_DEVICE_ID_MAIN, (struct hw_device_t**)device);
+    return module->methods->open(module, VIBRATOR_DEVICE_ID_MAIN, TO_HW_DEVICE_T_OPEN(device));
 }
 
 __END_DECLS
