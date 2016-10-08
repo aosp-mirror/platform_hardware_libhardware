@@ -372,7 +372,7 @@ typedef struct alloc_device_t {
 static inline int gralloc_open(const struct hw_module_t* module, 
         struct alloc_device_t** device) {
     return module->methods->open(module, 
-            GRALLOC_HARDWARE_GPU0, (struct hw_device_t**)device);
+            GRALLOC_HARDWARE_GPU0, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int gralloc_close(struct alloc_device_t* device) {

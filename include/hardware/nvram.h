@@ -326,7 +326,7 @@ typedef struct nvram_device nvram_device_t;
 static inline int nvram_open(const struct hw_module_t* module,
                              nvram_device_t** device) {
     return module->methods->open(module, NVRAM_HARDWARE_DEVICE_ID,
-                                 (struct hw_device_t**)device);
+                                 TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int nvram_close(nvram_device_t* device) {

@@ -285,7 +285,7 @@ static inline int radio_hw_device_open(const struct hw_module_t* module,
                                        struct radio_hw_device** device)
 {
     return module->methods->open(module, RADIO_HARDWARE_DEVICE,
-                                 (struct hw_device_t**)device);
+                                 TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int radio_hw_device_close(const struct radio_hw_device* device)

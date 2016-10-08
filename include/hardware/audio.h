@@ -682,7 +682,7 @@ static inline int audio_hw_device_open(const struct hw_module_t* module,
                                        struct audio_hw_device** device)
 {
     return module->methods->open(module, AUDIO_HARDWARE_INTERFACE,
-                                 (struct hw_device_t**)device);
+                                 TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int audio_hw_device_close(struct audio_hw_device* device)
