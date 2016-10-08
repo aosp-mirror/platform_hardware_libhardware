@@ -1388,7 +1388,7 @@ typedef struct sensors_poll_device_1 {
 static inline int sensors_open(const struct hw_module_t* module,
         struct sensors_poll_device_t** device) {
     return module->methods->open(module,
-            SENSORS_HARDWARE_POLL, (struct hw_device_t**)device);
+            SENSORS_HARDWARE_POLL, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int sensors_close(struct sensors_poll_device_t* device) {
@@ -1398,7 +1398,7 @@ static inline int sensors_close(struct sensors_poll_device_t* device) {
 static inline int sensors_open_1(const struct hw_module_t* module,
         sensors_poll_device_1_t** device) {
     return module->methods->open(module,
-            SENSORS_HARDWARE_POLL, (struct hw_device_t**)device);
+            SENSORS_HARDWARE_POLL, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int sensors_close_1(sensors_poll_device_1_t* device) {
