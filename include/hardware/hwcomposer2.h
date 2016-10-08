@@ -17,6 +17,8 @@
 #ifndef ANDROID_HARDWARE_HWCOMPOSER2_H
 #define ANDROID_HARDWARE_HWCOMPOSER2_H
 
+#include <sys/cdefs.h>
+
 #include <hardware/hardware.h>
 
 #include "hwcomposer_defs.h"
@@ -360,7 +362,7 @@ static inline const char* getConnectionName(hwc2_connection_t connection) {
 
 static inline const char* getDisplayRequestName(
         hwc2_display_request_t request) {
-    switch (request) {
+    switch (__BIONIC_CAST(static_cast, int, request)) {
         case 0: return "None";
         case HWC2_DISPLAY_REQUEST_FLIP_CLIENT_TARGET: return "FlipClientTarget";
         case HWC2_DISPLAY_REQUEST_WRITE_CLIENT_TARGET_TO_OUTPUT:
@@ -459,7 +461,7 @@ static inline const char* getFunctionDescriptorName(
 }
 
 static inline const char* getLayerRequestName(hwc2_layer_request_t request) {
-    switch (request) {
+    switch (__BIONIC_CAST(static_cast, int, request)) {
         case 0: return "None";
         case HWC2_LAYER_REQUEST_CLEAR_CLIENT_TARGET: return "ClearClientTarget";
         default: return "Unknown";
@@ -477,7 +479,7 @@ static inline const char* getPowerModeName(hwc2_power_mode_t mode) {
 }
 
 static inline const char* getTransformName(hwc_transform_t transform) {
-    switch (transform) {
+    switch (__BIONIC_CAST(static_cast, int, transform)) {
         case 0: return "None";
         case HWC_TRANSFORM_FLIP_H: return "FlipH";
         case HWC_TRANSFORM_FLIP_V: return "FlipV";
