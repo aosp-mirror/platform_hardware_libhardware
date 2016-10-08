@@ -783,7 +783,7 @@ typedef struct hwc_composer_device_1 {
 static inline int hwc_open_1(const struct hw_module_t* module,
         hwc_composer_device_1_t** device) {
     return module->methods->open(module,
-            HWC_HARDWARE_COMPOSER, (struct hw_device_t**)device);
+            HWC_HARDWARE_COMPOSER, TO_HW_DEVICE_T_OPEN(device));
 }
 
 static inline int hwc_close_1(hwc_composer_device_1_t* device) {
