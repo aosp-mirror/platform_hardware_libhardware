@@ -241,9 +241,7 @@ static int create_default_ap(const struct audio_policy_device *device,
                              void *service,
                              struct audio_policy **ap)
 {
-    struct default_ap_device *dev;
     struct default_audio_policy *dap;
-    int ret;
 
     *ap = NULL;
 

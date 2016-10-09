@@ -26,7 +26,7 @@ cc_library_shared {
         "liblog",
         "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }
 
 // The stub audio HAL module, identical to the default audio hal, but with
@@ -43,7 +43,7 @@ cc_library_shared {
         "liblog",
         "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }
 
 // The stub audio policy HAL module that can be used as a skeleton for
@@ -56,5 +56,5 @@ cc_library_shared {
         "liblog",
         "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }
