@@ -83,7 +83,6 @@ __BEGIN_DECLS
 
 /**
  * Invalid property value used for argument where invalid property gives different result.
- * @range_start
  */
 #define VEHICLE_PROPERTY_INVALID (0x0)
 
@@ -261,7 +260,7 @@ __BEGIN_DECLS
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_speed
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_SPEED                             (0x00000500)
@@ -272,7 +271,7 @@ __BEGIN_DECLS
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_direction
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_enum vehicle_hvac_fan_direction
  * @allow_out_of_range_value : OFF
  */
@@ -294,7 +293,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.temperature_current
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_CURRENT                   (0x00000502)
@@ -304,7 +303,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.temperature_set
  * @allow_out_of_range_value : MIN / MAX / OFF
  */
@@ -315,7 +314,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_WINDOW
+ * @zone_type VEHICLE_ZONE_TYPE_WINDOW
  * @data_member hvac.defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_DEFROSTER                             (0x00000504)
@@ -326,7 +325,7 @@ enum vehicle_hvac_fan_direction {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_AC_ON                                 (0x00000505)
@@ -336,7 +335,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_AC_ON                             (0x00000506)
@@ -346,7 +345,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_DEFROST_ON                        (0x00000507)
@@ -356,7 +355,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_recirc_on
  */
 #define VEHICLE_PROPERTY_HVAC_RECIRC_ON                             (0x00000508)
@@ -366,7 +365,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.dual_on
  */
 #define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
@@ -376,7 +375,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.auto_on
  */
 #define VEHICLE_PROPERTY_HVAC_AUTO_ON                               (0x0000050A)
@@ -394,7 +393,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_HVAC_SEAT_TEMPERATURE                      (0x0000050B)
@@ -447,7 +446,7 @@ enum vehicle_hvac_fan_direction {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ
  * @data_member hvac.fan_speed
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_ACTUAL_FAN_SPEED_RPM                  (0x0000050F)
@@ -464,7 +463,7 @@ enum vehicle_hvac_fan_direction {
  * @config_string list of HVAC properties whose power is controlled by this property. Format is
  *                hexa-decimal number (0x...) separated by comma like "0x500,0x503". All zones
  *                defined in these affected properties should be available in the property.
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.power_on
  */
 #define VEHICLE_PROPERTY_HVAC_POWER_ON                              (0x00000510)
@@ -483,7 +482,7 @@ enum vehicle_hvac_fan_direction {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_STATIC
  * @access VEHICLE_PROP_ACCESS_READ
  * @data_member int32_value
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION_AVAILABLE               (0x00000511)
@@ -1289,7 +1288,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_DOOR
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_DOOR_POS                                   (0x00000B00)
@@ -1300,7 +1299,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_DOOR
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_DOOR_MOVE                                  (0x00000B01)
@@ -1314,7 +1313,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_DOOR
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
  * @data_member boolean_value
  */
 #define VEHICLE_PROPERTY_DOOR_LOCK                                  (0x00000B02)
@@ -1328,7 +1327,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_MIRROR
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_MIRROR_Z_POS                               (0x00000B40)
@@ -1341,7 +1340,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_MIRROR
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_MIRROR_Z_MOVE                              (0x00000B41)
@@ -1354,7 +1353,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_MIRROR
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_MIRROR_Y_POS                               (0x00000B42)
@@ -1367,7 +1366,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_MIRROR
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_MIRROR_Y_MOVE                              (0x00000B43)
@@ -1411,7 +1410,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B80)
@@ -1426,7 +1425,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B81)
@@ -1442,7 +1441,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member boolean_value
  */
 #define VEHICLE_PROPERTY_SEAT_BELT_BUCKLED                          (0x00000B82)
@@ -1457,7 +1456,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_POS                       (0x00000B83)
@@ -1468,7 +1467,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_MOVE                      (0x00000B84)
@@ -1483,7 +1482,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_FORE_AFT_POS                          (0x00000B85)
@@ -1496,7 +1495,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_FORE_AFT_MOVE                         (0x00000B86)
@@ -1511,7 +1510,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_POS                  (0x00000B87)
@@ -1524,7 +1523,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_MOVE                 (0x00000B88)
@@ -1539,7 +1538,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_POS                  (0x00000B89)
@@ -1552,7 +1551,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_MOVE                 (0x00000B8A)
@@ -1567,7 +1566,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEIGHT_POS                            (0x00000B8B)
@@ -1580,7 +1579,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEIGHT_MOVE                           (0x00000B8C)
@@ -1595,7 +1594,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_DEPTH_POS                             (0x00000B8D)
@@ -1608,7 +1607,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_DEPTH_MOVE                            (0x00000B8E)
@@ -1623,7 +1622,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_TILT_POS                              (0x00000B8F)
@@ -1636,7 +1635,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_TILT_MOVE                             (0x00000B90)
@@ -1651,7 +1650,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_POS                   (0x00000B91)
@@ -1664,7 +1663,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_MOVE                  (0x00000B92)
@@ -1679,7 +1678,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_POS               (0x00000B93)
@@ -1692,7 +1691,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_MOVE              (0x00000B94)
@@ -1707,7 +1706,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_POS                   (0x00000B95)
@@ -1720,7 +1719,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_MOVE                  (0x00000B96)
@@ -1735,7 +1734,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_POS                    (0x00000B97)
@@ -1748,7 +1747,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_MOVE                   (0x00000B98)
@@ -1763,7 +1762,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_POS                 (0x00000B99)
@@ -1774,7 +1773,7 @@ enum vehicle_instument_cluster_type {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
- * @zone_type VEHICLE_SEAT
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
  * @data_member int32_value
  */
 #define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_MOVE                (0x00000B9A)
@@ -2132,11 +2131,21 @@ enum vehicle_mirror {
     VEHICLE_MIRROR_DRIVER_RIGHT  = 0x00000002,
     VEHICLE_MIRROR_DRIVER_CENTER = 0x00000004,
 };
+
 enum vehicle_turn_signal {
     VEHICLE_SIGNAL_NONE         = 0x00,
     VEHICLE_SIGNAL_RIGHT        = 0x01,
     VEHICLE_SIGNAL_LEFT         = 0x02,
     VEHICLE_SIGNAL_EMERGENCY    = 0x04
+};
+
+enum vehicle_zone_type {
+    VEHICLE_ZONE_TYPE_NONE      = 0x00,
+    VEHICLE_ZONE_TYPE_ZONE    = 0x01,
+    VEHICLE_ZONE_TYPE_SEAT      = 0x02,
+    VEHICLE_ZONE_TYPE_DOOR      = 0x04,
+    VEHICLE_ZONE_TYPE_WINDOW    = 0x10,
+    VEHICLE_ZONE_TYPE_MIRROR    = 0x20,
 };
 
 /*
