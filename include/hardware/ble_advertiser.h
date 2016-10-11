@@ -14,68 +14,57 @@
  * limitations under the License.
  */
 
-
 #ifndef ANDROID_INCLUDE_BLE_ADVERTISER_H
 #define ANDROID_INCLUDE_BLE_ADVERTISER_H
 
+#include <base/callback_forward.h>
 #include <stdint.h>
 #include <vector>
-#include "bt_gatt_types.h"
 #include "bt_common_types.h"
+#include "bt_gatt_types.h"
 
 using std::vector;
 
-__BEGIN_DECLS
+/** Callback invoked when multi-adv operation has completed */
+using BleAdvertiserCb = base::Callback<void(uint8_t /* status */)>;
 
-/** Callback invoked in response to register_advertiser */
-typedef void (*register_advertiser_callback)(int status, int advertiser_id,
-                                             bt_uuid_t *uuid);
+class BleAdvertiserInterface {
+ public:
+  virtual ~BleAdvertiserInterface() = default;
 
-/** Callback invoked when multi-adv param set_params operation has completed */
-typedef void (*multi_adv_set_params_callback)(int advertiser_id, int status);
+  /** Registers an advertiser with the stack */
+  virtual void RegisterAdvertiser(
+      base::Callback<void(uint8_t /* advertiser_id */, uint8_t /* status */)>) = 0;
 
-/** Callback invoked when multi-adv instance data set operation has completed */
-typedef void (*multi_adv_data_callback)(int advertiser_id, int status);
+  /*  This function disable a Multi-ADV instance */
+  virtual void Unregister(uint8_t advertiser_id) = 0;
 
-/** Callback invoked when multi-adv enable operation has completed */
-typedef void (*multi_adv_enable_callback)(int advertiser_id, int status, bool enable);
+  /** Set the advertising data or scan response data */
+  virtual void SetData(int advertiser_id, bool set_scan_rsp, bool include_name,
+                       bool include_txpower, int min_interval, int max_interval,
+                       int appearance, vector<uint8_t> manufacturer_data,
+                       vector<uint8_t> service_data,
+                       vector<uint8_t> service_uuid) = 0;
 
-typedef struct {
-    register_advertiser_callback        register_advertiser_cb;
-    multi_adv_set_params_callback       multi_adv_set_params_cb;
-    multi_adv_data_callback             multi_adv_data_cb;
-    multi_adv_enable_callback           multi_adv_enable_cb;
-} ble_advertiser_callbacks_t;
+  /* Set the parameters as per spec, user manual specified values */
+  virtual void MultiAdvSetParameters(int advertiser_id, int min_interval,
+                                     int max_interval, int adv_type,
+                                     int chnl_map, int tx_power,
+                                     BleAdvertiserCb cb) = 0;
 
-typedef struct {
-    /** Registers an advertiser with the stack */
-    bt_status_t (*register_advertiser)(bt_uuid_t *uuid);
+  /* Setup the data for the specified instance */
+  virtual void MultiAdvSetInstData(int advertiser_id, bool set_scan_rsp,
+                                   bool include_name, bool incl_txpower,
+                                   int appearance,
+                                   vector<uint8_t> manufacturer_data,
+                                   vector<uint8_t> service_data,
+                                   vector<uint8_t> service_uuid,
+                                   BleAdvertiserCb cb) = 0;
 
-    /** Unregister a advertiser from the stack */
-    bt_status_t (*unregister_advertiser)(int advertiser_id);
-
-    /** Set the advertising data or scan response data */
-    bt_status_t (*set_adv_data)(int advertiser_id, bool set_scan_rsp, bool include_name,
-                    bool include_txpower, int min_interval, int max_interval, int appearance,
-                    vector<uint8_t> manufacturer_data,
-                    vector<uint8_t> service_data,
-                    vector<uint8_t> service_uuid);
-
-    /* Set the parameters as per spec, user manual specified values */
-    bt_status_t (*multi_adv_set_params)(int advertiser_id, int min_interval,int max_interval,int adv_type,
-                 int chnl_map, int tx_power);
-
-
-    /* Setup the data for the specified instance */
-    bt_status_t (*multi_adv_set_inst_data)(int advertiser_id, bool set_scan_rsp, bool include_name,
-                    bool incl_txpower, int appearance, vector<uint8_t> manufacturer_data,
-                    vector<uint8_t> service_data, vector<uint8_t> service_uuid);
-
-    /* Enable the advertising instance as per spec */
-    bt_status_t (*multi_adv_enable)(int advertiser_id, bool enable, int timeout_s);
-
-} ble_advertiser_interface_t;
-
-__END_DECLS
+  /* Enable the advertising instance as per spec */
+  virtual void MultiAdvEnable(uint8_t advertiser_id, bool enable,
+                              BleAdvertiserCb cb, int timeout_s,
+                              BleAdvertiserCb timeout_cb) = 0;
+};
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
