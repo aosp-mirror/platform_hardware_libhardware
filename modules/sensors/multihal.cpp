@@ -199,6 +199,7 @@ struct sensors_poll_context_t {
     int poll(sensors_event_t* data, int count);
     int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
     int flush(int handle);
+    int inject_sensor_data(struct sensors_poll_device_1 *dev, const sensors_event_t *data);
     int close();
 
     std::vector<hw_device_t*> sub_hw_devices;
@@ -267,6 +268,11 @@ static bool halIsCompliant(sensors_poll_context_t *ctx, int handle) {
     return version != -1 && HAL_VERSION_IS_COMPLIANT(version);
 }
 
+static bool halIsAPILevelCompliant(sensors_poll_context_t *ctx, int handle, int level) {
+    int version = ctx->get_device_version_by_handle(handle);
+    return version != -1 && (version >= level);
+}
+
 const char *apiNumToStr(int version) {
     switch(version) {
     case SENSORS_DEVICE_API_VERSION_1_0:
@@ -277,6 +283,8 @@ const char *apiNumToStr(int version) {
         return "SENSORS_DEVICE_API_VERSION_1_2";
     case SENSORS_DEVICE_API_VERSION_1_3:
         return "SENSORS_DEVICE_API_VERSION_1_3";
+    case SENSORS_DEVICE_API_VERSION_1_4:
+        return "SENSORS_DEVICE_API_VERSION_1_4";
     default:
         return "UNKNOWN";
     }
@@ -403,6 +411,25 @@ int sensors_poll_context_t::flush(int handle) {
     return retval;
 }
 
+int sensors_poll_context_t::inject_sensor_data(struct sensors_poll_device_1 *dev,
+                                               const sensors_event_t *data) {
+    int retval = -EINVAL;
+    ALOGV("inject_sensor_data");
+    // Get handle for the sensor owning the event being injected
+    int local_handle = get_local_handle(data->sensor);
+    sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(data->sensor);
+    if (halIsAPILevelCompliant(this, data->sensor, SENSORS_DEVICE_API_VERSION_1_4) &&
+            local_handle >= 0 && v1) {
+        retval = v1->inject_sensor_data(dev, data);
+    } else {
+        ALOGE("IGNORED inject_sensor_data(type=%d, handle=%d) call to non-API-compliant sensor",
+                data->type, data->sensor);
+    }
+    ALOGV("retval %d", retval);
+    return retval;
+
+}
+
 int sensors_poll_context_t::close() {
     ALOGV("close");
     for (std::vector<hw_device_t*>::iterator it = this->sub_hw_devices.begin();
@@ -451,6 +478,12 @@ static int device__batch(struct sensors_poll_device_1 *dev, int handle,
 static int device__flush(struct sensors_poll_device_1 *dev, int handle) {
     sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
     return ctx->flush(handle);
+}
+
+static int device__inject_sensor_data(struct sensors_poll_device_1 *dev,
+        const sensors_event_t *data) {
+    sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
+    return ctx->inject_sensor_data(dev, data);
 }
 
 static int open_sensors(const struct hw_module_t* module, const char* name,
@@ -637,7 +670,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
     sensors_poll_context_t *dev = new sensors_poll_context_t();
     memset(dev, 0, sizeof(sensors_poll_device_1_t));
     dev->proxy_device.common.tag = HARDWARE_DEVICE_TAG;
-    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
+    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_4;
     dev->proxy_device.common.module = const_cast<hw_module_t*>(hw_module);
     dev->proxy_device.common.close = device__close;
     dev->proxy_device.activate = device__activate;
@@ -645,6 +678,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
     dev->proxy_device.poll = device__poll;
     dev->proxy_device.batch = device__batch;
     dev->proxy_device.flush = device__flush;
+    dev->proxy_device.inject_sensor_data = device__inject_sensor_data;
 
     dev->nextReadIndex = 0;
 
@@ -656,7 +690,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         int sub_open_result = sensors_module->common.methods->open(*it, name, &sub_hw_device);
         if (!sub_open_result) {
             if (!HAL_VERSION_IS_COMPLIANT(sub_hw_device->version)) {
-                ALOGE("SENSORS_DEVICE_API_VERSION_1_3 is required for all sensor HALs");
+                ALOGE("SENSORS_DEVICE_API_VERSION_1_3 or newer is required for all sensor HALs");
                 ALOGE("This HAL reports non-compliant API level : %s",
                         apiNumToStr(sub_hw_device->version));
                 ALOGE("Sensors belonging to this HAL will get ignored !");
