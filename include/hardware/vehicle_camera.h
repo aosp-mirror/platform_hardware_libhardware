@@ -68,7 +68,7 @@ typedef struct {
 /**
  * Bitmask of features supported by a camera module
  */
-enum {
+typedef enum {
     VEHICLE_CAMERA_CONFIG_FLAG_ANDROID_OVERLAY_SUPPORT      = 0x1,
     VEHICLE_CAMERA_CONFIG_FLAG_CAMERA_CROP_SUPPORT          = 0x2,
     VEHICLE_CAMERA_CONFIG_FLAG_CAMERA_POSITIONING_SUPPORT   = 0x4
@@ -109,7 +109,7 @@ typedef struct {
 typedef struct vehicle_camera_device_t {
     struct hw_device_t common;
 
-    const uint32_t camera_type;
+    uint32_t camera_type;
 
     /**
      * Returns the capabilities of this camera.
