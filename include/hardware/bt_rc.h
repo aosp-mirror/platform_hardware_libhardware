@@ -23,14 +23,13 @@ __BEGIN_DECLS
 #define BT_RC_NUM_APP 1
 
 /* Macros */
-#define BTRC_MAX_ATTR_STR_LEN       255
+#define BTRC_MAX_ATTR_STR_LEN       (1 << 16)
 #define BTRC_UID_SIZE               8
 #define BTRC_MAX_APP_SETTINGS       8
 #define BTRC_MAX_FOLDER_DEPTH       4
 #define BTRC_MAX_APP_ATTR_SIZE      16
 #define BTRC_MAX_ELEM_ATTR_SIZE     8
-#define BTRC_FEATURE_MASK_SIZE      16
-
+#define BTRC_FEATURE_BIT_MASK_SIZE 16
 
 /* Macros for valid scopes in get_folder_items */
 #define BTRC_SCOPE_PLAYER_LIST  0x00 /* Media Player List */
@@ -45,6 +44,25 @@ __BEGIN_DECLS
 #define BTRC_ITEM_PLAYER  0x01 /* Media Player */
 #define BTRC_ITEM_FOLDER  0x02 /* Folder */
 #define BTRC_ITEM_MEDIA   0x03 /* Media File */
+
+/* Macros for media attribute IDs */
+#define BTRC_MEDIA_ATTR_ID_INVALID               -1
+#define BTRC_MEDIA_ATTR_ID_TITLE                 0x00000001
+#define BTRC_MEDIA_ATTR_ID_ARTIST                0x00000002
+#define BTRC_MEDIA_ATTR_ID_ALBUM                 0x00000003
+#define BTRC_MEDIA_ATTR_ID_TRACK_NUM             0x00000004
+#define BTRC_MEDIA_ATTR_ID_NUM_TRACKS            0x00000005
+#define BTRC_MEDIA_ATTR_ID_GENRE                 0x00000006
+#define BTRC_MEDIA_ATTR_ID_PLAYING_TIME          0x00000007        /* in miliseconds */
+
+/* Macros for folder types */
+#define BTRC_FOLDER_TYPE_MIXED      0x00
+#define BTRC_FOLDER_TYPE_TITLES     0x01
+#define BTRC_FOLDER_TYPE_ALBUMS     0x02
+#define BTRC_FOLDER_TYPE_ARTISTS    0x03
+#define BTRC_FOLDER_TYPE_GENRES     0x04
+#define BTRC_FOLDER_TYPE_PLAYLISTS  0x05
+#define BTRC_FOLDER_TYPE_YEARS      0x06
 
 /* Macros for media types */
 #define BTRC_MEDIA_TYPE_AUDIO  0x00 /* audio */
@@ -231,7 +249,7 @@ typedef struct {
     uint8_t   major_type;
     uint32_t  sub_type;
     uint8_t   play_status;
-    uint8_t   features[BTRC_FEATURE_MASK_SIZE];
+    uint8_t   features[BTRC_FEATURE_BIT_MASK_SIZE];
     uint16_t  charset_id;
     uint8_t   name[BTRC_MAX_ATTR_STR_LEN];
 } btrc_item_player_t;
@@ -324,6 +342,43 @@ typedef void (* btrc_volume_change_callback) (uint8_t volume, uint8_t ctype, bt_
 
 /** Callback for passthrough commands */
 typedef void (* btrc_passthrough_cmd_callback) (int id, int key_state, bt_bdaddr_t *bd_addr);
+
+/** Callback for set addressed player response on TG **/
+typedef void (* btrc_set_addressed_player_callback) (uint16_t player_id, bt_bdaddr_t *bd_addr);
+
+/** Callback for set browsed player response on TG **/
+typedef void (* btrc_set_browsed_player_callback) (uint16_t player_id, bt_bdaddr_t *bd_addr);
+
+/** Callback for get folder items on TG
+**  num_attr: specifies the number of attributes requested in p_attr_ids
+*/
+typedef void (* btrc_get_folder_items_callback) (uint8_t scope, uint32_t start_item,
+              uint32_t end_item, uint8_t num_attr, uint32_t *p_attr_ids, bt_bdaddr_t *bd_addr);
+
+/** Callback for changing browsed path on TG **/
+typedef void (* btrc_change_path_callback) (uint8_t direction,
+                uint8_t* folder_uid, bt_bdaddr_t *bd_addr);
+
+/** Callback to fetch the get item attributes of the media item
+**  num_attr: specifies the number of attributes requested in p_attrs
+*/
+typedef void (* btrc_get_item_attr_callback) (uint8_t scope, uint8_t* uid, uint16_t uid_counter,
+                uint8_t num_attr, btrc_media_attr_t *p_attrs, bt_bdaddr_t *bd_addr);
+
+/** Callback for play request for the media item indicated by an identifier */
+typedef void (* btrc_play_item_callback) (uint8_t scope,
+                uint16_t uid_counter, uint8_t* uid, bt_bdaddr_t *bd_addr);
+
+/** Callback to fetch total number of items from a folder **/
+typedef void (* btrc_get_total_num_of_items_callback) (uint8_t scope, bt_bdaddr_t *bd_addr);
+
+/** Callback for conducting recursive search on a current browsed path for a specified string */
+typedef void (* btrc_search_callback) (uint16_t charset_id,
+                uint16_t str_len, uint8_t* p_str, bt_bdaddr_t *bd_addr);
+
+/** Callback to add a specified media item indicated by an identifier to now playing queue. */
+typedef void (* btrc_add_to_now_playing_callback) (uint8_t scope,
+                uint8_t* uid, uint16_t  uid_counter, bt_bdaddr_t *bd_addr);
 
 /** Callback for set addressed player response on TG **/
 typedef void (* btrc_set_addressed_player_callback) (uint16_t player_id, bt_bdaddr_t *bd_addr);
@@ -502,11 +557,12 @@ typedef struct {
     void  (*cleanup)( void );
 } btrc_interface_t;
 
-typedef void (* btrc_passthrough_rsp_callback) (int id, int key_state, bt_bdaddr_t *bd_addr);
+typedef void (* btrc_passthrough_rsp_callback) (bt_bdaddr_t *bd_addr, int id, int key_state);
 
 typedef void (* btrc_groupnavigation_rsp_callback) (int id, int key_state);
 
-typedef void (* btrc_connection_state_callback) (bool state, bt_bdaddr_t *bd_addr);
+typedef void (* btrc_connection_state_callback) (
+    bool rc_connect, bool bt_connect, bt_bdaddr_t *bd_addr);
 
 typedef void (* btrc_ctrl_getrcfeatures_callback) (bt_bdaddr_t *bd_addr, int features);
 
@@ -535,6 +591,14 @@ typedef void (* btrc_ctrl_play_position_changed_callback)(bt_bdaddr_t *bd_addr,
 typedef void (* btrc_ctrl_play_status_changed_callback)(bt_bdaddr_t *bd_addr,
                                                             btrc_play_status_t play_status);
 
+typedef void (* btrc_ctrl_get_folder_items_callback )(bt_bdaddr_t *bd_addr,
+                                                            const btrc_folder_items_t *folder_items,
+                                                            uint8_t count);
+
+typedef void (* btrc_ctrl_change_path_callback)(bt_bdaddr_t *bd_addr, uint8_t count);
+
+typedef void (* btrc_ctrl_set_browsed_player_callback )(
+    bt_bdaddr_t *bd_addr, uint8_t num_items, uint8_t depth);
 /** BT-RC Controller callback structure. */
 typedef struct {
     /** set to sizeof(BtRcCallbacks) */
@@ -551,6 +615,9 @@ typedef struct {
     btrc_ctrl_track_changed_callback                            track_changed_cb;
     btrc_ctrl_play_position_changed_callback                    play_position_changed_cb;
     btrc_ctrl_play_status_changed_callback                      play_status_changed_cb;
+    btrc_ctrl_get_folder_items_callback                         get_folder_items_cb;
+    btrc_ctrl_change_path_callback                              change_folder_path_cb;
+    btrc_ctrl_set_browsed_player_callback                       set_browsed_player_cb;
 } btrc_ctrl_callbacks_t;
 
 /** Represents the standard BT-RC AVRCP Controller interface. */
@@ -574,6 +641,25 @@ typedef struct {
     /** send command to set player applicaiton setting attributes to target */
     bt_status_t (*set_player_app_setting_cmd) (bt_bdaddr_t *bd_addr, uint8_t num_attrib,
             uint8_t* attrib_ids, uint8_t* attrib_vals);
+
+    /** send command to play a particular item */
+    bt_status_t (*play_item_cmd) (
+        bt_bdaddr_t *bd_addr, uint8_t scope, uint8_t *uid, uint16_t uid_counter);
+
+    /** get the now playing list */
+    bt_status_t (*get_now_playing_list_cmd) (bt_bdaddr_t *bd_addr, uint8_t start, uint8_t items);
+
+    /** get the folder list */
+    bt_status_t (*get_folder_list_cmd) (bt_bdaddr_t *bd_addr, uint8_t start, uint8_t items);
+
+    /** get the folder list */
+    bt_status_t (*get_player_list_cmd) (bt_bdaddr_t *bd_addr, uint8_t start, uint8_t items);
+
+    /** get the folder list */
+    bt_status_t (*change_folder_path_cmd) (bt_bdaddr_t *bd_addr, uint8_t direction, uint8_t * uid);
+
+    /** set browsed player */
+    bt_status_t (*set_browsed_player_cmd) (bt_bdaddr_t *bd_addr, uint16_t player_id);
 
     /** send rsp to set_abs_vol received from target */
     bt_status_t (*set_volume_rsp) (bt_bdaddr_t *bd_addr, uint8_t abs_vol, uint8_t label);
