@@ -82,11 +82,6 @@ __BEGIN_DECLS
  *  audio device parameters
  */
 
-/* BT SCO Noise Reduction + Echo Cancellation parameters */
-#define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
-#define AUDIO_PARAMETER_VALUE_ON "on"
-#define AUDIO_PARAMETER_VALUE_OFF "off"
-
 /* TTY mode selection */
 #define AUDIO_PARAMETER_KEY_TTY_MODE "tty_mode"
 #define AUDIO_PARAMETER_VALUE_TTY_OFF "tty_off"
@@ -94,8 +89,7 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_VALUE_TTY_HCO "tty_hco"
 #define AUDIO_PARAMETER_VALUE_TTY_FULL "tty_full"
 
-/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off
-   Strings must be in sync with CallFeaturesSetting.java */
+/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off */
 #define AUDIO_PARAMETER_KEY_HAC "HACSetting"
 #define AUDIO_PARAMETER_VALUE_HAC_ON "ON"
 #define AUDIO_PARAMETER_VALUE_HAC_OFF "OFF"
@@ -106,66 +100,15 @@ __BEGIN_DECLS
 /* A2DP source address set by framework */
 #define AUDIO_PARAMETER_A2DP_SOURCE_ADDRESS "a2dp_source_address"
 
-/* Screen state */
-#define AUDIO_PARAMETER_KEY_SCREEN_STATE "screen_state"
-
 /* Bluetooth SCO wideband */
 #define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
-
-/* Get a new HW synchronization source identifier.
- * Return a valid source (positive integer) or AUDIO_HW_SYNC_INVALID if an error occurs
- * or no HW sync is available. */
-#define AUDIO_PARAMETER_HW_AV_SYNC "hw_av_sync"
 
 /**
  *  audio stream parameters
  */
 
-#define AUDIO_PARAMETER_STREAM_ROUTING "routing"             /* audio_devices_t */
-#define AUDIO_PARAMETER_STREAM_FORMAT "format"               /* audio_format_t */
-#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"           /* audio_channel_mask_t */
-#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"     /* size_t */
-#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"   /* audio_source_t */
-#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" /* uint32_t */
-
-#define AUDIO_PARAMETER_DEVICE_CONNECT "connect"            /* audio_devices_t */
-#define AUDIO_PARAMETER_DEVICE_DISCONNECT "disconnect"      /* audio_devices_t */
-
-/* Query supported formats. The response is a '|' separated list of strings from
- * audio_format_t enum e.g: "sup_formats=AUDIO_FORMAT_PCM_16_BIT" */
-#define AUDIO_PARAMETER_STREAM_SUP_FORMATS "sup_formats"
-/* Query supported channel masks. The response is a '|' separated list of strings from
- * audio_channel_mask_t enum e.g: "sup_channels=AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_MONO" */
-#define AUDIO_PARAMETER_STREAM_SUP_CHANNELS "sup_channels"
-/* Query supported sampling rates. The response is a '|' separated list of integer values e.g:
- * "sup_sampling_rates=44100|48000" */
-#define AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES "sup_sampling_rates"
-
-/* Set the HW synchronization source for an output stream. */
-#define AUDIO_PARAMETER_STREAM_HW_AV_SYNC "hw_av_sync"
-
-/* Enable mono audio playback if 1, else should be 0. */
-#define AUDIO_PARAMETER_MONO_OUTPUT "mono_output"
-
 /* Enable AANC */
 #define AUDIO_PARAMETER_KEY_AANC "aanc_enabled"
-
-/**
- * audio codec parameters
- */
-
-#define AUDIO_OFFLOAD_CODEC_PARAMS "music_offload_codec_param"
-#define AUDIO_OFFLOAD_CODEC_BIT_PER_SAMPLE "music_offload_bit_per_sample"
-#define AUDIO_OFFLOAD_CODEC_BIT_RATE "music_offload_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_AVG_BIT_RATE "music_offload_avg_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_ID "music_offload_codec_id"
-#define AUDIO_OFFLOAD_CODEC_BLOCK_ALIGN "music_offload_block_align"
-#define AUDIO_OFFLOAD_CODEC_SAMPLE_RATE "music_offload_sample_rate"
-#define AUDIO_OFFLOAD_CODEC_ENCODE_OPTION "music_offload_encode_option"
-#define AUDIO_OFFLOAD_CODEC_NUM_CHANNEL  "music_offload_num_channels"
-#define AUDIO_OFFLOAD_CODEC_DOWN_SAMPLING  "music_offload_down_sampling"
-#define AUDIO_OFFLOAD_CODEC_DELAY_SAMPLES  "delay_samples"
-#define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
 
 /**************************************/
 
