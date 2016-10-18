@@ -59,19 +59,6 @@ __BEGIN_DECLS
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
 
-/**
- * List of known audio HAL modules. This is the base name of the audio HAL
- * library composed of the "audio." prefix, one of the base names below and
- * a suffix specific to the device.
- * e.g: audio.primary.goldfish.so or audio.a2dp.default.so
- */
-
-#define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
-#define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
-#define AUDIO_HARDWARE_MODULE_ID_USB "usb"
-#define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
-#define AUDIO_HARDWARE_MODULE_ID_CODEC_OFFLOAD "codec_offload"
-
 /**************************************/
 
 /**
