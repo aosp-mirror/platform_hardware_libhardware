@@ -131,7 +131,7 @@ void get_tuner_metadata(radio_hw_device_t *device) {
         radio_metadata_key_t key;
         radio_metadata_type_t type;
         void *value;
-        uint32_t size;
+        size_t size;
 
         radio_metadata_get_at_index(info.metadata, i, &key, &type, &value, &size);
 
