@@ -40,11 +40,7 @@ class BleAdvertiserInterface {
   virtual void Unregister(uint8_t advertiser_id) = 0;
 
   /** Set the advertising data or scan response data */
-  virtual void SetData(int advertiser_id, bool set_scan_rsp, bool include_name,
-                       bool include_txpower, int min_interval, int max_interval,
-                       int appearance, vector<uint8_t> manufacturer_data,
-                       vector<uint8_t> service_data,
-                       vector<uint8_t> service_uuid) = 0;
+  virtual void SetData(bool set_scan_rsp, vector<uint8_t> data) = 0;
 
   /* Set the parameters as per spec, user manual specified values */
   virtual void MultiAdvSetParameters(int advertiser_id, int min_interval,
@@ -54,11 +50,7 @@ class BleAdvertiserInterface {
 
   /* Setup the data for the specified instance */
   virtual void MultiAdvSetInstData(int advertiser_id, bool set_scan_rsp,
-                                   bool include_name, bool incl_txpower,
-                                   int appearance,
-                                   vector<uint8_t> manufacturer_data,
-                                   vector<uint8_t> service_data,
-                                   vector<uint8_t> service_uuid,
+                                   vector<uint8_t> data,
                                    BleAdvertiserCb cb) = 0;
 
   /* Enable the advertising instance as per spec */
