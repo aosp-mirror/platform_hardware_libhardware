@@ -189,7 +189,7 @@ static int add_bitmap_metadata(radio_metadata_t **metadata, radio_metadata_key_t
 exit:
     close(fd);
     free(data);
-    ALOGE_IF(ret != 0, "%s error %d", __func__, ret);
+    ALOGE_IF(ret != 0, "%s error %d", __func__, (int)ret);
     return (int)ret;
 }
 
@@ -209,6 +209,7 @@ static int prepare_metadata(struct stub_radio_tuner *tuner,
     *metadata = NULL;
 
     ret = radio_metadata_allocate(metadata, tuner->program.channel, 0);
+
     if (ret != 0)
         return ret;
 
@@ -220,14 +221,14 @@ static int prepare_metadata(struct stub_radio_tuner *tuner,
         if (ret != 0)
             goto exit;
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ICON, BITMAP_FILE_PATH);
-        if (ret != 0)
+        if (ret != 0 && ret != -EPIPE)
             goto exit;
         ret = radio_metadata_add_clock(metadata, RADIO_METADATA_KEY_CLOCK, &hw_clock);
         if (ret != 0)
             goto exit;
     } else {
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ART, BITMAP_FILE_PATH);
-        if (ret != 0)
+        if (ret != 0 && ret != -EPIPE)
             goto exit;
     }
 
@@ -418,7 +419,6 @@ static void *callback_thread_loop(void *context)
                         event.type = RADIO_EVENT_METADATA;
                         event.metadata = metadata;
                     }
-                    send_meta_data = true;
                 } break;
 
                 case CMD_CANCEL: {
