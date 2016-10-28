@@ -20,6 +20,7 @@
 
 #include <stdint.h>
 #include "ble_advertiser.h"
+#include "ble_scanner.h"
 #include "bt_gatt_client.h"
 #include "bt_gatt_server.h"
 
@@ -35,6 +36,9 @@ typedef struct {
 
     /** GATT Server callbacks */
     const btgatt_server_callbacks_t* server;
+
+    /** LE scanner callbacks */
+    const btgatt_scanner_callbacks_t* scanner;
 } btgatt_callbacks_t;
 
 /** Represents the standard Bluetooth GATT interface. */
@@ -55,6 +59,9 @@ typedef struct {
 
     /** Pointer to the GATT server interface methods.*/
     const btgatt_server_interface_t* server;
+
+    /** Pointer to the LE scanner interface methods.*/
+    const btgatt_scanner_interface_t* scanner;
 
     /** Pointer to the advertiser interface methods.*/
     BleAdvertiserInterface* advertiser;
