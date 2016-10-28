@@ -121,6 +121,10 @@ typedef enum
 typedef void (*register_client_callback)(int status, int client_if,
                 bt_uuid_t *app_uuid);
 
+/** Callback invoked in response to register_scanner */
+typedef void (*register_scanner_callback)(int status, int scanner_id,
+                bt_uuid_t *app_uuid);
+
 /** Callback for scan results */
 typedef void (*scan_result_callback)(bt_bdaddr_t* bda, int rssi, vector<uint8_t> adv_data);
 
@@ -224,6 +228,7 @@ typedef void (*services_added_callback)(int conn_id, btgatt_db_element_t *added,
 
 typedef struct {
     register_client_callback            register_client_cb;
+    register_scanner_callback           register_scanner_cb;
     scan_result_callback                scan_result_cb;
     connect_callback                    open_cb;
     disconnect_callback                 close_cb;
@@ -261,6 +266,12 @@ typedef struct {
 
     /** Unregister a client application from the stack */
     bt_status_t (*unregister_client)(int client_if );
+
+    /** Registers a scanner with the stack */
+    bt_status_t (*register_scanner)( bt_uuid_t *uuid );
+
+    /** Unregister a scanner from the stack */
+    bt_status_t (*unregister_scanner)(int scanner_id );
 
     /** Start or stop LE device scanning */
     bt_status_t (*scan)( bool start );
