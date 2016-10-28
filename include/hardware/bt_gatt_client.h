@@ -121,13 +121,6 @@ typedef enum
 typedef void (*register_client_callback)(int status, int client_if,
                 bt_uuid_t *app_uuid);
 
-/** Callback invoked in response to register_scanner */
-typedef void (*register_scanner_callback)(int status, int scanner_id,
-                bt_uuid_t *app_uuid);
-
-/** Callback for scan results */
-typedef void (*scan_result_callback)(bt_bdaddr_t* bda, int rssi, vector<uint8_t> adv_data);
-
 /** GATT open callback invoked in response to open */
 typedef void (*connect_callback)(int conn_id, int status, int client_if, bt_bdaddr_t* bda);
 
@@ -180,16 +173,6 @@ typedef void (*listen_callback)(int status, int server_if);
 /** Callback invoked when the MTU for a given connection changes */
 typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 
-/** Callback invoked when a scan filter configuration command has completed */
-typedef void (*scan_filter_cfg_callback)(int action, int client_if, int status, int filt_type,
-                                         int avbl_space);
-
-/** Callback invoked when scan param has been added, cleared, or deleted */
-typedef void (*scan_filter_param_callback)(int action, int client_if, int status,
-                                         int avbl_space);
-
-/** Callback invoked when a scan filter configuration command has completed */
-typedef void (*scan_filter_status_callback)(int enable, int client_if, int status);
 
 /**
  * Callback notifying an application that a remote device connection is currently congested
@@ -197,25 +180,6 @@ typedef void (*scan_filter_status_callback)(int enable, int client_if, int statu
  * a further callback is received indicating the congestion status has been cleared.
  */
 typedef void (*congestion_callback)(int conn_id, bool congested);
-/** Callback invoked when batchscan storage config operation has completed */
-typedef void (*batchscan_cfg_storage_callback)(int client_if, int status);
-
-/** Callback invoked when batchscan enable / disable operation has completed */
-typedef void (*batchscan_enable_disable_callback)(int action, int client_if, int status);
-
-/** Callback invoked when batchscan reports are obtained */
-typedef void (*batchscan_reports_callback)(int client_if, int status, int report_format,
-                                           int num_records, vector<uint8_t> data);
-
-/** Callback invoked when batchscan storage threshold limit is crossed */
-typedef void (*batchscan_threshold_callback)(int client_if);
-
-/** Track ADV VSE callback invoked when tracked device is found or lost */
-typedef void (*track_adv_event_callback)(btgatt_track_adv_info_t *p_track_adv_info);
-
-/** Callback invoked when scan parameter setup has completed */
-typedef void (*scan_parameter_setup_completed_callback)(int client_if,
-                                                        btgattc_error_t status);
 
 /** GATT get database callback */
 typedef void (*get_gatt_db_callback)(int conn_id, btgatt_db_element_t *db, int count);
@@ -228,8 +192,6 @@ typedef void (*services_added_callback)(int conn_id, btgatt_db_element_t *added,
 
 typedef struct {
     register_client_callback            register_client_cb;
-    register_scanner_callback           register_scanner_cb;
-    scan_result_callback                scan_result_cb;
     connect_callback                    open_cb;
     disconnect_callback                 close_cb;
     search_complete_callback            search_complete_cb;
@@ -243,16 +205,7 @@ typedef struct {
     read_remote_rssi_callback           read_remote_rssi_cb;
     listen_callback                     listen_cb;
     configure_mtu_callback              configure_mtu_cb;
-    scan_filter_cfg_callback            scan_filter_cfg_cb;
-    scan_filter_param_callback          scan_filter_param_cb;
-    scan_filter_status_callback         scan_filter_status_cb;
     congestion_callback                 congestion_cb;
-    batchscan_cfg_storage_callback      batchscan_cfg_storage_cb;
-    batchscan_enable_disable_callback   batchscan_enb_disable_cb;
-    batchscan_reports_callback          batchscan_reports_cb;
-    batchscan_threshold_callback        batchscan_threshold_cb;
-    track_adv_event_callback            track_adv_event_cb;
-    scan_parameter_setup_completed_callback scan_parameter_setup_completed_cb;
     get_gatt_db_callback                get_gatt_db_cb;
     services_removed_callback           services_removed_cb;
     services_added_callback             services_added_cb;
@@ -266,15 +219,6 @@ typedef struct {
 
     /** Unregister a client application from the stack */
     bt_status_t (*unregister_client)(int client_if );
-
-    /** Registers a scanner with the stack */
-    bt_status_t (*register_scanner)( bt_uuid_t *uuid );
-
-    /** Unregister a scanner from the stack */
-    bt_status_t (*unregister_scanner)(int scanner_id );
-
-    /** Start or stop LE device scanning */
-    bt_status_t (*scan)( bool start );
 
     /** Create a connection to a remote LE or dual-mode device */
     bt_status_t (*connect)( int client_if, const bt_bdaddr_t *bd_addr,
@@ -329,24 +273,6 @@ typedef struct {
     /** Request RSSI for a given remote device */
     bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
 
-    /** Setup scan filter params */
-    bt_status_t (*scan_filter_param_setup)(btgatt_filt_param_setup_t filt_param);
-
-
-    /** Configure a scan filter condition  */
-    bt_status_t (*scan_filter_add_remove)(int client_if, int action, int filt_type,
-                                   int filt_index, int company_id,
-                                   int company_id_mask, const bt_uuid_t *p_uuid,
-                                   const bt_uuid_t *p_uuid_mask, const bt_bdaddr_t *bd_addr,
-                                   char addr_type, vector<uint8_t> data,
-                                   vector<uint8_t> p_mask);
-
-    /** Clear all scan filter conditions for specific filter index*/
-    bt_status_t (*scan_filter_clear)(int client_if, int filt_index);
-
-    /** Enable / disable scan filter feature*/
-    bt_status_t (*scan_filter_enable)(int client_if, bool enable);
-
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
     int (*get_device_type)( const bt_bdaddr_t *bd_addr );
 
@@ -356,23 +282,6 @@ typedef struct {
     /** Request a connection parameter update */
     bt_status_t (*conn_parameter_update)(const bt_bdaddr_t *bd_addr, int min_interval,
                     int max_interval, int latency, int timeout);
-
-    /** Sets the LE scan interval and window in units of N*0.625 msec */
-    bt_status_t (*set_scan_parameters)(int client_if, int scan_interval, int scan_window);
-
-    /* Configure the batchscan storage */
-    bt_status_t (*batchscan_cfg_storage)(int client_if, int batch_scan_full_max,
-        int batch_scan_trunc_max, int batch_scan_notify_threshold);
-
-    /* Enable batchscan */
-    bt_status_t (*batchscan_enb_batch_scan)(int client_if, int scan_mode,
-        int scan_interval, int scan_window, int addr_type, int discard_rule);
-
-    /* Disable batchscan */
-    bt_status_t (*batchscan_dis_batch_scan)(int client_if);
-
-    /* Read out batchscan reports */
-    bt_status_t (*batchscan_read_reports)(int client_if, int scan_mode);
 
     /** Test mode interface */
     bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
