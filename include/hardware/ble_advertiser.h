@@ -42,6 +42,9 @@ class BleAdvertiserInterface {
   /** Set the advertising data or scan response data */
   virtual void SetData(bool set_scan_rsp, vector<uint8_t> data) = 0;
 
+  /** Start or stop advertising */
+  virtual void Enable(bool start, BleAdvertiserCb cb) = 0;
+
   /* Set the parameters as per spec, user manual specified values */
   virtual void MultiAdvSetParameters(int advertiser_id, int min_interval,
                                      int max_interval, int adv_type,
