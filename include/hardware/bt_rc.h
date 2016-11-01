@@ -686,6 +686,9 @@ typedef struct {
     bt_status_t (*play_item_cmd) (
         bt_bdaddr_t *bd_addr, uint8_t scope, uint8_t *uid, uint16_t uid_counter);
 
+    /** get the playback state */
+    bt_status_t (*get_playback_state_cmd) (bt_bdaddr_t *bd_addr);
+
     /** get the now playing list */
     bt_status_t (*get_now_playing_list_cmd) (bt_bdaddr_t *bd_addr, uint8_t start, uint8_t items);
 
