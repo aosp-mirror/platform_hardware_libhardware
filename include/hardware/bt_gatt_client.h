@@ -165,11 +165,6 @@ typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t hand
 typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
                                           int rssi, int status);
 
-/**
- * Callback indicating the status of a listen() operation
- */
-typedef void (*listen_callback)(int status, int server_if);
-
 /** Callback invoked when the MTU for a given connection changes */
 typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 
@@ -203,7 +198,6 @@ typedef struct {
     write_descriptor_callback           write_descriptor_cb;
     execute_write_callback              execute_write_cb;
     read_remote_rssi_callback           read_remote_rssi_cb;
-    listen_callback                     listen_cb;
     configure_mtu_callback              configure_mtu_cb;
     congestion_callback                 congestion_cb;
     get_gatt_db_callback                get_gatt_db_cb;
@@ -227,9 +221,6 @@ typedef struct {
     /** Disconnect a remote device or cancel a pending connection */
     bt_status_t (*disconnect)( int client_if, const bt_bdaddr_t *bd_addr,
                     int conn_id);
-
-    /** Start or stop advertisements to listen for incoming connections */
-    bt_status_t (*listen)(int client_if, bool start);
 
     /** Clear the attribute cache for a given device */
     bt_status_t (*refresh)( int client_if, const bt_bdaddr_t *bd_addr );
