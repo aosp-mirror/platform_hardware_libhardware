@@ -116,7 +116,9 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(sensors_poll_device_1_t, batch, 76, 144);
     CHECK_MEMBER_AT(sensors_poll_device_1_t, flush, 80, 152);
     CHECK_MEMBER_AT(sensors_poll_device_1_t, inject_sensor_data, 84, 160);
-    CHECK_MEMBER_AT(sensors_poll_device_1_t, reserved_procs, 88, 168);
+    CHECK_MEMBER_AT(sensors_poll_device_1_t, register_direct_channel, 88, 168);
+    CHECK_MEMBER_AT(sensors_poll_device_1_t, config_direct_report, 92, 176);
+    CHECK_MEMBER_AT(sensors_poll_device_1_t, reserved_procs, 96, 184);
 
     //Types defined in fb.h
     CHECK_MEMBER_AT(framebuffer_device_t, common, 0, 0);

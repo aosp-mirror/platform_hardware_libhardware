@@ -129,6 +129,18 @@ enum {
 #define ADDITIONAL_INFO_SHIFT           (6)
 #define ADDITIONAL_INFO_MASK            SENSOR_FLAG_MASK_1(ADDITIONAL_INFO_SHIFT) //0x40
 
+/*
+ * Shift for sensor direct report support bits (3 bits denoting maximum rate level)
+ * @see enums SENSOR_DIRECT_RATE_* for definition of direct report rate level.
+ * @see SENSOR_FLAG_MASK_DIRECT_REPORT for mask
+ */
+#define SENSOR_FLAG_SHIFT_DIRECT_REPORT     (7)
+/*
+ * Shift for sensor direct channel support bit (2 bits representing direct channel supported)
+ * @see SENSOR_FLAG_DIRECT_CHANNEL_* for details.
+ */
+#define SENSOR_FLAG_SHIFT_DIRECT_CHANNEL    (10)
+
 #define SENSOR_STRING_TYPE_ACCELEROMETER             "android.sensor.accelerometer"
 #define SENSOR_TYPE_MAGNETIC_FIELD  SENSOR_TYPE_GEOMAGNETIC_FIELD
 #define SENSOR_STRING_TYPE_MAGNETIC_FIELD            "android.sensor.magnetic_field"
@@ -500,6 +512,23 @@ struct sensor_t {
     void*           reserved[2];
 };
 
+/**
+ * Shared memory information for a direct channel
+ */
+struct sensors_direct_mem_t {
+    int type;                           // enum SENSOR_DIRECT_MEM_...
+    int format;                         // enum SENSOR_DIRECT_FMT_...
+    size_t size;                        // size of the memory region, in bytes
+    const struct native_handle *handle; // shared memory handle, which is interpreted differently
+                                        // depending on type
+};
+
+/**
+ * Direct channel report configuration
+ */
+struct sensors_direct_cfg_t {
+    int rate_level;             // enum SENSOR_DIRECT_RATE_...
+};
 
 /*
  * sensors_poll_device_t is used with SENSORS_DEVICE_API_VERSION_0_1
@@ -607,7 +636,61 @@ typedef struct sensors_poll_device_1 {
      */
     int (*inject_sensor_data)(struct sensors_poll_device_1 *dev, const sensors_event_t *data);
 
-    void (*reserved_procs[7])(void);
+    /*
+     * Register/unregister direct report channel.
+     *
+     * A HAL declares support for direct report by setting non-NULL values for both
+     * register_direct_channel and config_direct_report.
+     *
+     * This function has two operation modes:
+     *
+     * Register: mem != NULL, register a channel using supplied shared memory information. By the
+     * time this function returns, sensors must finish initializing shared memory content
+     * (format dependent, see SENSOR_DIRECT_FMT_*).
+     *      Parameters:
+     *          mem             points to a valid struct sensors_direct_mem_t.
+     *          channel_handle  is ignored.
+     *      Return value:
+     *          A handle of channel (>0) when success, which later can be referred in
+     *          unregister or config_direct_report call, or error code (<0) if failed
+     * Unregister: mem == NULL, unregister a previously registered channel.
+     *      Parameters:
+     *          mem             set to NULL
+     *          channel_handle  contains handle of channel to be unregistered
+     *      Return value:
+     *          0, even if the channel_handle is invalid, in which case it will be a no-op.
+     */
+    int (*register_direct_channel)(struct sensors_poll_device_1 *dev,
+            const struct sensors_direct_mem_t* mem, int channel_handle);
+
+    /*
+     * Configure direct sensor event report in direct channel.
+     *
+     * Start, modify rate or stop direct report of a sensor in a certain direct channel. A special
+     * case is setting sensor handle -1 to stop means to stop all active sensor report on the
+     * channel specified.
+     *
+     * A HAL declares support for direct report by setting non-NULL values for both
+     * register_direct_channel and config_direct_report.
+     *
+     * Parameters:
+     *      sensor_handle   sensor to be configured. The sensor has to support direct report
+     *                      mode by setting flags of sensor_t. Also, direct report mode is only
+     *                      defined for continuous reporting mode sensors.
+     *      channel_handle  channel handle to be configured.
+     *      config          direct report parameters, see sensor_direct_cfg_t.
+     * Return value:
+     *      - when sensor is started or sensor rate level is changed: return positive identifier of
+     *        sensor in specified channel if successful, otherwise return negative error code.
+     *      - when sensor is stopped: return 0 for success or negative error code for failure.
+     */
+    int (*config_direct_report)(struct sensors_poll_device_1 *dev,
+            int sensor_handle, int channel_handle, const struct sensors_direct_cfg_t *config);
+
+    /*
+     * Reserved for future use.
+     */
+    void (*reserved_procs[5])(void);
 
 } sensors_poll_device_1_t;
 

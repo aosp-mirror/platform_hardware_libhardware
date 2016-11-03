@@ -61,6 +61,11 @@ enum {
     SENSOR_FLAG_SUPPORTS_DATA_INJECTION = 16ull, // 0x10
     SENSOR_FLAG_DYNAMIC_SENSOR = 32ull, // 0x20
     SENSOR_FLAG_ADDITIONAL_INFO = 64ull, // 0x40
+    SENSOR_FLAG_DIRECT_CHANNEL_ASHMEM = 1024ull, // 0x400
+    SENSOR_FLAG_DIRECT_CHANNEL_GRALLOC = 2048ull, // 0x800
+    SENSOR_FLAG_MASK_REPORTING_MODE = 14ull, // 0xE
+    SENSOR_FLAG_MASK_DIRECT_REPORT = 896ull, // 0x380
+    SENSOR_FLAG_MASK_DIRECT_CHANNEL = 3072ull, // 0xC00
 };
 
 enum {
@@ -92,6 +97,22 @@ typedef enum {
     AINFO_CUSTOM_START = 268435456u, // 0x10000000
     AINFO_DEBUGGING_START = 1073741824u, // 0x40000000
 } additional_info_type_t;
+
+typedef enum {
+    SENSOR_DIRECT_RATE_STOP = 0,
+    SENSOR_DIRECT_RATE_NORMAL = 1,
+    SENSOR_DIRECT_RATE_FAST = 2,
+    SENSOR_DIRECT_RATE_VERY_FAST = 3,
+} direct_rate_level_t;
+
+typedef enum {
+    SENSOR_DIRECT_MEM_TYPE_ASHMEM = 1,
+    SENSOR_DIRECT_MEM_TYPE_GRALLOC = 2,
+} direct_mem_type_t;
+
+typedef enum {
+    SENSOR_DIRECT_FMT_SENSORS_EVENT = 1,
+} direct_format_t;
 
 #ifdef __cplusplus
 }
