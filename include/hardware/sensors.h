@@ -163,6 +163,7 @@ enum {
 #define SENSOR_STRING_TYPE_HEART_BEAT                   "android.sensor.heart_beat"
 #define SENSOR_STRING_TYPE_DYNAMIC_SENSOR_META                  "android.sensor.dynamic_sensor_meta"
 #define SENSOR_STRING_TYPE_ADDITIONAL_INFO                "android.sensor.additional_info"
+#define SENSOR_STRING_TYPE_LOW_LATENCY_OFFBODY_DETECT     "android.sensor.low_latency_offbody"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
