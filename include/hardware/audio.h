@@ -22,6 +22,7 @@
 #include <strings.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include <cutils/bitops.h>
 
