@@ -74,7 +74,6 @@ struct CameraModuleFixture {
     void TearDown() {
         TEST_EXTENSION_FORKING_TEAR_DOWN;
 
-        delete mModule;
         TearDownMixin();
 
         /* important: device must be destructed before closing module,
@@ -85,6 +84,7 @@ struct CameraModuleFixture {
             ASSERT_EQ(0, HWModuleHelpers::closeModule(mModule->getDso()))
                 << "Failed to close camera HAL module";
         }
+        delete mModule;
     }
 
     void CreateCamera(int cameraID, /*out*/ sp<CameraDeviceBase> *device) {
