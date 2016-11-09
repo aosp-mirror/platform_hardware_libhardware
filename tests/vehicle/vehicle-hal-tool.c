@@ -98,6 +98,7 @@ static void print_property(const vehicle_prop_value_t *data) {
             memcpy(ascii_out, data->value.str_value.data, data->value.str_value.len);
             ascii_out[data->value.str_value.len] = '\0';
             printf("Value Type: STRING %s\n", ascii_out);
+            free(ascii_out);
             break;
         case VEHICLE_VALUE_TYPE_BYTES:
             printf("Value type: BYTES\n Size: %d", data->value.bytes_value.len);
