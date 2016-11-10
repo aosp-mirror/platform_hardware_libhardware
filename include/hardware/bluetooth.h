@@ -267,6 +267,7 @@ typedef struct
 /** Bluetooth Out Of Band data for bonding */
 typedef struct
 {
+   uint8_t le_bt_dev_addr[7]; /* LE Bluetooth Device Address */
    uint8_t c192[16]; /* Simple Pairing Hash C-192 */
    uint8_t r192[16]; /* Simple Pairing Randomizer R-192 */
    uint8_t c256[16]; /* Simple Pairing Hash C-256 */
