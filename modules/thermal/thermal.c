@@ -138,8 +138,9 @@ static ssize_t get_cpu_usages(thermal_module_t *module, cpu_usage_t *list) {
             fclose(file);
             fclose(cpu_file);
             return errno ? -errno : -EIO;
+        } else {
+            fclose(cpu_file);
         }
-        fclose(cpu_file);
 
         if (list != NULL) {
             list[size] = (cpu_usage_t) {
