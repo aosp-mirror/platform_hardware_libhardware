@@ -23,43 +23,33 @@
 #include "bt_common_types.h"
 #include "bt_gatt_types.h"
 
-using std::vector;
-
-/** Callback invoked when multi-adv operation has completed */
-using BleAdvertiserCb = base::Callback<void(uint8_t /* status */)>;
-
 class BleAdvertiserInterface {
  public:
   virtual ~BleAdvertiserInterface() = default;
 
+  /** Callback invoked when multi-adv operation has completed */
+  using Callback = base::Callback<void(uint8_t /* status */)>;
+
   /** Registers an advertiser with the stack */
   virtual void RegisterAdvertiser(
-      base::Callback<void(uint8_t /* advertiser_id */, uint8_t /* status */)>) = 0;
-
-  /*  This function disable a Multi-ADV instance */
-  virtual void Unregister(uint8_t advertiser_id) = 0;
-
-  /** Set the advertising data or scan response data */
-  virtual void SetData(bool set_scan_rsp, vector<uint8_t> data) = 0;
-
-  /** Start or stop advertising */
-  virtual void Enable(bool start, BleAdvertiserCb cb) = 0;
+      base::Callback<void(uint8_t /* advertiser_id */,
+                          uint8_t /* status */)>) = 0;
 
   /* Set the parameters as per spec, user manual specified values */
-  virtual void MultiAdvSetParameters(int advertiser_id, int min_interval,
-                                     int max_interval, int adv_type,
-                                     int chnl_map, int tx_power,
-                                     BleAdvertiserCb cb) = 0;
+  virtual void SetParameters(int advertiser_id, int min_interval,
+                             int max_interval, int adv_type, int chnl_map,
+                             int tx_power, Callback cb) = 0;
 
-  /* Setup the data for the specified instance */
-  virtual void MultiAdvSetInstData(int advertiser_id, bool set_scan_rsp,
-                                   vector<uint8_t> data,
-                                   BleAdvertiserCb cb) = 0;
+  /* Setup the data */
+  virtual void SetData(int advertiser_id, bool set_scan_rsp,
+                       std::vector<uint8_t> data, Callback cb) = 0;
 
-  /* Enable the advertising instance as per spec */
-  virtual void MultiAdvEnable(uint8_t advertiser_id, bool enable,
-                              BleAdvertiserCb cb, int timeout_s,
-                              BleAdvertiserCb timeout_cb) = 0;
+  /* Enable the advertising instance */
+  virtual void Enable(uint8_t advertiser_id, bool enable, Callback cb,
+                      int timeout_s, Callback timeout_cb) = 0;
+
+  /*  Unregisters an advertiser */
+  virtual void Unregister(uint8_t advertiser_id) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
