@@ -39,6 +39,14 @@
     ALOGW_IF(cond, "%s:%d: " fmt, __func__, __LINE__, ##args);  \
   } while(0)
 
+#define HAL_LOGI(fmt, args...) do { \
+    ALOGI("%s:%d: " fmt, __func__, __LINE__, ##args);   \
+  } while(0)
+
+#define HAL_LOGI_IF(cond, fmt, args...) do { \
+    ALOGI_IF(cond, "%s:%d: " fmt, __func__, __LINE__, ##args);  \
+  } while(0)
+
 #define HAL_LOGD(fmt, args...) do { \
     ALOGD("%s:%d: " fmt, __func__, __LINE__, ##args);   \
   } while(0)

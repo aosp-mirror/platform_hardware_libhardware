@@ -394,7 +394,6 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 {
     int res;
 
-    ALOGV("%s:%d: request=%p", __func__, mId, temp_request);
     ATRACE_CALL();
 
     if (temp_request == NULL) {
@@ -406,8 +405,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
     // past the end of this method.
     std::shared_ptr<CaptureRequest> request = std::make_shared<CaptureRequest>(temp_request);
 
-    ALOGV("%s:%d: Request Frame:%d", __func__, mId,
-            request->frame_number);
+    ALOGV("%s:%d: frame: %d", __func__, mId, request->frame_number);
 
     // Null/Empty indicates use last settings
     if (request->settings.isEmpty() && !mSettingsSet) {

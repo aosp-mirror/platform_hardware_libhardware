@@ -37,31 +37,26 @@ class Property : public PartialMetadataInterface {
 
   virtual int PopulateStaticFields(
       android::CameraMetadata* metadata) const override {
-    HAL_LOG_ENTER();
     return UpdateMetadata(metadata, tag_, value_);
   };
 
   virtual int PopulateDynamicFields(
       android::CameraMetadata* metadata) const override {
-    HAL_LOG_ENTER();
     return 0;
   };
 
   virtual int PopulateTemplateRequest(
       int template_type, android::CameraMetadata* metadata) const override {
-    HAL_LOG_ENTER();
     return 0;
   };
 
   virtual bool SupportsRequestValues(
       const android::CameraMetadata& metadata) const override {
-    HAL_LOG_ENTER();
     return true;
   };
 
   virtual int SetRequestValues(
       const android::CameraMetadata& metadata) override {
-    HAL_LOG_ENTER();
     return 0;
   };
 

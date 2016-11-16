@@ -64,9 +64,7 @@ class Control : public PartialMetadataInterface {
 template <typename T>
 Control<T>::Control(std::unique_ptr<TaggedControlDelegate<T>> delegate,
                     std::unique_ptr<TaggedControlOptions<T>> options)
-    : delegate_(std::move(delegate)), options_(std::move(options)) {
-  HAL_LOG_ENTER();
-}
+    : delegate_(std::move(delegate)), options_(std::move(options)) {}
 
 template <typename T>
 std::vector<int32_t> Control<T>::StaticTags() const {
@@ -89,8 +87,6 @@ std::vector<int32_t> Control<T>::DynamicTags() const {
 
 template <typename T>
 int Control<T>::PopulateStaticFields(android::CameraMetadata* metadata) const {
-  HAL_LOG_ENTER();
-
   if (!options_) {
     HAL_LOGV("No options for control, nothing to populate.");
     return 0;
@@ -102,8 +98,6 @@ int Control<T>::PopulateStaticFields(android::CameraMetadata* metadata) const {
 
 template <typename T>
 int Control<T>::PopulateDynamicFields(android::CameraMetadata* metadata) const {
-  HAL_LOG_ENTER();
-
   // Populate the current setting.
   T value;
   int res = delegate_->GetValue(&value);
@@ -116,8 +110,6 @@ int Control<T>::PopulateDynamicFields(android::CameraMetadata* metadata) const {
 template <typename T>
 int Control<T>::PopulateTemplateRequest(
     int template_type, android::CameraMetadata* metadata) const {
-  HAL_LOG_ENTER();
-
   // Populate with a default.
   T value;
   int res;
@@ -138,7 +130,6 @@ int Control<T>::PopulateTemplateRequest(
 template <typename T>
 bool Control<T>::SupportsRequestValues(
     const android::CameraMetadata& metadata) const {
-  HAL_LOG_ENTER();
   if (metadata.isEmpty()) {
     // Implicitly supported.
     return true;
@@ -167,7 +158,6 @@ bool Control<T>::SupportsRequestValues(
 
 template <typename T>
 int Control<T>::SetRequestValues(const android::CameraMetadata& metadata) {
-  HAL_LOG_ENTER();
   if (metadata.isEmpty()) {
     // No changes necessary.
     return 0;

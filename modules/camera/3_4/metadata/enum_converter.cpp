@@ -29,8 +29,6 @@ EnumConverter::EnumConverter(
 }
 
 int EnumConverter::MetadataToV4L2(uint8_t value, int32_t* conversion) {
-  HAL_LOG_ENTER();
-
   // Unfortunately no bi-directional map lookup in C++.
   // Breaking on second, not first found so that a warning
   // can be given if there are multiple values.
@@ -60,8 +58,6 @@ int EnumConverter::MetadataToV4L2(uint8_t value, int32_t* conversion) {
 }
 
 int EnumConverter::V4L2ToMetadata(int32_t value, uint8_t* conversion) {
-  HAL_LOG_ENTER();
-
   auto element_range = v4l2_to_metadata_.equal_range(value);
   if (element_range.first == element_range.second) {
     HAL_LOGV("Couldn't find metadata conversion of V4L2 value %d.", value);

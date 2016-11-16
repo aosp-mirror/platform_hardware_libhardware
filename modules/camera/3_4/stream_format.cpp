@@ -31,9 +31,7 @@ StreamFormat::StreamFormat(const default_camera_hal::Stream& stream)
       width_(stream.getWidth()),
       height_(stream.getHeight()),
       bytes_per_line_(0),
-      min_buffer_size_(0) {
-  HAL_LOG_ENTER();
-}
+      min_buffer_size_(0) {}
 
 StreamFormat::StreamFormat(const v4l2_format& format)
     : type_(format.type),
@@ -42,13 +40,9 @@ StreamFormat::StreamFormat(const v4l2_format& format)
       width_(format.fmt.pix.width),
       height_(format.fmt.pix.height),
       bytes_per_line_(format.fmt.pix.bytesperline),
-      min_buffer_size_(format.fmt.pix.sizeimage) {
-  HAL_LOG_ENTER();
-}
+      min_buffer_size_(format.fmt.pix.sizeimage) {}
 
 void StreamFormat::FillFormatRequest(v4l2_format* format) const {
-  HAL_LOG_ENTER();
-
   memset(format, 0, sizeof(*format));
   format->type = type_;
   format->fmt.pix.pixelformat = v4l2_pixel_format_;

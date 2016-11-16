@@ -41,8 +41,6 @@ const int32_t kStandardSizes[][2] = {
     {1920, 1080}, {1280, 720}, {640, 480}, {320, 240}};
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
-  HAL_LOG_ENTER();
-
   std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
   if (!gralloc) {
     HAL_LOGE("Failed to initialize gralloc helper.");
@@ -56,13 +54,9 @@ V4L2Wrapper::V4L2Wrapper(const std::string device_path,
                          std::unique_ptr<V4L2Gralloc> gralloc)
     : device_path_(std::move(device_path)),
       gralloc_(std::move(gralloc)),
-      connection_count_(0) {
-  HAL_LOG_ENTER();
-}
+      connection_count_(0) {}
 
-V4L2Wrapper::~V4L2Wrapper() {
-  HAL_LOG_ENTER();
-}
+V4L2Wrapper::~V4L2Wrapper() {}
 
 int V4L2Wrapper::Connect() {
   HAL_LOG_ENTER();
@@ -135,8 +129,6 @@ int V4L2Wrapper::IoctlLocked(int request, T data) {
 }
 
 int V4L2Wrapper::StreamOn() {
-  HAL_LOG_ENTER();
-
   if (!format_) {
     HAL_LOGE("Stream format must be set before turning on stream.");
     return -EINVAL;
@@ -148,14 +140,13 @@ int V4L2Wrapper::StreamOn() {
     return -ENODEV;
   }
 
+  HAL_LOGV("Stream turned on.");
   return 0;
 }
 
 int V4L2Wrapper::StreamOff() {
-  HAL_LOG_ENTER();
-
   if (!format_) {
-    // Can't have turned on the stream wihtout format being set,
+    // Can't have turned on the stream without format being set,
     // so nothing to turn off here.
     return 0;
   }
@@ -173,12 +164,12 @@ int V4L2Wrapper::StreamOff() {
     return gralloc_res;
   }
 
+  HAL_LOGV("Stream turned off.");
   return 0;
 }
 
 int V4L2Wrapper::QueryControl(uint32_t control_id,
                               v4l2_query_ext_ctrl* result) {
-  HAL_LOG_ENTER();
   int res;
 
   memset(result, 0, sizeof(*result));
@@ -238,8 +229,6 @@ int V4L2Wrapper::QueryControl(uint32_t control_id,
 }
 
 int V4L2Wrapper::GetControl(uint32_t control_id, int32_t* value) {
-  HAL_LOG_ENTER();
-
   // For extended controls (any control class other than "user"),
   // G_EXT_CTRL must be used instead of G_CTRL.
   if (V4L2_CTRL_ID2CLASS(control_id) != V4L2_CTRL_CLASS_USER) {
@@ -272,7 +261,6 @@ int V4L2Wrapper::GetControl(uint32_t control_id, int32_t* value) {
 int V4L2Wrapper::SetControl(uint32_t control_id,
                             int32_t desired,
                             int32_t* result) {
-  HAL_LOG_ENTER();
   int32_t result_value = 0;
 
   // TODO(b/29334616): When async, this may need to check if the stream
@@ -336,8 +324,6 @@ int V4L2Wrapper::GetFormats(std::set<uint32_t>* v4l2_formats) {
 
 int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
                                      std::set<std::array<int32_t, 2>>* sizes) {
-  HAL_LOG_ENTER();
-
   v4l2_frmsizeenum size_query;
   memset(&size_query, 0, sizeof(size_query));
   size_query.pixel_format = v4l2_format;
@@ -535,8 +521,6 @@ int V4L2Wrapper::SetupBuffers() {
 }
 
 int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
-  HAL_LOG_ENTER();
-
   if (!format_) {
     HAL_LOGE("Stream format must be set before enqueuing buffers.");
     return -ENODEV;
@@ -596,8 +580,6 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
 }
 
 int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
-  HAL_LOG_ENTER();
-
   if (!format_) {
     HAL_LOGE("Stream format must be set before dequeueing buffers.");
     return -ENODEV;

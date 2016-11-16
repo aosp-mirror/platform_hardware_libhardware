@@ -51,8 +51,6 @@ void copyWithPadding(uint8_t* dest,
 }
 
 V4L2Gralloc* V4L2Gralloc::NewV4L2Gralloc() {
-  HAL_LOG_ENTER();
-
   // Initialize and check the gralloc module.
   const hw_module_t* module = nullptr;
   int res = hw_get_module(GRALLOC_HARDWARE_MODULE_ID, &module);
@@ -78,13 +76,9 @@ V4L2Gralloc* V4L2Gralloc::NewV4L2Gralloc() {
 
 // Private. As checked by above factory, module will be non-null
 // and a supported version.
-V4L2Gralloc::V4L2Gralloc(const gralloc_module_t* module) : mModule(module) {
-  HAL_LOG_ENTER();
-}
+V4L2Gralloc::V4L2Gralloc(const gralloc_module_t* module) : mModule(module) {}
 
 V4L2Gralloc::~V4L2Gralloc() {
-  HAL_LOG_ENTER();
-
   // Unlock buffers that are still locked.
   unlockAllBuffers();
 }
@@ -92,8 +86,6 @@ V4L2Gralloc::~V4L2Gralloc() {
 int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
                       uint32_t bytes_per_line,
                       v4l2_buffer* device_buffer) {
-  HAL_LOG_ENTER();
-
   // Lock the camera buffer (varies depending on if the buffer is YUV or not).
   std::unique_ptr<BufferData> buffer_data(
       new BufferData{camera_buffer, nullptr, bytes_per_line});
@@ -129,12 +121,10 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
            reinterpret_cast<uint8_t*>(yuv_data.cb) +
                (stream->height / 2 * yuv_data.cstride))) {
         // If so, great, point to the beginning.
-        HAL_LOGV("V4L2 YUV matches gralloc YUV.");
         data = yuv_data.y;
       } else {
         // If not, allocate a contiguous buffer of appropriate size
         // (to be transformed back upon unlock).
-        HAL_LOGV("Need to transform V4L2 YUV to gralloc YUV.");
         data = new uint8_t[device_buffer->length];
         // Make a dynamically-allocated copy of yuv_data,
         // since it will be needed at transform time.
@@ -195,8 +185,6 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
 }
 
 int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
-  HAL_LOG_ENTER();
-
   // TODO(b/30000211): support multi-planar data (video_capture_mplane).
   if (device_buffer->type != V4L2_BUF_TYPE_VIDEO_CAPTURE) {
     return -EINVAL;
