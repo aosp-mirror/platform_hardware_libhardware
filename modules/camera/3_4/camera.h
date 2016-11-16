@@ -27,6 +27,7 @@
 #include "capture_request.h"
 #include "metadata/metadata.h"
 #include "request_tracker.h"
+#include "static_properties.h"
 #include "stream.h"
 
 namespace default_camera_hal {
@@ -97,6 +98,8 @@ class Camera {
     private:
         // Camera device handle returned to framework for use
         camera3_device_t mDevice;
+        // Get static info from the device and store it in mStaticInfo.
+        int loadStaticInfo();
         // Reuse a stream already created by this device
         Stream *reuseStream(camera3_stream_t *astream);
         // Destroy all streams in a stream array, and the array itself
@@ -121,7 +124,7 @@ class Camera {
         // Identifier used by framework to distinguish cameras
         const int mId;
         // CameraMetadata containing static characteristics
-        std::unique_ptr<const android::CameraMetadata> mStaticInfo;
+        std::unique_ptr<StaticProperties> mStaticInfo;
         // Flag indicating if settings have been set since
         // the last configure_streams() call.
         bool mSettingsSet;

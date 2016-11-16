@@ -66,6 +66,10 @@ class StaticPropertiesTest : public Test {
                         SetArgPointee<1>(test_max_non_stalling_outputs_),
                         SetArgPointee<2>(test_max_stalling_outputs_),
                         Return(0)));
+    EXPECT_CALL(*mock_reader_, RequestCapabilities(_))
+        .Times(AtMost(1))
+        .WillOnce(
+            DoAll(SetArgPointee<0>(test_request_capabilities_), Return(0)));
     EXPECT_CALL(*mock_reader_, StreamConfigurations(_))
         .Times(AtMost(1))
         .WillOnce(DoAll(SetArgPointee<0>(test_configs_), Return(0)));
@@ -125,6 +129,10 @@ class StaticPropertiesTest : public Test {
   const int32_t test_max_raw_outputs_ = 1;
   const int32_t test_max_non_stalling_outputs_ = 2;
   const int32_t test_max_stalling_outputs_ = 3;
+  const std::set<uint8_t> test_request_capabilities_ = {
+      ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE,
+      ANDROID_REQUEST_AVAILABLE_CAPABILITIES_MANUAL_SENSOR,
+      ANDROID_REQUEST_AVAILABLE_CAPABILITIES_PRIVATE_REPROCESSING};
 
   // Some formats for various purposes (in various combinations,
   // these types should be capable of testing all failure conditions).
@@ -223,6 +231,14 @@ TEST_F(StaticPropertiesTest, FactoryFailedMaxOutputs) {
   SetDefaultExpectations();
   // Override with a failure expectation.
   EXPECT_CALL(*mock_reader_, MaxOutputStreams(_, _, _)).WillOnce(Return(99));
+  PrepareDUT();
+  EXPECT_EQ(dut_, nullptr);
+}
+
+TEST_F(StaticPropertiesTest, FactoryFailedRequestCapabilities) {
+  SetDefaultExpectations();
+  // Override with a failure expectation.
+  EXPECT_CALL(*mock_reader_, RequestCapabilities(_)).WillOnce(Return(99));
   PrepareDUT();
   EXPECT_EQ(dut_, nullptr);
 }
@@ -353,6 +369,13 @@ TEST_F(StaticPropertiesTest, InvalidReprocessNotAnOutput) {
   PrepareDUT();
   // Should fail because a specified output format doesn't support output.
   EXPECT_EQ(dut_, nullptr);
+}
+
+TEST_F(StaticPropertiesTest, TemplatesValid) {
+  PrepareDefaultDUT();
+  for (int i = 1; i < CAMERA3_TEMPLATE_COUNT; ++i) {
+    EXPECT_TRUE(dut_->TemplateSupported(i));
+  }
 }
 
 TEST_F(StaticPropertiesTest, ConfigureSingleOutput) {

@@ -19,14 +19,15 @@
 // #define LOG_NDEBUG 0
 #define LOG_TAG "StaticProperties"
 #include <cutils/log.h>
+#include <hardware/camera3.h>
 #include <system/camera.h>
 
 #include "metadata/metadata_reader.h"
 
 namespace default_camera_hal {
 
-// Build and capabilities from configs + stall durations.
-static bool ConstructCapabilities(
+// Build stream capabilities from configs + stall durations.
+static bool ConstructStreamCapabilities(
     const std::vector<StreamConfiguration>& configs,
     const std::vector<StreamStallDuration>& stalls,
     StaticProperties::CapabilitiesMap* capabilities) {
@@ -59,7 +60,7 @@ static bool ConstructCapabilities(
 
 // Check that each output config has a valid corresponding stall duration
 // (extra durations not matching any output config are ignored).
-static bool ValidateCapabilities(
+static bool ValidateStreamCapabilities(
     StaticProperties::CapabilitiesMap capabilities) {
   for (const auto& spec_capabilities : capabilities) {
     // Only non-negative stall durations are valid. This should only happen
@@ -146,9 +147,10 @@ StaticProperties* StaticProperties::NewStaticProperties(
   int32_t max_raw_output_streams = 0;
   int32_t max_non_stalling_output_streams = 0;
   int32_t max_stalling_output_streams = 0;
+  std::set<uint8_t> request_capabilities;
   std::vector<StreamConfiguration> configs;
   std::vector<StreamStallDuration> stalls;
-  CapabilitiesMap capabilities;
+  CapabilitiesMap stream_capabilities;
   ReprocessFormatMap reprocess_map;
 
   // If reading any data returns an error, something is wrong.
@@ -158,18 +160,19 @@ StaticProperties* StaticProperties::NewStaticProperties(
       metadata_reader->MaxOutputStreams(&max_raw_output_streams,
                                         &max_non_stalling_output_streams,
                                         &max_stalling_output_streams) ||
+      metadata_reader->RequestCapabilities(&request_capabilities) ||
       metadata_reader->StreamConfigurations(&configs) ||
       metadata_reader->StreamStallDurations(&stalls) ||
-      !ConstructCapabilities(configs, stalls, &capabilities) ||
+      !ConstructStreamCapabilities(configs, stalls, &stream_capabilities) ||
       // MetadataReader validates configs and stall seperately,
       // but not that they match.
-      !ValidateCapabilities(capabilities) ||
+      !ValidateStreamCapabilities(stream_capabilities) ||
       // Reprocessing metadata only necessary if input streams are allowed.
       (max_input_streams > 0 &&
        (metadata_reader->ReprocessFormats(&reprocess_map) ||
         // MetadataReader validates configs and the reprocess map seperately,
         // but not that they match.
-        !ValidateReprocessFormats(capabilities, reprocess_map)))) {
+        !ValidateReprocessFormats(stream_capabilities, reprocess_map)))) {
     return nullptr;
   }
 
@@ -180,7 +183,8 @@ StaticProperties* StaticProperties::NewStaticProperties(
                               max_raw_output_streams,
                               max_non_stalling_output_streams,
                               max_stalling_output_streams,
-                              std::move(capabilities),
+                              std::move(request_capabilities),
+                              std::move(stream_capabilities),
                               std::move(reprocess_map));
 }
 
@@ -192,6 +196,7 @@ StaticProperties::StaticProperties(
     int32_t max_raw_output_streams,
     int32_t max_non_stalling_output_streams,
     int32_t max_stalling_output_streams,
+    std::set<uint8_t> request_capabilities,
     CapabilitiesMap stream_capabilities,
     ReprocessFormatMap supported_reprocess_outputs)
     : metadata_reader_(std::move(metadata_reader)),
@@ -201,8 +206,32 @@ StaticProperties::StaticProperties(
       max_raw_output_streams_(max_raw_output_streams),
       max_non_stalling_output_streams_(max_non_stalling_output_streams),
       max_stalling_output_streams_(max_stalling_output_streams),
+      request_capabilities_(std::move(request_capabilities)),
       stream_capabilities_(std::move(stream_capabilities)),
       supported_reprocess_outputs_(std::move(supported_reprocess_outputs)) {}
+
+bool StaticProperties::TemplateSupported(int type) {
+  uint8_t required_capability = 0;
+  switch (type) {
+    case CAMERA3_TEMPLATE_PREVIEW:
+      // Preview is always supported.
+      return true;
+    case CAMERA3_TEMPLATE_MANUAL:
+      required_capability =
+          ANDROID_REQUEST_AVAILABLE_CAPABILITIES_MANUAL_SENSOR;
+      break;
+    case CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG:
+      required_capability =
+          ANDROID_REQUEST_AVAILABLE_CAPABILITIES_PRIVATE_REPROCESSING;
+      break;
+    default:
+      required_capability =
+          ANDROID_REQUEST_AVAILABLE_CAPABILITIES_BACKWARD_COMPATIBLE;
+      return true;
+  }
+
+  return request_capabilities_.count(required_capability) > 0;
+}
 
 // Helper functions for checking stream properties when verifying support.
 static bool IsInputType(int stream_type) {

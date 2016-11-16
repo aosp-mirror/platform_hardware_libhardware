@@ -363,8 +363,6 @@ TEST_F(MetadataReaderTest, ReprocessFormatsPastEnd) {
 }
 
 TEST_F(MetadataReaderTest, EmptyReprocessFormats) {
-  // 3 indicates that there are 3 output formats for input format 1,
-  // which is not ok since there are only 2 here.
   FillDUT();
   ReprocessFormatMap actual;
   ASSERT_EQ(dut_->ReprocessFormats(&actual), -ENOENT);

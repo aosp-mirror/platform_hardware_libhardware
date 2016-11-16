@@ -19,6 +19,8 @@
 
 #include <map>
 #include <memory>
+#include <set>
+#include <vector>
 
 #include <camera/CameraMetadata.h>
 
@@ -57,6 +59,7 @@ class MetadataReader {
   virtual int MaxOutputStreams(int32_t* max_raw_output_streams,
                                int32_t* max_non_stalling_output_streams,
                                int32_t* max_stalling_output_streams) const;
+  virtual int RequestCapabilities(std::set<uint8_t>* capabilites) const;
   virtual int StreamConfigurations(
       std::vector<StreamConfiguration>* configs) const;
   virtual int StreamStallDurations(

@@ -33,6 +33,7 @@ class MetadataReaderMock : public MetadataReader {
   MOCK_CONST_METHOD1(Orientation, int(int*));
   MOCK_CONST_METHOD1(MaxInputStreams, int(int32_t*));
   MOCK_CONST_METHOD3(MaxOutputStreams, int(int32_t*, int32_t*, int32_t*));
+  MOCK_CONST_METHOD1(RequestCapabilities, int(std::set<uint8_t>*));
   MOCK_CONST_METHOD1(StreamConfigurations,
                      int(std::vector<StreamConfiguration>*));
   MOCK_CONST_METHOD1(StreamStallDurations,

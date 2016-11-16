@@ -51,6 +51,11 @@ class StaticProperties {
   // except that it may return nullptr in case of failure (missing entries).
   static StaticProperties* NewStaticProperties(
       std::unique_ptr<const MetadataReader> metadata_reader);
+  static StaticProperties* NewStaticProperties(
+      std::unique_ptr<android::CameraMetadata> metadata) {
+    return NewStaticProperties(
+        std::make_unique<MetadataReader>(std::move(metadata)));
+  }
   virtual ~StaticProperties(){};
 
   // Simple accessors.
@@ -62,6 +67,8 @@ class StaticProperties {
     return metadata_reader_->raw_metadata();
   };
 
+  // Check if a given template type is supported.
+  bool TemplateSupported(int type);
   // Validators (check that values are consistent with the capabilities
   // this object represents/base requirements of the camera HAL).
   bool StreamConfigurationSupported(
@@ -81,6 +88,7 @@ class StaticProperties {
                    int32_t max_raw_output_streams,
                    int32_t max_non_stalling_output_streams,
                    int32_t max_stalling_output_streams,
+                   std::set<uint8_t> request_capabilities,
                    CapabilitiesMap stream_capabilities,
                    ReprocessFormatMap supported_reprocess_outputs);
 
@@ -101,6 +109,7 @@ class StaticProperties {
   const int32_t max_raw_output_streams_;
   const int32_t max_non_stalling_output_streams_;
   const int32_t max_stalling_output_streams_;
+  const std::set<uint8_t> request_capabilities_;
   const CapabilitiesMap stream_capabilities_;
   const ReprocessFormatMap supported_reprocess_outputs_;
 

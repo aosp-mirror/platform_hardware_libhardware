@@ -114,6 +114,21 @@ int MetadataReader::MaxOutputStreams(int32_t* max_raw,
   return 0;
 }
 
+int MetadataReader::RequestCapabilities(std::set<uint8_t>* capabilities) const {
+  std::vector<uint8_t> raw_capabilities;
+  int res = v4l2_camera_hal::VectorTagValue(
+      *metadata_, ANDROID_REQUEST_AVAILABLE_CAPABILITIES, &raw_capabilities);
+  if (res) {
+    ALOGE("%s: Failed to get request capabilities from static metadata.",
+          __func__);
+    return res;
+  }
+
+  // Move from vector to set.
+  capabilities->insert(raw_capabilities.begin(), raw_capabilities.end());
+  return 0;
+}
+
 int MetadataReader::StreamConfigurations(
     std::vector<StreamConfiguration>* configs) const {
   std::vector<RawStreamConfiguration> raw_stream_configs;

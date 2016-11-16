@@ -97,58 +97,48 @@ int Camera::openDevice(const hw_module_t *module, hw_device_t **device)
 
 int Camera::getInfo(struct camera_info *info)
 {
-    android::Mutex::Autolock al(mStaticInfoLock);
-
     info->device_version = mDevice.common.version;
     initDeviceInfo(info);
-    if (mStaticInfo == NULL) {
-        std::unique_ptr<android::CameraMetadata> static_info =
-            std::make_unique<android::CameraMetadata>();
-        if (initStaticInfo(static_info.get())) {
-            return -ENODEV;
+    if (!mStaticInfo) {
+        int res = loadStaticInfo();
+        if (res) {
+            return res;
         }
-        mStaticInfo = std::move(static_info);
     }
-    // The "locking" here only causes non-const methods to fail,
-    // which is not a problem since the CameraMetadata being locked
-    // is already const. Destructing automatically "unlocks".
-    info->static_camera_characteristics = mStaticInfo->getAndLock();
-
-    // Get facing & orientation from the static info.
-    uint8_t facing = 0;
-    int res = v4l2_camera_hal::SingleTagValue(
-        *mStaticInfo, ANDROID_LENS_FACING, &facing);
-    if (res) {
-        ALOGE("%s:%d: Failed to get facing from static metadata.",
-              __func__, mId);
-        return res;
-    }
-    switch (facing) {
-        case (ANDROID_LENS_FACING_FRONT):
-            info->facing = CAMERA_FACING_FRONT;
-            break;
-        case (ANDROID_LENS_FACING_BACK):
-            info->facing = CAMERA_FACING_BACK;
-            break;
-        case (ANDROID_LENS_FACING_EXTERNAL):
-            info->facing = CAMERA_FACING_EXTERNAL;
-            break;
-        default:
-            ALOGE("%s:%d: Invalid facing from metadata: %d.",
-                  __func__, mId, facing);
-            return -ENODEV;
-    }
-    int32_t orientation = 0;
-    res = v4l2_camera_hal::SingleTagValue(
-        *mStaticInfo, ANDROID_SENSOR_ORIENTATION, &orientation);
-    if (res) {
-        ALOGE("%s:%d: Failed to get orientation from static metadata.",
-              __func__, mId);
-        return res;
-    }
-    info->orientation = static_cast<int>(orientation);
+    info->static_camera_characteristics = mStaticInfo->raw_metadata();
+    info->facing = mStaticInfo->facing();
+    info->orientation = mStaticInfo->orientation();
 
     return 0;
+}
+
+int Camera::loadStaticInfo() {
+  // Using a lock here ensures |mStaticInfo| will only ever be set once,
+  // even in concurrent situations.
+  android::Mutex::Autolock al(mStaticInfoLock);
+
+  if (mStaticInfo) {
+    return 0;
+  }
+
+  std::unique_ptr<android::CameraMetadata> static_metadata =
+      std::make_unique<android::CameraMetadata>();
+  int res = initStaticInfo(static_metadata.get());
+  if (res) {
+    ALOGE("%s:%d: Failed to get static info from device.",
+          __func__, mId);
+    return res;
+  }
+
+  mStaticInfo.reset(StaticProperties::NewStaticProperties(
+      std::move(static_metadata)));
+  if (!mStaticInfo) {
+    ALOGE("%s:%d: Failed to initialize static properties from device metadata.",
+          __func__, mId);
+    return -ENODEV;
+  }
+
+  return 0;
 }
 
 int Camera::close()
@@ -373,6 +363,14 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
     }
 
     if (!mTemplates[type]) {
+        // Check if the device has the necessary features
+        // for the requested template. If not, don't bother.
+        if (!mStaticInfo->TemplateSupported(type)) {
+            ALOGW("%s:%d: Camera does not support template type %d",
+                  __func__, mId, type);
+            return NULL;
+        }
+
         // Initialize this template if it hasn't been initialized yet.
         std::unique_ptr<android::CameraMetadata> new_template =
             std::make_unique<android::CameraMetadata>();
