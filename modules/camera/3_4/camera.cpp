@@ -163,6 +163,7 @@ int Camera::close()
     }
 
     disconnect();
+    flush();
     mBusy = false;
     return 0;
 }
@@ -393,6 +394,9 @@ const camera_metadata_t* Camera::constructDefaultRequestSettings(int type)
 int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 {
     int res;
+    // TODO(b/32917568): A capture request submitted or ongoing during a flush
+    // should be returned with an error; for now they are mutually exclusive.
+    android::Mutex::Autolock al(mFlushLock);
 
     ATRACE_CALL();
 
@@ -460,7 +464,8 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
 {
     if (!mInFlightTracker->Remove(request)) {
-        ALOGE("%s:%d: Completed request %p is not being tracked.",
+        ALOGE("%s:%d: Completed request %p is not being tracked. "
+              "It may have been cleared out during a flush.",
               __func__, mId, request.get());
         return;
     }
@@ -496,6 +501,30 @@ void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
     // (if any, send BUFFER error).
 
     sendResult(request);
+}
+
+int Camera::flush()
+{
+    ALOGV("%s:%d: Flushing.", __func__, mId);
+    // TODO(b/32917568): Synchronization. Behave "appropriately"
+    // (i.e. according to camera3.h) if process_capture_request()
+    // is called concurrently with this (in either order).
+    // Since the callback to completeRequest also may happen on a separate
+    // thread, this function should behave nicely concurrently with that too.
+    android::Mutex::Autolock al(mFlushLock);
+
+    std::set<std::shared_ptr<CaptureRequest>> requests;
+    mInFlightTracker->Clear(&requests);
+    for (auto& request : requests) {
+        // TODO(b/31653322): See camera3.h. Should return different error
+        // depending on status of the request.
+        completeRequestWithError(request);
+    }
+
+    ALOGV("%s:%d: Flushed %u requests.", __func__, mId, requests.size());
+
+    // Call down into the device flushing.
+    return flushBuffers();
 }
 
 int Camera::preprocessCaptureBuffer(camera3_stream_buffer_t *buffer)
@@ -638,11 +667,9 @@ static void dump(const camera3_device_t *dev, int fd)
     camdev_to_camera(dev)->dump(fd);
 }
 
-static int flush(const camera3_device_t*)
+static int flush(const camera3_device_t *dev)
 {
-    // TODO(b/29937783)
-    ALOGE("%s: unimplemented.", __func__);
-    return -1;
+    return camdev_to_camera(dev)->flush();
 }
 
 } // extern "C"

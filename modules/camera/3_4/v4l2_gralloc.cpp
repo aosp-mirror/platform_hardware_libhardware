@@ -321,6 +321,7 @@ int V4L2Gralloc::unlockAllBuffers() {
     // The BufferData entry is always dynamically allocated in lock().
     delete entry.second;
   }
+  mBufferMap.clear();
 
   // If any unlock failed, return error.
   if (failed) {

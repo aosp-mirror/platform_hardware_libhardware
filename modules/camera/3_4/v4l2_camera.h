@@ -21,6 +21,7 @@
 
 #include <array>
 #include <condition_variable>
+#include <map>
 #include <queue>
 #include <string>
 
@@ -80,6 +81,8 @@ class V4L2Camera : public default_camera_hal::Camera {
   // Enqueue a request to receive data from the camera.
   int enqueueRequest(
       std::shared_ptr<default_camera_hal::CaptureRequest> request) override;
+  // Flush in flight buffers.
+  int flushBuffers() override;
 
   // Async request processing helpers.
   // Dequeue a request from the waiting queue.
@@ -100,7 +103,9 @@ class V4L2Camera : public default_camera_hal::Camera {
   std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>>
       request_queue_;
   std::mutex in_flight_lock_;
-  std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>> in_flight_;
+  // Maps buffer index : request.
+  std::map<uint32_t, std::shared_ptr<default_camera_hal::CaptureRequest>>
+      in_flight_;
   // Threads require holding an Android strong pointer.
   android::sp<android::Thread> buffer_enqueuer_;
   android::sp<android::Thread> buffer_dequeuer_;

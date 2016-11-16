@@ -45,9 +45,10 @@ class V4L2WrapperMock : public V4L2Wrapper {
   MOCK_METHOD2(SetFormat,
                int(const default_camera_hal::Stream& stream,
                    uint32_t* result_max_buffers));
-  MOCK_METHOD1(EnqueueBuffer,
-               int(const camera3_stream_buffer_t* camera_buffer));
-  MOCK_METHOD1(DequeueBuffer, int(v4l2_buffer* buffer));
+  MOCK_METHOD2(EnqueueBuffer,
+               int(const camera3_stream_buffer_t* camera_buffer,
+                   uint32_t* enqueued_index));
+  MOCK_METHOD1(DequeueBuffer, int(uint32_t* dequeued_index));
 };
 
 }  // namespace v4l2_camera_hal

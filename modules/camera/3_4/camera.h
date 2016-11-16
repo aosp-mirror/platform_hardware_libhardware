@@ -55,7 +55,7 @@ class Camera {
         const camera_metadata_t *constructDefaultRequestSettings(int type);
         int processCaptureRequest(camera3_capture_request_t *temp_request);
         void dump(int fd);
-
+        int flush();
 
     protected:
         // Connect to the device: open dev nodes, etc.
@@ -82,6 +82,9 @@ class Camera {
         // Enqueue a request to receive data from the camera
         virtual int enqueueRequest(
             std::shared_ptr<CaptureRequest> request) = 0;
+        // Flush in flight buffers.
+        virtual int flushBuffers() = 0;
+
 
         // Callback for when the device has filled in the requested data.
         // Fills in the result struct, validates the data, sends appropriate
@@ -133,6 +136,7 @@ class Camera {
         // Lock protecting only static camera characteristics, which may
         // be accessed without the camera device open
         android::Mutex mStaticInfoLock;
+        android::Mutex mFlushLock;
         // Array of handles to streams currently in use by the device
         Stream **mStreams;
         // Number of streams in mStreams

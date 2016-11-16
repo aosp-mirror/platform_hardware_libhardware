@@ -68,7 +68,8 @@ int V4L2Wrapper::Connect() {
     return 0;
   }
 
-  int fd = TEMP_FAILURE_RETRY(open(device_path_.c_str(), O_RDWR));
+  // Open in nonblocking mode (DQBUF may return EAGAIN).
+  int fd = TEMP_FAILURE_RETRY(open(device_path_.c_str(), O_RDWR | O_NONBLOCK));
   if (fd < 0) {
     HAL_LOGE("failed to open %s (%s)", device_path_.c_str(), strerror(errno));
     return -ENODEV;
@@ -155,6 +156,10 @@ int V4L2Wrapper::StreamOff() {
   int res = IoctlLocked(VIDIOC_STREAMOFF, &type);
   // Calling STREAMOFF releases all queued buffers back to the user.
   int gralloc_res = gralloc_->unlockAllBuffers();
+  // No buffers in flight.
+  for (size_t i = 0; i < buffers_.size(); ++i) {
+    buffers_[i] = false;
+  }
   if (res < 0) {
     HAL_LOGE("STREAMOFF fails: %s", strerror(errno));
     return -ENODEV;
@@ -350,9 +355,7 @@ int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
     // Continuous/Step-wise: based on the stepwise struct returned by the query.
     // Fully listing all possible sizes, with large enough range/small enough
     // step size, may produce far too many potential sizes. Instead, find the
-    // closest to a set of standard sizes plus largest possible.
-    sizes->insert({{{static_cast<int32_t>(size_query.stepwise.max_width),
-                     static_cast<int32_t>(size_query.stepwise.max_height)}}});
+    // closest to a set of standard sizes.
     for (const auto size : kStandardSizes) {
       // Find the closest size, rounding up.
       uint32_t desired_width = size[0];
@@ -453,11 +456,26 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
     return 0;
   }
 
-  // Not in the correct format, set our format.
+  // Not in the correct format, set the new one.
+
+  if (format_) {
+    // If we had an old format, first request 0 buffers to inform the device
+    // we're no longer using any previously "allocated" buffers from the old
+    // format. This seems like it shouldn't be necessary for USERPTR memory,
+    // and/or should happen from turning the stream off, but the driver
+    // complained. May be a driver issue, or may be intended behavior.
+    int res = RequestBuffers(0);
+    if (res) {
+      return res;
+    }
+  }
+
+  // Set the camera to the new format.
   v4l2_format new_format;
   desired_format.FillFormatRequest(&new_format);
   // TODO(b/29334616): When async, this will need to check if the stream
   // is on, and if so, lock it off while setting format.
+
   if (IoctlLocked(VIDIOC_S_FMT, &new_format) < 0) {
     HAL_LOGE("S_FMT failed: %s", strerror(errno));
     return -ENODEV;
@@ -472,31 +490,22 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
   // Keep track of our new format.
   format_.reset(new StreamFormat(new_format));
 
-  // Format changed, setup new buffers.
-  int res = SetupBuffers();
+  // Format changed, request new buffers.
+  int res = RequestBuffers(1);
   if (res) {
-    HAL_LOGE("Failed to set up buffers for new format.");
+    HAL_LOGE("Requesting buffers for new format failed.");
     return res;
   }
   *result_max_buffers = buffers_.size();
   return 0;
 }
 
-int V4L2Wrapper::SetupBuffers() {
-  HAL_LOG_ENTER();
-
-  if (!format_) {
-    HAL_LOGE("Stream format must be set before setting up buffers.");
-    return -ENODEV;
-  }
-
-  // "Request" a buffer (since we're using a userspace buffer, this just
-  // tells V4L2 to switch into userspace buffer mode).
+int V4L2Wrapper::RequestBuffers(uint32_t num_requested) {
   v4l2_requestbuffers req_buffers;
   memset(&req_buffers, 0, sizeof(req_buffers));
   req_buffers.type = format_->type();
   req_buffers.memory = V4L2_MEMORY_USERPTR;
-  req_buffers.count = 1;
+  req_buffers.count = num_requested;
 
   int res = IoctlLocked(VIDIOC_REQBUFS, &req_buffers);
   // Calling REQBUFS releases all queued buffers back to the user.
@@ -511,7 +520,7 @@ int V4L2Wrapper::SetupBuffers() {
   }
 
   // V4L2 will set req_buffers.count to a number of buffers it can handle.
-  if (req_buffers.count < 1) {
+  if (num_requested > 0 && req_buffers.count < 1) {
     HAL_LOGE("REQBUFS claims it can't handle any buffers.");
     return -ENODEV;
   }
@@ -520,7 +529,8 @@ int V4L2Wrapper::SetupBuffers() {
   return 0;
 }
 
-int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
+int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
+                               uint32_t* enqueued_index) {
   if (!format_) {
     HAL_LOGE("Stream format must be set before enqueuing buffers.");
     return -ENODEV;
@@ -576,36 +586,52 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer) {
   std::lock_guard<std::mutex> guard(buffer_queue_lock_);
   buffers_[index] = true;
 
+  if (enqueued_index) {
+    *enqueued_index = index;
+  }
   return 0;
 }
 
-int V4L2Wrapper::DequeueBuffer(v4l2_buffer* buffer) {
+int V4L2Wrapper::DequeueBuffer(uint32_t* dequeued_index) {
   if (!format_) {
-    HAL_LOGE("Stream format must be set before dequeueing buffers.");
-    return -ENODEV;
+    HAL_LOGV(
+        "Format not set, so stream can't be on, "
+        "so no buffers available for dequeueing");
+    return -EAGAIN;
   }
 
-  memset(buffer, 0, sizeof(*buffer));
-  buffer->type = format_->type();
-  buffer->memory = V4L2_MEMORY_USERPTR;
-  if (IoctlLocked(VIDIOC_DQBUF, buffer) < 0) {
-    HAL_LOGE("DQBUF fails: %s", strerror(errno));
-    return -ENODEV;
+  v4l2_buffer buffer;
+  memset(&buffer, 0, sizeof(buffer));
+  buffer.type = format_->type();
+  buffer.memory = V4L2_MEMORY_USERPTR;
+  int res = IoctlLocked(VIDIOC_DQBUF, &buffer);
+  if (res) {
+    if (errno == EAGAIN) {
+      // Expected failure.
+      return -EAGAIN;
+    } else {
+      // Unexpected failure.
+      HAL_LOGE("DQBUF fails: %s", strerror(errno));
+      return -ENODEV;
+    }
   }
 
   // Mark the buffer as no longer in flight.
   {
     std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    buffers_[buffer->index] = false;
+    buffers_[buffer.index] = false;
   }
 
   // Now that we're done painting the buffer, we can unlock it.
-  int res = gralloc_->unlock(buffer);
+  res = gralloc_->unlock(&buffer);
   if (res) {
     HAL_LOGE("Gralloc failed to unlock buffer after dequeueing.");
     return res;
   }
 
+  if (dequeued_index) {
+    *dequeued_index = buffer.index;
+  }
   return 0;
 }
 

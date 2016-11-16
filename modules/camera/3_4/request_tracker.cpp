@@ -70,8 +70,13 @@ bool RequestTracker::Add(std::shared_ptr<CaptureRequest> request) {
 }
 
 bool RequestTracker::Remove(std::shared_ptr<CaptureRequest> request) {
+  if (!request) {
+    return false;
+  }
+
   // Get the request.
-  const auto frame_number_request = frames_in_flight_.find(request->frame_number);
+  const auto frame_number_request =
+      frames_in_flight_.find(request->frame_number);
   if (frame_number_request == frames_in_flight_.end()) {
     ALOGE("%s: Frame %u is not in flight.", __func__, request->frame_number);
     return false;
@@ -105,7 +110,10 @@ void RequestTracker::Clear(
 
   // Clear out all tracking.
   frames_in_flight_.clear();
-  buffers_in_flight_.clear();
+  // Maintain the configuration, but reset counts.
+  for (auto& stream_count : buffers_in_flight_) {
+    stream_count.second = 0;
+  }
 }
 
 bool RequestTracker::CanAddRequest(const CaptureRequest& request) const {

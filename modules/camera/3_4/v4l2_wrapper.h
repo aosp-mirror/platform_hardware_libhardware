@@ -45,8 +45,9 @@ class V4L2Wrapper {
     Connection(std::shared_ptr<V4L2Wrapper> device)
         : device_(std::move(device)), connect_result_(device_->Connect()) {}
     ~Connection() {
-      if (connect_result_ == 0)
+      if (connect_result_ == 0) {
         device_->Disconnect();
+      }
     }
     // Check whether the connection succeeded or not.
     inline int status() const { return connect_result_; }
@@ -77,8 +78,9 @@ class V4L2Wrapper {
   virtual int SetFormat(const default_camera_hal::Stream& stream,
                         uint32_t* result_max_buffers);
   // Manage buffers.
-  virtual int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer);
-  virtual int DequeueBuffer(v4l2_buffer* buffer);
+  virtual int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
+                            uint32_t* enqueued_index = nullptr);
+  virtual int DequeueBuffer(uint32_t* dequeued_index = nullptr);
 
  private:
   // Constructor is private to allow failing on bad input.
@@ -93,8 +95,8 @@ class V4L2Wrapper {
   // Perform an ioctl call in a thread-safe fashion.
   template <typename T>
   int IoctlLocked(int request, T data);
-  // Adjust buffers any time a device is connected/reformatted.
-  int SetupBuffers();
+  // Request/release userspace buffer mode via VIDIOC_REQBUFS.
+  int RequestBuffers(uint32_t num_buffers);
 
   inline bool connected() { return device_fd_.get() >= 0; }
 

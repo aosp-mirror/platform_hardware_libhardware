@@ -230,6 +230,9 @@ TEST_F(RequestTrackerTest, ClearRequests) {
   dut_->Clear(&actual);
   EXPECT_TRUE(dut_->Empty());
   EXPECT_EQ(actual, expected);
+
+  // Configuration (max values) should not have been cleared.
+  EXPECT_TRUE(dut_->Add(request1));
 }
 
 TEST_F(RequestTrackerTest, ClearRequestsNoResult) {
