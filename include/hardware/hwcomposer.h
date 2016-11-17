@@ -481,6 +481,7 @@ typedef struct hwc_module {
     struct hw_module_t common;
 } hwc_module_t;
 
+#define HWC_ERROR (-1)
 typedef struct hwc_composer_device_1 {
     /**
      * Common methods of the hardware composer device.  This *must* be the first member of
@@ -714,9 +715,9 @@ typedef struct hwc_composer_device_1 {
      * (*getActiveConfig)() returns the index of the configuration that is
      * currently active on the connected display. The index is relative to
      * the list of configuration handles returned by getDisplayConfigs. If there
-     * is no active configuration, -1 shall be returned.
+     * is no active configuration, HWC_ERROR shall be returned.
      *
-     * Returns the configuration index on success or -1 on error.
+     * Returns the configuration index on success or HWC_ERROR on error.
      *
      * This field is REQUIRED for HWC_DEVICE_API_VERSION_1_4 and later.
      * It shall be NULL for previous versions.
