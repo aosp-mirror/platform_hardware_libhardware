@@ -453,6 +453,7 @@ int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
   StreamFormat desired_format(stream);
   if (format_ && desired_format == *format_) {
     HAL_LOGV("Already in correct format, skipping format setting.");
+    *result_max_buffers = buffers_.size();
     return 0;
   }
 
