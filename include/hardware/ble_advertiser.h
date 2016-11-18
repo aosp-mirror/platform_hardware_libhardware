@@ -23,6 +23,14 @@
 #include "bt_common_types.h"
 #include "bt_gatt_types.h"
 
+struct AdvertiseParameters {
+  uint16_t min_interval;
+  uint16_t max_interval;
+  uint8_t adv_type;
+  uint8_t channel_map;
+  uint8_t tx_power;
+};
+
 class BleAdvertiserInterface {
  public:
   virtual ~BleAdvertiserInterface() = default;
@@ -50,6 +58,12 @@ class BleAdvertiserInterface {
 
   /*  Unregisters an advertiser */
   virtual void Unregister(uint8_t advertiser_id) = 0;
+
+  virtual void StartAdvertising(uint8_t advertiser_id, Callback cb,
+                                AdvertiseParameters params,
+                                std::vector<uint8_t> advertise_data,
+                                std::vector<uint8_t> scan_response_data,
+                                int timeout_s, Callback timeout_cb) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
