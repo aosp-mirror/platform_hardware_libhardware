@@ -436,6 +436,7 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   // Doesn't mean much without per-frame controls anyways.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_REQUEST_PIPELINE_MAX_DEPTH, 4)));
+  components.insert(FixedState<uint8_t>(ANDROID_REQUEST_PIPELINE_DEPTH, 4));
   // "LIMITED devices are strongly encouraged to use a non-negative value.
   // If UNKNOWN is used here then app developers do not have a way to know
   // when sensor settings have been applied." - Unfortunately, V4L2 doesn't
