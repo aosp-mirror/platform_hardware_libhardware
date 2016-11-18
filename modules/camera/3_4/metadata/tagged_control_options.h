@@ -23,6 +23,13 @@
 
 namespace v4l2_camera_hal {
 
+// A constant tag with a value not used as a real tag
+// (since all real tags are unsigned),  to indicate options
+// that should not be reported.
+// Any class working with TaggedControlOptions should check
+// the tag against this value before using it.
+static int32_t DO_NOT_REPORT_OPTIONS = -1;
+
 // A TaggedControlOptions wraps a ControlOptions and adds a tag.
 template <typename T>
 class TaggedControlOptions : public ControlOptionsInterface<T> {

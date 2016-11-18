@@ -44,7 +44,7 @@ class ControlTest : public Test {
     control_.reset();
   }
 
-  virtual void PrepareControl(bool with_options = true) {
+  virtual void PrepareControl() {
     // Use this method after all the EXPECT_CALLs to pass ownership of the mocks
     // to the device.
     std::unique_ptr<TaggedControlDelegate<uint8_t>> delegate =
@@ -52,8 +52,9 @@ class ControlTest : public Test {
             delegate_tag_, std::move(mock_delegate_));
     std::unique_ptr<TaggedControlOptions<uint8_t>> options =
         std::make_unique<TaggedControlOptions<uint8_t>>(
-            options_tag_, std::move(mock_options_));
-    if (with_options) {
+            report_options_ ? options_tag_ : DO_NOT_REPORT_OPTIONS,
+            std::move(mock_options_));
+    if (use_options_) {
       control_.reset(
           new Control<uint8_t>(std::move(delegate), std::move(options)));
     } else {
@@ -61,8 +62,8 @@ class ControlTest : public Test {
     }
   }
 
-  virtual void ExpectTags(bool with_options = true) {
-    if (with_options) {
+  virtual void ExpectTags() {
+    if (use_options_ && report_options_) {
       ASSERT_EQ(control_->StaticTags().size(), 1);
       EXPECT_EQ(control_->StaticTags()[0], options_tag_);
     } else {
@@ -79,8 +80,14 @@ class ControlTest : public Test {
     // Options should be available.
     android::CameraMetadata metadata;
     ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
-    EXPECT_EQ(metadata.entryCount(), 1);
-    ExpectMetadataEq(metadata, options_tag_, options);
+    if (use_options_ && report_options_) {
+      EXPECT_EQ(metadata.entryCount(), 1);
+      ExpectMetadataEq(metadata, options_tag_, options);
+    } else {
+      EXPECT_EQ(metadata.entryCount(), 0);
+      // Shouldn't be expecting any options.
+      EXPECT_TRUE(options.empty());
+    }
   }
 
   virtual void ExpectValue(uint8_t value) {
@@ -93,6 +100,8 @@ class ControlTest : public Test {
   std::unique_ptr<Control<uint8_t>> control_;
   std::unique_ptr<ControlDelegateInterfaceMock<uint8_t>> mock_delegate_;
   std::unique_ptr<ControlOptionsInterfaceMock<uint8_t>> mock_options_;
+  bool use_options_ = true;
+  bool report_options_ = true;
 
   // Need tags that match the data type (uint8_t) being passed.
   const int32_t delegate_tag_ = ANDROID_COLOR_CORRECTION_ABERRATION_MODE;
@@ -106,8 +115,15 @@ TEST_F(ControlTest, Tags) {
 }
 
 TEST_F(ControlTest, TagsNoOptions) {
-  PrepareControl(false);
-  ExpectTags(false);
+  use_options_ = false;
+  PrepareControl();
+  ExpectTags();
+}
+
+TEST_F(ControlTest, TagsUnreportedOptions) {
+  report_options_ = false;
+  PrepareControl();
+  ExpectTags();
 }
 
 TEST_F(ControlTest, PopulateStatic) {
@@ -119,11 +135,15 @@ TEST_F(ControlTest, PopulateStatic) {
 }
 
 TEST_F(ControlTest, PopulateStaticNoOptions) {
-  PrepareControl(false);
-  android::CameraMetadata metadata;
-  ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
-  // Should not have added any entry.
-  EXPECT_TRUE(metadata.isEmpty());
+  use_options_ = false;
+  PrepareControl();
+  ExpectOptions({});
+}
+
+TEST_F(ControlTest, PopulateStaticUnreportedOptions) {
+  report_options_ = false;
+  PrepareControl();
+  ExpectOptions({});
 }
 
 TEST_F(ControlTest, PopulateDynamic) {
@@ -136,10 +156,21 @@ TEST_F(ControlTest, PopulateDynamic) {
 
 TEST_F(ControlTest, PopulateDynamicNoOptions) {
   // Lack of options shouldn't change anything for PopulateDynamic.
+  use_options_ = false;
   uint8_t test_option = 99;
   EXPECT_CALL(*mock_delegate_, GetValue(_))
       .WillOnce(DoAll(SetArgPointee<0>(test_option), Return(0)));
-  PrepareControl(false);
+  PrepareControl();
+  ExpectValue(test_option);
+}
+
+TEST_F(ControlTest, PopulateDynamicUnreportedOptions) {
+  // Lack of reported options shouldn't change anything for PopulateDynamic.
+  report_options_ = false;
+  uint8_t test_option = 99;
+  EXPECT_CALL(*mock_delegate_, GetValue(_))
+      .WillOnce(DoAll(SetArgPointee<0>(test_option), Return(0)));
+  PrepareControl();
   ExpectValue(test_option);
 }
 
@@ -179,12 +210,13 @@ TEST_F(ControlTest, PopulateTemplateFail) {
 }
 
 TEST_F(ControlTest, PopulateTemplateOptionless) {
+  use_options_ = false;
   int template_type = 3;
   uint8_t value = 12;
   // Should use delegate instead of options if no options.
   EXPECT_CALL(*mock_delegate_, GetValue(_))
       .WillOnce(DoAll(SetArgPointee<0>(value), Return(0)));
-  PrepareControl(false);
+  PrepareControl();
 
   android::CameraMetadata metadata;
   EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), 0);
@@ -192,11 +224,39 @@ TEST_F(ControlTest, PopulateTemplateOptionless) {
 }
 
 TEST_F(ControlTest, PopulateTemplateOptionlessFail) {
+  use_options_ = false;
   int template_type = 3;
   int err = 10;
   // Should use delegate instead of options if no options.
   EXPECT_CALL(*mock_delegate_, GetValue(_)).WillOnce(Return(err));
-  PrepareControl(false);
+  PrepareControl();
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), err);
+}
+
+TEST_F(ControlTest, PopulateTemplateUnreportedOptions) {
+  report_options_ = false;
+  int template_type = 3;
+  uint8_t default_value = 123;
+  // Unreported options should behave just like reported ones for templating.
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_type, _))
+      .WillOnce(DoAll(SetArgPointee<1>(default_value), Return(0)));
+  PrepareControl();
+
+  android::CameraMetadata metadata;
+  EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), 0);
+  ExpectMetadataEq(metadata, delegate_tag_, default_value);
+}
+
+TEST_F(ControlTest, PopulateTemplateUnreportedOptionsFail) {
+  report_options_ = false;
+  int template_type = 3;
+  int err = 10;
+  // Unreported options should behave just like reported ones for templating.
+  EXPECT_CALL(*mock_options_, DefaultValueForTemplate(template_type, _))
+      .WillOnce(Return(err));
+  PrepareControl();
 
   android::CameraMetadata metadata;
   EXPECT_EQ(control_->PopulateTemplateRequest(template_type, &metadata), err);
@@ -214,10 +274,23 @@ TEST_F(ControlTest, SupportsRequest) {
 }
 
 TEST_F(ControlTest, SupportsRequestNoOptions) {
+  use_options_ = false;
   android::CameraMetadata metadata;
   uint8_t test_option = 123;
   ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
-  PrepareControl(false);
+  PrepareControl();
+
+  EXPECT_EQ(control_->SupportsRequestValues(metadata), true);
+}
+
+TEST_F(ControlTest, SupportsRequestUnreportedOptions) {
+  report_options_ = false;
+  android::CameraMetadata metadata;
+  uint8_t test_option = 123;
+  ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
+
+  EXPECT_CALL(*mock_options_, IsSupported(test_option)).WillOnce(Return(true));
+  PrepareControl();
 
   EXPECT_EQ(control_->SupportsRequestValues(metadata), true);
 }
@@ -227,6 +300,19 @@ TEST_F(ControlTest, SupportsRequestFail) {
   uint8_t test_option = 123;
   ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
 
+  EXPECT_CALL(*mock_options_, IsSupported(test_option)).WillOnce(Return(false));
+  PrepareControl();
+
+  EXPECT_EQ(control_->SupportsRequestValues(metadata), false);
+}
+
+TEST_F(ControlTest, SupportsRequestUnreportedOptionsFail) {
+  report_options_ = false;
+  android::CameraMetadata metadata;
+  uint8_t test_option = 123;
+  ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
+
+  // Unreported options should still be checked against.
   EXPECT_CALL(*mock_options_, IsSupported(test_option)).WillOnce(Return(false));
   PrepareControl();
 
@@ -243,11 +329,12 @@ TEST_F(ControlTest, SupportsRequestInvalidNumber) {
 }
 
 TEST_F(ControlTest, SupportsRequestInvalidNumberNoOptions) {
+  use_options_ = false;
   // Start with a request for multiple values.
   android::CameraMetadata metadata;
   std::vector<uint8_t> test_data = {1, 2, 3};
   ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_data), 0);
-  PrepareControl(false);
+  PrepareControl();
   // Not having any explicit options does not exempt a control
   // from requiring the right number of values.
   EXPECT_EQ(control_->SupportsRequestValues(metadata), false);
@@ -277,13 +364,33 @@ TEST_F(ControlTest, SetRequest) {
 }
 
 TEST_F(ControlTest, SetRequestNoOptions) {
+  use_options_ = false;
   android::CameraMetadata metadata;
   uint8_t test_option = 123;
   ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
 
   // No options, no validation check.
   EXPECT_CALL(*mock_delegate_, SetValue(test_option)).WillOnce(Return(0));
-  PrepareControl(false);
+  PrepareControl();
+
+  // Make the request.
+  ASSERT_EQ(control_->SetRequestValues(metadata), 0);
+}
+
+TEST_F(ControlTest, SetRequestUnreportedOptions) {
+  report_options_ = false;
+  android::CameraMetadata metadata;
+  uint8_t test_option = 123;
+  ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_option), 0);
+
+  // Unreported options still get a validation check.
+  Expectation validation_check =
+      EXPECT_CALL(*mock_options_, IsSupported(test_option))
+          .WillOnce(Return(true));
+  EXPECT_CALL(*mock_delegate_, SetValue(test_option))
+      .After(validation_check)
+      .WillOnce(Return(0));
+  PrepareControl();
 
   // Make the request.
   ASSERT_EQ(control_->SetRequestValues(metadata), 0);
@@ -328,12 +435,13 @@ TEST_F(ControlTest, SetRequestInvalidNumber) {
 }
 
 TEST_F(ControlTest, SetRequestInvalidNumberNoOptions) {
+  use_options_ = false;
   // Start with a request for multiple values.
   android::CameraMetadata metadata;
   std::vector<uint8_t> test_data = {1, 2, 3};
   ASSERT_EQ(UpdateMetadata(&metadata, delegate_tag_, test_data), 0);
 
-  PrepareControl(false);
+  PrepareControl();
   // Not having explicit options does not change that an incorrect
   // number of values is invalid.
   EXPECT_EQ(control_->SetRequestValues(metadata), -EINVAL);

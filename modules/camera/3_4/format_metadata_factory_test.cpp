@@ -64,7 +64,8 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
 
   // Device must support IMPLEMENTATION_DEFINED (as well as JPEG & YUV).
   // Just duplicate the values from another format.
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
+      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
   formats.insert(imp_defined_format);
   sizes[imp_defined_format] = sizes[V4L2_PIX_FMT_YUV420];
   durations[imp_defined_format] = durations[V4L2_PIX_FMT_YUV420];
@@ -119,7 +120,8 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
 }
 
 TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingJpeg) {
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
+      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
   std::set<uint32_t> formats{V4L2_PIX_FMT_YUV420, imp_defined_format};
   EXPECT_CALL(*mock_device_, GetFormats(_))
       .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
@@ -127,11 +129,11 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingJpeg) {
   ASSERT_EQ(AddFormatComponents(mock_device_,
                                 std::inserter(components, components.end())),
             -ENODEV);
-
 }
 
 TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingYuv) {
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
+      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
   std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, imp_defined_format};
   EXPECT_CALL(*mock_device_, GetFormats(_))
       .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
@@ -139,10 +141,10 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingYuv) {
   ASSERT_EQ(AddFormatComponents(mock_device_,
                                 std::inserter(components, components.end())),
             -ENODEV);
-
 }
 
-TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingImplementationDefined) {
+TEST_F(FormatMetadataFactoryTest,
+       GetFormatMetadataMissingImplementationDefined) {
   std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420};
   EXPECT_CALL(*mock_device_, GetFormats(_))
       .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
@@ -150,7 +152,6 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingImplementationDefined)
   ASSERT_EQ(AddFormatComponents(mock_device_,
                                 std::inserter(components, components.end())),
             -ENODEV);
-
 }
 
 }  // namespace v4l2_camera_hal

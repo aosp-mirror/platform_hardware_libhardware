@@ -58,7 +58,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       ANDROID_COLOR_CORRECTION_ABERRATION_MODE,
       ANDROID_COLOR_CORRECTION_AVAILABLE_ABERRATION_MODES,
       {ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST,
-       ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY}));
+       ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY},
+      {{CAMERA3_TEMPLATE_STILL_CAPTURE,
+        ANDROID_COLOR_CORRECTION_ABERRATION_MODE_HIGH_QUALITY},
+       {OTHER_TEMPLATES, ANDROID_COLOR_CORRECTION_ABERRATION_MODE_FAST}}));
 
   // TODO(b/30510395): subcomponents of 3A.
   // In general, default to ON/AUTO since they imply pretty much nothing,
@@ -76,11 +79,12 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       V4L2_CID_AUTO_EXPOSURE_BIAS,
       // No scaling necessary, AE_COMPENSATION_STEP handles this.
       std::make_shared<ScalingConverter<int32_t, int32_t>>(1, 1),
-      0));
+      0,
+      {{OTHER_TEMPLATES, 0}}));
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<camera_metadata_rational_t>(
           ANDROID_CONTROL_AE_COMPENSATION_STEP, kAeCompensationUnit)));
-  // TODO(b/31021522): Autofocus subcomponent, AFTrigger.
+  // TODO(b/31021522): Autofocus subcomponent.
   components.insert(
       NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AF_MODE,
                                    ANDROID_CONTROL_AF_AVAILABLE_MODES,
@@ -91,7 +95,23 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   // the docs (system/media/camera/docs/docs.html).
   components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AF_STATE,
                                         ANDROID_CONTROL_AF_STATE_INACTIVE));
-  // TODO(b/31022735): AE & AF triggers.
+  // TODO(b/31022735): Correctly implement AE & AF triggers that
+  // actually do something. These no effect triggers are even worse than most
+  // of the useless controls in this class, since technically they should
+  // revert back to IDLE eventually after START/CANCEL, but for now they won't
+  // unless IDLE is requested.
+  components.insert(
+      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AF_TRIGGER,
+                                   DO_NOT_REPORT_OPTIONS,
+                                   {ANDROID_CONTROL_AF_TRIGGER_IDLE,
+                                    ANDROID_CONTROL_AF_TRIGGER_START,
+                                    ANDROID_CONTROL_AF_TRIGGER_CANCEL}));
+  components.insert(NoEffectMenuControl<uint8_t>(
+      ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER,
+      DO_NOT_REPORT_OPTIONS,
+      {ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_IDLE,
+       ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_START,
+       ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_CANCEL}));
   components.insert(V4L2ControlOrDefault<uint8_t>(
       ControlType::kMenu,
       ANDROID_CONTROL_AE_MODE,
@@ -101,7 +121,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
           {{V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON},
            {V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF}})),
-      ANDROID_CONTROL_AE_MODE_ON));
+      ANDROID_CONTROL_AE_MODE_ON,
+      {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF},
+       {OTHER_TEMPLATES, ANDROID_CONTROL_AE_MODE_ON}}));
   components.insert(V4L2ControlOrDefault<uint8_t>(
       ControlType::kMenu,
       ANDROID_CONTROL_AE_ANTIBANDING_MODE,
@@ -117,7 +139,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                               ANDROID_CONTROL_AE_ANTIBANDING_MODE_60HZ},
                              {V4L2_CID_POWER_LINE_FREQUENCY_AUTO,
                               ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO}})),
-      ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO));
+      ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO,
+      {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AE_ANTIBANDING_MODE_OFF},
+       {OTHER_TEMPLATES, ANDROID_CONTROL_AE_ANTIBANDING_MODE_AUTO}}));
   std::unique_ptr<PartialMetadataInterface> exposure_time =
       V4L2Control<int64_t>(ControlType::kSlider,
                            ANDROID_SENSOR_EXPOSURE_TIME,
@@ -171,7 +195,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
            {V4L2_WHITE_BALANCE_DAYLIGHT, ANDROID_CONTROL_AWB_MODE_DAYLIGHT},
            {V4L2_WHITE_BALANCE_CLOUDY,
             ANDROID_CONTROL_AWB_MODE_CLOUDY_DAYLIGHT},
-           {V4L2_WHITE_BALANCE_SHADE, ANDROID_CONTROL_AWB_MODE_SHADE}}))));
+           {V4L2_WHITE_BALANCE_SHADE, ANDROID_CONTROL_AWB_MODE_SHADE}})),
+      {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AWB_MODE_OFF},
+       {OTHER_TEMPLATES, ANDROID_CONTROL_AWB_MODE_AUTO}}));
   if (awb) {
     components.insert(std::move(awb));
   } else {
@@ -185,7 +211,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
         std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(
             new EnumConverter({{0, ANDROID_CONTROL_AWB_MODE_OFF},
                                {1, ANDROID_CONTROL_AWB_MODE_AUTO}})),
-        ANDROID_CONTROL_AWB_MODE_AUTO));
+        ANDROID_CONTROL_AWB_MODE_AUTO,
+        {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AWB_MODE_OFF},
+         {OTHER_TEMPLATES, ANDROID_CONTROL_AWB_MODE_AUTO}}));
   }
   // TODO(b/31041577): Handle AWB state machine correctly.
   components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AWB_STATE,
@@ -249,19 +277,23 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
 
   // Not sure if V4L2 does or doesn't do this, but HAL documentation says
   // all devices must support FAST, and FAST can be equivalent to OFF, so
-  // either way it's fine to list.
-  components.insert(
-      NoEffectMenuControl<uint8_t>(ANDROID_EDGE_MODE,
-                                   ANDROID_EDGE_AVAILABLE_EDGE_MODES,
-                                   {ANDROID_EDGE_MODE_FAST}));
+  // either way it's fine to list. And if FAST is included, HIGH_QUALITY
+  // is supposed to be included as well.
+  components.insert(NoEffectMenuControl<uint8_t>(
+      ANDROID_EDGE_MODE,
+      ANDROID_EDGE_AVAILABLE_EDGE_MODES,
+      {ANDROID_EDGE_MODE_FAST, ANDROID_EDGE_MODE_HIGH_QUALITY},
+      {{CAMERA3_TEMPLATE_STILL_CAPTURE, ANDROID_EDGE_MODE_HIGH_QUALITY},
+       {OTHER_TEMPLATES, ANDROID_EDGE_MODE_FAST}}));
 
   // TODO(b/31023454): subcomponents of flash.
-  // Missing android.flash.mode control, since it uses a different enum.
   components.insert(
       std::unique_ptr<PartialMetadataInterface>(new Property<uint8_t>(
           ANDROID_FLASH_INFO_AVAILABLE, ANDROID_FLASH_INFO_AVAILABLE_FALSE)));
   components.insert(FixedState<uint8_t>(ANDROID_FLASH_STATE,
                                         ANDROID_FLASH_STATE_UNAVAILABLE));
+  components.insert(NoEffectMenuControl<uint8_t>(
+      ANDROID_FLASH_MODE, DO_NOT_REPORT_OPTIONS, {ANDROID_FLASH_MODE_OFF}));
 
   // TODO(30510395): subcomponents of hotpixel.
   // No known V4L2 hot pixel correction. But it might be happening,
@@ -344,16 +376,39 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       {ANDROID_LENS_OPTICAL_STABILIZATION_MODE_OFF}));
   // TODO(b/31017806): This should definitely have a different default depending
   // on template.
-  components.insert(NoEffectOptionlessControl<uint8_t>(
+  components.insert(NoEffectMenuControl<uint8_t>(
       ANDROID_CONTROL_CAPTURE_INTENT,
-      ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE));
+      DO_NOT_REPORT_OPTIONS,
+      {ANDROID_CONTROL_CAPTURE_INTENT_CUSTOM,
+       ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW,
+       ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE,
+       ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD,
+       ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT,
+       ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG,
+       ANDROID_CONTROL_CAPTURE_INTENT_MANUAL},
+      {{CAMERA3_TEMPLATE_PREVIEW, ANDROID_CONTROL_CAPTURE_INTENT_PREVIEW},
+       {CAMERA3_TEMPLATE_STILL_CAPTURE,
+        ANDROID_CONTROL_CAPTURE_INTENT_STILL_CAPTURE},
+       {CAMERA3_TEMPLATE_VIDEO_RECORD,
+        ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_RECORD},
+       {CAMERA3_TEMPLATE_VIDEO_SNAPSHOT,
+        ANDROID_CONTROL_CAPTURE_INTENT_VIDEO_SNAPSHOT},
+       {CAMERA3_TEMPLATE_ZERO_SHUTTER_LAG,
+        ANDROID_CONTROL_CAPTURE_INTENT_ZERO_SHUTTER_LAG},
+       {CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_CAPTURE_INTENT_MANUAL},
+       {OTHER_TEMPLATES, ANDROID_CONTROL_CAPTURE_INTENT_CUSTOM}}));
 
   // Unable to control noise reduction in V4L2 devices,
-  // but FAST is allowed to be the same as OFF.
+  // but FAST is allowed to be the same as OFF,
+  // and HIGH_QUALITY can be the same as FAST.
   components.insert(NoEffectMenuControl<uint8_t>(
       ANDROID_NOISE_REDUCTION_MODE,
       ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
-      {ANDROID_NOISE_REDUCTION_MODE_FAST}));
+      {ANDROID_NOISE_REDUCTION_MODE_FAST,
+       ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY},
+      {{CAMERA3_TEMPLATE_STILL_CAPTURE,
+        ANDROID_NOISE_REDUCTION_MODE_HIGH_QUALITY},
+       {OTHER_TEMPLATES, ANDROID_NOISE_REDUCTION_MODE_FAST}}));
 
   // TODO(30510395): subcomponents of formats/streams.
   // For now, no thumbnails available (only [0,0], the "no thumbnail" size).

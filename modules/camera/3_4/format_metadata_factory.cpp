@@ -186,6 +186,15 @@ int AddFormatComponents(
   fps_ranges.push_back({{min_fps, max_yuv_fps}});
   fps_ranges.push_back({{max_yuv_fps, max_yuv_fps}});
 
+  std::array<int32_t, 2> video_fps_range;
+  int32_t video_fps = 30;
+  if (video_fps >= max_yuv_fps) {
+    video_fps_range = {{max_yuv_fps, max_yuv_fps}};
+  } else {
+    video_fps_range = {{video_fps, video_fps}};
+    fps_ranges.push_back(video_fps_range);
+  }
+
   // Construct the metadata components.
   insertion_point = std::make_unique<Property<ArrayVector<int32_t, 4>>>(
       ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS,
@@ -201,7 +210,9 @@ int AddFormatComponents(
   insertion_point = NoEffectMenuControl<std::array<int32_t, 2>>(
       ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
       ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
-      fps_ranges);
+      fps_ranges,
+      {{CAMERA3_TEMPLATE_VIDEO_RECORD, video_fps_range},
+       {OTHER_TEMPLATES, fps_ranges[0]}});
 
   return 0;
 }

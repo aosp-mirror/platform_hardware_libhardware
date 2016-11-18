@@ -69,7 +69,7 @@ Control<T>::Control(std::unique_ptr<TaggedControlDelegate<T>> delegate,
 template <typename T>
 std::vector<int32_t> Control<T>::StaticTags() const {
   std::vector<int32_t> result;
-  if (options_) {
+  if (options_ && options_->tag() != DO_NOT_REPORT_OPTIONS) {
     result.push_back(options_->tag());
   }
   return result;
@@ -88,7 +88,14 @@ std::vector<int32_t> Control<T>::DynamicTags() const {
 template <typename T>
 int Control<T>::PopulateStaticFields(android::CameraMetadata* metadata) const {
   if (!options_) {
-    HAL_LOGV("No options for control, nothing to populate.");
+    HAL_LOGV("No options for control %d, nothing to populate.",
+             delegate_->tag());
+    return 0;
+  } else if (options_->tag() == DO_NOT_REPORT_OPTIONS) {
+    HAL_LOGV(
+        "Options for control %d are not reported, "
+        "probably are set values defined and already known by the API.",
+        delegate_->tag());
     return 0;
   }
 

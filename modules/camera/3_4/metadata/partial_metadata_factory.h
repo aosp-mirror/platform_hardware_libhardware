@@ -45,26 +45,31 @@ static std::unique_ptr<Control<T>> NoEffectOptionlessControl(
     int32_t delegate_tag, T default_value);
 
 // NoEffectMenuControl: Some menu options, but they have no effect.
-// The default value will be the first element of |options|.
 template <typename T>
 static std::unique_ptr<Control<T>> NoEffectMenuControl(
-    int32_t delegate_tag, int32_t options_tag, const std::vector<T>& options);
+    int32_t delegate_tag,
+    int32_t options_tag,
+    const std::vector<T>& options,
+    std::map<int, T> default_values = {});
 
 // NoEffectSliderControl: A slider of options, but they have no effect.
-// The default value will be |min|.
 template <typename T>
-static std::unique_ptr<Control<T>> NoEffectSliderControl(int32_t delegate_tag,
-                                                         int32_t options_tag,
-                                                         T min,
-                                                         T max);
+static std::unique_ptr<Control<T>> NoEffectSliderControl(
+    int32_t delegate_tag,
+    int32_t options_tag,
+    T min,
+    T max,
+    std::map<int, T> default_values = {});
 
 // NoEffectControl: A control with no effect and only a single allowable
 // value. Chooses an appropriate ControlOptionsInterface depending on type.
 template <typename T>
-static std::unique_ptr<Control<T>> NoEffectControl(ControlType type,
-                                                   int32_t delegate_tag,
-                                                   int32_t options_tag,
-                                                   T value);
+static std::unique_ptr<Control<T>> NoEffectControl(
+    ControlType type,
+    int32_t delegate_tag,
+    int32_t options_tag,
+    T value,
+    std::map<int, T> default_values = {});
 
 // V4L2Control: A control corresponding to a V4L2 control.
 template <typename T>
@@ -74,10 +79,12 @@ static std::unique_ptr<Control<T>> V4L2Control(
     int32_t options_tag,
     std::shared_ptr<V4L2Wrapper> device,
     int control_id,
-    std::shared_ptr<ConverterInterface<T, int32_t>> converter);
+    std::shared_ptr<ConverterInterface<T, int32_t>> converter,
+    std::map<int, T> default_values = {});
 
 // V4L2ControlOrDefault: Like V4L2Control, but if the V4L2Control fails to
-// initialize for some reason, this method will fall back to NoEffectControl.
+// initialize for some reason, this method will fall back to NoEffectControl
+// with an initial value defined by |fallback_default|.
 template <typename T>
 static std::unique_ptr<Control<T>> V4L2ControlOrDefault(
     ControlType type,
@@ -86,7 +93,8 @@ static std::unique_ptr<Control<T>> V4L2ControlOrDefault(
     std::shared_ptr<V4L2Wrapper> device,
     int control_id,
     std::shared_ptr<ConverterInterface<T, int32_t>> converter,
-    const T& default_value);
+    T fallback_default,
+    std::map<int, T> default_values = {});
 
 // -----------------------------------------------------------------------------
 
@@ -114,9 +122,11 @@ std::unique_ptr<Control<T>> NoEffectOptionlessControl(int32_t delegate_tag,
 }
 
 template <typename T>
-std::unique_ptr<Control<T>> NoEffectMenuControl(int32_t delegate_tag,
-                                                int32_t options_tag,
-                                                const std::vector<T>& options) {
+std::unique_ptr<Control<T>> NoEffectMenuControl(
+    int32_t delegate_tag,
+    int32_t options_tag,
+    const std::vector<T>& options,
+    std::map<int, T> default_values) {
   HAL_LOG_ENTER();
 
   if (options.empty()) {
@@ -129,35 +139,42 @@ std::unique_ptr<Control<T>> NoEffectMenuControl(int32_t delegate_tag,
           delegate_tag,
           std::make_unique<NoEffectControlDelegate<T>>(options[0])),
       std::make_unique<TaggedControlOptions<T>>(
-          options_tag, std::make_unique<MenuControlOptions<T>>(options)));
+          options_tag,
+          std::make_unique<MenuControlOptions<T>>(options, default_values)));
 }
 
 template <typename T>
-std::unique_ptr<Control<T>> NoEffectSliderControl(int32_t delegate_tag,
-                                                  int32_t options_tag,
-                                                  T min,
-                                                  T max) {
+std::unique_ptr<Control<T>> NoEffectSliderControl(
+    int32_t delegate_tag,
+    int32_t options_tag,
+    T min,
+    T max,
+    std::map<int, T> default_values) {
   HAL_LOG_ENTER();
 
   return std::make_unique<Control<T>>(
       std::make_unique<TaggedControlDelegate<T>>(
           delegate_tag, std::make_unique<NoEffectControlDelegate<T>>(min)),
       std::make_unique<TaggedControlOptions<T>>(
-          options_tag, std::make_unique<SliderControlOptions<T>>(min, max)));
+          options_tag,
+          std::make_unique<SliderControlOptions<T>>(min, max, default_values)));
 }
 
 template <typename T>
 std::unique_ptr<Control<T>> NoEffectControl(ControlType type,
                                             int32_t delegate_tag,
                                             int32_t options_tag,
-                                            T value) {
+                                            T value,
+                                            std::map<int, T> default_values) {
   HAL_LOG_ENTER();
 
   switch (type) {
     case ControlType::kMenu:
-      return NoEffectMenuControl<T>(delegate_tag, options_tag, {value});
+      return NoEffectMenuControl<T>(
+          delegate_tag, options_tag, {value}, default_values);
     case ControlType::kSlider:
-      return NoEffectSliderControl(delegate_tag, options_tag, value, value);
+      return NoEffectSliderControl(
+          delegate_tag, options_tag, value, value, default_values);
   }
 }
 
@@ -168,7 +185,8 @@ std::unique_ptr<Control<T>> V4L2Control(
     int32_t options_tag,
     std::shared_ptr<V4L2Wrapper> device,
     int control_id,
-    std::shared_ptr<ConverterInterface<T, int32_t>> converter) {
+    std::shared_ptr<ConverterInterface<T, int32_t>> converter,
+    std::map<int, T> default_values) {
   HAL_LOG_ENTER();
 
   // Query the device.
@@ -230,7 +248,8 @@ std::unique_ptr<Control<T>> V4L2Control(
         HAL_LOGE("No valid options for control %d.", control_id);
         return nullptr;
       }
-      result_options.reset(new MenuControlOptions<T>(options));
+
+      result_options.reset(new MenuControlOptions<T>(options, default_values));
       // No converter changes necessary.
       break;
     case V4L2_CTRL_TYPE_INTEGER:
@@ -265,8 +284,8 @@ std::unique_ptr<Control<T>> V4L2Control(
             control_id);
         return nullptr;
       }
-      result_options.reset(
-          new SliderControlOptions<T>(metadata_min, metadata_max));
+      result_options.reset(new SliderControlOptions<T>(
+          metadata_min, metadata_max, default_values));
       break;
     default:
       HAL_LOGE("Control %d (%s) is of unsupported type %d",
@@ -294,13 +313,20 @@ std::unique_ptr<Control<T>> V4L2ControlOrDefault(
     std::shared_ptr<V4L2Wrapper> device,
     int control_id,
     std::shared_ptr<ConverterInterface<T, int32_t>> converter,
-    const T& default_value) {
+    T fallback_default,
+    std::map<int, T> default_values) {
   HAL_LOG_ENTER();
 
-  std::unique_ptr<Control<T>> result = V4L2Control(
-      type, delegate_tag, options_tag, device, control_id, converter);
+  std::unique_ptr<Control<T>> result = V4L2Control(type,
+                                                   delegate_tag,
+                                                   options_tag,
+                                                   device,
+                                                   control_id,
+                                                   converter,
+                                                   default_values);
   if (!result) {
-    result = NoEffectControl(type, delegate_tag, options_tag, default_value);
+    result = NoEffectControl(
+        type, delegate_tag, options_tag, fallback_default, default_values);
   }
   return result;
 }

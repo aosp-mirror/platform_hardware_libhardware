@@ -23,6 +23,7 @@
 
 #include "../common.h"
 #include "control_options_interface.h"
+#include "default_option_delegate.h"
 
 namespace v4l2_camera_hal {
 
@@ -31,7 +32,14 @@ template <typename T>
 class SliderControlOptions : public ControlOptionsInterface<T> {
  public:
   // |min| must be <= |max|.
-  SliderControlOptions(T min, T max) : min_(min), max_(max) {}
+  SliderControlOptions(const T& min,
+                       const T& max,
+                       std::shared_ptr<DefaultOptionDelegate<T>> defaults)
+      : min_(min), max_(max), defaults_(defaults){};
+  SliderControlOptions(const T& min, const T& max, std::map<int, T> defaults)
+      : min_(min),
+        max_(max),
+        defaults_(std::make_shared<DefaultOptionDelegate<T>>(defaults)){};
 
   virtual std::vector<T> MetadataRepresentation() override {
     return {min_, max_};
@@ -41,19 +49,30 @@ class SliderControlOptions : public ControlOptionsInterface<T> {
   };
   virtual int DefaultValueForTemplate(int template_type,
                                       T* default_value) override {
-    // TODO(b/31017806): More complex logic, depend on template_type.
     if (min_ > max_) {
       HAL_LOGE("No valid default slider option, min is greater than max.");
       return -ENODEV;
     }
-    // Default to the min value.
+
+    if (defaults_->DefaultValueForTemplate(template_type, default_value)) {
+      // Get as close as we can to the desired value.
+      if (*default_value < min_) {
+        *default_value = min_;
+      } else if (*default_value > max_) {
+        *default_value = max_;
+      }
+      return 0;
+    }
+
+    // No default given, just fall back to the min of the range.
     *default_value = min_;
     return 0;
-  }
+  };
 
  private:
   T min_;
   T max_;
+  std::shared_ptr<DefaultOptionDelegate<T>> defaults_;
 };
 
 }  // namespace v4l2_camera_hal

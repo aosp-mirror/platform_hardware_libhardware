@@ -57,6 +57,7 @@ v4l2_src_files := \
 v4l2_test_files := \
   format_metadata_factory_test.cpp \
   metadata/control_test.cpp \
+  metadata/default_option_delegate_test.cpp \
   metadata/enum_converter_test.cpp \
   metadata/ignored_control_delegate_test.cpp \
   metadata/map_converter_test.cpp \
