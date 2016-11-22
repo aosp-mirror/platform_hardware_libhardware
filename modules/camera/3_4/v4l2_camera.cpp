@@ -325,116 +325,24 @@ bool V4L2Camera::dequeueRequestBuffers() {
   return true;
 }
 
-bool V4L2Camera::isSupportedStreamSet(default_camera_hal::Stream** streams,
-                                      int count,
-                                      uint32_t mode) {
+bool V4L2Camera::validateDataspacesAndRotations(
+    const camera3_stream_configuration_t* stream_config) {
   HAL_LOG_ENTER();
 
-  if (mode != CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE) {
-    HAL_LOGE("Unsupported stream configuration mode: %d", mode);
-    return false;
-  }
-
-  // This should be checked by the caller, but put here as a sanity check.
-  if (count < 1) {
-    HAL_LOGE("Must request at least 1 stream");
-    return false;
-  }
-
-  // Count the number of streams of each type.
-  int32_t num_input = 0;
-  int32_t num_raw = 0;
-  int32_t num_stalling = 0;
-  int32_t num_non_stalling = 0;
-  for (int i = 0; i < count; ++i) {
-    default_camera_hal::Stream* stream = streams[i];
-
-    if (stream->isInputType()) {
-      ++num_input;
-    }
-
-    if (stream->isOutputType()) {
-      StreamFormat format(*stream);
-      switch (format.Category()) {
-        case kFormatCategoryRaw:
-          ++num_raw;
-        case kFormatCategoryStalling:
-          ++num_stalling;
-          break;
-        case kFormatCategoryNonStalling:
-          ++num_non_stalling;
-          break;
-        case kFormatCategoryUnknown:  // Fall through.
-        default:
-          HAL_LOGE(
-              "Unsupported format for stream %d: %d", i, stream->getFormat());
-          return false;
-      }
-    }
-  }
-
-  if (num_input > max_input_streams_ || num_raw > max_output_streams_[0] ||
-      num_non_stalling > max_output_streams_[1] ||
-      num_stalling > max_output_streams_[2]) {
-    HAL_LOGE(
-        "Invalid stream configuration: %d input, %d RAW, %d non-stalling, "
-        "%d stalling (max supported: %d input, %d RAW, %d non-stalling, "
-        "%d stalling)",
-        max_input_streams_,
-        max_output_streams_[0],
-        max_output_streams_[1],
-        max_output_streams_[2],
-        num_input,
-        num_raw,
-        num_non_stalling,
-        num_stalling);
-    return false;
-  }
-
-  // TODO(b/29939583): The above logic should be all that's necessary,
-  // but V4L2 doesn't actually support more than 1 stream at a time. So for now,
-  // if not all streams are the same format and size, error. Note that this
-  // means the HAL is not spec-compliant; the requested streams are technically
-  // valid and it is not technically allowed to error once it has reached this
-  // point.
-  int format = streams[0]->getFormat();
-  uint32_t width = streams[0]->getWidth();
-  uint32_t height = streams[0]->getHeight();
-  for (int i = 1; i < count; ++i) {
-    const default_camera_hal::Stream* stream = streams[i];
-    if (stream->getFormat() != format || stream->getWidth() != width ||
-        stream->getHeight() != height) {
-      HAL_LOGE(
-          "V4L2 only supports 1 stream configuration at a time "
-          "(stream 0 is format %d, width %u, height %u, "
-          "stream %d is format %d, width %u, height %u).",
-          format,
-          width,
-          height,
-          i,
-          stream->getFormat(),
-          stream->getWidth(),
-          stream->getHeight());
+  for (uint32_t i = 0; i < stream_config->num_streams; ++i) {
+    if (stream_config->streams[i]->rotation != CAMERA3_STREAM_ROTATION_0) {
+      HAL_LOGV("Rotation %d for stream %d not supported",
+               stream_config->streams[i]->rotation,
+               i);
       return false;
     }
+    // Accept all dataspaces, as it will just be overwritten below anyways.
   }
-
   return true;
 }
 
-int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
-                            uint32_t* max_buffers) {
+int V4L2Camera::setupStreams(camera3_stream_configuration_t* stream_config) {
   HAL_LOG_ENTER();
-
-  if (stream->getRotation() != CAMERA3_STREAM_ROTATION_0) {
-    HAL_LOGE("Rotation %d not supported", stream->getRotation());
-    return -EINVAL;
-  }
-
-  // Doesn't matter what was requested, we always use dataspace V0_JFIF.
-  // Note: according to camera3.h, this isn't allowed, but etalvala@google.com
-  // claims it's underdocumented; the implementation lets the HAL overwrite it.
-  stream->setDataSpace(HAL_DATASPACE_V0_JFIF);
 
   std::lock_guard<std::mutex> guard(in_flight_lock_);
   // The framework should be enforcing this, but doesn't hurt to be safe.
@@ -443,44 +351,100 @@ int V4L2Camera::setupStream(default_camera_hal::Stream* stream,
     return -EINVAL;
   }
 
+  // stream_config should have been validated; assume at least 1 stream.
+  camera3_stream_t* stream = stream_config->streams[0];
+  int format = stream->format;
+  uint32_t width = stream->width;
+  uint32_t height = stream->height;
+
+  if (stream_config->num_streams > 1) {
+    // TODO(b/29939583):  V4L2 doesn't actually support more than 1
+    // stream at a time. If not all streams are the same format
+    // and size, error. Note that this means the HAL is not spec-compliant.
+    // Technically, this error should be thrown during validation, but
+    // since it isn't a spec-valid error validation isn't set up to check it.
+    for (uint32_t i = 1; i < stream_config->num_streams; ++i) {
+      stream = stream_config->streams[i];
+      if (stream->format != format || stream->width != width ||
+          stream->height != height) {
+        HAL_LOGE(
+            "V4L2 only supports 1 stream configuration at a time "
+            "(stream 0 is format %d, width %u, height %u, "
+            "stream %d is format %d, width %u, height %u).",
+            format,
+            width,
+            height,
+            i,
+            stream->format,
+            stream->width,
+            stream->height);
+        return -EINVAL;
+      }
+    }
+  }
+
   // Ensure the stream is off.
   int res = device_->StreamOff();
   if (res) {
-    HAL_LOGE("Device failed to turn off stream for reconfiguration.");
+    HAL_LOGE("Device failed to turn off stream for reconfiguration: %d.", res);
     return -ENODEV;
   }
 
-  res = device_->SetFormat(*stream, max_buffers);
+  StreamFormat stream_format(format, width, height);
+  uint32_t max_buffers = 0;
+  res = device_->SetFormat(stream_format, &max_buffers);
   if (res) {
-    HAL_LOGE("Failed to set device to correct format for stream.");
-    return res;
+    HAL_LOGE("Failed to set device to correct format for stream: %d.", res);
+    return -ENODEV;
   }
 
   // Sanity check.
-  if (*max_buffers < 1) {
+  if (max_buffers < 1) {
     HAL_LOGE("Setting format resulted in an invalid maximum of %u buffers.",
-             *max_buffers);
+             max_buffers);
     return -ENODEV;
+  }
+
+  // Set all the streams dataspaces, usages, and max buffers.
+  for (uint32_t i = 0; i < stream_config->num_streams; ++i) {
+    stream = stream_config->streams[i];
+
+    // Max buffers as reported by the device.
+    stream->max_buffers = max_buffers;
+
+    // Usage: currently using sw graphics.
+    switch (stream->stream_type) {
+      case CAMERA3_STREAM_INPUT:
+        stream->usage = GRALLOC_USAGE_SW_READ_OFTEN;
+        break;
+      case CAMERA3_STREAM_OUTPUT:
+        stream->usage = GRALLOC_USAGE_SW_WRITE_OFTEN;
+        break;
+      case CAMERA3_STREAM_BIDIRECTIONAL:
+        stream->usage =
+            GRALLOC_USAGE_SW_READ_OFTEN | GRALLOC_USAGE_SW_WRITE_OFTEN;
+        break;
+      default:
+        // nothing to do.
+        break;
+    }
+
+    // Doesn't matter what was requested, we always use dataspace V0_JFIF.
+    // Note: according to camera3.h, this isn't allowed, but the camera
+    // framework team claims it's underdocumented; the implementation lets the
+    // HAL overwrite it. If this is changed, change the validation above.
+    stream->data_space = HAL_DATASPACE_V0_JFIF;
   }
 
   return 0;
 }
 
-bool V4L2Camera::isValidRequest(
-    const default_camera_hal::CaptureRequest& request) {
-  HAL_LOG_ENTER();
-
-  if (request.input_buffer != nullptr) {
-    HAL_LOGE("Input buffer reprocessing not implemented.");
-    return false;
-  } else if (request.output_buffers.size() > 1) {
-    HAL_LOGE("Only 1 output buffer allowed per request.");
-    return false;
-  } else if (!metadata_->IsValidRequest(request.settings)) {
+bool V4L2Camera::isValidRequestSettings(
+    const android::CameraMetadata& settings) {
+  if (!metadata_->IsValidRequest(settings)) {
     HAL_LOGE("Invalid request settings.");
     return false;
   }
-
   return true;
 }
 

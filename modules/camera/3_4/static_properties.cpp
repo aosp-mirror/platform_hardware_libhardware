@@ -294,8 +294,8 @@ bool StaticProperties::SanityCheckStreamConfiguration(
 bool StaticProperties::InputStreamsSupported(
     const camera3_stream_configuration_t* stream_config) {
   // Find the input stream(s).
-  size_t num_input_streams;
-  int input_format;
+  size_t num_input_streams = 0;
+  int input_format = -1;
   for (size_t i = 0; i < stream_config->num_streams; ++i) {
     const camera3_stream_t* stream = stream_config->streams[i];
     if (IsInputType(stream->stream_type)) {

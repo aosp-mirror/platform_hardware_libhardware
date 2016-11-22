@@ -17,10 +17,11 @@
 #ifndef V4L2_CAMERA_HAL_STREAM_FORMAT_H_
 #define V4L2_CAMERA_HAL_STREAM_FORMAT_H_
 
+#include <string.h>
+
 #include <linux/videodev2.h>
 
 #include "common.h"
-#include "stream.h"
 
 namespace v4l2_camera_hal {
 
@@ -33,7 +34,7 @@ enum FormatCategory {
 
 class StreamFormat {
  public:
-  StreamFormat(const default_camera_hal::Stream& stream);
+  StreamFormat(int format, uint32_t width, uint32_t height);
   StreamFormat(const v4l2_format& format);
   virtual ~StreamFormat() = default;
   // Only uint32_t members, use default generated copy and assign.

@@ -31,7 +31,6 @@
 #include <nativehelper/ScopedFd.h>
 
 #include "common.h"
-#include "stream.h"
 #include "stream_format.h"
 #include "v4l2_gralloc.h"
 
@@ -440,17 +439,10 @@ int V4L2Wrapper::GetFormatFrameDurationRange(
   return 0;
 }
 
-int V4L2Wrapper::SetFormat(const default_camera_hal::Stream& stream,
+int V4L2Wrapper::SetFormat(const StreamFormat& desired_format,
                            uint32_t* result_max_buffers) {
   HAL_LOG_ENTER();
 
-  // Should be checked earlier; sanity check.
-  if (stream.isInputType()) {
-    HAL_LOGE("Input streams not supported.");
-    return -EINVAL;
-  }
-
-  StreamFormat desired_format(stream);
   if (format_ && desired_format == *format_) {
     HAL_LOGV("Already in correct format, skipping format setting.");
     *result_max_buffers = buffers_.size();

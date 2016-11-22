@@ -27,7 +27,6 @@
 #include <nativehelper/ScopedFd.h>
 
 #include "common.h"
-#include "stream.h"
 #include "stream_format.h"
 #include "v4l2_gralloc.h"
 
@@ -75,7 +74,7 @@ class V4L2Wrapper {
       uint32_t v4l2_format,
       const std::array<int32_t, 2>& size,
       std::array<int64_t, 2>* duration_range);
-  virtual int SetFormat(const default_camera_hal::Stream& stream,
+  virtual int SetFormat(const StreamFormat& desired_format,
                         uint32_t* result_max_buffers);
   // Manage buffers.
   virtual int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,

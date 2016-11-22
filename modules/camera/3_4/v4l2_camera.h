@@ -67,17 +67,13 @@ class V4L2Camera : public default_camera_hal::Camera {
   void initDeviceInfo(camera_info_t* info) override;
   // Extra initialization of device when opened.
   int initDevice() override;
-  // Verify stream configuration is device-compatible.
-  bool isSupportedStreamSet(default_camera_hal::Stream** streams,
-                            int count,
-                            uint32_t mode) override;
-  // Set up the device for a stream, and get the maximum number of
-  // buffers that stream can handle (max_buffers is an output parameter).
-  int setupStream(default_camera_hal::Stream* stream,
-                  uint32_t* max_buffers) override;
+  // Verify stream configuration dataspaces and rotation values
+  bool validateDataspacesAndRotations(
+      const camera3_stream_configuration_t* stream_config) override;
+  // Set up the streams, including seting usage & max_buffers
+  int setupStreams(camera3_stream_configuration_t* stream_config) override;
   // Verify settings are valid for a capture or reprocessing.
-  bool isValidRequest(
-      const default_camera_hal::CaptureRequest& request) override;
+  bool isValidRequestSettings(const android::CameraMetadata& settings) override;
   // Enqueue a request to receive data from the camera.
   int enqueueRequest(
       std::shared_ptr<default_camera_hal::CaptureRequest> request) override;

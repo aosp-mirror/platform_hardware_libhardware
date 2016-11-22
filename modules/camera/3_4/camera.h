@@ -28,7 +28,6 @@
 #include "metadata/metadata.h"
 #include "request_tracker.h"
 #include "static_properties.h"
-#include "stream.h"
 
 namespace default_camera_hal {
 // Camera represents a physical camera on a device.
@@ -70,16 +69,17 @@ class Camera {
         // Initialize device info: resource cost and conflicting devices
         // (/conflicting devices length)
         virtual void initDeviceInfo(struct camera_info *info) = 0;
-        // Verify stream configuration is device-compatible
-        virtual bool isSupportedStreamSet(Stream** streams, int count,
-                                          uint32_t mode) = 0;
-        // Set up the device for a stream, and get the maximum number of
-        // buffers that stream can handle (max_buffers is an output parameter)
-        virtual int setupStream(Stream* stream, uint32_t* max_buffers) = 0;
-        // Verify settings are valid for a capture or reprocessing
-        virtual bool isValidRequest(const CaptureRequest& request) = 0;
         // Separate initialization method for individual devices when opened
         virtual int initDevice() = 0;
+        // Verify stream configuration dataspaces and rotation values
+        virtual bool validateDataspacesAndRotations(
+            const camera3_stream_configuration_t* stream_config) = 0;
+        // Set up the streams, including seting usage & max_buffers
+        virtual int setupStreams(
+            camera3_stream_configuration_t* stream_config) = 0;
+        // Verify settings are valid for a capture or reprocessing
+        virtual bool isValidRequestSettings(
+            const android::CameraMetadata& settings) = 0;
         // Enqueue a request to receive data from the camera
         virtual int enqueueRequest(
             std::shared_ptr<CaptureRequest> request) = 0;
@@ -100,14 +100,9 @@ class Camera {
         camera3_device_t mDevice;
         // Get static info from the device and store it in mStaticInfo.
         int loadStaticInfo();
-        // Reuse a stream already created by this device
-        Stream *reuseStream(camera3_stream_t *astream);
-        // Destroy all streams in a stream array, and the array itself
-        void destroyStreams(Stream **array, int count);
-        // Verify a set of streams is valid in aggregate
-        bool isValidStreamSet(Stream **array, int count, uint32_t mode);
-        // Calculate usage and max_bufs of each stream
-        int setupStreams(Stream **array, int count);
+        // Confirm that a stream configuration is valid.
+        int validateStreamConfiguration(
+            const camera3_stream_configuration_t* stream_config);
         // Verify settings are valid for reprocessing an input buffer
         bool isValidReprocessSettings(const camera_metadata_t *settings);
         // Pre-process an output buffer
@@ -140,10 +135,6 @@ class Camera {
         // be accessed without the camera device open
         android::Mutex mStaticInfoLock;
         android::Mutex mFlushLock;
-        // Array of handles to streams currently in use by the device
-        Stream **mStreams;
-        // Number of streams in mStreams
-        int mNumStreams;
         // Standard camera settings templates
         std::unique_ptr<const android::CameraMetadata> mTemplates[CAMERA3_TEMPLATE_COUNT];
         // Track in flight requests.

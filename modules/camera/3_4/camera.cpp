@@ -27,7 +27,6 @@
 #include <utils/Mutex.h>
 
 #include "metadata/metadata_common.h"
-#include "stream.h"
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
@@ -57,8 +56,6 @@ Camera::Camera(int id)
     mSettingsSet(false),
     mBusy(false),
     mCallbackOps(NULL),
-    mStreams(NULL),
-    mNumStreams(0),
     mInFlightTracker(new RequestTracker)
 {
     memset(&mTemplates, 0, sizeof(mTemplates));
@@ -175,176 +172,86 @@ int Camera::initialize(const camera3_callback_ops_t *callback_ops)
 
 int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 {
-    camera3_stream_t *astream;
-    Stream **newStreams = NULL;
-    int res = 0;
-
-    // Must provide new settings after configureStreams.
-    mSettingsSet = false;
+    android::Mutex::Autolock al(mDeviceLock);
 
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
     ATRACE_CALL();
-    android::Mutex::Autolock al(mDeviceLock);
 
-    if (stream_config == NULL) {
-        ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
-        return -EINVAL;
-    }
-    if (stream_config->num_streams == 0) {
-        ALOGE("%s:%d: Empty stream configuration array", __func__, mId);
+    // Check that there are no in-flight requests.
+    if (!mInFlightTracker->Empty()) {
+        ALOGE("%s:%d: Can't configure streams while frames are in flight.",
+              __func__, mId);
         return -EINVAL;
     }
 
-    // Create new stream array
-    newStreams = new Stream*[stream_config->num_streams];
-    ALOGV("%s:%d: Number of Streams: %d", __func__, mId,
-            stream_config->num_streams);
-
-    // Mark all current streams unused for now
-    for (int i = 0; i < mNumStreams; i++)
-        mStreams[i]->mReuse = false;
-    // Fill new stream array with reused streams and new streams
-    for (unsigned int i = 0; i < stream_config->num_streams; i++) {
-        astream = stream_config->streams[i];
-        if (astream->max_buffers > 0) {
-            ALOGV("%s:%d: Reusing stream %d", __func__, mId, i);
-            newStreams[i] = reuseStream(astream);
-        } else {
-            ALOGV("%s:%d: Creating new stream %d", __func__, mId, i);
-            newStreams[i] = new Stream(mId, astream);
-        }
-
-        if (newStreams[i] == NULL) {
-            ALOGE("%s:%d: Error processing stream %d", __func__, mId, i);
-            goto err_out;
-        }
-        astream->priv = newStreams[i];
-    }
-
-    // Verify the set of streams in aggregate
-    if (!isValidStreamSet(newStreams, stream_config->num_streams,
-                          stream_config->operation_mode)) {
-        ALOGE("%s:%d: Invalid stream set", __func__, mId);
-        goto err_out;
-    }
-
-    // Set up all streams (calculate usage/max_buffers for each,
-    // do any device-specific initialization)
-    res = setupStreams(newStreams, stream_config->num_streams);
+    // Verify the set of streams in aggregate, and perform configuration if valid.
+    int res = validateStreamConfiguration(stream_config);
     if (res) {
-        ALOGE("%s:%d: Failed to setup stream set", __func__, mId);
-        goto err_out;
+        ALOGE("%s:%d: Failed to validate stream set", __func__, mId);
+    } else {
+        // Set up all streams. Since they've been validated,
+        // this should only result in fatal (-ENODEV) errors.
+        // This occurs after validation to ensure that if there
+        // is a non-fatal error, the stream configuration doesn't change states.
+        res = setupStreams(stream_config);
+        if (res) {
+            ALOGE("%s:%d: Failed to setup stream set", __func__, mId);
+        }
     }
 
-    // Destroy all old streams and replace stream array with new one
-    destroyStreams(mStreams, mNumStreams);
-    mStreams = newStreams;
-    mNumStreams = stream_config->num_streams;
-
-    // Update the request tracker.
-    mInFlightTracker->SetStreamConfiguration(*stream_config);
-
-    return 0;
-
-err_out:
-    // Clean up temporary streams, preserve existing mStreams/mNumStreams
-    destroyStreams(newStreams, stream_config->num_streams);
-    // Set error if it wasn't specified.
+    // Set trackers based on result.
     if (!res) {
-        res = -EINVAL;
+        // Success, set up the in-flight trackers for the new streams.
+        mInFlightTracker->SetStreamConfiguration(*stream_config);
+        // Must provide new settings for the new configuration.
+        mSettingsSet = false;
     } else if (res != -EINVAL) {
-        // Fatal error, clear stream configuration.
+        // Fatal error, the old configuration is invalid.
         mInFlightTracker->ClearStreamConfiguration();
     }
+    // On a non-fatal error the old configuration, if any, remains valid.
     return res;
 }
 
-void Camera::destroyStreams(Stream **streams, int count)
+int Camera::validateStreamConfiguration(
+    const camera3_stream_configuration_t* stream_config)
 {
-    if (streams == NULL)
-        return;
-    for (int i = 0; i < count; i++) {
-        // Only destroy streams that weren't reused
-        if (streams[i] != NULL && !streams[i]->mReuse)
-            delete streams[i];
-    }
-    delete [] streams;
-}
-
-Stream *Camera::reuseStream(camera3_stream_t *astream)
-{
-    Stream *priv = reinterpret_cast<Stream*>(astream->priv);
-    // Verify the re-used stream's parameters match
-    if (!priv->isValidReuseStream(mId, astream)) {
-        ALOGE("%s:%d: Mismatched parameter in reused stream", __func__, mId);
-        return NULL;
-    }
-    // Mark stream to be reused
-    priv->mReuse = true;
-    return priv;
-}
-
-bool Camera::isValidStreamSet(Stream **streams, int count, uint32_t mode)
-{
-    int inputs = 0;
-    int outputs = 0;
-
-    if (streams == NULL) {
+    // Check that the configuration is well-formed.
+    if (stream_config == nullptr) {
+        ALOGE("%s:%d: NULL stream configuration array", __func__, mId);
+        return -EINVAL;
+    } else if (stream_config->num_streams == 0) {
+        ALOGE("%s:%d: Empty stream configuration array", __func__, mId);
+        return -EINVAL;
+    } else if (stream_config->streams == nullptr) {
         ALOGE("%s:%d: NULL stream configuration streams", __func__, mId);
-        return false;
-    }
-    if (count == 0) {
-        ALOGE("%s:%d: Zero count stream configuration streams", __func__, mId);
-        return false;
-    }
-    // Validate there is at most one input stream and at least one output stream
-    for (int i = 0; i < count; i++) {
-        // A stream may be both input and output (bidirectional)
-        if (streams[i]->isInputType())
-            inputs++;
-        if (streams[i]->isOutputType())
-            outputs++;
-    }
-    ALOGV("%s:%d: Configuring %d output streams and %d input streams",
-            __func__, mId, outputs, inputs);
-    if (outputs < 1) {
-        ALOGE("%s:%d: Stream config must have >= 1 output", __func__, mId);
-        return false;
-    }
-    if (inputs > 1) {
-        ALOGE("%s:%d: Stream config must have <= 1 input", __func__, mId);
-        return false;
+        return -EINVAL;
     }
 
-    // check for correct number of Bayer/YUV/JPEG/Encoder streams
-    return isSupportedStreamSet(streams, count, mode);
-}
-
-int Camera::setupStreams(Stream **streams, int count)
-{
-    /*
-     * This is where the HAL has to decide internally how to handle all of the
-     * streams, and then produce usage and max_buffer values for each stream.
-     * Note, the stream array has been checked before this point for ALL invalid
-     * conditions, so it must find a successful configuration for this stream
-     * array. The only errors should be from individual streams requesting
-     * unsupported features (such as data_space or rotation).
-     */
-    for (int i = 0; i < count; i++) {
-        uint32_t usage = 0;
-        if (streams[i]->isOutputType())
-            usage |= GRALLOC_USAGE_SW_WRITE_OFTEN;
-        if (streams[i]->isInputType())
-            usage |= GRALLOC_USAGE_SW_READ_OFTEN;
-        streams[i]->setUsage(usage);
-
-        uint32_t max_buffers;
-        int res = setupStream(streams[i], &max_buffers);
+    // Check that the configuration is supported.
+    // Make sure static info has been initialized before trying to use it.
+    if (!mStaticInfo) {
+        int res = loadStaticInfo();
         if (res) {
-          return res;
+            return res;
         }
-        streams[i]->setMaxBuffers(max_buffers);
     }
+    if (!mStaticInfo->StreamConfigurationSupported(stream_config)) {
+        ALOGE("%s:%d: Stream configuration does not match static "
+              "metadata restrictions.", __func__, mId);
+        return -EINVAL;
+    }
+
+    // Dataspace support is poorly documented - unclear if the expectation
+    // is that a device supports ALL dataspaces that could match a given
+    // format. For now, defer to child class implementation.
+    // Rotation support isn't described by metadata, so must defer to device.
+    if (!validateDataspacesAndRotations(stream_config)) {
+        ALOGE("%s:%d: Device can not handle configuration "
+              "dataspaces or rotations.", __func__, mId);
+        return -EINVAL;
+    }
+
     return 0;
 }
 
@@ -409,6 +316,12 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 
     ALOGV("%s:%d: frame: %d", __func__, mId, request->frame_number);
 
+    if (!mInFlightTracker->CanAddRequest(*request)) {
+        // Streams are full or frame number is not unique.
+        ALOGE("%s:%d: Can not add request.", __func__, mId);
+        return -EINVAL;
+    }
+
     // Null/Empty indicates use last settings
     if (request->settings.isEmpty() && !mSettingsSet) {
         ALOGE("%s:%d: NULL settings without previous set Frame:%d",
@@ -423,14 +336,10 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
         ALOGV("%s:%d: Capturing new frame.", __func__, mId);
     }
 
-    if (!isValidRequest(*request)) {
-        ALOGE("%s:%d: Invalid request.", __func__, mId);
+    if (!isValidRequestSettings(request->settings)) {
+        ALOGE("%s:%d: Invalid request settings.", __func__, mId);
         return -EINVAL;
     }
-    // Valid settings have been provided (mSettingsSet is a misnomer;
-    // all that matters is that a previous request with valid settings
-    // has been passed to the device, not that they've been set).
-    mSettingsSet = true;
 
     // Pre-process output buffers.
     if (request->output_buffers.size() <= 0) {
@@ -450,6 +359,11 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
               __func__, mId, request->frame_number);
         return -ENODEV;
     }
+
+    // Valid settings have been provided (mSettingsSet is a misnomer;
+    // all that matters is that a previous request with valid settings
+    // has been passed to the device, not that they've been set).
+    mSettingsSet = true;
 
     // Send the request off to the device for completion.
     enqueueRequest(request);
@@ -603,12 +517,6 @@ void Camera::dump(int fd)
     dprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
 
     // TODO: dump all settings
-
-    dprintf(fd, "Number of streams: %d\n", mNumStreams);
-    for (int i = 0; i < mNumStreams; i++) {
-        dprintf(fd, "Stream %d/%d:\n", i, mNumStreams);
-        mStreams[i]->dump(fd);
-    }
 }
 
 const char* Camera::templateToString(int type)

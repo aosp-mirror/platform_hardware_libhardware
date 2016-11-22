@@ -46,7 +46,6 @@ v4l2_src_files := \
   metadata/metadata_reader.cpp \
   request_tracker.cpp \
   static_properties.cpp \
-  stream.cpp \
   stream_format.cpp \
   v4l2_camera.cpp \
   v4l2_camera_hal.cpp \

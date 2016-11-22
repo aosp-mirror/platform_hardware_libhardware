@@ -18,18 +18,18 @@
 
 #include <linux/videodev2.h>
 
+#include <system/graphics.h>
+
 #include "common.h"
-#include "stream.h"
 
 namespace v4l2_camera_hal {
 
-StreamFormat::StreamFormat(const default_camera_hal::Stream& stream)
+StreamFormat::StreamFormat(int format, uint32_t width, uint32_t height)
     // TODO(b/30000211): multiplanar support.
     : type_(V4L2_BUF_TYPE_VIDEO_CAPTURE),
-      v4l2_pixel_format_(
-          StreamFormat::HalToV4L2PixelFormat(stream.getFormat())),
-      width_(stream.getWidth()),
-      height_(stream.getHeight()),
+      v4l2_pixel_format_(StreamFormat::HalToV4L2PixelFormat(format)),
+      width_(width),
+      height_(height),
       bytes_per_line_(0),
       min_buffer_size_(0) {}
 
