@@ -114,18 +114,6 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
        ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER_CANCEL}));
   components.insert(V4L2ControlOrDefault<uint8_t>(
       ControlType::kMenu,
-      ANDROID_CONTROL_AE_MODE,
-      ANDROID_CONTROL_AE_AVAILABLE_MODES,
-      device,
-      V4L2_CID_EXPOSURE_AUTO,
-      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(new EnumConverter(
-          {{V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON},
-           {V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF}})),
-      ANDROID_CONTROL_AE_MODE_ON,
-      {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF},
-       {OTHER_TEMPLATES, ANDROID_CONTROL_AE_MODE_ON}}));
-  components.insert(V4L2ControlOrDefault<uint8_t>(
-      ControlType::kMenu,
       ANDROID_CONTROL_AE_ANTIBANDING_MODE,
       ANDROID_CONTROL_AE_AVAILABLE_ANTIBANDING_MODES,
       device,
@@ -163,12 +151,26 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                            V4L2_CID_ISO_SENSITIVITY,
                            std::make_shared<ScalingConverter<int32_t, int32_t>>(
                                1, kV4L2SensitivityDenominator));
+  std::multimap<int32_t, uint8_t> ae_mode_mapping = {
+      {V4L2_EXPOSURE_AUTO, ANDROID_CONTROL_AE_MODE_ON}};
   if (exposure_time && sensitivity) {
     // TODO(b/30510395): as part of coordinated 3A component,
     // if these aren't available don't advertise AE mode OFF, only AUTO.
     components.insert(std::move(exposure_time));
     components.insert(std::move(sensitivity));
+    ae_mode_mapping.emplace(V4L2_EXPOSURE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF);
   }
+  components.insert(V4L2ControlOrDefault<uint8_t>(
+      ControlType::kMenu,
+      ANDROID_CONTROL_AE_MODE,
+      ANDROID_CONTROL_AE_AVAILABLE_MODES,
+      device,
+      V4L2_CID_EXPOSURE_AUTO,
+      std::shared_ptr<ConverterInterface<uint8_t, int32_t>>(
+          new EnumConverter(ae_mode_mapping)),
+      ANDROID_CONTROL_AE_MODE_ON,
+      {{CAMERA3_TEMPLATE_MANUAL, ANDROID_CONTROL_AE_MODE_OFF},
+       {OTHER_TEMPLATES, ANDROID_CONTROL_AE_MODE_ON}}));
   // Can't get AE status from V4L2.
   // TODO(b/30510395): If AE mode is OFF, this should switch to INACTIVE.
   components.insert(FixedState<uint8_t>(ANDROID_CONTROL_AE_STATE,
