@@ -20,6 +20,7 @@
 
 #include "common.h"
 #include "format_metadata_factory.h"
+#include "metadata/boottime_state_delegate.h"
 #include "metadata/control.h"
 #include "metadata/enum_converter.h"
 #include "metadata/metadata_common.h"
@@ -485,20 +486,18 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE,
                             ANDROID_SENSOR_INFO_TIMESTAMP_SOURCE_UNKNOWN)));
-  // TODO(b/29457051): Actually get a timestamp here. For now spoofing as non-0.
-  components.insert(FixedState<int64_t>(ANDROID_SENSOR_TIMESTAMP, 1));
+  components.insert(std::make_unique<State<int64_t>>(
+      ANDROID_SENSOR_TIMESTAMP, std::make_unique<BoottimeStateDelegate>()));
   // No way to actually get shutter skew from V4L2.
   components.insert(
       FixedState<int64_t>(ANDROID_SENSOR_ROLLING_SHUTTER_SKEW, 0));
   // No way to actually get orientation from V4L2.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<int32_t>(ANDROID_SENSOR_ORIENTATION, 0)));
-  // TODO(b/31023611): Should actually do something for this, and range should
+  // TODO(b/31023611): Sensor frame duration. Range should
   // be dependent on the stream configuration being used.
-  components.insert(NoEffectOptionlessControl<int64_t>(
-      ANDROID_SENSOR_FRAME_DURATION, 33333333L));  // 1/30 s.
 
-  // TODO(30510395): subcomponents of face detection.
+  // TODO(b/30510395): subcomponents of face detection.
   // Face detection not supported.
   components.insert(NoEffectMenuControl<uint8_t>(
       ANDROID_STATISTICS_FACE_DETECT_MODE,

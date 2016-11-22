@@ -184,7 +184,6 @@ int AddFormatComponents(
   // YUV_420_888. Min should be at most 15.
   std::vector<std::array<int32_t, 2>> fps_ranges;
   fps_ranges.push_back({{min_fps, max_yuv_fps}});
-  fps_ranges.push_back({{max_yuv_fps, max_yuv_fps}});
 
   std::array<int32_t, 2> video_fps_range;
   int32_t video_fps = 30;
@@ -192,8 +191,8 @@ int AddFormatComponents(
     video_fps_range = {{max_yuv_fps, max_yuv_fps}};
   } else {
     video_fps_range = {{video_fps, video_fps}};
-    fps_ranges.push_back(video_fps_range);
   }
+  fps_ranges.push_back(video_fps_range);
 
   // Construct the metadata components.
   insertion_point = std::make_unique<Property<ArrayVector<int32_t, 4>>>(

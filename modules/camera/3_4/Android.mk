@@ -41,6 +41,7 @@ v4l2_src_files := \
   camera.cpp \
   capture_request.cpp \
   format_metadata_factory.cpp \
+  metadata/boottime_state_delegate.cpp \
   metadata/enum_converter.cpp \
   metadata/metadata.cpp \
   metadata/metadata_reader.cpp \
