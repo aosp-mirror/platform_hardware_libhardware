@@ -273,10 +273,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
            {V4L2_COLORFX_AQUA, ANDROID_CONTROL_EFFECT_MODE_AQUA}})),
       ANDROID_CONTROL_EFFECT_MODE_OFF));
   // TODO(b/31021654): This should behave as a top level switch, not no effect.
-  components.insert(
-      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_MODE,
-                                   ANDROID_CONTROL_AVAILABLE_MODES,
-                                   {ANDROID_CONTROL_MODE_AUTO}));
+  // Should enforce being set to USE_SCENE_MODE when a scene mode is requested.
+  components.insert(NoEffectMenuControl<uint8_t>(
+      ANDROID_CONTROL_MODE,
+      ANDROID_CONTROL_AVAILABLE_MODES,
+      {ANDROID_CONTROL_MODE_AUTO, ANDROID_CONTROL_MODE_USE_SCENE_MODE}));
 
   // Not sure if V4L2 does or doesn't do this, but HAL documentation says
   // all devices must support FAST, and FAST can be equivalent to OFF, so

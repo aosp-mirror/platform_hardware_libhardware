@@ -216,8 +216,7 @@ std::unique_ptr<Control<T>> V4L2Control(
   std::shared_ptr<ConverterInterface<T, int32_t>> result_converter(converter);
   std::unique_ptr<ControlOptionsInterface<T>> result_options;
   switch (control_query.type) {
-    case V4L2_CTRL_TYPE_BOOLEAN:  // Fall-through.
-    case V4L2_CTRL_TYPE_MENU:
+    case V4L2_CTRL_TYPE_BOOLEAN:
       if (type != ControlType::kMenu) {
         HAL_LOGE(
             "V4L2 control %d is of type %d, which isn't compatible with "
