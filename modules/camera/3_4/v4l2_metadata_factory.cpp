@@ -225,9 +225,17 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
                             ANDROID_CONTROL_AE_LOCK_AVAILABLE_FALSE)));
+  components.insert(
+      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AE_LOCK,
+                                   DO_NOT_REPORT_OPTIONS,
+                                   {ANDROID_CONTROL_AE_LOCK_OFF}));
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<uint8_t>(ANDROID_CONTROL_AWB_LOCK_AVAILABLE,
                             ANDROID_CONTROL_AWB_LOCK_AVAILABLE_FALSE)));
+  components.insert(
+      NoEffectMenuControl<uint8_t>(ANDROID_CONTROL_AWB_LOCK,
+                                   DO_NOT_REPORT_OPTIONS,
+                                   {ANDROID_CONTROL_AWB_LOCK_OFF}));
   // TODO(b/30510395): subcomponents of scene modes
   // (may itself be a subcomponent of 3A).
   // Modes from each API that don't match up:
@@ -347,7 +355,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       NoEffectMenuControl<float>(ANDROID_LENS_FOCUS_DISTANCE,
                                  ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
                                  {0}));
-  // info.hyperfocalDistance not required for UNCALIBRATED.
+  // Hypefocal distance doesn't mean much for a fixed-focus uncalibrated device.
+  components.insert(std::make_unique<Property<float>>(
+      ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE, 0));
+
   // No way to know when the lens is moving or not in V4L2.
   components.insert(
       FixedState<uint8_t>(ANDROID_LENS_STATE, ANDROID_LENS_STATE_STATIONARY));
@@ -472,10 +483,15 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   // Active array size is {x-offset, y-offset, width, height}, relative to
   // the pixel array size, with {0, 0} being the top left. Since there's no way
   // to get this in V4L2, assume the full pixel array is the active array.
+  std::array<int32_t, 4> active_array_size = {
+      {0, 0, pixel_array_size[0], pixel_array_size[1]}};
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<std::array<int32_t, 4>>(
-          ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE,
-          {{0, 0, pixel_array_size[0], pixel_array_size[1]}})));
+          ANDROID_SENSOR_INFO_ACTIVE_ARRAY_SIZE, active_array_size)));
+  // This is really more freeform than a menu control, but since we're
+  // restricting it to not being used anyways this works for now.
+  components.insert(NoEffectMenuControl<std::array<int32_t, 4>>(
+      ANDROID_SCALER_CROP_REGION, DO_NOT_REPORT_OPTIONS, {active_array_size}));
   // No way to get in V4L2, so faked. RPi camera v2 is 3.674 x 2.760 mm.
   // Physical size is used in framework calculations (field of view,
   // pixel pitch, etc.), so faking it may have unexpected results.
@@ -497,6 +513,11 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       new Property<int32_t>(ANDROID_SENSOR_ORIENTATION, 0)));
   // TODO(b/31023611): Sensor frame duration. Range should
   // be dependent on the stream configuration being used.
+  // No test patterns supported.
+  components.insert(
+      NoEffectMenuControl<int32_t>(ANDROID_SENSOR_TEST_PATTERN_MODE,
+                                   ANDROID_SENSOR_AVAILABLE_TEST_PATTERN_MODES,
+                                   {ANDROID_SENSOR_TEST_PATTERN_MODE_OFF}));
 
   // TODO(b/30510395): subcomponents of face detection.
   // Face detection not supported.
@@ -506,6 +527,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       {ANDROID_STATISTICS_FACE_DETECT_MODE_OFF}));
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<int32_t>(ANDROID_STATISTICS_INFO_MAX_FACE_COUNT, 0)));
+
+  // No way to get detected scene flicker from V4L2.
+  components.insert(FixedState<uint8_t>(ANDROID_STATISTICS_SCENE_FLICKER,
+                                        ANDROID_STATISTICS_SCENE_FLICKER_NONE));
 
   // TOOD(b/31023265): V4L2_CID_FLASH_INDICATOR_INTENSITY could be queried
   // to see if there's a transmit LED. Would need to translate HAL off/on
@@ -527,6 +552,10 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
   // Request is unused, and can be any value,
   // but that value needs to be propagated.
   components.insert(NoEffectOptionlessControl<int32_t>(ANDROID_REQUEST_ID, 0));
+
+  // Metadata is returned in a single result; not multiple pieces.
+  components.insert(std::make_unique<Property<int32_t>>(
+      ANDROID_REQUEST_PARTIAL_RESULT_COUNT, 1));
 
   int res =
       AddFormatComponents(device, std::inserter(components, components.end()));
