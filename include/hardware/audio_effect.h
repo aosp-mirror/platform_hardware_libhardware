@@ -911,6 +911,9 @@ typedef struct effect_param_s {
     char        data[];     // Start of Parameter + Value data
 } effect_param_t;
 
+// Maximum effect_param_t size
+#define EFFECT_PARAM_SIZE_MAX       65536
+
 // structure used by EFFECT_CMD_OFFLOAD command
 typedef struct effect_offload_param_s {
     bool isOffload;         // true if the playback thread the effect is attached to is offloaded
