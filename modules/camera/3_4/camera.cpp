@@ -149,8 +149,8 @@ int Camera::close()
         return -EINVAL;
     }
 
-    disconnect();
     flush();
+    disconnect();
     mBusy = false;
     return 0;
 }
