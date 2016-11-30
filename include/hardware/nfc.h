@@ -23,6 +23,7 @@
 #include <sys/types.h>
 
 #include <hardware/hardware.h>
+#include "nfc-base.h"
 
 __BEGIN_DECLS
 
@@ -69,33 +70,8 @@ typedef struct nfc_nci_module_t {
     struct hw_module_t common;
 } nfc_nci_module_t;
 
-/*
- * HAL events that can be passed back to the stack
- */
 typedef uint8_t nfc_event_t;
-
-enum {
-    HAL_NFC_OPEN_CPLT_EVT           = 0x00,
-    HAL_NFC_CLOSE_CPLT_EVT          = 0x01,
-    HAL_NFC_POST_INIT_CPLT_EVT      = 0x02,
-    HAL_NFC_PRE_DISCOVER_CPLT_EVT   = 0x03,
-    HAL_NFC_REQUEST_CONTROL_EVT     = 0x04,
-    HAL_NFC_RELEASE_CONTROL_EVT     = 0x05,
-    HAL_NFC_ERROR_EVT               = 0x06
-};
-
-/*
- * Allowed status return values for each of the HAL methods
- */
 typedef uint8_t nfc_status_t;
-
-enum {
-    HAL_NFC_STATUS_OK               = 0x00,
-    HAL_NFC_STATUS_FAILED           = 0x01,
-    HAL_NFC_STATUS_ERR_TRANSPORT    = 0x02,
-    HAL_NFC_STATUS_ERR_CMD_TIMEOUT  = 0x03,
-    HAL_NFC_STATUS_REFUSED          = 0x04
-};
 
 /*
  * The callback passed in from the NFC stack that the HAL
