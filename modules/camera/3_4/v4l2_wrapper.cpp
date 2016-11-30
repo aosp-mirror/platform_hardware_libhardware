@@ -36,8 +36,7 @@
 
 namespace v4l2_camera_hal {
 
-const int32_t kStandardSizes[][2] = {
-    {1920, 1080}, {1280, 720}, {640, 480}, {320, 240}};
+const int32_t kStandardSizes[][2] = {{640, 480}, {320, 240}};
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
   std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
