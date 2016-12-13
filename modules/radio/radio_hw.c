@@ -47,7 +47,7 @@ static const radio_hal_properties_t hw_properties = {
     .bands = {
         {
             .type = RADIO_BAND_FM,
-            .antenna_connected = false,
+            .antenna_connected = true,
             .lower_limit = 87900,
             .upper_limit = 107900,
             .num_spacings = 1,
