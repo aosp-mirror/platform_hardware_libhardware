@@ -210,6 +210,9 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     int bytesPerPixel = 0;
     switch (format) {
+        case HAL_PIXEL_FORMAT_RGBA_FP16:
+            bytesPerPixel = 8;
+            break;
         case HAL_PIXEL_FORMAT_RGBA_8888:
         case HAL_PIXEL_FORMAT_RGBX_8888:
         case HAL_PIXEL_FORMAT_BGRA_8888:
