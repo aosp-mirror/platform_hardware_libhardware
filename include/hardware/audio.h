@@ -333,6 +333,65 @@ struct audio_stream_out {
     int (*get_presentation_position)(const struct audio_stream_out *stream,
                                uint64_t *frames, struct timespec *timestamp);
 
+    /**
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*start)(const struct audio_stream_out* stream);
+
+    /**
+     * Called by the framework to stop a stream operating in mmap mode.
+     * Must be called after start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*stop)(const struct audio_stream_out* stream);
+
+    /**
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
+     */
+    int (*create_mmap_buffer)(const struct audio_stream_out *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
+    /**
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retrieved
+     *         -ENOSYS if called before create_mmap_buffer()
+     */
+    int (*get_mmap_position)(const struct audio_stream_out *stream,
+                             struct audio_mmap_position *position);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -383,6 +442,65 @@ struct audio_stream_in {
      */
     int (*get_capture_position)(const struct audio_stream_in *stream,
                                 int64_t *frames, int64_t *time);
+
+    /**
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case off success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*start)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to stop a stream operating in mmap mode.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*stop)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
+     */
+    int (*create_mmap_buffer)(const struct audio_stream_in *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
+    /**
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retreived
+     *         -ENOSYS if called before mmap_read_position()
+     */
+    int (*get_mmap_position)(const struct audio_stream_in *stream,
+                             struct audio_mmap_position *position);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
