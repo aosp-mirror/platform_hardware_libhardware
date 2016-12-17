@@ -61,7 +61,7 @@ typedef struct {
     const btgatt_server_interface_t* server;
 
     /** Pointer to the LE scanner interface methods.*/
-    const btgatt_scanner_interface_t* scanner;
+    BleScannerInterface* scanner;
 
     /** Pointer to the advertiser interface methods.*/
     BleAdvertiserInterface* advertiser;
