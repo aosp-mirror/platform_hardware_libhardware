@@ -92,8 +92,9 @@ class BleScannerInterface {
   virtual void Scan(bool start) = 0;
 
   /** Setup scan filter params */
-  virtual bt_status_t scan_filter_param_setup(
-      btgatt_filt_param_setup_t filt_param) = 0;
+  virtual void ScanFilterParamSetup(uint8_t client_if, uint8_t action,
+                                    uint8_t filt_index,
+                                    std::unique_ptr<btgatt_filt_param_setup_t> filt_param) = 0;
 
   /** Configure a scan filter condition  */
   virtual bt_status_t scan_filter_add_remove(
