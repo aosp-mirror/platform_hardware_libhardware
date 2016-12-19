@@ -73,4 +73,19 @@ typedef struct
     uint16_t            permissions;
 } btgatt_db_element_t;
 
+typedef struct
+{
+    uint16_t feat_seln;
+    uint16_t list_logic_type;
+    uint8_t  filt_logic_type;
+    uint8_t  rssi_high_thres;
+    uint8_t  rssi_low_thres;
+    uint8_t  dely_mode;
+    uint16_t found_timeout;
+    uint16_t lost_timeout;
+    uint8_t  found_timeout_cnt;
+    uint16_t  num_of_tracking_entries;
+} btgatt_filt_param_setup_t;
+
+
 #endif  /* ANDROID_INCLUDE_BT_COMMON_TYPES_H */
