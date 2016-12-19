@@ -98,7 +98,7 @@ struct CameraModuleFixture {
             case CAMERA_DEVICE_API_VERSION_3_0:
             case CAMERA_DEVICE_API_VERSION_3_1:
             case CAMERA_DEVICE_API_VERSION_3_2:
-                *device = new Camera3Device(cameraID);
+                *device = new Camera3Device(String8::format("%d", cameraID));
                 break;
             default:
                 device->clear();
