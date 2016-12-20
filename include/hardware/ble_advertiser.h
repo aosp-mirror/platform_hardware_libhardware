@@ -24,11 +24,14 @@
 #include "bt_gatt_types.h"
 
 struct AdvertiseParameters {
-  uint16_t min_interval;
-  uint16_t max_interval;
-  uint8_t adv_type;
+  uint16_t advertising_event_properties;
+  uint32_t min_interval;
+  uint32_t max_interval;
   uint8_t channel_map;
-  uint8_t tx_power;
+  int8_t tx_power;
+  uint8_t primary_advertising_phy;
+  uint8_t secondary_advertising_phy;
+  uint8_t scan_request_notification_enable;
 };
 
 class BleAdvertiserInterface {
@@ -44,9 +47,11 @@ class BleAdvertiserInterface {
                           uint8_t /* status */)>) = 0;
 
   /* Set the parameters as per spec, user manual specified values */
-  virtual void SetParameters(int advertiser_id, int min_interval,
-                             int max_interval, int adv_type, int chnl_map,
-                             int tx_power, Callback cb) = 0;
+  virtual void SetParameters(
+      uint8_t advertiser_id, uint16_t advertising_event_properties,
+      uint32_t min_interval, uint32_t max_interval, int chnl_map, int tx_power,
+      uint8_t primary_advertising_phy, uint8_t secondary_advertising_phy,
+      uint8_t scan_request_notification_enable, Callback cb) = 0;
 
   /* Setup the data */
   virtual void SetData(int advertiser_id, bool set_scan_rsp,
