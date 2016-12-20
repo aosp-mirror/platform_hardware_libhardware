@@ -92,43 +92,44 @@ class BleScannerInterface {
   virtual void Scan(bool start) = 0;
 
   /** Setup scan filter params */
-  virtual void ScanFilterParamSetup(uint8_t client_if, uint8_t action,
-                                    uint8_t filt_index,
-                                    std::unique_ptr<btgatt_filt_param_setup_t> filt_param) = 0;
+  virtual void ScanFilterParamSetup(
+      uint8_t client_if, uint8_t action, uint8_t filt_index,
+      std::unique_ptr<btgatt_filt_param_setup_t> filt_param) = 0;
 
   /** Configure a scan filter condition  */
-  virtual bt_status_t scan_filter_add_remove(
-      int client_if, int action, int filt_type, int filt_index, int company_id,
-      int company_id_mask, const bt_uuid_t *p_uuid,
-      const bt_uuid_t *p_uuid_mask, const bt_bdaddr_t *bd_addr, char addr_type,
-      std::vector<uint8_t> data, std::vector<uint8_t> p_mask) = 0;
+  virtual void ScanFilterAddRemove(int client_if, int action, int filt_type,
+                                   int filt_index, int company_id,
+                                   int company_id_mask, const bt_uuid_t *p_uuid,
+                                   const bt_uuid_t *p_uuid_mask,
+                                   const bt_bdaddr_t *bd_addr, char addr_type,
+                                   std::vector<uint8_t> data,
+                                   std::vector<uint8_t> p_mask) = 0;
 
   /** Clear all scan filter conditions for specific filter index*/
-  virtual bt_status_t scan_filter_clear(int client_if, int filt_index) = 0;
+  virtual void ScanFilterClear(int client_if, int filt_index) = 0;
 
   /** Enable / disable scan filter feature*/
-  virtual bt_status_t scan_filter_enable(int client_if, bool enable) = 0;
+  virtual void ScanFilterEnable(int client_if, bool enable) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual bt_status_t set_scan_parameters(int client_if, int scan_interval,
-                                          int scan_window) = 0;
+  virtual void SetScanParameters(int client_if, int scan_interval,
+                                 int scan_window) = 0;
 
   /* Configure the batchscan storage */
-  virtual bt_status_t batchscan_cfg_storage(
-      int client_if, int batch_scan_full_max, int batch_scan_trunc_max,
-      int batch_scan_notify_threshold) = 0;
+  virtual void BatchscanConfigStorage(int client_if, int batch_scan_full_max,
+                                      int batch_scan_trunc_max,
+                                      int batch_scan_notify_threshold) = 0;
 
   /* Enable batchscan */
-  virtual bt_status_t batchscan_enb_batch_scan(int client_if, int scan_mode,
-                                               int scan_interval,
-                                               int scan_window, int addr_type,
-                                               int discard_rule) = 0;
+  virtual void BatchscanEnable(int client_if, int scan_mode, int scan_interval,
+                               int scan_window, int addr_type,
+                               int discard_rule) = 0;
 
   /* Disable batchscan */
-  virtual bt_status_t batchscan_dis_batch_scan(int client_if) = 0;
+  virtual void BatchscanDisable(int client_if) = 0;
 
   /* Read out batchscan reports */
-  virtual bt_status_t batchscan_read_reports(int client_if, int scan_mode) = 0;
+  virtual void BatchscanReadReports(int client_if, int scan_mode) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_SCANNER_H */
