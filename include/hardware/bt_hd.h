@@ -105,7 +105,7 @@ typedef struct {
     bt_status_t (*unregister_app)(void);
 
     /** connects to host with virtual cable */
-    bt_status_t (*connect)(void);
+    bt_status_t (*connect)(bt_bdaddr_t *bd_addr);
 
     /** disconnects from currently connected host */
     bt_status_t (*disconnect)(void);
