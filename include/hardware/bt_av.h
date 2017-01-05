@@ -45,16 +45,20 @@ typedef enum {
  */
 typedef enum {
   BTAV_A2DP_CODEC_INDEX_SOURCE_MIN = 0,
-  BTAV_A2DP_CODEC_INDEX_SOURCE_SBC = 0,
 
-  /* Add an entry for each new source codec here */
+  // Add an entry for each source codec here.
+  // NOTE: The values should be same as those listed in the following file:
+  //   BluetoothCodecConfig.java
+  BTAV_A2DP_CODEC_INDEX_SOURCE_SBC = 0,
+  BTAV_A2DP_CODEC_INDEX_SOURCE_APTX,
+  BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
 
   BTAV_A2DP_CODEC_INDEX_SOURCE_MAX,
 
   BTAV_A2DP_CODEC_INDEX_SINK_MIN = BTAV_A2DP_CODEC_INDEX_SOURCE_MAX,
-  BTAV_A2DP_CODEC_INDEX_SINK_SBC = BTAV_A2DP_CODEC_INDEX_SINK_MIN,
 
-  /* Add an entry for each new sink codec here */
+  // Add an entry for each sink codec here
+  BTAV_A2DP_CODEC_INDEX_SINK_SBC = BTAV_A2DP_CODEC_INDEX_SINK_MIN,
 
   BTAV_A2DP_CODEC_INDEX_SINK_MAX,
 
