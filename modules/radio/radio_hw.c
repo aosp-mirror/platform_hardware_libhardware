@@ -356,6 +356,7 @@ static void *callback_thread_loop(void *context)
                         tuner->program.stereo = false;
                     else
                         tuner->program.stereo = false;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
 
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
@@ -382,6 +383,7 @@ static void *callback_thread_loop(void *context)
                     else
                         tuner->program.stereo = tuner->config.am.stereo;
                     tuner->program.signal_strength = 50;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
 
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
@@ -394,12 +396,7 @@ static void *callback_thread_loop(void *context)
                                                 (tuner->config.spacings[0] * 5)) % 2;
 
                     if (tuner->program.tuned) {
-                        prepare_metadata(tuner, &tuner->program.metadata, true);
                         send_command_l(tuner, CMD_ANNOUNCEMENTS, 1000, NULL);
-                    } else {
-                        if (tuner->program.metadata != NULL)
-                            radio_metadata_deallocate(tuner->program.metadata);
-                        tuner->program.metadata = NULL;
                     }
                     tuner->program.signal_strength = 100;
                     if (tuner->config.type == RADIO_BAND_FM)
@@ -408,6 +405,8 @@ static void *callback_thread_loop(void *context)
                     else
                         tuner->program.stereo =
                             tuner->program.tuned ? tuner->config.am.stereo : false;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
+
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
                     send_meta_data = true;
