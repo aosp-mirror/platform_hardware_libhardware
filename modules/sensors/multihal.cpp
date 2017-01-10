@@ -255,9 +255,9 @@ int sensors_poll_context_t::get_device_version_by_handle(int handle) {
     }
 }
 
-// Android L requires sensor HALs to be either 1_0 or 1_3 compliant
+// Android N and hire require sensor HALs to be at least 1_3 compliant
 #define HAL_VERSION_IS_COMPLIANT(version)  \
-    (version == SENSORS_DEVICE_API_VERSION_1_0 || version >= SENSORS_DEVICE_API_VERSION_1_3)
+    (version >= SENSORS_DEVICE_API_VERSION_1_3)
 
 // Returns true if HAL is compliant, false if HAL is not compliant or if handle is invalid
 static bool halIsCompliant(sensors_poll_context_t *ctx, int handle) {
