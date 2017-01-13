@@ -176,6 +176,7 @@ enum {
 #define SENSOR_STRING_TYPE_DYNAMIC_SENSOR_META                  "android.sensor.dynamic_sensor_meta"
 #define SENSOR_STRING_TYPE_ADDITIONAL_INFO                "android.sensor.additional_info"
 #define SENSOR_STRING_TYPE_LOW_LATENCY_OFFBODY_DETECT     "android.sensor.low_latency_offbody"
+#define SENSOR_STRING_TYPE_ACCELEROMETER_UNCALIBRATED "android.sensor.accelerometer_uncalibrated"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
@@ -214,7 +215,7 @@ typedef struct {
 } sensors_vec_t;
 
 /**
- * uncalibrated gyroscope and magnetometer event data
+ * uncalibrated accelerometer, gyroscope and magnetometer event data
  */
 typedef struct {
   union {
@@ -337,6 +338,9 @@ typedef struct sensors_event_t {
 
             /* uncalibrated magnetometer values are in micro-Teslas */
             uncalibrated_event_t uncalibrated_magnetic;
+
+            /* uncalibrated accelerometer values are in  meter per second per second (m/s^2) */
+            uncalibrated_event_t uncalibrated_accelerometer;
 
             /* heart rate data containing value in bpm and status */
             heart_rate_event_t heart_rate;
