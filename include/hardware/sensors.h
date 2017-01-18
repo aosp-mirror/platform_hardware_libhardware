@@ -56,12 +56,14 @@ __BEGIN_DECLS
 #define SENSORS_HARDWARE_POLL       "poll"
 
 /**
- * Handles must be higher than SENSORS_HANDLE_BASE and must be unique.
- * A Handle identifies a given sensors. The handle is used to activate
- * and/or deactivate sensors.
+ * Sensor handle is greater than 0 and less than INT32_MAX.
+ *
+ * **** Deprecated ****
+ * Defined values below are kept for code compatibility. Note sensor handle can be as large as
+ * INT32_MAX.
  */
 #define SENSORS_HANDLE_BASE             0
-#define SENSORS_HANDLE_BITS             32
+#define SENSORS_HANDLE_BITS             31
 #define SENSORS_HANDLE_COUNT            (1ull<<SENSORS_HANDLE_BITS)
 
 
@@ -662,8 +664,8 @@ typedef struct sensors_poll_device_1 {
      *          mem             points to a valid struct sensors_direct_mem_t.
      *          channel_handle  is ignored.
      *      Return value:
-     *          A handle of channel (>0) when success, which later can be referred in
-     *          unregister or config_direct_report call, or error code (<0) if failed
+     *          A handle of channel (>0, <INT32_MAX) when success, which later can be referred in
+     *          unregister or config_direct_report call, or error code (<0) when failed
      * Unregister: mem == NULL, unregister a previously registered channel.
      *      Parameters:
      *          mem             set to NULL
