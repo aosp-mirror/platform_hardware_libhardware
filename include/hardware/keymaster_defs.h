@@ -291,7 +291,6 @@ typedef enum {
     KM_PURPOSE_SIGN = 2,       /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
-    KM_PURPOSE_WRAP_KEY = 5,   /* Usable with wrapping keys. */
 } keymaster_purpose_t;
 
 typedef struct {
