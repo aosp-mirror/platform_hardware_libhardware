@@ -50,6 +50,7 @@ typedef enum {
   // NOTE: The values should be same as those listed in the following file:
   //   BluetoothCodecConfig.java
   BTAV_A2DP_CODEC_INDEX_SOURCE_SBC = 0,
+  BTAV_A2DP_CODEC_INDEX_SOURCE_AAC,
   BTAV_A2DP_CODEC_INDEX_SOURCE_APTX,
   BTAV_A2DP_CODEC_INDEX_SOURCE_APTX_HD,
   BTAV_A2DP_CODEC_INDEX_SOURCE_LDAC,
