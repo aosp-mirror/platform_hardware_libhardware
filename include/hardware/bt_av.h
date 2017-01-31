@@ -68,7 +68,10 @@ typedef enum {
   BTAV_A2DP_CODEC_INDEX_MAX = BTAV_A2DP_CODEC_INDEX_SINK_MAX
 } btav_a2dp_codec_index_t;
 
-typedef uint32_t btav_a2dp_codec_priority_t;
+typedef enum {
+  BTAV_A2DP_CODEC_PRIORITY_DEFAULT = 0,
+  BTAV_A2DP_CODEC_PRIORITY_HIGHEST = 1000 * 1000
+} btav_a2dp_codec_priority_t;
 
 typedef enum {
   BTAV_A2DP_CODEC_SAMPLE_RATE_NONE   = 0x0,
@@ -132,7 +135,8 @@ typedef void (* btav_audio_state_callback)(btav_audio_state_t state,
  */
 typedef void (* btav_audio_source_config_callback)(
     btav_a2dp_codec_config_t codec_config,
-    std::vector<btav_a2dp_codec_config_t> codec_capabilities);
+    std::vector<btav_a2dp_codec_config_t> codecs_local_capabilities,
+    std::vector<btav_a2dp_codec_config_t> codecs_selectable_capabilities);
 
 /** Callback for audio configuration change.
  *  Used only for the A2DP Sink interface.
