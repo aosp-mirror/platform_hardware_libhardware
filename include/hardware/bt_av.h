@@ -69,7 +69,15 @@ typedef enum {
 } btav_a2dp_codec_index_t;
 
 typedef enum {
+  // Disable the codec.
+  // NOTE: This value can be used only during initialization when
+  // function btav_source_interface_t::init() is called.
+  BTAV_A2DP_CODEC_PRIORITY_DISABLED = -1,
+
+  // Reset the codec priority to its default value.
   BTAV_A2DP_CODEC_PRIORITY_DEFAULT = 0,
+
+  // Highest codec priority.
   BTAV_A2DP_CODEC_PRIORITY_HIGHEST = 1000 * 1000
 } btav_a2dp_codec_priority_t;
 
@@ -156,7 +164,7 @@ typedef struct {
     btav_audio_source_config_callback audio_config_cb;
 } btav_source_callbacks_t;
 
-/** BT-AV A2DP Source callback structure. */
+/** BT-AV A2DP Sink callback structure. */
 typedef struct {
     /** set to sizeof(btav_sink_callbacks_t) */
     size_t      size;
@@ -183,9 +191,10 @@ typedef struct {
     /** set to sizeof(btav_source_interface_t) */
     size_t          size;
     /**
-     * Register the BtAv callbacks
+     * Register the BtAv callbacks.
      */
-    bt_status_t (*init)( btav_source_callbacks_t* callbacks );
+    bt_status_t (*init)(btav_source_callbacks_t* callbacks,
+                std::vector<btav_a2dp_codec_config_t> codec_priorities);
 
     /** connect to headset */
     bt_status_t (*connect)( bt_bdaddr_t *bd_addr );
