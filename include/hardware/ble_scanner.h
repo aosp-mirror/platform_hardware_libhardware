@@ -47,7 +47,11 @@ typedef void (*scan_parameter_setup_completed_callback)(int client_if,
                                                         btgattc_error_t status);
 
 /** Callback for scan results */
-typedef void (*scan_result_callback)(bt_bdaddr_t *bda, int rssi,
+typedef void (*scan_result_callback)(uint16_t event_type, uint8_t addr_type,
+                                     bt_bdaddr_t *bda, uint8_t primary_phy,
+                                     uint8_t secondary_phy,
+                                     uint8_t advertising_sid, int8_t tx_power,
+                                     int8_t rssi, uint16_t periodic_adv_int,
                                      std::vector<uint8_t> adv_data);
 
 /** Callback invoked when a scan filter configuration command has completed */
