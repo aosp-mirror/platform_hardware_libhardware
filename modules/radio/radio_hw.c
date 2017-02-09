@@ -189,7 +189,7 @@ static int add_bitmap_metadata(radio_metadata_t **metadata, radio_metadata_key_t
 exit:
     close(fd);
     free(data);
-    ALOGE_IF(ret != 0, "%s error %d", __func__, ret);
+    ALOGE_IF(ret != 0, "%s error %d", __func__, (int)ret);
     return (int)ret;
 }
 
