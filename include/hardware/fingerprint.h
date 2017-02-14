@@ -215,7 +215,8 @@ typedef struct fingerprint_device {
      * fingerprint_msg.data.enumerated.finger indicating a template id
      * fingerprint_msg.data.enumerated.remaining_templates indicating how many more
      * enumeration messages to expect.
-     *
+     * Note: If there are no fingerprints, then this should return 0 and the first fingerprint
+     *                  enumerated should have fingerid=0 and remaining=0
      * Function return: 0 if enumerate request is accepted
      *                  or a negative number in case of error, generally from the errno.h set.
      */
