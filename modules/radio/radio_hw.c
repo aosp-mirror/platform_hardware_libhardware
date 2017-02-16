@@ -613,7 +613,12 @@ static int tuner_get_program_information(const struct radio_tuner *tuner,
     metadata = info->metadata;
     *info = stub_tuner->program;
     info->metadata = metadata;
-    if (metadata != NULL && stub_tuner->program.metadata != NULL)
+    if (metadata == NULL) {
+        ALOGE("%s metadata is a nullptr", __func__);
+        status = -EINVAL;
+        goto exit;
+    }
+    if (stub_tuner->program.metadata != NULL)
         radio_metadata_add_metadata(&info->metadata, stub_tuner->program.metadata);
 
 exit:
