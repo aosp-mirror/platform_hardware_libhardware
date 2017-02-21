@@ -23,13 +23,6 @@
 #include "bt_gatt_client.h"
 #include "bt_gatt_types.h"
 
-/** Callback invoked when batchscan storage config operation has completed */
-typedef void (*batchscan_cfg_storage_callback)(int client_if, int status);
-
-/** Callback invoked when batchscan enable / disable operation has completed */
-typedef void (*batchscan_enable_disable_callback)(int action, int client_if,
-                                                  int status);
-
 /** Callback invoked when batchscan reports are obtained */
 typedef void (*batchscan_reports_callback)(int client_if, int status,
                                            int report_format, int num_records,
@@ -42,10 +35,6 @@ typedef void (*batchscan_threshold_callback)(int client_if);
 typedef void (*track_adv_event_callback)(
     btgatt_track_adv_info_t *p_track_adv_info);
 
-/** Callback invoked when scan parameter setup has completed */
-typedef void (*scan_parameter_setup_completed_callback)(int client_if,
-                                                        btgattc_error_t status);
-
 /** Callback for scan results */
 typedef void (*scan_result_callback)(uint16_t event_type, uint8_t addr_type,
                                      bt_bdaddr_t *bda, uint8_t primary_phy,
@@ -54,29 +43,11 @@ typedef void (*scan_result_callback)(uint16_t event_type, uint8_t addr_type,
                                      int8_t rssi, uint16_t periodic_adv_int,
                                      std::vector<uint8_t> adv_data);
 
-/** Callback invoked when a scan filter configuration command has completed */
-typedef void (*scan_filter_cfg_callback)(int action, int client_if, int status,
-                                         int filt_type, int avbl_space);
-
-/** Callback invoked when scan param has been added, cleared, or deleted */
-typedef void (*scan_filter_param_callback)(int action, int client_if,
-                                           int status, int avbl_space);
-
-/** Callback invoked when a scan filter configuration command has completed */
-typedef void (*scan_filter_status_callback)(int enable, int client_if,
-                                            int status);
-
 typedef struct {
   scan_result_callback scan_result_cb;
-  batchscan_cfg_storage_callback batchscan_cfg_storage_cb;
-  batchscan_enable_disable_callback batchscan_enb_disable_cb;
   batchscan_reports_callback batchscan_reports_cb;
   batchscan_threshold_callback batchscan_threshold_cb;
   track_adv_event_callback track_adv_event_cb;
-  scan_parameter_setup_completed_callback scan_parameter_setup_completed_cb;
-  scan_filter_cfg_callback scan_filter_cfg_cb;
-  scan_filter_param_callback scan_filter_param_cb;
-  scan_filter_status_callback scan_filter_status_cb;
 } btgatt_scanner_callbacks_t;
 
 class BleScannerInterface {
@@ -85,6 +56,19 @@ class BleScannerInterface {
 
   using RegisterCallback =
       base::Callback<void(uint8_t /* scanner_id */, uint8_t /* status */)>;
+
+  using Callback = base::Callback<void(uint8_t /* status */)>;
+
+  using EnableCallback =
+      base::Callback<void(uint8_t /* action */, uint8_t /* status */)>;
+
+  using FilterParamSetupCallback =
+      base::Callback<void(uint8_t /* avbl_space */, uint8_t /* action_type */,
+                          uint8_t /* status */)>;
+
+  using FilterConfigCallback =
+      base::Callback<void(uint8_t /* filt_type */, uint8_t /* avbl_space */,
+                          uint8_t /* action */, uint8_t /* status */)>;
 
   /** Registers a scanner with the stack */
   virtual void RegisterScanner(RegisterCallback) = 0;
@@ -98,39 +82,42 @@ class BleScannerInterface {
   /** Setup scan filter params */
   virtual void ScanFilterParamSetup(
       uint8_t client_if, uint8_t action, uint8_t filt_index,
-      std::unique_ptr<btgatt_filt_param_setup_t> filt_param) = 0;
+      std::unique_ptr<btgatt_filt_param_setup_t> filt_param,
+      FilterParamSetupCallback cb) = 0;
 
   /** Configure a scan filter condition  */
-  virtual void ScanFilterAddRemove(int client_if, int action, int filt_type,
-                                   int filt_index, int company_id,
-                                   int company_id_mask, const bt_uuid_t *p_uuid,
+  virtual void ScanFilterAddRemove(int action, int filt_type, int filt_index,
+                                   int company_id, int company_id_mask,
+                                   const bt_uuid_t *p_uuid,
                                    const bt_uuid_t *p_uuid_mask,
                                    const bt_bdaddr_t *bd_addr, char addr_type,
                                    std::vector<uint8_t> data,
-                                   std::vector<uint8_t> p_mask) = 0;
+                                   std::vector<uint8_t> p_mask,
+                                   FilterConfigCallback cb) = 0;
 
   /** Clear all scan filter conditions for specific filter index*/
-  virtual void ScanFilterClear(int client_if, int filt_index) = 0;
+  virtual void ScanFilterClear(int filt_index, FilterConfigCallback cb) = 0;
 
   /** Enable / disable scan filter feature*/
-  virtual void ScanFilterEnable(int client_if, bool enable) = 0;
+  virtual void ScanFilterEnable(bool enable, EnableCallback cb) = 0;
 
   /** Sets the LE scan interval and window in units of N*0.625 msec */
-  virtual void SetScanParameters(int client_if, int scan_interval,
-                                 int scan_window) = 0;
+  virtual void SetScanParameters(int scan_interval, int scan_window,
+                                 Callback cb) = 0;
 
   /* Configure the batchscan storage */
   virtual void BatchscanConfigStorage(int client_if, int batch_scan_full_max,
                                       int batch_scan_trunc_max,
-                                      int batch_scan_notify_threshold) = 0;
+                                      int batch_scan_notify_threshold,
+                                      Callback cb) = 0;
 
   /* Enable batchscan */
-  virtual void BatchscanEnable(int client_if, int scan_mode, int scan_interval,
-                               int scan_window, int addr_type,
-                               int discard_rule) = 0;
+  virtual void BatchscanEnable(int scan_mode, int scan_interval,
+                               int scan_window, int addr_type, int discard_rule,
+                               Callback cb) = 0;
 
   /* Disable batchscan */
-  virtual void BatchscanDisable(int client_if) = 0;
+  virtual void BatchscanDisable(Callback cb) = 0;
 
   /* Read out batchscan reports */
   virtual void BatchscanReadReports(int client_if, int scan_mode) = 0;
