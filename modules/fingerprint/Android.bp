@@ -15,6 +15,7 @@
 cc_library_shared {
     name: "fingerprint.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["fingerprint.c"],
     shared_libs: ["liblog"],
 }

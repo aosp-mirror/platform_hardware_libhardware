@@ -21,6 +21,7 @@
 cc_library_shared {
     name: "audio.primary.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_hw.c"],
     shared_libs: [
         "liblog",
@@ -38,6 +39,7 @@ cc_library_shared {
 cc_library_shared {
     name: "audio.stub.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_hw.c"],
     shared_libs: [
         "liblog",
@@ -51,6 +53,7 @@ cc_library_shared {
 cc_library_shared {
     name: "audio_policy.stub",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_policy.c"],
     shared_libs: [
         "liblog",

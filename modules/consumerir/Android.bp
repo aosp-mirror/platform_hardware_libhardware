@@ -15,6 +15,7 @@
 cc_library_shared {
     name: "consumerir.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["consumerir.c"],
     shared_libs: [
         "liblog",

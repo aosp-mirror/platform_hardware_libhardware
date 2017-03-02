@@ -15,6 +15,7 @@
 cc_library_shared {
     name: "tv_input.default",
     relative_install_path: "hw",
+    proprietary: true,
     shared_libs: [
         "libcutils",
         "liblog",
