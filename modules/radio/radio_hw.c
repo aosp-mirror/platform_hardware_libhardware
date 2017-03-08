@@ -501,6 +501,10 @@ static int tuner_set_configuration(const struct radio_tuner *tuner,
         status = -EINVAL;
         goto exit;
     }
+    if (config->lower_limit > config->upper_limit) {
+        status = -EINVAL;
+        goto exit;
+    }
     send_command_l(stub_tuner, CMD_CANCEL, 0, NULL);
     send_command_l(stub_tuner, CMD_CONFIG, 500, (void *)config);
 
