@@ -15,6 +15,7 @@
 cc_library_shared {
     name: "power.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["power.c"],
     shared_libs: ["liblog"],
 }

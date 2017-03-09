@@ -24,6 +24,7 @@
 cc_library_shared {
     name: "local_time.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["local_time_hw.c"],
     shared_libs: [
         "liblog",

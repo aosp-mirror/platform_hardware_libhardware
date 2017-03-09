@@ -49,13 +49,13 @@ $ croot
 $ mmm hardware/libhardware
 
 This will generate the following binaries that we care about:
-i) out/target/product/XXX/system/lib/hw/vehicle.default.so
+i) out/target/product/XXX/vendor/lib/hw/vehicle.default.so
 ii) out/target/product/XXX/data/nativetest/vehicle_tests
 iii) out/target/product/XXX/system/bin/vehicle-hal-tool
 
 The location for the first shared library would be:
-$ adb push out/target/product/XXX/system/lib/hw/vehicle.default.so
-/system/lib/hw
+$ adb push out/target/product/XXX/vendor/lib/hw/vehicle.default.so
+/vendor/lib/hw
 You can also use 'adb sync' if you like, although this is the easiest least
 hassle way of putting it in place.
 

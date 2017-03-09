@@ -21,6 +21,7 @@ LOCAL_MULTILIB := $(AUDIOSERVER_MULTILIB)
 
 LOCAL_MODULE := radio.fm.default
 LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES := radio_hw.c
 LOCAL_SHARED_LIBRARIES := liblog libcutils libradio_metadata
 LOCAL_MODULE_TAGS := optional
