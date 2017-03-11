@@ -163,6 +163,10 @@ typedef struct
     uint16_t total_trackable_advertisers;
     bool extended_scan_support;
     bool debug_logging_supported;
+    bool le_2m_phy_supported;
+    bool le_coded_phy_supported;
+    bool le_extended_advertising_supported;
+    bool le_periodic_advertising_supported;
 }bt_local_le_features_t;
 
 /* Bluetooth Adapter and Remote Device property types */
