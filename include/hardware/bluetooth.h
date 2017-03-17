@@ -167,6 +167,7 @@ typedef struct
     bool le_coded_phy_supported;
     bool le_extended_advertising_supported;
     bool le_periodic_advertising_supported;
+    uint16_t le_maximum_advertising_data_length;
 }bt_local_le_features_t;
 
 /* Bluetooth Adapter and Remote Device property types */
