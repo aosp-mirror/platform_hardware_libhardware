@@ -49,16 +49,17 @@ class BleAdvertiserInterface {
   using StatusCallback = base::Callback<void(uint8_t /* status */)>;
   using IdStatusCallback =
       base::Callback<void(uint8_t /* advertiser_id */, uint8_t /* status */)>;
+  using IdTxPowerStatusCallback =
+      base::Callback<void(uint8_t /* advertiser_id */, int8_t /* tx_power */, uint8_t /* status */)>;
+  using ParametersCallback =
+      base::Callback<void(uint8_t /* status */, int8_t /* tx_power */)>;
 
   /** Registers an advertiser with the stack */
   virtual void RegisterAdvertiser(IdStatusCallback) = 0;
 
   /* Set the parameters as per spec, user manual specified values */
-  virtual void SetParameters(
-      uint8_t advertiser_id, uint16_t advertising_event_properties,
-      uint32_t min_interval, uint32_t max_interval, int chnl_map, int tx_power,
-      uint8_t primary_advertising_phy, uint8_t secondary_advertising_phy,
-      uint8_t scan_request_notification_enable, StatusCallback cb) = 0;
+  virtual void SetParameters(uint8_t advertiser_id, AdvertiseParameters params,
+                             ParametersCallback cb) = 0;
 
   /* Setup the data */
   virtual void SetData(int advertiser_id, bool set_scan_rsp,
@@ -81,12 +82,23 @@ class BleAdvertiserInterface {
    * parameters and data, and enabling it. |register_cb| is called when the set
    * is advertising. |timeout_cb| is called when the timeout_s have passed */
   virtual void StartAdvertisingSet(
-      IdStatusCallback register_cb, AdvertiseParameters params,
+      IdTxPowerStatusCallback register_cb, AdvertiseParameters params,
       std::vector<uint8_t> advertise_data,
       std::vector<uint8_t> scan_response_data,
       PeriodicAdvertisingParameters periodic_params,
       std::vector<uint8_t> periodic_data, int timeout_s,
       IdStatusCallback timeout_cb) = 0;
+
+  virtual void SetPeriodicAdvertisingParameters(
+      int advertiser_id, PeriodicAdvertisingParameters parameters,
+      StatusCallback cb) = 0;
+
+  virtual void SetPeriodicAdvertisingData(int advertiser_id,
+                                          std::vector<uint8_t> data,
+                                          StatusCallback cb) = 0;
+
+  virtual void SetPeriodicAdvertisingEnable(int advertiser_id, bool enable,
+                                            StatusCallback cb) = 0;
 };
 
 #endif /* ANDROID_INCLUDE_BLE_ADVERTISER_H */
