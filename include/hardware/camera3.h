@@ -1604,6 +1604,13 @@ typedef struct camera3_stream {
      *   value of this is 0.
      *   For all streams passed via configure_streams(), the HAL must write
      *   over this field with its usage flags.
+     *
+     *   From Android O, the usage flag for an output stream may be bitwise
+     *   combination of usage flags for multiple consumers, for the purpose of
+     *   sharing one camera stream between those consumers. The HAL must fail
+     *   configure_streams call with -EINVAL if the combined flags cannot be
+     *   supported due to imcompatible buffer format, dataSpace, or other hardware
+     *   limitations.
      */
     uint32_t usage;
 
