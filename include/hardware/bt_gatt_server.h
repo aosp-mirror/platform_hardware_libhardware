@@ -105,6 +105,10 @@ typedef void (*congestion_callback)(int conn_id, bool congested);
 /** Callback invoked when the MTU for a given connection changes */
 typedef void (*mtu_changed_callback)(int conn_id, int mtu);
 
+/** Callback invoked when the PHY for a given connection changes */
+typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy,
+                                     uint8_t rx_phy, uint8_t status);
+
 typedef struct {
     register_server_callback        register_server_cb;
     connection_callback             connection_cb;
@@ -120,6 +124,7 @@ typedef struct {
     indication_sent_callback        indication_sent_cb;
     congestion_callback             congestion_cb;
     mtu_changed_callback            mtu_changed_cb;
+    phy_updated_callback            phy_updated_cb;
 } btgatt_server_callbacks_t;
 
 /** Represents the standard BT-GATT server interface. */
@@ -155,6 +160,14 @@ typedef struct {
     /** Send a response to a read/write operation */
     bt_status_t (*send_response)(int conn_id, int trans_id,
                                  int status, btgatt_response_t *response);
+
+    bt_status_t (*set_preferred_phy)(int conn_id, uint8_t tx_phy,
+                                     uint8_t rx_phy, uint16_t phy_options);
+
+    bt_status_t (*read_phy)(
+        int conn_id,
+        base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
+            cb);
 
 } btgatt_server_interface_t;
 
