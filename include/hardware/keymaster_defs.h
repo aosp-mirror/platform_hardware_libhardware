@@ -150,6 +150,11 @@ typedef enum {
                                                       included in attestation */
     KM_TAG_ATTESTATION_ID_MEID = KM_BYTES | 715,   /* Used to provide the device's MEID to be
                                                       included in attestation */
+    KM_TAG_ATTESTATION_ID_MANUFACTURER = KM_BYTES | 716, /* Used to provide the device's
+                                                            manufacturer name to be included in
+                                                            attestation */
+    KM_TAG_ATTESTATION_ID_MODEL = KM_BYTES | 717,  /* Used to provide the device's model name to be
+                                                      included in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
