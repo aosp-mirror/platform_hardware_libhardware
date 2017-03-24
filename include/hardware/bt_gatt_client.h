@@ -170,6 +170,11 @@ typedef void (*services_added_callback)(int conn_id, btgatt_db_element_t *added,
 typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy,
                                      uint8_t rx_phy, uint8_t status);
 
+/** Callback invoked when the connection parameters for a given connection changes */
+typedef void (*conn_updated_callback)(int conn_id, uint16_t interval,
+                                      uint16_t latency, uint16_t timeout,
+                                      uint8_t status);
+
 typedef struct {
     register_client_callback            register_client_cb;
     connect_callback                    open_cb;
@@ -189,6 +194,7 @@ typedef struct {
     services_removed_callback           services_removed_cb;
     services_added_callback             services_added_cb;
     phy_updated_callback                phy_updated_cb;
+    conn_updated_callback               conn_updated_cb;
 } btgatt_client_callbacks_t;
 
 /** Represents the standard BT-GATT client interface. */
