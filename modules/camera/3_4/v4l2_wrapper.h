@@ -24,7 +24,7 @@
 #include <string>
 #include <vector>
 
-#include <nativehelper/ScopedFd.h>
+#include <android-base/unique_fd.h>
 
 #include "common.h"
 #include "stream_format.h"
@@ -102,7 +102,7 @@ class V4L2Wrapper {
   // The camera device path. For example, /dev/video0.
   const std::string device_path_;
   // The opened device fd.
-  ScopedFd device_fd_;
+  android::base::unique_fd device_fd_;
   // The underlying gralloc module.
   std::unique_ptr<V4L2Gralloc> gralloc_;
   // Whether or not the device supports the extended control query.

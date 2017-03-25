@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <array>
 #include <limits>
+#include <mutex>
 #include <vector>
 
 #include <fcntl.h>
@@ -26,9 +27,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <mutex>
-
-#include <nativehelper/ScopedFd.h>
+#include <android-base/unique_fd.h>
 
 #include "common.h"
 #include "stream_format.h"
@@ -107,7 +106,7 @@ void V4L2Wrapper::Disconnect() {
     return;
   }
 
-  device_fd_.reset();  // Includes close().
+  device_fd_.reset(-1);  // Includes close().
   format_.reset();
   buffers_.clear();
   // Closing the device releases all queued buffers back to the user.

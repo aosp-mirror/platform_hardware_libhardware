@@ -27,7 +27,6 @@ v4l2_shared_libs := \
   libcutils \
   libhardware \
   liblog \
-  libnativehelper \
   libsync \
   libutils \
 
