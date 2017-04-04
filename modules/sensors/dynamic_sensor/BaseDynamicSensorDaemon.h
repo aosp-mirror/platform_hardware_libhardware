@@ -28,6 +28,8 @@ namespace SensorHalExt {
 
 class DynamicSensorManager;
 
+typedef std::vector<sp<BaseSensorObject>> BaseSensorVector;
+
 class BaseDynamicSensorDaemon : public RefBase {
 public:
     BaseDynamicSensorDaemon(DynamicSensorManager& manager) : mManager(manager) {}
@@ -35,10 +37,11 @@ public:
 
     virtual bool onConnectionChange(const std::string &deviceKey, bool connected);
 protected:
-    virtual BaseSensorObject * createSensor(const std::string &deviceKey) = 0;
+    virtual BaseSensorVector createSensor(const std::string &deviceKey) = 0;
+    virtual void removeSensor(const std::string &/*deviceKey*/) {};
 
     DynamicSensorManager &mManager;
-    std::unordered_map<std::string, sp<BaseSensorObject> > mDevices;
+    std::unordered_map<std::string, BaseSensorVector> mDeviceKeySensorMap;
 };
 
 } // namespace SensorHalExt

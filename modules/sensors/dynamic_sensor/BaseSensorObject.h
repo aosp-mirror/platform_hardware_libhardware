@@ -17,8 +17,7 @@
 #ifndef ANDROID_SENSORHAL_BASE_SENSOR_OBJECT_H
 #define ANDROID_SENSORHAL_BASE_SENSOR_OBJECT_H
 
-#include <utils/RefBase.h>
-#include <utils/Timers.h> // for nsecs_t
+#include "Utils.h"
 #include <cstdint>
 
 struct sensor_t;
@@ -29,7 +28,7 @@ namespace SensorHalExt {
 
 class SensorEventCallback;
 
-class BaseSensorObject : virtual public RefBase {
+class BaseSensorObject : virtual public REF_BASE(BaseSensorObject) {
 public:
     BaseSensorObject();
     virtual ~BaseSensorObject() = default;
@@ -48,7 +47,8 @@ public:
     virtual int enable(bool enable) = 0;
 
     // set sample period and batching period of sensor.
-    virtual int batch(nsecs_t samplePeriod, nsecs_t batchPeriod) = 0;
+    // both sample period and batch period are in nano-seconds.
+    virtual int batch(int64_t samplePeriod, int64_t batchPeriod) = 0;
 
     // flush sensor, default implementation will send a flush complete event back.
     virtual int flush();
