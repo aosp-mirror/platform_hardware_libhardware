@@ -94,6 +94,16 @@ typedef enum {
      * the client. This will prevent the client from applying the color
      * transform during its composition step. */
     HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM = 2,
+
+    /* Specifies that the present fence must not be used as an accurate
+     * representation of the actual present time of a frame.
+     * This capability must never be set by HWC2 devices.
+     * This capability may be set for HWC1 devices that use the
+     * HWC2On1Adapter where emulation of the present fence using the retire
+     * fence is not feasible.
+     * In the future, CTS tests will require present time to be reliable.
+     */
+    HWC2_CAPABILITY_PRESENT_FENCE_IS_NOT_RELIABLE = 3,
 } hwc2_capability_t;
 
 /* Possible composition types for a given layer */
@@ -335,6 +345,8 @@ static inline const char* getCapabilityName(hwc2_capability_t capability) {
         case HWC2_CAPABILITY_SIDEBAND_STREAM: return "SidebandStream";
         case HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM:
                 return "SkipClientColorTransform";
+        case HWC2_CAPABILITY_PRESENT_FENCE_IS_NOT_RELIABLE:
+                return "PresentFenceIsNotReliable";
         default: return "Unknown";
     }
 }
@@ -551,6 +563,7 @@ enum class Capability : int32_t {
     Invalid = HWC2_CAPABILITY_INVALID,
     SidebandStream = HWC2_CAPABILITY_SIDEBAND_STREAM,
     SkipClientColorTransform = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
+    PresentFenceIsNotReliable = HWC2_CAPABILITY_PRESENT_FENCE_IS_NOT_RELIABLE,
 };
 TO_STRING(hwc2_capability_t, Capability, getCapabilityName)
 
