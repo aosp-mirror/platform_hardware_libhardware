@@ -30,6 +30,7 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_C_INCLUDES += \
 	system/media/camera/include \
+	system/media/private/camera/include \
 	frameworks/av/include/ \
 	frameworks/av/services/camera/libcameraservice \
 	frameworks/native/include \
