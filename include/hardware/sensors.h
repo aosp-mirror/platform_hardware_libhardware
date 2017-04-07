@@ -701,7 +701,7 @@ typedef struct sensors_poll_device_1 {
             int sensor_handle, int channel_handle, const struct sensors_direct_cfg_t *config);
 
     /*
-     * Reserved for future use.
+     * Reserved for future use, must be zero.
      */
     void (*reserved_procs[5])(void);
 
