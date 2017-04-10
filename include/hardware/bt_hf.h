@@ -252,7 +252,7 @@ typedef struct {
     /**
      * Register the BtHf callbacks
      */
-    bt_status_t (*init)( bthf_callbacks_t* callbacks, int max_hf_clients);
+    bt_status_t (*init)( bthf_callbacks_t* callbacks, int max_hf_clients, bool inband_ringing_supported);
 
     /** connect to headset */
     bt_status_t (*connect)( bt_bdaddr_t *bd_addr );
@@ -295,7 +295,7 @@ typedef struct {
      */
     bt_status_t (*at_response) (bthf_at_response_t response_code, int error_code, bt_bdaddr_t *bd_addr );
 
-    /** response for CLCC command 
+    /** response for CLCC command
      *  Can be iteratively called for each call index
      *  Call index of 0 will be treated as NULL termination (Completes response)
      */
@@ -305,7 +305,7 @@ typedef struct {
                                 bthf_call_addrtype_t type, bt_bdaddr_t *bd_addr );
 
     /** notify of a call state change
-     *  Each update notifies 
+     *  Each update notifies
      *    1. Number of active/held/ringing calls
      *    2. call_state: This denotes the state change that triggered this msg
      *                   This will take one of the values from BtHfCallState
@@ -317,7 +317,7 @@ typedef struct {
     /** Closes the interface. */
     void  (*cleanup)( void );
 
-    /** configureation for the SCO codec */
+    /** configuration for the SCO codec */
     bt_status_t (*configure_wbs)( bt_bdaddr_t *bd_addr ,bthf_wbs_config_t config );
 
     /** Response for HF Indicator change (+BIND) */
