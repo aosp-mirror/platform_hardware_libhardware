@@ -36,10 +36,19 @@ typedef enum {
      * allocate may be NULL, which instructs the device to report whether the
      * given allocation is possible or not. */
     GRALLOC1_CAPABILITY_TEST_ALLOCATE = 1,
+
     /* If this capability is supported, then the implementation supports
      * allocating buffers with more than one image layer. */
     GRALLOC1_CAPABILITY_LAYERED_BUFFERS = 2,
-    GRALLOC1_LAST_CAPABILITY = 2,
+
+    /* If this capability is supported, then the implementation always closes
+     * and deletes a buffer handle whenever the last reference is removed.
+     *
+     * Supporting this capability is strongly recommended.  It will become
+     * mandatory in future releases. */
+    GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE = 3,
+
+    GRALLOC1_LAST_CAPABILITY = 3,
 } gralloc1_capability_t;
 
 typedef enum {
@@ -746,6 +755,12 @@ typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_RETAIN)(
  * If no references remain, the buffer should be freed. When the last buffer
  * referring to a particular backing store is freed, that backing store should
  * also be freed.
+ *
+ * When GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE is supported,
+ * native_handle_close and native_handle_delete must always be called by the
+ * implementation whenever the last reference is removed.  Otherwise, a call
+ * to release() will be followed by native_handle_close and native_handle_delete
+ * by the caller when the buffer is not allocated locally through allocate().
  *
  * Parameters:
  *   buffer - the buffer from which a reference should be removed
