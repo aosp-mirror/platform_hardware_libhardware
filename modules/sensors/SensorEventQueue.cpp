@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 
-#include <hardware/sensors.h>
-#include <algorithm>
 #include <pthread.h>
-#include <cutils/log.h>
 
+#include <algorithm>
+
+#include <log/log.h>
+
+#include <hardware/sensors.h>
 #include "SensorEventQueue.h"
 
 SensorEventQueue::SensorEventQueue(int capacity) {

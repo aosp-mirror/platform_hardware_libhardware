@@ -18,8 +18,8 @@
 #include <fcntl.h>
 #include <malloc.h>
 
-#include <cutils/log.h>
 #include <cutils/native_handle.h>
+#include <log/log.h>
 
 #include <hardware/tv_input.h>
 

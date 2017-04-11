@@ -17,14 +17,15 @@
 #include <inttypes.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
+#include <utils/Timers.h>
 
 #include <hardware/sensors.h>
-#include <utils/Timers.h>
 
 char const* getSensorName(int type) {
     switch(type) {

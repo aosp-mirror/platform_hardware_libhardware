@@ -17,6 +17,7 @@
 #ifndef ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 #define ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 
+#include <hardware/hardware.h>
 #include <hardware/hw_auth_token.h>
 
 #define FINGERPRINT_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
