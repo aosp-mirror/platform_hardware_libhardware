@@ -23,7 +23,7 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 
 #include <hardware/hardware.h>
 #include <system/audio.h>
