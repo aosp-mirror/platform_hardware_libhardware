@@ -19,6 +19,5 @@ cc_library_shared {
     srcs: ["consumerir.c"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
 }
