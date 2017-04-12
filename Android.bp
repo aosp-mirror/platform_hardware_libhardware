@@ -14,6 +14,7 @@ cc_library_shared {
         "liblog",
         "libdl",
     ],
+    header_libs: ["libsystem_headers"],
     cflags: ["-DQEMU_HARDWARE"],
     export_include_dirs: ["include"],
 }
