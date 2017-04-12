@@ -24,7 +24,6 @@ cc_library_shared {
     srcs: ["audio_hw.c"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
     cflags: ["-Wno-unused-parameter"],
 }
@@ -41,7 +40,6 @@ cc_library_shared {
     srcs: ["audio_hw.c"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
     cflags: ["-Wno-unused-parameter"],
 }
@@ -54,7 +52,6 @@ cc_library_shared {
     srcs: ["audio_policy.c"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
     cflags: ["-Wno-unused-parameter"],
 }
