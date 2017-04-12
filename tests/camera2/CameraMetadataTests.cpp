@@ -16,8 +16,13 @@
 
 #define LOG_NDEBUG 0
 #define LOG_TAG "CameraMetadataTestFunctional"
-#include "cutils/log.h"
+
+#include <stdint.h>
+
+#include <string>
+
 #include "cutils/properties.h"
+#include "log/log.h"
 #include "utils/Errors.h"
 
 #include "gtest/gtest.h"
@@ -30,8 +35,6 @@
 
 #include <gui/CpuConsumer.h>
 #include <gui/Surface.h>
-
-#include <string>
 
 #include "CameraStreamFixture.h"
 #include "TestExtensions.h"
