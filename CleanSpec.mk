@@ -47,3 +47,13 @@
 # ************************************************
 # NEWER CLEAN STEPS MUST BE AT THE END OF THE LIST
 # ************************************************
+
+$(call add-clean-step, rm -f $(PRODUCT_OUT)/system/lib/libdynamic_sensor_ext.so)
+$(call add-clean-step, rm -f $(PRODUCT_OUT)/system/lib64/libdynamic_sensor_ext.so)
+$(call add-clean-step, rm -f $(PRODUCT_OUT)/system/lib/hw/sensors.dynamic_sensor_hal.so)
+$(call add-clean-step, rm -f $(PRODUCT_OUT)/system/lib64/hw/sensors.dynamic_sensor_hal.so)
+
+# ************************************************
+# NEWER CLEAN STEPS MUST BE AT THE END OF THE LIST
+# ************************************************
+

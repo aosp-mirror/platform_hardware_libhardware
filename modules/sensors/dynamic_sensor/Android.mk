@@ -33,11 +33,15 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libdynamic_sensor_ext
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_OWNER := google
+LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorExt\"
 
 LOCAL_SRC_FILES := \
+    BaseDynamicSensorDaemon.cpp \
     BaseSensorObject.cpp \
+    ConnectionDetector.cpp \
+    DummyDynamicAccelDaemon.cpp \
     DynamicSensorManager.cpp \
     RingBuffer.cpp
 
@@ -58,11 +62,15 @@ LOCAL_MODULE := sensors.dynamic_sensor_hal
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_TAGS := optional
 LOCAL_MODULE_OWNER := google
+LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorHal\"
 
 LOCAL_SRC_FILES := \
+    BaseDynamicSensorDaemon.cpp \
     BaseSensorObject.cpp \
+    ConnectionDetector.cpp \
+    DummyDynamicAccelDaemon.cpp \
     DynamicSensorManager.cpp \
     RingBuffer.cpp \
     sensors.cpp
@@ -70,7 +78,7 @@ LOCAL_SRC_FILES := \
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libutils \
-    liblog \
+    liblog
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 
