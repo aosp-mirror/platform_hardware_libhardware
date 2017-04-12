@@ -13,17 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <system/camera_metadata.h>
-#include "Camera.h"
-
 //#define LOG_NDEBUG 0
 #define LOG_TAG "ExampleCamera"
-#include <cutils/log.h>
+
+#include <stdint.h>
+
+#include <log/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
 
+#include <system/camera_metadata.h>
+#include "Camera.h"
 #include "ExampleCamera.h"
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))

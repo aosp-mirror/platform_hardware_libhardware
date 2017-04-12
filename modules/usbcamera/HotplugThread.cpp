@@ -16,7 +16,8 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "HotplugThread"
-#include <cutils/log.h>
+
+#include <log/log.h>
 
 #include "HotplugThread.h"
 

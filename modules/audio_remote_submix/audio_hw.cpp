@@ -26,9 +26,10 @@
 #include <sys/limits.h>
 
 #include <cutils/compiler.h>
-#include <cutils/log.h>
 #include <cutils/properties.h>
 #include <cutils/str_parms.h>
+#include <log/log.h>
+#include <utils/String8.h>
 
 #include <hardware/audio.h>
 #include <hardware/hardware.h>
@@ -38,8 +39,6 @@
 #include <media/AudioBufferProvider.h>
 #include <media/nbaio/MonoPipe.h>
 #include <media/nbaio/MonoPipeReader.h>
-
-#include <utils/String8.h>
 
 #define LOG_STREAMS_TO_FILES 0
 #if LOG_STREAMS_TO_FILES

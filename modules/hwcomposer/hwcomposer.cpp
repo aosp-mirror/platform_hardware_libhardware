@@ -14,15 +14,14 @@
  * limitations under the License.
  */
 
-#include <hardware/hardware.h>
-
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
 
-#include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <log/log.h>
 
+#include <hardware/hardware.h>
 #include <hardware/hwcomposer.h>
 
 #include <EGL/egl.h>

@@ -13,19 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-#include <stdio.h>
-#include <hardware/camera3.h>
-#include <hardware/gralloc.h>
-#include <system/graphics.h>
-#include <utils/Mutex.h>
-
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Stream"
-#include <cutils/log.h>
+
+#include <stdio.h>
+
+#include <log/log.h>
+#include <utils/Mutex.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
+
+#include <hardware/camera3.h>
+#include <hardware/gralloc.h>
+#include <system/graphics.h>
 
 #include "Stream.h"
 
