@@ -13,24 +13,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+//#define LOG_NDEBUG 0
+#define LOG_TAG "Camera"
+
+#include <errno.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
 
 #include <cstdlib>
-#include <stdio.h>
+
+#include <log/log.h>
+#include <utils/Mutex.h>
+
+#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
+#include <utils/Trace.h>
+
 #include <hardware/camera3.h>
 #include <sync/sync.h>
 #include <system/camera_metadata.h>
 #include <system/graphics.h>
-#include <utils/Mutex.h>
 #include "CameraHAL.h"
 #include "Metadata.h"
 #include "Stream.h"
-
-//#define LOG_NDEBUG 0
-#define LOG_TAG "Camera"
-#include <cutils/log.h>
-
-#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
-#include <utils/Trace.h>
 
 #include "Camera.h"
 

@@ -16,20 +16,27 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
-#include <cutils/log.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 #include <cstdlib>
-#include <stdio.h>
-#include <hardware/camera3.h>
-#include <system/camera_metadata.h>
-#include <system/graphics.h>
+
+#include <log/log.h>
 #include <utils/Mutex.h>
-#include "CameraHAL.h"
-#include "Metadata.h"
-#include "Stream.h"
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
+
+#include <hardware/camera3.h>
+#include <system/camera_metadata.h>
+#include <system/graphics.h>
+
+#include "CameraHAL.h"
+#include "Metadata.h"
+#include "Stream.h"
 
 #include "Camera.h"
 

@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+//#define LOG_NDEBUG 0
+#define LOG_TAG "DefaultCameraHAL"
 
 #include <cstdlib>
+
+#include <log/log.h>
+#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
+#include <cutils/trace.h>
+
 #include <hardware/camera_common.h>
 #include <hardware/hardware.h>
 #include "ExampleCamera.h"
 #include "VendorTags.h"
-
-//#define LOG_NDEBUG 0
-#define LOG_TAG "DefaultCameraHAL"
-#include <cutils/log.h>
-
-#define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
-#include <cutils/trace.h>
 
 #include "CameraHAL.h"
 
