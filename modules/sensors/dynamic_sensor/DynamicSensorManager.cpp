@@ -16,6 +16,7 @@
 
 #include "BaseDynamicSensorDaemon.h"
 #include "BaseSensorObject.h"
+#include "DummyDynamicAccelDaemon.h"
 #include "DynamicSensorManager.h"
 
 #include <utils/Log.h>
@@ -29,6 +30,7 @@ namespace SensorHalExt {
 DynamicSensorManager* DynamicSensorManager::createInstance(
         int handleBase, int handleCount, SensorEventCallback *callback) {
     auto m = new DynamicSensorManager(handleBase, handleBase + handleCount - 1, callback);
+    m->mDaemonVector.push_back(new DummyDynamicAccelDaemon(*m));
     return m;
 }
 

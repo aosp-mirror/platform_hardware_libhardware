@@ -17,7 +17,11 @@
 #ifndef ANDROID_SENSORHAL_EXT_BASE_DYNAMIC_SENSOR_DAEMON_H
 #define ANDROID_SENSORHAL_EXT_BASE_DYNAMIC_SENSOR_DAEMON_H
 
+#include "BaseSensorObject.h"
+
 #include <utils/RefBase.h>
+#include <string>
+#include <unordered_map>
 
 namespace android {
 namespace SensorHalExt {
@@ -28,8 +32,13 @@ class BaseDynamicSensorDaemon : public RefBase {
 public:
     BaseDynamicSensorDaemon(DynamicSensorManager& manager) : mManager(manager) {}
     virtual ~BaseDynamicSensorDaemon() = default;
+
+    virtual bool onConnectionChange(const std::string &deviceKey, bool connected);
 protected:
-    DynamicSensorManager& mManager;
+    virtual BaseSensorObject * createSensor(const std::string &deviceKey) = 0;
+
+    DynamicSensorManager &mManager;
+    std::unordered_map<std::string, sp<BaseSensorObject> > mDevices;
 };
 
 } // namespace SensorHalExt

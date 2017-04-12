@@ -75,7 +75,6 @@ private:
 
     static int FlushWrapper(struct sensors_poll_device_1 *dev, int handle);
 
-    // default ~16 million handles for dynamic sensor use, can be overriden by system property
     static constexpr int32_t kDynamicHandleBase = 0x10000;
     static constexpr int32_t kDynamicHandleEnd = 0x1000000;
     static constexpr int32_t kMaxDynamicHandleCount = kDynamicHandleEnd - kDynamicHandleBase;
