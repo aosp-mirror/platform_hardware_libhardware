@@ -16,12 +16,15 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "UsbCameraDevice"
-#include <cutils/log.h>
 
-#include <system/camera_metadata.h>
+#include <stdint.h>
+
+#include <log/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
+
+#include <system/camera_metadata.h>
 
 #include "Camera.h"
 #include "UsbCamera.h"

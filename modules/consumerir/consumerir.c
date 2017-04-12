@@ -17,10 +17,14 @@
 
 #include <errno.h>
 #include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
 #include <log/log.h>
-#include <hardware/hardware.h>
+
 #include <hardware/consumerir.h>
+#include <hardware/hardware.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
 

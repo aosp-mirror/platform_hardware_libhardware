@@ -21,13 +21,16 @@
 #include <malloc.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
 #include <log/log.h>
 
+#include <hardware/audio.h>
 #include <hardware/hardware.h>
 #include <system/audio.h>
-#include <hardware/audio.h>
 
 struct stub_audio_device {
     struct audio_hw_device device;

@@ -23,7 +23,7 @@
 #include <string.h>
 #include <sys/time.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 
 #include <hardware/hardware.h>
 #include <hardware/local_time_hal.h>
