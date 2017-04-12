@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <system/radio.h>
 #include <hardware/hardware.h>
 #include <hardware/vehicle.h>

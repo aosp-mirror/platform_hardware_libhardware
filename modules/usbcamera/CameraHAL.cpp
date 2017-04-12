@@ -16,13 +16,17 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "UsbCameraHAL"
-#include <cutils/log.h>
 
 #include <cstdlib>
+
+#include <log/log.h>
+#include <utils/Mutex.h>
+
 #include <hardware/camera_common.h>
 #include <hardware/hardware.h>
-#include "UsbCamera.h"
+
 #include "CameraHAL.h"
+#include "UsbCamera.h"
 
 /*
  * This file serves as the entry point to the HAL.  It contains the module

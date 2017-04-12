@@ -16,15 +16,17 @@
 
 #define LOG_TAG "radio_hal_tool"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
+
 #include <hardware/hardware.h>
 #include <hardware/radio.h>
 #include <system/radio.h>
 #include <system/radio_metadata.h>
-
 
 // Global state variables.
 const struct radio_tuner *hal_tuner = NULL;

@@ -17,10 +17,10 @@
 #include <malloc.h>
 #include <string.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
+
 #include <hardware/hardware.h>
 #include <hardware/nfc.h>
-
 
 /*
  * We want to silence the "unused argument" that gcc and clang give.
