@@ -23,9 +23,11 @@
 #include <pthread.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #define LOG_TAG "HAL"
-#include <utils/Log.h>
+#include <log/log.h>
 
 /** Base path of the hal modules */
 #if defined(__LP64__)
