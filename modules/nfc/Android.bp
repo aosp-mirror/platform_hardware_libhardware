@@ -19,6 +19,5 @@ cc_library_shared {
     srcs: ["nfc_pn544_example.c"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
 }
