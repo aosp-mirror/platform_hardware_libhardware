@@ -1,5 +1,6 @@
 cc_library_static {
     name: "multihal",
+    vendor: true,
     srcs: [
         "multihal.cpp",
         "SensorEventQueue.cpp"
