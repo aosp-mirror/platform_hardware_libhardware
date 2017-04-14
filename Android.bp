@@ -2,6 +2,9 @@
 
 cc_library_headers {
     name: "libhardware_headers",
+    header_libs: ["libsystem_headers"],
+    export_header_lib_headers: ["libsystem_headers"],
+
     export_include_dirs: ["include"],
     vendor_available: true,
 }
@@ -15,9 +18,11 @@ cc_library_shared {
         "liblog",
         "libdl",
     ],
-    header_libs: ["libsystem_headers"],
     cflags: ["-DQEMU_HARDWARE"],
-    export_include_dirs: ["include"],
+
+    header_libs: ["libhardware_headers"],
+    export_header_lib_headers: ["libhardware_headers"],
+
     vendor_available: true,
 }
 
