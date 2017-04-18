@@ -28,6 +28,8 @@ LOCAL_SRC_FILES := 	\
 	framebuffer.cpp \
 	mapper.cpp
 
+LOCAL_HEADER_LIBRARIES := libhardware_headers
+
 LOCAL_MODULE := gralloc.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -Wno-missing-field-initializers
 ifeq ($(TARGET_USE_PAN_DISPLAY),true)
