@@ -610,7 +610,7 @@ status_t InputHub::poll() {
             for (;;) {
                 ssize_t readSize = TEMP_FAILURE_RETRY(read(inputFd, ievs, sizeof(ievs)));
                 if (readSize == 0 || (readSize < 0 && errno == ENODEV)) {
-                    ALOGW("could not get event, removed? (fd: %d, size: %d errno: %d)",
+                    ALOGW("could not get event, removed? (fd: %d, size: %zd errno: %d)",
                             inputFd, readSize, errno);
 
                     removedDeviceFds.push_back(inputFd);
@@ -621,7 +621,7 @@ status_t InputHub::poll() {
                     }
                     break;
                 } else if (readSize % sizeof(input_event) != 0) {
-                    ALOGE("could not get event. wrong size=%d", readSize);
+                    ALOGE("could not get event. wrong size=%zd", readSize);
                     break;
                 } else {
                     size_t count = static_cast<size_t>(readSize) / sizeof(struct input_event);
@@ -702,7 +702,7 @@ status_t InputHub::readNotify() {
             if (event->mask & IN_CREATE) {
                 auto deviceNode = openNode(path);
                 if (deviceNode == nullptr) {
-                    ALOGE("could not open device node %s. err=%d", path.c_str(), res);
+                    ALOGE("could not open device node %s. err=%zd", path.c_str(), res);
                 } else {
                     mInputCallback->onDeviceAdded(deviceNode);
                 }
