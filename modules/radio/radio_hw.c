@@ -660,6 +660,7 @@ static int rdev_open_tuner(const struct radio_hw_device *dev,
     pthread_mutex_lock(&rdev->lock);
 
     if (rdev->tuner != NULL) {
+        ALOGE("Can't open tuner twice");
         status = -ENOSYS;
         goto exit;
     }
