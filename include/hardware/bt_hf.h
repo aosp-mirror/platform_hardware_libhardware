@@ -323,6 +323,9 @@ typedef struct {
     /** Response for HF Indicator change (+BIND) */
     bt_status_t (*bind_response)(bthf_hf_ind_type_t ind_id, bthf_hf_ind_status_t ind_status,
                                  bt_bdaddr_t *bd_addr);
+
+    /** Whether we will initiate SCO or not **/
+    bt_status_t (*set_sco_allowed)(bool value);
 } bthf_interface_t;
 
 __END_DECLS
