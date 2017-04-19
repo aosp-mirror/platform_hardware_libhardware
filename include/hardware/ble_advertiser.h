@@ -57,6 +57,9 @@ class BleAdvertiserInterface {
   /** Registers an advertiser with the stack */
   virtual void RegisterAdvertiser(IdStatusCallback) = 0;
 
+  using GetAddressCallback = base::Callback<void(uint8_t /* address_type*/, bt_bdaddr_t /*address*/)>;
+  virtual void GetOwnAddress(uint8_t advertiser_id, GetAddressCallback cb) = 0;
+
   /* Set the parameters as per spec, user manual specified values */
   virtual void SetParameters(uint8_t advertiser_id, AdvertiseParameters params,
                              ParametersCallback cb) = 0;
