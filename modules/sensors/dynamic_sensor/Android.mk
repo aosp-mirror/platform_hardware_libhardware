@@ -32,7 +32,7 @@ COMMON_CFLAGS := -Wall -Werror -Wextra
 include $(CLEAR_VARS)
 LOCAL_MODULE := libdynamic_sensor_ext
 LOCAL_MODULE_TAGS := optional
-LOCAL_MODULE_OWNER := google
+# intended to be integrated into hal, thus proprietary
 LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorExt\"
@@ -61,7 +61,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := sensors.dynamic_sensor_hal
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_MODULE_TAGS := optional
-LOCAL_MODULE_OWNER := google
+# hal module, thus proprietary
 LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorHal\"
@@ -83,3 +83,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
 
 include $(BUILD_SHARED_LIBRARY)
+
+include $(LOCAL_PATH)/HidUtils/Android.mk
+
