@@ -2,8 +2,14 @@
 
 cc_library_headers {
     name: "libhardware_headers",
-    header_libs: ["libsystem_headers"],
-    export_header_lib_headers: ["libsystem_headers"],
+    header_libs: [
+        "libaudio_system_headers",
+        "libsystem_headers",
+    ],
+    export_header_lib_headers: [
+        "libaudio_system_headers",
+        "libsystem_headers"
+    ],
 
     export_include_dirs: ["include"],
     vendor_available: true,
