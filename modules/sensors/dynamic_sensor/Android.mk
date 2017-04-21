@@ -88,6 +88,8 @@ include $(BUILD_SHARED_LIBRARY)
 include $(CLEAR_VARS)
 LOCAL_MODULE := hidrawsensor_host_test
 LOCAL_MODULE_TAGS := optional
+# host test is targeting linux host only
+LOCAL_MODULE_HOST_OS := linux
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS)
 
@@ -109,6 +111,8 @@ include $(BUILD_HOST_EXECUTABLE)
 include $(CLEAR_VARS)
 LOCAL_MODULE := hidrawdevice_host_test
 LOCAL_MODULE_TAGS := optional
+# host test is targeting linux host only
+LOCAL_MODULE_HOST_OS := linux
 
 LOCAL_CFLAGS += $(COMMON_CFLAGS)
 
