@@ -31,7 +31,7 @@ namespace SensorHalExt {
 
 // SocketConnectionDetector functions
 SocketConnectionDetector::SocketConnectionDetector(BaseDynamicSensorDaemon *d, int port)
-        : ConnectionDetector(d) {
+        : ConnectionDetector(d), Thread(false /*canCallJava*/) {
     // initialize socket that accept connection to localhost:port
     mListenFd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (mListenFd < 0) {
@@ -105,7 +105,7 @@ bool SocketConnectionDetector::threadLoop() {
 // FileConnectionDetector functions
 FileConnectionDetector::FileConnectionDetector (
         BaseDynamicSensorDaemon *d, const std::string &path, const std::string &regex)
-            : ConnectionDetector(d), mPath(path), mRegex(regex) {
+            : ConnectionDetector(d), Thread(false /*callCallJava*/), mPath(path), mRegex(regex) {
     mInotifyFd = ::inotify_init1(IN_NONBLOCK);
     if (mInotifyFd < 0) {
         ALOGE("Cannot init inotify");

@@ -17,6 +17,7 @@
 #include "BaseDynamicSensorDaemon.h"
 #include "BaseSensorObject.h"
 #include "DummyDynamicAccelDaemon.h"
+#include "HidRawSensorDaemon.h"
 #include "DynamicSensorManager.h"
 
 #include <utils/Log.h>
@@ -31,6 +32,7 @@ DynamicSensorManager* DynamicSensorManager::createInstance(
         int handleBase, int handleCount, SensorEventCallback *callback) {
     auto m = new DynamicSensorManager(handleBase, handleBase + handleCount - 1, callback);
     m->mDaemonVector.push_back(new DummyDynamicAccelDaemon(*m));
+    m->mDaemonVector.push_back(new HidRawSensorDaemon(*m));
     return m;
 }
 
@@ -107,7 +109,7 @@ int DynamicSensorManager::setDelay(int handle, nsecs_t sample_period) {
 
 int DynamicSensorManager::flush(int handle) {
     if (handle == mHandleRange.first) {
-        // TODO: submit a flush complete here
+        // submit a flush complete here
         static const sensors_event_t event = {
             .type = SENSOR_TYPE_META_DATA,
             .sensor = mHandleRange.first,

@@ -23,14 +23,23 @@ namespace SensorHalExt {
 
 bool BaseDynamicSensorDaemon::onConnectionChange(const std::string &deviceKey, bool connected) {
     bool ret = false;
-    auto i = mDevices.find(deviceKey);
+    auto i = mDeviceKeySensorMap.find(deviceKey);
     if (connected) {
-        if (i == mDevices.end()) {
+        if (i == mDeviceKeySensorMap.end()) {
             ALOGV("device %s is connected", deviceKey.c_str());
-            BaseSensorObject* s = createSensor(deviceKey);
-            if (s) {
-                mDevices.emplace(deviceKey, sp<BaseSensorObject>(s));
-                mManager.registerSensor(s);
+            // get sensors from implementation
+            BaseSensorVector sensors = createSensor(deviceKey);
+            if (sensors.empty()) {
+                ALOGI("no valid sensor is defined in device %s, ignore", deviceKey.c_str());
+            } else {
+                ALOGV("discovered %zu sensors from device", sensors.size());
+                // build internal table first
+                auto result = mDeviceKeySensorMap.emplace(deviceKey, std::move(sensors));
+                // then register sensor to dynamic sensor manager, result.first is the iterator
+                // of key-value pair; result.first->second is the value, which is s.
+                for (auto &i : result.first->second) {
+                    mManager.registerSensor(i);
+                }
                 ALOGV("device %s is registered", deviceKey.c_str());
                 ret = true;
             }
@@ -39,13 +48,18 @@ bool BaseDynamicSensorDaemon::onConnectionChange(const std::string &deviceKey, b
         }
     } else {
         ALOGV("device %s is disconnected", deviceKey.c_str());
-        if (i != mDevices.end()) {
-            mManager.unregisterSensor(i->second.get());
-            mDevices.erase(i);
+        if (i != mDeviceKeySensorMap.end()) {
+            BaseSensorVector sensors = i->second;
+            for (auto &sensor : sensors) {
+                mManager.unregisterSensor(sensor);
+            }
+            mDeviceKeySensorMap.erase(i);
+            // notify implementation
+            removeSensor(deviceKey);
             ALOGV("device %s is unregistered", deviceKey.c_str());
             ret = true;
         } else {
-            ALOGD("device not found in registry");
+            ALOGV("device not found in registry");
         }
     }
 

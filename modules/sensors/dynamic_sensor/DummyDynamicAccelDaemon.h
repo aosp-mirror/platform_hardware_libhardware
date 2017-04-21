@@ -61,7 +61,7 @@ private:
         bool mRunState;
     };
     // implement BaseDynamicSensorDaemon function
-    BaseSensorObject * createSensor(const std::string &deviceKey) override;
+    virtual BaseSensorVector createSensor(const std::string &deviceKey) override;
 
     sp<ConnectionDetector> mFileDetector;
     sp<ConnectionDetector> mSocketDetector;
