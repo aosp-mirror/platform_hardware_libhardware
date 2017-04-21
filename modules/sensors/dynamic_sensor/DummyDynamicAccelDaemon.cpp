@@ -51,23 +51,30 @@ DummyDynamicAccelDaemon::DummyDynamicAccelDaemon(DynamicSensorManager& manager)
     }
 }
 
-BaseSensorObject * DummyDynamicAccelDaemon::createSensor(const std::string &deviceKey) {
+BaseSensorVector DummyDynamicAccelDaemon::createSensor(const std::string &deviceKey) {
+    BaseSensorVector ret;
     if (deviceKey.compare(0, 1, "/") == 0) {
         // file detector result, deviceKey is file absolute path
-        size_t start = std::max(static_cast<size_t>(0),
-                                deviceKey.length() - (::strlen(FILE_NAME_BASE) + 1));
-        return new DummySensor(deviceKey.substr(start));
-
+        const size_t len = ::strlen(FILE_NAME_BASE) + 1; // +1 for number
+        if (deviceKey.length() < len) {
+            ALOGE("illegal file device key %s", deviceKey.c_str());
+        } else {
+            size_t start = deviceKey.length() - len;
+            ret.emplace_back(new DummySensor(deviceKey.substr(start)));
+        }
     } else if (deviceKey.compare(0, ::strlen("socket:"), "socket:") == 0) {
-        return new DummySensor(deviceKey);
+        ret.emplace_back(new DummySensor(deviceKey));
     } else {
         // unknown deviceKey
-        return nullptr;
+        ALOGE("unknown deviceKey: %s", deviceKey.c_str());
     }
+    return ret;
 }
 
-DummyDynamicAccelDaemon::DummySensor::DummySensor(const std::string &name) : mRunState(false) {
+DummyDynamicAccelDaemon::DummySensor::DummySensor(const std::string &name)
+        : Thread(false /*canCallJava*/), mRunState(false) {
     mSensorName = "Dummy Accel - " + name;
+    // fake sensor information for dummy sensor
     mSensor = (struct sensor_t) {
         mSensorName.c_str(),
         "DemoSense, Inc.",
@@ -120,7 +127,8 @@ int DummyDynamicAccelDaemon::DummySensor::enable(bool enable) {
     return 0;
 }
 
-int DummyDynamicAccelDaemon::DummySensor::batch(nsecs_t, nsecs_t) {
+int DummyDynamicAccelDaemon::DummySensor::batch(int64_t /*samplePeriod*/, int64_t /*batchPeriod*/) {
+    // Dummy sensor does not support changing rate and batching. But return successful anyway.
     return 0;
 }
 

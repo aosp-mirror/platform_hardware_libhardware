@@ -16,8 +16,8 @@
 
 #include "BaseSensorObject.h"
 #include "SensorEventCallback.h"
+#include "Utils.h"
 
-#include <utils/Log.h>
 #include <cstring>
 
 namespace android {
@@ -28,7 +28,6 @@ BaseSensorObject::BaseSensorObject() : mCallback(nullptr) {
 
 bool BaseSensorObject::setEventCallback(SensorEventCallback* callback) {
     if (mCallback != nullptr) {
-        ALOGE("callback is already assigned, cannot change.");
         return false;
     }
     mCallback = callback;
@@ -51,7 +50,7 @@ int BaseSensorObject::flush() {
 
 void BaseSensorObject::generateEvent(const sensors_event_t &e) {
     if (mCallback) {
-        mCallback->submitEvent(this, e);
+        mCallback->submitEvent(SP_THIS, e);
     }
 }
 

@@ -123,7 +123,7 @@ private:
     // mapping between handle and SensorObjects
     mutable std::mutex mLock;
     int mNextHandle;
-    std::unordered_map<int, wp<BaseSensorObject> > mMap;
+    std::unordered_map<int, wp<BaseSensorObject>> mMap;
     std::unordered_map<void *, int> mReverseMap;
     mutable std::unordered_map<int, ConnectionReport> mPendingReport;
 
