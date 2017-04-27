@@ -64,15 +64,15 @@ class ControlTest : public Test {
 
   virtual void ExpectTags() {
     if (use_options_ && report_options_) {
-      ASSERT_EQ(control_->StaticTags().size(), 1);
+      ASSERT_EQ(control_->StaticTags().size(), 1u);
       EXPECT_EQ(control_->StaticTags()[0], options_tag_);
     } else {
       EXPECT_TRUE(control_->StaticTags().empty());
     }
     // Controls use the same delgate, and thus tag, for getting and setting.
-    ASSERT_EQ(control_->ControlTags().size(), 1);
+    ASSERT_EQ(control_->ControlTags().size(), 1u);
     EXPECT_EQ(control_->ControlTags()[0], delegate_tag_);
-    ASSERT_EQ(control_->DynamicTags().size(), 1);
+    ASSERT_EQ(control_->DynamicTags().size(), 1u);
     EXPECT_EQ(control_->DynamicTags()[0], delegate_tag_);
   }
 
@@ -81,10 +81,10 @@ class ControlTest : public Test {
     android::CameraMetadata metadata;
     ASSERT_EQ(control_->PopulateStaticFields(&metadata), 0);
     if (use_options_ && report_options_) {
-      EXPECT_EQ(metadata.entryCount(), 1);
+      EXPECT_EQ(metadata.entryCount(), 1u);
       ExpectMetadataEq(metadata, options_tag_, options);
     } else {
-      EXPECT_EQ(metadata.entryCount(), 0);
+      EXPECT_EQ(metadata.entryCount(), 0u);
       // Shouldn't be expecting any options.
       EXPECT_TRUE(options.empty());
     }
@@ -93,7 +93,7 @@ class ControlTest : public Test {
   virtual void ExpectValue(uint8_t value) {
     android::CameraMetadata metadata;
     ASSERT_EQ(control_->PopulateDynamicFields(&metadata), 0);
-    EXPECT_EQ(metadata.entryCount(), 1);
+    EXPECT_EQ(metadata.entryCount(), 1u);
     ExpectMetadataEq(metadata, delegate_tag_, value);
   }
 

@@ -46,10 +46,12 @@ class FormatMetadataFactoryTest : public Test {
 };
 
 TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
-  std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420};
+  std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420,
+                             V4L2_PIX_FMT_YUYV};
   std::map<uint32_t, std::set<std::array<int32_t, 2>>> sizes{
       {V4L2_PIX_FMT_JPEG, {{{10, 20}}, {{30, 60}}, {{120, 240}}}},
-      {V4L2_PIX_FMT_YUV420, {{{1, 2}}, {{3, 6}}, {{12, 24}}}}};
+      {V4L2_PIX_FMT_YUV420, {{{1, 2}}, {{3, 6}}, {{12, 24}}}},
+      {V4L2_PIX_FMT_YUYV, {{{20, 40}}, {{80, 160}}, {{320, 640}}}}};
   // These need to be on the correct order of magnitude,
   // as there is a check for min fps > 15.
   std::map<uint32_t, std::map<std::array<int32_t, 2>, std::array<int64_t, 2>>>
@@ -60,18 +62,23 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
                 {V4L2_PIX_FMT_YUV420,
                  {{{{1, 2}}, {{10000000000, 20000000000}}},
                   {{{3, 6}}, {{11000000000, 21000000000}}},
-                  {{{12, 24}}, {{10500000000, 19000000000}}}}}};
+                  {{{12, 24}}, {{10500000000, 19000000000}}}}},
+                {V4L2_PIX_FMT_YUYV,
+                 {{{{20, 40}}, {{11000000000, 22000000000}}},
+                  {{{80, 160}}, {{13000000000, 25000000000}}},
+                  {{{320, 640}}, {{10100000000, 19000000000}}}}}};
+  // The camera must report at least one qualified format.
+  std::vector<uint32_t> qualified_formats = {V4L2_PIX_FMT_YUYV};
 
   // Device must support IMPLEMENTATION_DEFINED (as well as JPEG & YUV).
-  // Just duplicate the values from another format.
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
-      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
-  formats.insert(imp_defined_format);
-  sizes[imp_defined_format] = sizes[V4L2_PIX_FMT_YUV420];
-  durations[imp_defined_format] = durations[V4L2_PIX_FMT_YUV420];
+  // For USB cameras, we assume that this format will not be present, and it
+  // will default to a qualified format or one of the other required formats.
 
   EXPECT_CALL(*mock_device_, GetFormats(_))
       .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
+
+  EXPECT_CALL(*mock_device_, GetQualifiedFormats(_))
+      .WillOnce(DoAll(SetArgPointee<0>(qualified_formats), Return(0)));
 
   for (auto format : formats) {
     std::set<std::array<int32_t, 2>> format_sizes = sizes[format];
@@ -94,7 +101,7 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
   for (auto& component : components) {
     android::CameraMetadata metadata;
     component->PopulateStaticFields(&metadata);
-    ASSERT_EQ(metadata.entryCount(), 1);
+    ASSERT_EQ(metadata.entryCount(), 1u);
     int32_t tag = component->StaticTags()[0];
     switch (tag) {
       case ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS:  // Fall through.
@@ -119,39 +126,71 @@ TEST_F(FormatMetadataFactoryTest, GetFormatMetadata) {
   }
 }
 
-TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingJpeg) {
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
-      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
-  std::set<uint32_t> formats{V4L2_PIX_FMT_YUV420, imp_defined_format};
-  EXPECT_CALL(*mock_device_, GetFormats(_))
-      .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
-  PartialMetadataSet components;
-  ASSERT_EQ(AddFormatComponents(mock_device_,
-                                std::inserter(components, components.end())),
-            -ENODEV);
-}
+TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingRequired) {
+  std::set<uint32_t> formats{V4L2_PIX_FMT_YUYV};
+  std::map<uint32_t, std::set<std::array<int32_t, 2>>> sizes{
+      {V4L2_PIX_FMT_YUYV, {{{640, 480}}, {{320, 240}}}}};
+  std::map<uint32_t, std::map<std::array<int32_t, 2>, std::array<int64_t, 2>>>
+      durations{{V4L2_PIX_FMT_YUYV,
+                 {{{{640, 480}}, {{100000000, 200000000}}},
+                  {{{320, 240}}, {{100000000, 200000000}}}}}};
 
-TEST_F(FormatMetadataFactoryTest, GetFormatMetadataMissingYuv) {
-  uint32_t imp_defined_format = StreamFormat::HalToV4L2PixelFormat(
-      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
-  std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, imp_defined_format};
   EXPECT_CALL(*mock_device_, GetFormats(_))
       .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
-  PartialMetadataSet components;
-  ASSERT_EQ(AddFormatComponents(mock_device_,
-                                std::inserter(components, components.end())),
-            -ENODEV);
-}
+  // If a qualified format is present, we expect that required fields are
+  // populated as if they are supported.
+  std::vector<uint32_t> qualified_formats = {V4L2_PIX_FMT_YUYV};
 
-TEST_F(FormatMetadataFactoryTest,
-       GetFormatMetadataMissingImplementationDefined) {
-  std::set<uint32_t> formats{V4L2_PIX_FMT_JPEG, V4L2_PIX_FMT_YUV420};
-  EXPECT_CALL(*mock_device_, GetFormats(_))
-      .WillOnce(DoAll(SetArgPointee<0>(formats), Return(0)));
+  EXPECT_CALL(*mock_device_, GetQualifiedFormats(_))
+      .WillOnce(DoAll(SetArgPointee<0>(qualified_formats), Return(0)));
+
+  for (auto format : formats) {
+    std::set<std::array<int32_t, 2>> format_sizes = sizes[format];
+    EXPECT_CALL(*mock_device_, GetFormatFrameSizes(format, _))
+        .Times(AtLeast(1))
+        .WillRepeatedly(DoAll(SetArgPointee<1>(format_sizes), Return(0)));
+    for (auto size : format_sizes) {
+      EXPECT_CALL(*mock_device_, GetFormatFrameDurationRange(format, size, _))
+          .Times(AtLeast(1))
+          .WillRepeatedly(
+              DoAll(SetArgPointee<2>(durations[format][size]), Return(0)));
+    }
+  }
+
+  // Check that all required formats are present.
   PartialMetadataSet components;
   ASSERT_EQ(AddFormatComponents(mock_device_,
                                 std::inserter(components, components.end())),
-            -ENODEV);
+            0);
+
+  std::vector<std::array<int32_t, 2>> target_fps_ranges{{{5, 10}}, {{10, 10}}};
+  for (auto& component : components) {
+    android::CameraMetadata metadata;
+    component->PopulateStaticFields(&metadata);
+    ASSERT_EQ(metadata.entryCount(), 1u);
+    int32_t tag = component->StaticTags()[0];
+    switch (tag) {
+      case ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS:  // Fall through.
+      case ANDROID_SCALER_AVAILABLE_MIN_FRAME_DURATIONS:    // Fall through.
+      case ANDROID_SCALER_AVAILABLE_STALL_DURATIONS:        // Fall through.
+        // Two sizes per format, four elements per config.
+        // # formats + 3 for YUV420, JPEG, IMPLEMENTATION_DEFINED.
+        ExpectMetadataTagCount(metadata, tag, (formats.size() + 3) * 2 * 4);
+        break;
+      case ANDROID_SENSOR_INFO_MAX_FRAME_DURATION:
+        // The lowest max duration from above.
+        ExpectMetadataEq(metadata, tag, 200000000);
+        break;
+      case ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES:
+        // 2 ranges ({min, max} and {max, max}), each with a min and max.
+        ExpectMetadataTagCount(metadata, tag, 4);
+        ExpectMetadataEq(metadata, tag, target_fps_ranges);
+        break;
+      default:
+        FAIL() << "Unexpected component created.";
+        break;
+    }
+  }
 }
 
 }  // namespace v4l2_camera_hal
