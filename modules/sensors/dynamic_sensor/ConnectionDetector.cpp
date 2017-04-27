@@ -105,30 +105,35 @@ bool SocketConnectionDetector::threadLoop() {
 // FileConnectionDetector functions
 FileConnectionDetector::FileConnectionDetector (
         BaseDynamicSensorDaemon *d, const std::string &path, const std::string &regex)
-            : ConnectionDetector(d), Thread(false /*callCallJava*/), mPath(path), mRegex(regex) {
+            : ConnectionDetector(d), Thread(false /*callCallJava*/), mPath(path), mRegex(regex),
+              mLooper(new Looper(true /*allowNonCallback*/)), mInotifyFd(-1) {
+    if (mLooper == nullptr) {
+        return;
+    }
+
     mInotifyFd = ::inotify_init1(IN_NONBLOCK);
     if (mInotifyFd < 0) {
         ALOGE("Cannot init inotify");
         return;
     }
 
-    int wd = ::inotify_add_watch(mInotifyFd, path.c_str(), IN_CREATE | IN_DELETE | IN_MOVED_FROM);
-    if (wd < 0) {
+    int wd = ::inotify_add_watch(mInotifyFd, path.c_str(), IN_CREATE | IN_DELETE);
+    if (wd < 0 || !mLooper->addFd(mInotifyFd, POLL_IDENT, Looper::EVENT_INPUT, nullptr, nullptr)) {
         ::close(mInotifyFd);
         mInotifyFd = -1;
         ALOGE("Cannot setup watch on dir %s", path.c_str());
         return;
     }
 
-    mPollFd.fd = wd;
-    mPollFd.events = POLLIN;
-
+    // mLooper != null && mInotifyFd added to looper
     run("ddad_file");
 }
 
 FileConnectionDetector::~FileConnectionDetector() {
-    if (mInotifyFd) {
-        requestExitAndWait();
+    if (mInotifyFd > 0) {
+        requestExit();
+        mLooper->wake();
+        join();
         ::close(mInotifyFd);
     }
 }
@@ -153,63 +158,81 @@ void FileConnectionDetector::processExistingFiles() const {
     ::closedir(dirp);
 }
 
-bool FileConnectionDetector::threadLoop() {
-    struct {
-        struct inotify_event e;
-        uint8_t padding[NAME_MAX + 1];
-    } ev;
+void FileConnectionDetector::handleInotifyData(ssize_t len, const char *data) {
+    const char *dataEnd = data + len;
+    const struct inotify_event *ev;
 
-    processExistingFiles();
-
-    while (!Thread::exitPending()) {
-        int pollNum = ::poll(&mPollFd, 1, -1);
-        if (pollNum == -1) {
-           if (errno == EINTR)
-               continue;
-           ALOGE("inotify poll error: %s", ::strerror(errno));
+    // inotify adds paddings to guarantee the next read is aligned
+    for (; data < dataEnd; data += sizeof(struct inotify_event) + ev->len) {
+        ev = reinterpret_cast<const struct inotify_event*>(data);
+        if (ev->mask & IN_ISDIR) {
+            continue;
         }
 
-        if (pollNum > 0) {
-            if (! (mPollFd.revents & POLLIN)) {
-                continue;
+        const std::string name(ev->name);
+        if (matches(name)) {
+            if (ev->mask & IN_CREATE) {
+                mDaemon->onConnectionChange(getFullName(name), true /*connected*/);
             }
+            if (ev->mask & IN_DELETE) {
+                mDaemon->onConnectionChange(getFullName(name), false /*connected*/);
+            }
+        }
+    }
+}
 
-            /* Inotify events are available */
-            while (true) {
-                /* Read some events. */
-                ssize_t len = ::read(mInotifyFd, &ev, sizeof ev);
-                if (len == -1 && errno != EAGAIN) {
-                    ALOGE("read error: %s", ::strerror(errno));
-                    requestExit();
-                    break;
-                }
+bool FileConnectionDetector::readInotifyData() {
+    struct {
+        struct inotify_event ev;
+        char padding[NAME_MAX + 1];
+    } buffer;
 
-                /* If the nonblocking read() found no events to read, then
-                   it returns -1 with errno set to EAGAIN. In that case,
-                   we exit the loop. */
-                if (len <= 0) {
-                    break;
-                }
+    bool ret = true;
+    while (true) {
+        ssize_t len = ::read(mInotifyFd, &buffer, sizeof(buffer));
+        if (len == -1 && errno == EAGAIN) {
+            // no more data
+            break;
+        } else if (len > static_cast<ssize_t>(sizeof(struct inotify_event))) {
+            handleInotifyData(len, reinterpret_cast<char*>(&buffer));
+        } else if (len < 0) {
+            ALOGE("read error: %s", ::strerror(errno));
+            ret = false;
+            break;
+        } else {
+            // 0 <= len <= sizeof(struct inotify_event)
+            ALOGE("read return %zd, shorter than inotify_event size %zu",
+                  len, sizeof(struct inotify_event));
+            ret = false;
+            break;
+        }
+    }
+    return ret;
+}
 
-                if (ev.e.len && !(ev.e.mask & IN_ISDIR)) {
-                    const std::string name(ev.e.name);
-                    ALOGV("device %s state changed", name.c_str());
-                    if (matches(name)) {
-                        if (ev.e.mask & IN_CREATE) {
-                            mDaemon->onConnectionChange(getFullName(name), true /* connected*/);
-                        }
+bool FileConnectionDetector::threadLoop() {
+    Looper::setForThread(mLooper);
+    processExistingFiles();
+    while(!Thread::exitPending()) {
+        int ret = mLooper->pollOnce(-1);
 
-                        if (ev.e.mask & IN_DELETE || ev.e.mask & IN_MOVED_FROM) {
-                            mDaemon->onConnectionChange(getFullName(name), false /* connected*/);
-                        }
-                    }
-                }
+        if (ret != Looper::POLL_WAKE && ret != POLL_IDENT) {
+            ALOGE("Unexpected value %d from pollOnce, quit", ret);
+            requestExit();
+            break;
+        }
+
+        if (ret == POLL_IDENT) {
+            if (!readInotifyData()) {
+                requestExit();
             }
         }
     }
 
+    mLooper->removeFd(mInotifyFd);
     ALOGD("FileConnectionDetection thread exited");
     return false;
 }
+
 } // namespace SensorHalExt
 } // namespace android

@@ -37,7 +37,7 @@ const std::unordered_set<unsigned int> HidRawSensorDevice::sInterested{
 
 sp<HidRawSensorDevice> HidRawSensorDevice::create(const std::string &devName) {
     sp<HidRawSensorDevice> device(new HidRawSensorDevice(devName));
-    // remove +1 strong count added by constructor
+    // offset +1 strong count added by constructor
     device->decStrong(device.get());
 
     if (device->mValid) {
@@ -50,13 +50,15 @@ sp<HidRawSensorDevice> HidRawSensorDevice::create(const std::string &devName) {
 HidRawSensorDevice::HidRawSensorDevice(const std::string &devName)
         : RefBase(), HidRawDevice(devName, sInterested),
           Thread(false /*canCallJava*/), mValid(false) {
-    if (!HidRawDevice::isValid()) {
-        return;
-    }
     // create HidRawSensor objects from digest
     // HidRawSensor object will take sp<HidRawSensorDevice> as parameter, so increment strong count
     // to prevent "this" being destructed.
     this->incStrong(this);
+
+    if (!HidRawDevice::isValid()) {
+        return;
+    }
+
     for (const auto &digest : mDigestVector) { // for each usage - vec<ReportPacket> pair
         uint32_t usage = static_cast<uint32_t>(digest.fullUsage);
         sp<HidRawSensor> s(new HidRawSensor(this, usage, digest.packets));
