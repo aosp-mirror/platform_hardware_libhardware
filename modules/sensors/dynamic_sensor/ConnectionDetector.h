@@ -19,6 +19,7 @@
 
 #include "BaseDynamicSensorDaemon.h"
 #include <utils/Thread.h>
+#include <utils/Looper.h>
 
 #include <regex>
 
@@ -62,17 +63,20 @@ public:
             BaseDynamicSensorDaemon *d, const std::string &path, const std::string &regex);
     virtual ~FileConnectionDetector();
 private:
+    static constexpr int POLL_IDENT = 1;
     // implement virtual of Thread
     virtual bool threadLoop();
 
     bool matches(const std::string &name) const;
     void processExistingFiles() const;
+    void handleInotifyData(ssize_t len, const char *data);
+    bool readInotifyData();
     std::string getFullName(const std::string name) const;
 
     std::string mPath;
     std::regex mRegex;
+    sp<Looper> mLooper;
     int mInotifyFd;
-    struct pollfd mPollFd;
 };
 
 } // namespace SensorHalExt
