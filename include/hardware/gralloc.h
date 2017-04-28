@@ -18,7 +18,6 @@
 #ifndef ANDROID_GRALLOC_INTERFACE_H
 #define ANDROID_GRALLOC_INTERFACE_H
 
-#include <system/window.h>
 #include <system/graphics.h>
 #include <hardware/hardware.h>
 

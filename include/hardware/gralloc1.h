@@ -18,7 +18,6 @@
 #define ANDROID_HARDWARE_GRALLOC1_H
 
 #include <hardware/hardware.h>
-#include <system/window.h>
 
 __BEGIN_DECLS
 

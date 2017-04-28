@@ -15,7 +15,6 @@
  */
 
 #include <cstddef>
-#include <system/window.h>
 #include <hardware/hardware.h>
 #include <hardware/sensors.h>
 #include <hardware/fb.h>
