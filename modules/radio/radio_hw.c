@@ -629,8 +629,6 @@ exit:
 static int rdev_get_properties(const struct radio_hw_device *dev,
                                 radio_hal_properties_t *properties)
 {
-    struct stub_radio_device *rdev = (struct stub_radio_device *)dev;
-
     ALOGI("%s", __func__);
     if (properties == NULL)
         return -EINVAL;
@@ -745,7 +743,6 @@ static int rdev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
     struct stub_radio_device *rdev;
-    int ret;
 
     if (strcmp(name, RADIO_HARDWARE_DEVICE) != 0)
         return -EINVAL;
