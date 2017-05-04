@@ -500,15 +500,32 @@ static bool starts_with(const char* s, const char* prefix) {
  * The vector must not be null.
  */
 static void get_so_paths(std::vector<std::string> *so_paths) {
-    std::string line;
-    std::ifstream conf_file(MULTI_HAL_CONFIG_FILE_PATH);
+    const std::vector<const char *> config_path_list(
+            { MULTI_HAL_CONFIG_FILE_PATH, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH });
 
-    if(!conf_file) {
-        ALOGW("No multihal config file found at %s", MULTI_HAL_CONFIG_FILE_PATH);
+    std::ifstream stream;
+    const char *path = nullptr;
+    for (auto i : config_path_list) {
+        std::ifstream f(i);
+        if (f) {
+            stream = std::move(f);
+            path = i;
+            break;
+        }
+    }
+    if(!stream) {
+        ALOGW("No multihal config file found");
         return;
     }
-    ALOGV("Multihal config file found at %s", MULTI_HAL_CONFIG_FILE_PATH);
-    while (std::getline(conf_file, line)) {
+
+    ALOGE_IF(strcmp(path, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH) == 0,
+            "Multihal configuration file path %s is not compatible with Treble "
+            "requirements. Please move it to %s.",
+            path, MULTI_HAL_CONFIG_FILE_PATH);
+
+    ALOGV("Multihal config file found at %s", path);
+    std::string line;
+    while (std::getline(stream, line)) {
         ALOGV("config file line: '%s'", line.c_str());
         so_paths->push_back(line);
     }
