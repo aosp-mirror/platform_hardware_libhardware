@@ -933,7 +933,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
                                   struct audio_config *config,
                                   struct audio_stream_in **stream_in,
                                   audio_input_flags_t flags __unused,
-                                  const char *address /*__unused*/,
+                                  const char *address,
                                   audio_source_t source __unused)
 {
     ALOGV("adev_open_input_stream() rate:%" PRIu32 ", chanMask:0x%" PRIX32 ", fmt:%" PRIu8,
@@ -989,7 +989,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         ret = config->sample_rate != in->adev->device_sample_rate ? -EINVAL : 0;
         proxy_config.rate = config->sample_rate = in->adev->device_sample_rate;
     } else if (profile_is_sample_rate_valid(in->profile, config->sample_rate)) {
-        in->adev->device_sample_rate = proxy_config.rate = config->sample_rate;
+        proxy_config.rate = config->sample_rate;
     } else {
         proxy_config.rate = config->sample_rate = profile_get_default_sample_rate(in->profile);
         ret = -EINVAL;
@@ -1053,18 +1053,29 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         // and store THAT in proxy_config.channels
         proxy_config.channels =
                 profile_get_closest_channel_count(in->profile, in->hal_channel_count);
-        proxy_prepare(&in->proxy, in->profile, &proxy_config);
+        ret = proxy_prepare(&in->proxy, in->profile, &proxy_config);
+        if (ret == 0) {
+            in->standby = true;
 
-        in->standby = true;
+            in->conversion_buffer = NULL;
+            in->conversion_buffer_size = 0;
 
-        in->conversion_buffer = NULL;
-        in->conversion_buffer_size = 0;
+            *stream_in = &in->stream;
 
-        *stream_in = &in->stream;
+            /* Save this for adev_dump() */
+            adev_add_stream_to_list(in->adev, &in->adev->input_stream_list, &in->list_node);
+        } else {
+            ALOGW("proxy_prepare error %d", ret);
+            unsigned channel_count = proxy_get_channel_count(&in->proxy);
+            config->channel_mask = channel_count <= FCC_2
+                ? audio_channel_in_mask_from_count(channel_count)
+                : audio_channel_mask_for_index_assignment_from_count(channel_count);
+            config->format = audio_format_from_pcm_format(proxy_get_format(&in->proxy));
+            config->sample_rate = proxy_get_sample_rate(&in->proxy);
+        }
+    }
 
-        /* Save this for adev_dump() */
-        adev_add_stream_to_list(in->adev, &in->adev->input_stream_list, &in->list_node);
-    } else {
+    if (ret != 0) {
         // Deallocate this stream on error, because AudioFlinger won't call
         // adev_close_input_stream() in this case.
         *stream_in = NULL;
