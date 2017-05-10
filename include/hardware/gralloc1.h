@@ -18,7 +18,7 @@
 #define ANDROID_HARDWARE_GRALLOC1_H
 
 #include <hardware/hardware.h>
-#include <system/window.h>
+#include <cutils/native_handle.h>
 
 __BEGIN_DECLS
 
