@@ -23,6 +23,7 @@ cc_library_shared {
         "libcutils",
         "liblog",
         "libdl",
+        "libvndksupport",
     ],
     cflags: ["-DQEMU_HARDWARE"],
 
