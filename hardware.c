@@ -29,6 +29,8 @@
 #define LOG_TAG "HAL"
 #include <log/log.h>
 
+#include <vndksupport/linker.h>
+
 /** Base path of the hal modules */
 #if defined(__LP64__)
 #define HAL_LIBRARY_PATH1 "/system/lib64/hw"
@@ -80,7 +82,7 @@ static int load(const char *id,
      * dlopen returns. Since RTLD_GLOBAL is not or'd in with
      * RTLD_NOW the external symbols will not be global
      */
-    handle = dlopen(path, RTLD_NOW);
+    handle = android_load_sphal_library(path, RTLD_NOW);
     if (handle == NULL) {
         char const *err_str = dlerror();
         ALOGE("load: module=%s\n%s", path, err_str?err_str:"unknown");
