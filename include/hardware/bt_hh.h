@@ -165,6 +165,12 @@ typedef struct {
     /** Set the HID proto mode. */
     bt_status_t (*set_protocol)(bt_bdaddr_t *bd_addr, bthh_protocol_mode_t protocolMode);
 
+    /** Get the HID Idle Time */
+    bt_status_t (*get_idle_time)(bt_bdaddr_t *bd_addr);
+
+    /** Set the HID Idle Time */
+    bt_status_t (*set_idle_time)(bt_bdaddr_t *bd_addr, uint8_t idleTime);
+
     /** Send a GET_REPORT to HID device. */
     bt_status_t (*get_report)(bt_bdaddr_t *bd_addr, bthh_report_type_t reportType, uint8_t reportId, int bufferSize);
 
@@ -174,7 +180,7 @@ typedef struct {
     /** Send data to HID device. */
     bt_status_t (*send_data)(bt_bdaddr_t *bd_addr, char* data);
 
-	/** Closes the interface. */
+    /** Closes the interface. */
     void  (*cleanup)( void );
 
 } bthh_interface_t;
