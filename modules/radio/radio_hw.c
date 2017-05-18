@@ -323,6 +323,7 @@ static void *callback_thread_loop(void *context)
 
                 case CMD_CONFIG: {
                     tuner->config = cmd->config;
+                    tuner->config.antenna_connected = true;
                     event.type = RADIO_EVENT_CONFIG;
                     event.config = tuner->config;
                     ALOGV("%s CMD_CONFIG type %d low %d up %d",
