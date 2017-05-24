@@ -35,7 +35,7 @@ __BEGIN_DECLS
 #define BT_STACK_TEST_MODULE_ID "bluetooth_test"
 
 
-/* Bluetooth profile interface IDs */
+/** Bluetooth profile interface IDs */
 
 #define BT_PROFILE_HANDSFREE_ID "handsfree"
 #define BT_PROFILE_HANDSFREE_CLIENT_ID "handsfree_client"
@@ -51,6 +51,9 @@ __BEGIN_DECLS
 #define BT_PROFILE_GATT_ID "gatt"
 #define BT_PROFILE_AV_RC_ID "avrcp"
 #define BT_PROFILE_AV_RC_CTRL_ID "avrcp_ctrl"
+
+/** Bluetooth test interface IDs */
+#define BT_TEST_INTERFACE_MCAP_ID "mcap_test"
 
 /** Bluetooth Address */
 typedef struct {
