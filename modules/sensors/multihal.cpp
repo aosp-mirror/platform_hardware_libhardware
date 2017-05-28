@@ -445,7 +445,11 @@ int sensors_poll_context_t::inject_sensor_data(const sensors_event_t *data) {
         sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(data->sensor);
         if (halIsAPILevelCompliant(this, data->sensor, SENSORS_DEVICE_API_VERSION_1_4) &&
                 local_handle >= 0 && v1) {
-            retval = v1->inject_sensor_data(v1, data);
+            // if specific sensor is used, we have to replace global sensor handle
+            // with local one, before passing to concrete HAL
+            sensors_event_t data_copy = *data;
+            data_copy.sensor = local_handle;
+            retval = v1->inject_sensor_data(v1, &data_copy);
         } else {
             ALOGE("IGNORED inject_sensor_data(type=%d, handle=%d) call to non-API-compliant sensor",
                     data->type, data->sensor);
