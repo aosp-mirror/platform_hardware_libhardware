@@ -30,5 +30,6 @@ LOCAL_STATIC_LIBRARIES := libmedia_helper
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wno-unused-parameter
 
+LOCAL_HEADER_LIBRARIES += libhardware_headers
 include $(BUILD_SHARED_LIBRARY)
 

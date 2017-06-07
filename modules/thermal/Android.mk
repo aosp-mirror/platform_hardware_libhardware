@@ -20,7 +20,7 @@ LOCAL_MODULE := thermal.default
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES := thermal.c
-LOCAL_SHARED_LIBRARIES := liblog libcutils
+LOCAL_SHARED_LIBRARIES := liblog libcutils libutils
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wno-unused-parameter
 
