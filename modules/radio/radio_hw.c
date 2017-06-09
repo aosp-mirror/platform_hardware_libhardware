@@ -114,8 +114,19 @@ typedef enum {
     CMD_CANCEL,
     CMD_METADATA,
     CMD_ANNOUNCEMENTS,
+    CMD_NUM
 } thread_cmd_type_t;
 
+uint32_t thread_cmd_delay_ms[CMD_NUM] = {
+    [CMD_EXIT]          = 0,
+    [CMD_CONFIG]        = 50,
+    [CMD_STEP]          = 100,
+    [CMD_SCAN]          = 200,
+    [CMD_TUNE]          = 150,
+    [CMD_CANCEL]        = 0,
+    [CMD_METADATA]      = 1000,
+    [CMD_ANNOUNCEMENTS] = 1000
+};
 struct thread_command {
     struct listnode node;
     thread_cmd_type_t type;
@@ -401,7 +412,7 @@ static void *callback_thread_loop(void *context)
                                                 (tuner->config.spacings[0] * 5)) % 2;
 
                     if (tuner->program.tuned) {
-                        send_command_l(tuner, CMD_ANNOUNCEMENTS, 1000, NULL);
+                        send_command_l(tuner, CMD_ANNOUNCEMENTS, thread_cmd_delay_ms[CMD_ANNOUNCEMENTS], NULL);
                     }
                     tuner->program.signal_strength = 100;
                     if (tuner->config.type == RADIO_BAND_FM)
@@ -481,7 +492,7 @@ static void *callback_thread_loop(void *context)
                     free(cmd);
                 }
             }
-            send_command_l(tuner, CMD_METADATA, 1000, NULL);
+            send_command_l(tuner, CMD_METADATA, thread_cmd_delay_ms[CMD_METADATA], NULL);
         }
     }
 
@@ -510,8 +521,8 @@ static int tuner_set_configuration(const struct radio_tuner *tuner,
         status = -EINVAL;
         goto exit;
     }
-    send_command_l(stub_tuner, CMD_CANCEL, 0, NULL);
-    send_command_l(stub_tuner, CMD_CONFIG, 500, (void *)config);
+    send_command_l(stub_tuner, CMD_CANCEL, thread_cmd_delay_ms[CMD_CANCEL], NULL);
+    send_command_l(stub_tuner, CMD_CONFIG, thread_cmd_delay_ms[CMD_CONFIG], (void *)config);
 
 exit:
     pthread_mutex_unlock(&stub_tuner->lock);
@@ -556,7 +567,7 @@ static int tuner_step(const struct radio_tuner *tuner,
           __func__, stub_tuner, direction, skip_sub_channel);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_STEP, 20, &direction);
+    send_command_l(stub_tuner, CMD_STEP, thread_cmd_delay_ms[CMD_STEP], &direction);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -570,7 +581,7 @@ static int tuner_scan(const struct radio_tuner *tuner,
           __func__, stub_tuner, direction, skip_sub_channel);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_SCAN, 200, &direction);
+    send_command_l(stub_tuner, CMD_SCAN, thread_cmd_delay_ms[CMD_SCAN], &direction);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -589,7 +600,7 @@ static int tuner_tune(const struct radio_tuner *tuner,
         ALOGI("%s channel out of range", __func__);
         return -EINVAL;
     }
-    send_command_l(stub_tuner, CMD_TUNE, 100, &channel);
+    send_command_l(stub_tuner, CMD_TUNE, thread_cmd_delay_ms[CMD_TUNE], &channel);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -601,7 +612,7 @@ static int tuner_cancel(const struct radio_tuner *tuner)
     ALOGI("%s stub_tuner %p", __func__, stub_tuner);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_CANCEL, 0, NULL);
+    send_command_l(stub_tuner, CMD_CANCEL, thread_cmd_delay_ms[CMD_CANCEL], NULL);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -696,7 +707,7 @@ static int rdev_open_tuner(const struct radio_hw_device *dev,
     list_init(&rdev->tuner->command_list);
 
     pthread_mutex_lock(&rdev->tuner->lock);
-    send_command_l(rdev->tuner, CMD_CONFIG, 500, (void *)config);
+    send_command_l(rdev->tuner, CMD_CONFIG, thread_cmd_delay_ms[CMD_CONFIG], (void *)config);
     pthread_mutex_unlock(&rdev->tuner->lock);
 
     *tuner = &rdev->tuner->interface;
@@ -724,7 +735,7 @@ static int rdev_close_tuner(const struct radio_hw_device *dev,
 
     pthread_mutex_lock(&stub_tuner->lock);
     stub_tuner->callback = NULL;
-    send_command_l(stub_tuner, CMD_EXIT, 0, NULL);
+    send_command_l(stub_tuner, CMD_EXIT, thread_cmd_delay_ms[CMD_EXIT], NULL);
     pthread_mutex_unlock(&stub_tuner->lock);
     pthread_join(stub_tuner->callback_thread, (void **) NULL);
 
