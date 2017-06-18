@@ -276,11 +276,11 @@ typedef struct {
     bt_status_t (*conn_parameter_update)(const bt_bdaddr_t *bd_addr, int min_interval,
                     int max_interval, int latency, int timeout);
 
-    bt_status_t (*set_preferred_phy)(int conn_id, uint8_t tx_phy,
+    bt_status_t (*set_preferred_phy)(const bt_bdaddr_t& bd_addr, uint8_t tx_phy,
                                      uint8_t rx_phy, uint16_t phy_options);
 
     bt_status_t (*read_phy)(
-        int conn_id,
+        const bt_bdaddr_t& bd_addr,
         base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
             cb);
 
