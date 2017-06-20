@@ -104,6 +104,17 @@ typedef enum {
      * In the future, CTS tests will require present time to be reliable.
      */
     HWC2_CAPABILITY_PRESENT_FENCE_IS_NOT_RELIABLE = 3,
+
+    /* Specifies that a device is able to skip the validateDisplay call before
+     * receiving a call to presentDisplay. The client will always skip
+     * validateDisplay and try to call presentDisplay regardless of the changes
+     * in the properties of the layers. If the device returns anything else than
+     * HWC2_ERROR_NONE, it will call validateDisplay then presentDisplay again.
+     * For this capability to be worthwhile the device implementation of
+     * presentDisplay should fail as fast as possible in the case a
+     * validateDisplay step is needed.
+     */
+    HWC2_CAPABILITY_SKIP_VALIDATE= 4,
 } hwc2_capability_t;
 
 /* Possible composition types for a given layer */
@@ -564,6 +575,7 @@ enum class Capability : int32_t {
     SidebandStream = HWC2_CAPABILITY_SIDEBAND_STREAM,
     SkipClientColorTransform = HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
     PresentFenceIsNotReliable = HWC2_CAPABILITY_PRESENT_FENCE_IS_NOT_RELIABLE,
+    SkipValidate = HWC2_CAPABILITY_SKIP_VALIDATE,
 };
 TO_STRING(hwc2_capability_t, Capability, getCapabilityName)
 
