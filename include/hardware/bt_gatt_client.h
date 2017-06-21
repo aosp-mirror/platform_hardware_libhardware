@@ -99,15 +99,14 @@ typedef enum
 /** BT-GATT Client callback structure. */
 
 /** Callback invoked in response to register_client */
-typedef void (*register_client_callback)(int status, int client_if,
-                bt_uuid_t *app_uuid);
+typedef void (*register_client_callback)(int status, int client_if, const bt_uuid_t& app_uuid);
 
 /** GATT open callback invoked in response to open */
-typedef void (*connect_callback)(int conn_id, int status, int client_if, bt_bdaddr_t* bda);
+typedef void (*connect_callback)(int conn_id, int status, int client_if, const bt_bdaddr_t& bda);
 
 /** Callback invoked in response to close */
 typedef void (*disconnect_callback)(int conn_id, int status,
-                int client_if, bt_bdaddr_t* bda);
+                int client_if, const bt_bdaddr_t& bda);
 
 /**
  * Invoked in response to search_service when the GATT service search
@@ -123,7 +122,7 @@ typedef void (*register_for_notification_callback)(int conn_id,
  * Remote device notification callback, invoked when a remote device sends
  * a notification or indication that a client has registered for.
  */
-typedef void (*notify_callback)(int conn_id, btgatt_notify_params_t *p_data);
+typedef void (*notify_callback)(int conn_id, const btgatt_notify_params_t& p_data);
 
 /** Reports result of a GATT read operation */
 typedef void (*read_characteristic_callback)(int conn_id, int status,
@@ -137,13 +136,13 @@ typedef void (*execute_write_callback)(int conn_id, int status);
 
 /** Callback invoked in response to read_descriptor */
 typedef void (*read_descriptor_callback)(int conn_id, int status,
-                btgatt_read_params_t *p_data);
+                const btgatt_read_params_t& p_data);
 
 /** Callback invoked in response to write_descriptor */
 typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t handle);
 
 /** Callback triggered in response to read_remote_rssi */
-typedef void (*read_remote_rssi_callback)(int client_if, bt_bdaddr_t* bda,
+typedef void (*read_remote_rssi_callback)(int client_if, const bt_bdaddr_t& bda,
                                           int rssi, int status);
 
 /** Callback invoked when the MTU for a given connection changes */
@@ -158,13 +157,13 @@ typedef void (*configure_mtu_callback)(int conn_id, int status, int mtu);
 typedef void (*congestion_callback)(int conn_id, bool congested);
 
 /** GATT get database callback */
-typedef void (*get_gatt_db_callback)(int conn_id, btgatt_db_element_t *db, int count);
+typedef void (*get_gatt_db_callback)(int conn_id, const btgatt_db_element_t* db, int count);
 
 /** GATT services between start_handle and end_handle were removed */
 typedef void (*services_removed_callback)(int conn_id, uint16_t start_handle, uint16_t end_handle);
 
 /** GATT services were added */
-typedef void (*services_added_callback)(int conn_id, btgatt_db_element_t *added, int added_count);
+typedef void (*services_added_callback)(int conn_id, const btgatt_db_element_t& added, int added_count);
 
 /** Callback invoked when the PHY for a given connection changes */
 typedef void (*phy_updated_callback)(int conn_id, uint8_t tx_phy,
@@ -201,32 +200,32 @@ typedef struct {
 
 typedef struct {
     /** Registers a GATT client application with the stack */
-    bt_status_t (*register_client)( bt_uuid_t *uuid );
+    bt_status_t (*register_client)(const bt_uuid_t& uuid);
 
     /** Unregister a client application from the stack */
-    bt_status_t (*unregister_client)(int client_if );
+    bt_status_t (*unregister_client)(int client_if);
 
     /** Create a connection to a remote LE or dual-mode device */
-    bt_status_t (*connect)(int client_if, const bt_bdaddr_t *bd_addr,
+    bt_status_t (*connect)(int client_if, const bt_bdaddr_t& bd_addr,
                            bool is_direct, int transport, int initiating_phys);
 
     /** Disconnect a remote device or cancel a pending connection */
-    bt_status_t (*disconnect)( int client_if, const bt_bdaddr_t *bd_addr,
+    bt_status_t (*disconnect)( int client_if, const bt_bdaddr_t& bd_addr,
                     int conn_id);
 
     /** Clear the attribute cache for a given device */
-    bt_status_t (*refresh)( int client_if, const bt_bdaddr_t *bd_addr );
+    bt_status_t (*refresh)( int client_if, const bt_bdaddr_t& bd_addr);
 
     /**
      * Enumerate all GATT services on a connected device.
      * Optionally, the results can be filtered for a given UUID.
      */
-    bt_status_t (*search_service)(int conn_id, bt_uuid_t *filter_uuid );
+    bt_status_t (*search_service)(int conn_id, const bt_uuid_t *filter_uuid);
 
     /**
      * Sead "Find service by UUID" request. Used only for PTS tests.
      */
-    void (*btif_gattc_discover_service_by_uuid)(int conn_id, bt_uuid_t *uuid);
+    void (*btif_gattc_discover_service_by_uuid)(int conn_id, const bt_uuid_t& uuid);
 
     /** Read a characteristic on a remote device */
     bt_status_t (*read_characteristic)(int conn_id, uint16_t handle,
@@ -234,7 +233,7 @@ typedef struct {
 
     /** Read a characteristic on a remote device */
     bt_status_t (*read_using_characteristic_uuid)(
-        int conn_id, bt_uuid_t *uuid, uint16_t s_handle,
+        int conn_id, const bt_uuid_t& uuid, uint16_t s_handle,
         uint16_t e_handle, int auth_req);
 
     /** Write a remote characteristic */
@@ -257,23 +256,23 @@ typedef struct {
      * characteristic
      */
     bt_status_t (*register_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, uint16_t handle);
+                    const bt_bdaddr_t& bd_addr, uint16_t handle);
 
     /** Deregister a previous request for notifications/indications */
     bt_status_t (*deregister_for_notification)( int client_if,
-                    const bt_bdaddr_t *bd_addr, uint16_t handle);
+                    const bt_bdaddr_t& bd_addr, uint16_t handle);
 
     /** Request RSSI for a given remote device */
-    bt_status_t (*read_remote_rssi)( int client_if, const bt_bdaddr_t *bd_addr);
+    bt_status_t (*read_remote_rssi)(int client_if, const bt_bdaddr_t& bd_addr);
 
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
-    int (*get_device_type)( const bt_bdaddr_t *bd_addr );
+    int (*get_device_type)(const bt_bdaddr_t &bd_addr);
 
     /** Configure the MTU for a given connection */
     bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
     /** Request a connection parameter update */
-    bt_status_t (*conn_parameter_update)(const bt_bdaddr_t *bd_addr, int min_interval,
+    bt_status_t (*conn_parameter_update)(const bt_bdaddr_t& bd_addr, int min_interval,
                     int max_interval, int latency, int timeout);
 
     bt_status_t (*set_preferred_phy)(const bt_bdaddr_t& bd_addr, uint8_t tx_phy,
@@ -285,7 +284,7 @@ typedef struct {
             cb);
 
     /** Test mode interface */
-    bt_status_t (*test_command)( int command, btgatt_test_params_t* params);
+    bt_status_t (*test_command)( int command, const btgatt_test_params_t& params);
 
     /** Get gatt db content */
     bt_status_t (*get_gatt_db)( int conn_id);
