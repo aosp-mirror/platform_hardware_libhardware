@@ -5,6 +5,9 @@ cc_library_static {
         "multihal.cpp",
         "SensorEventQueue.cpp"
     ],
+    header_libs: [
+        "libhardware_headers",
+    ],
     shared_libs: [
         "liblog",
         "libcutils",
