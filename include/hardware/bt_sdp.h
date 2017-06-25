@@ -109,7 +109,7 @@ typedef union {
 
 
 /** Callback for SDP search */
-typedef void (*btsdp_search_callback)(bt_status_t status, bt_bdaddr_t *bd_addr, uint8_t* uuid, int num_records, bluetooth_sdp_record *records);
+typedef void (*btsdp_search_callback)(bt_status_t status, RawAddress *bd_addr, uint8_t* uuid, int num_records, bluetooth_sdp_record *records);
 
 typedef struct {
     /** Set to sizeof(btsdp_callbacks_t) */
@@ -128,7 +128,7 @@ typedef struct {
     bt_status_t (*deinit)();
 
     /** Search for SDP records with specific uuid on remote device */
-    bt_status_t (*sdp_search)(bt_bdaddr_t *bd_addr,  const uint8_t* uuid);
+    bt_status_t (*sdp_search)(RawAddress *bd_addr,  const uint8_t* uuid);
 
     /**
      * Use listen in the socket interface to create rfcomm and/or l2cap PSM channels,
