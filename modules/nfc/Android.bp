@@ -17,6 +17,7 @@ cc_library_shared {
     relative_install_path: "hw",
     proprietary: true,
     srcs: ["nfc_pn544_example.c"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
     ],
