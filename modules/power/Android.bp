@@ -17,5 +17,9 @@ cc_library_shared {
     relative_install_path: "hw",
     proprietary: true,
     srcs: ["power.c"],
+    header_libs: [
+        "libhardware_headers",
+        "libutils_headers",
+    ],
     shared_libs: ["liblog"],
 }
