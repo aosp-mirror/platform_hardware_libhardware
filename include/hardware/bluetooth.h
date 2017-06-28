@@ -58,7 +58,7 @@ __BEGIN_DECLS
 /** Bluetooth Address */
 typedef struct {
     uint8_t address[6];
-} __attribute__((packed))bt_bdaddr_t;
+} __attribute__((packed))RawAddress;
 
 /** Bluetooth Device Name */
 typedef struct {
@@ -185,7 +185,7 @@ typedef enum {
     /**
      * Description - Bluetooth Device Address
      * Access mode - Only GET.
-     * Data type   - bt_bdaddr_t
+     * Data type   - RawAddress
      */
     BT_PROPERTY_BDADDR,
     /**
@@ -223,7 +223,7 @@ typedef enum {
     /**
      * Description - List of bonded devices
      * Access mode - Only GET.
-     * Data type   - Array of bt_bdaddr_t of the bonded remote devices
+     * Data type   - Array of RawAddress of the bonded remote devices
      *               (Array size inferred from property length).
      */
     BT_PROPERTY_ADAPTER_BONDED_DEVICES,
@@ -334,7 +334,7 @@ typedef void (*adapter_properties_callback)(bt_status_t status,
  * multiple properties - num_properties shall be 1
  */
 typedef void (*remote_device_properties_callback)(bt_status_t status,
-                                                       bt_bdaddr_t *bd_addr,
+                                                       RawAddress *bd_addr,
                                                        int num_properties,
                                                        bt_property_t *properties);
 
@@ -348,7 +348,7 @@ typedef void (*device_found_callback)(int num_properties,
 typedef void (*discovery_state_changed_callback)(bt_discovery_state_t state);
 
 /** Bluetooth Legacy PinKey Request callback */
-typedef void (*pin_request_callback)(bt_bdaddr_t *remote_bd_addr,
+typedef void (*pin_request_callback)(RawAddress *remote_bd_addr,
                                         bt_bdname_t *bd_name, uint32_t cod, bool min_16_digit);
 
 /** Bluetooth SSP Request callback - Just Works & Numeric Comparison*/
@@ -356,7 +356,7 @@ typedef void (*pin_request_callback)(bt_bdaddr_t *remote_bd_addr,
  *  BT_SSP_PAIRING_PASSKEY_ENTRY */
 /* TODO: Passkey request callback shall not be needed for devices with display
  * capability. We still need support this in the stack for completeness */
-typedef void (*ssp_request_callback)(bt_bdaddr_t *remote_bd_addr,
+typedef void (*ssp_request_callback)(RawAddress *remote_bd_addr,
                                         bt_bdname_t *bd_name,
                                         uint32_t cod,
                                         bt_ssp_variant_t pairing_variant,
@@ -365,11 +365,11 @@ typedef void (*ssp_request_callback)(bt_bdaddr_t *remote_bd_addr,
 /** Bluetooth Bond state changed callback */
 /* Invoked in response to create_bond, cancel_bond or remove_bond */
 typedef void (*bond_state_changed_callback)(bt_status_t status,
-                                               bt_bdaddr_t *remote_bd_addr,
+                                               RawAddress *remote_bd_addr,
                                                bt_bond_state_t state);
 
 /** Bluetooth ACL connection state changed callback */
-typedef void (*acl_state_changed_callback)(bt_status_t status, bt_bdaddr_t *remote_bd_addr,
+typedef void (*acl_state_changed_callback)(bt_status_t status, RawAddress *remote_bd_addr,
                                             bt_acl_state_t state);
 
 typedef enum {
@@ -489,27 +489,27 @@ typedef struct {
 
     /** Set Bluetooth Adapter property of 'type' */
     /* Based on the type, val shall be one of
-     * bt_bdaddr_t or bt_bdname_t or bt_scanmode_t etc
+     * RawAddress or bt_bdname_t or bt_scanmode_t etc
      */
     int (*set_adapter_property)(const bt_property_t *property);
 
     /** Get all Remote Device properties */
-    int (*get_remote_device_properties)(bt_bdaddr_t *remote_addr);
+    int (*get_remote_device_properties)(RawAddress *remote_addr);
 
     /** Get Remote Device property of 'type' */
-    int (*get_remote_device_property)(bt_bdaddr_t *remote_addr,
+    int (*get_remote_device_property)(RawAddress *remote_addr,
                                       bt_property_type_t type);
 
     /** Set Remote Device property of 'type' */
-    int (*set_remote_device_property)(bt_bdaddr_t *remote_addr,
+    int (*set_remote_device_property)(RawAddress *remote_addr,
                                       const bt_property_t *property);
 
     /** Get Remote Device's service record  for the given UUID */
-    int (*get_remote_service_record)(bt_bdaddr_t *remote_addr,
+    int (*get_remote_service_record)(RawAddress *remote_addr,
                                      bt_uuid_t *uuid);
 
     /** Start SDP to get remote services */
-    int (*get_remote_services)(bt_bdaddr_t *remote_addr);
+    int (*get_remote_services)(RawAddress *remote_addr);
 
     /** Start Discovery */
     int (*start_discovery)(void);
@@ -518,28 +518,28 @@ typedef struct {
     int (*cancel_discovery)(void);
 
     /** Create Bluetooth Bonding */
-    int (*create_bond)(const bt_bdaddr_t *bd_addr, int transport);
+    int (*create_bond)(const RawAddress *bd_addr, int transport);
 
     /** Create Bluetooth Bond using out of band data */
-    int (*create_bond_out_of_band)(const bt_bdaddr_t *bd_addr, int transport,
+    int (*create_bond_out_of_band)(const RawAddress *bd_addr, int transport,
                                    const bt_out_of_band_data_t *oob_data);
 
     /** Remove Bond */
-    int (*remove_bond)(const bt_bdaddr_t *bd_addr);
+    int (*remove_bond)(const RawAddress *bd_addr);
 
     /** Cancel Bond */
-    int (*cancel_bond)(const bt_bdaddr_t *bd_addr);
+    int (*cancel_bond)(const RawAddress *bd_addr);
 
     /**
      * Get the connection status for a given remote device.
      * return value of 0 means the device is not connected,
      * non-zero return status indicates an active connection.
      */
-    int (*get_connection_state)(const bt_bdaddr_t *bd_addr);
+    int (*get_connection_state)(const RawAddress *bd_addr);
 
     /** BT Legacy PinKey Reply */
     /** If accept==FALSE, then pin_len and pin_code shall be 0x0 */
-    int (*pin_reply)(const bt_bdaddr_t *bd_addr, uint8_t accept,
+    int (*pin_reply)(const RawAddress *bd_addr, uint8_t accept,
                      uint8_t pin_len, bt_pin_code_t *pin_code);
 
     /** BT SSP Reply - Just Works, Numeric Comparison and Passkey
@@ -547,7 +547,7 @@ typedef struct {
      * BT_SSP_VARIANT_CONSENT
      * For BT_SSP_VARIANT_PASSKEY_ENTRY, if accept==FALSE, then passkey
      * shall be zero */
-    int (*ssp_reply)(const bt_bdaddr_t *bd_addr, bt_ssp_variant_t variant,
+    int (*ssp_reply)(const RawAddress *bd_addr, bt_ssp_variant_t variant,
                      uint8_t accept, uint32_t passkey);
 
     /** Get Bluetooth profile interface */
@@ -596,7 +596,7 @@ typedef struct {
      * first |len| bytes of the its device address match |addr|.
      * NOTE: |feature| has to match an item defined in interop_feature_t (interop.h).
      */
-    void (*interop_database_add)(uint16_t feature, const bt_bdaddr_t *addr, size_t len);
+    void (*interop_database_add)(uint16_t feature, const RawAddress *addr, size_t len);
 } bt_interface_t;
 
 /** TODO: Need to add APIs for Service Discovery, Service authorization and
