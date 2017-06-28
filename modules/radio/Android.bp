@@ -23,6 +23,7 @@ cc_library_shared {
         "-Wno-unused-parameter",
         "-Werror",
     ],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
         "libcutils",
