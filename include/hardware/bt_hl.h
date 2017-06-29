@@ -78,7 +78,7 @@ typedef void (* bthl_app_reg_state_callback)(int app_id, bthl_app_reg_state_t st
  *  state will have one of the values from
  *  bthl_connection_state_t and fd (file descriptor)
  */
-typedef void (* bthl_channel_state_callback)(int app_id, bt_bdaddr_t *bd_addr, int mdep_cfg_index, int channel_id, bthl_channel_state_t state, int fd);
+typedef void (* bthl_channel_state_callback)(int app_id, RawAddress *bd_addr, int mdep_cfg_index, int channel_id, bthl_channel_state_t state, int fd);
 
 /** BT-HL callback structure. */
 typedef struct {
@@ -107,7 +107,7 @@ typedef struct {
     bt_status_t (*unregister_application) (int app_id);
 
     /** connect channel */
-    bt_status_t (*connect_channel)(int app_id, bt_bdaddr_t *bd_addr, int mdep_cfg_index, int *channel_id);
+    bt_status_t (*connect_channel)(int app_id, RawAddress *bd_addr, int mdep_cfg_index, int *channel_id);
 
     /** destroy channel */
     bt_status_t (*destroy_channel)(int channel_id);
