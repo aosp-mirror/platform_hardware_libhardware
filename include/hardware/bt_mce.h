@@ -29,7 +29,7 @@ typedef struct
 } btmce_mas_instance_t;
 
 /** callback for get_remote_mas_instances */
-typedef void (*btmce_remote_mas_instances_callback)(bt_status_t status, bt_bdaddr_t *bd_addr,
+typedef void (*btmce_remote_mas_instances_callback)(bt_status_t status, RawAddress *bd_addr,
                                                     int num_instances, btmce_mas_instance_t *instances);
 
 typedef struct {
@@ -46,7 +46,7 @@ typedef struct {
     bt_status_t (*init)(btmce_callbacks_t *callbacks);
 
     /** search for MAS instances on remote device */
-    bt_status_t (*get_remote_mas_instances)(bt_bdaddr_t *bd_addr);
+    bt_status_t (*get_remote_mas_instances)(RawAddress *bd_addr);
 } btmce_interface_t;
 
 __END_DECLS
