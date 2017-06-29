@@ -33,7 +33,7 @@ typedef enum {
 /** Represents the standard BT SOCKET interface. */
 typedef struct {
     short size;
-    bt_bdaddr_t bd_addr;
+    RawAddress bd_addr;
     int channel;
     int status;
 
@@ -68,7 +68,7 @@ typedef struct {
      * The callingUid is the UID of the application which is requesting the socket. This is
      * used for traffic accounting purposes.
      */
-    bt_status_t (*connect)(const bt_bdaddr_t *bd_addr, btsock_type_t type, const uint8_t* uuid,
+    bt_status_t (*connect)(const RawAddress *bd_addr, btsock_type_t type, const uint8_t* uuid,
             int channel, int* sock_fd, int flags, int callingUid);
 } btsock_interface_t;
 

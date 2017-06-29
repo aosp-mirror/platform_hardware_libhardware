@@ -34,7 +34,7 @@ typedef struct
     uint8_t  tx_power;
     int8_t  rssi_value;
     uint16_t time_stamp;
-    bt_bdaddr_t bd_addr;
+    RawAddress bd_addr;
     uint8_t  adv_pkt_len;
     uint8_t  *p_adv_pkt_data;
     uint8_t  scan_rsp_len;

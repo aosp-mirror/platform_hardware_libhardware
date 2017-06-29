@@ -60,7 +60,7 @@ typedef struct
 typedef struct
 {
     uint8_t             value[BTGATT_MAX_ATTR_LEN];
-    bt_bdaddr_t         bda;
+    RawAddress         bda;
     uint16_t            handle;
     uint16_t            len;
     uint8_t             is_notify;
@@ -68,7 +68,7 @@ typedef struct
 
 typedef struct
 {
-    bt_bdaddr_t        *bda1;
+    RawAddress        *bda1;
     bt_uuid_t          *uuid1;
     uint16_t            u1;
     uint16_t            u2;
@@ -102,11 +102,11 @@ typedef enum
 typedef void (*register_client_callback)(int status, int client_if, const bt_uuid_t& app_uuid);
 
 /** GATT open callback invoked in response to open */
-typedef void (*connect_callback)(int conn_id, int status, int client_if, const bt_bdaddr_t& bda);
+typedef void (*connect_callback)(int conn_id, int status, int client_if, const RawAddress& bda);
 
 /** Callback invoked in response to close */
 typedef void (*disconnect_callback)(int conn_id, int status,
-                int client_if, const bt_bdaddr_t& bda);
+                int client_if, const RawAddress& bda);
 
 /**
  * Invoked in response to search_service when the GATT service search
@@ -142,7 +142,7 @@ typedef void (*read_descriptor_callback)(int conn_id, int status,
 typedef void (*write_descriptor_callback)(int conn_id, int status, uint16_t handle);
 
 /** Callback triggered in response to read_remote_rssi */
-typedef void (*read_remote_rssi_callback)(int client_if, const bt_bdaddr_t& bda,
+typedef void (*read_remote_rssi_callback)(int client_if, const RawAddress& bda,
                                           int rssi, int status);
 
 /** Callback invoked when the MTU for a given connection changes */
@@ -206,15 +206,15 @@ typedef struct {
     bt_status_t (*unregister_client)(int client_if);
 
     /** Create a connection to a remote LE or dual-mode device */
-    bt_status_t (*connect)(int client_if, const bt_bdaddr_t& bd_addr,
+    bt_status_t (*connect)(int client_if, const RawAddress& bd_addr,
                            bool is_direct, int transport, int initiating_phys);
 
     /** Disconnect a remote device or cancel a pending connection */
-    bt_status_t (*disconnect)( int client_if, const bt_bdaddr_t& bd_addr,
+    bt_status_t (*disconnect)( int client_if, const RawAddress& bd_addr,
                     int conn_id);
 
     /** Clear the attribute cache for a given device */
-    bt_status_t (*refresh)( int client_if, const bt_bdaddr_t& bd_addr);
+    bt_status_t (*refresh)( int client_if, const RawAddress& bd_addr);
 
     /**
      * Enumerate all GATT services on a connected device.
@@ -256,30 +256,30 @@ typedef struct {
      * characteristic
      */
     bt_status_t (*register_for_notification)( int client_if,
-                    const bt_bdaddr_t& bd_addr, uint16_t handle);
+                    const RawAddress& bd_addr, uint16_t handle);
 
     /** Deregister a previous request for notifications/indications */
     bt_status_t (*deregister_for_notification)( int client_if,
-                    const bt_bdaddr_t& bd_addr, uint16_t handle);
+                    const RawAddress& bd_addr, uint16_t handle);
 
     /** Request RSSI for a given remote device */
-    bt_status_t (*read_remote_rssi)(int client_if, const bt_bdaddr_t& bd_addr);
+    bt_status_t (*read_remote_rssi)(int client_if, const RawAddress& bd_addr);
 
     /** Determine the type of the remote device (LE, BR/EDR, Dual-mode) */
-    int (*get_device_type)(const bt_bdaddr_t &bd_addr);
+    int (*get_device_type)(const RawAddress &bd_addr);
 
     /** Configure the MTU for a given connection */
     bt_status_t (*configure_mtu)(int conn_id, int mtu);
 
     /** Request a connection parameter update */
-    bt_status_t (*conn_parameter_update)(const bt_bdaddr_t& bd_addr, int min_interval,
+    bt_status_t (*conn_parameter_update)(const RawAddress& bd_addr, int min_interval,
                     int max_interval, int latency, int timeout);
 
-    bt_status_t (*set_preferred_phy)(const bt_bdaddr_t& bd_addr, uint8_t tx_phy,
+    bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy,
                                      uint8_t rx_phy, uint16_t phy_options);
 
     bt_status_t (*read_phy)(
-        const bt_bdaddr_t& bd_addr,
+        const RawAddress& bd_addr,
         base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
             cb);
 
