@@ -50,7 +50,7 @@ typedef void (*register_server_callback)(int status, int server_if,
 
 /** Callback indicating that a remote device has connected or been disconnected */
 typedef void (*connection_callback)(int conn_id, int server_if, int connected,
-                                    const bt_bdaddr_t& bda);
+                                    const RawAddress& bda);
 
 /** Callback invoked in response to create_service */
 typedef void (*service_added_callback)(int status, int server_if,
@@ -68,20 +68,20 @@ typedef void (*service_deleted_callback)(int status, int server_if,
  * Callback invoked when a remote device has requested to read a characteristic
  * or descriptor. The application must respond by calling send_response
  */
-typedef void (*request_read_callback)(int conn_id, int trans_id, const bt_bdaddr_t& bda,
+typedef void (*request_read_callback)(int conn_id, int trans_id, const RawAddress& bda,
                                       int attr_handle, int offset, bool is_long);
 
 /**
  * Callback invoked when a remote device has requested to write to a
  * characteristic or descriptor.
  */
-typedef void (*request_write_callback)(int conn_id, int trans_id, const bt_bdaddr_t& bda,
+typedef void (*request_write_callback)(int conn_id, int trans_id, const RawAddress& bda,
                                        int attr_handle, int offset, bool need_rsp,
                                        bool is_prep, std::vector<uint8_t> value);
 
 /** Callback invoked when a previously prepared write is to be executed */
 typedef void (*request_exec_write_callback)(int conn_id, int trans_id,
-                                            const bt_bdaddr_t& bda, int exec_write);
+                                            const RawAddress& bda, int exec_write);
 
 /**
  * Callback triggered in response to send_response if the remote device
@@ -141,11 +141,11 @@ typedef struct {
     bt_status_t (*unregister_server)(int server_if );
 
     /** Create a connection to a remote peripheral */
-    bt_status_t (*connect)(int server_if, const bt_bdaddr_t& bd_addr,
+    bt_status_t (*connect)(int server_if, const RawAddress& bd_addr,
                             bool is_direct, int transport);
 
     /** Disconnect an established connection or cancel a pending one */
-    bt_status_t (*disconnect)(int server_if, const bt_bdaddr_t& bd_addr,
+    bt_status_t (*disconnect)(int server_if, const RawAddress& bd_addr,
                     int conn_id );
 
     /** Create a new service */
@@ -166,11 +166,11 @@ typedef struct {
     bt_status_t (*send_response)(int conn_id, int trans_id,
                                  int status, const btgatt_response_t& response);
 
-    bt_status_t (*set_preferred_phy)(const bt_bdaddr_t& bd_addr, uint8_t tx_phy,
+    bt_status_t (*set_preferred_phy)(const RawAddress& bd_addr, uint8_t tx_phy,
                                      uint8_t rx_phy, uint16_t phy_options);
 
     bt_status_t (*read_phy)(
-        const bt_bdaddr_t& bd_addr,
+        const RawAddress& bd_addr,
         base::Callback<void(uint8_t tx_phy, uint8_t rx_phy, uint8_t status)>
             cb);
 
