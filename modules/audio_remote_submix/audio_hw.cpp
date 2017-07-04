@@ -24,6 +24,7 @@
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/limits.h>
+#include <unistd.h>
 
 #include <cutils/compiler.h>
 #include <cutils/properties.h>
