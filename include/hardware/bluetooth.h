@@ -24,6 +24,8 @@
 
 #include <hardware/hardware.h>
 
+#include <raw_address.h>
+
 __BEGIN_DECLS
 
 /**
@@ -54,11 +56,6 @@ __BEGIN_DECLS
 
 /** Bluetooth test interface IDs */
 #define BT_TEST_INTERFACE_MCAP_ID "mcap_test"
-
-/** Bluetooth Address */
-typedef struct {
-    uint8_t address[6];
-} __attribute__((packed))RawAddress;
 
 /** Bluetooth Device Name */
 typedef struct {
