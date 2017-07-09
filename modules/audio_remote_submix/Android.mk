@@ -25,7 +25,7 @@ LOCAL_C_INCLUDES += \
 	frameworks/av/include/ \
 	frameworks/native/include/ \
 	$(call include-path-for, audio-utils)
-LOCAL_SHARED_LIBRARIES := liblog libcutils libutils libnbaio
+LOCAL_SHARED_LIBRARIES := liblog libcutils libutils libnbaio_mono
 LOCAL_STATIC_LIBRARIES := libmedia_helper
 LOCAL_MODULE_TAGS := optional
 LOCAL_CFLAGS := -Wno-unused-parameter
