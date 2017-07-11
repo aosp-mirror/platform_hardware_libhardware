@@ -60,7 +60,7 @@ typedef struct {
      * used for traffic accounting purposes.
      */
     bt_status_t (*listen)(btsock_type_t type, const char* service_name,
-            const uint8_t* service_uuid, int channel, int* sock_fd, int flags, int callingUid);
+            const bluetooth::Uuid* service_uuid, int channel, int* sock_fd, int flags, int callingUid);
 
     /**
      * Connect to a RFCOMM UUID channel of remote device, It returns the socket fd from which
@@ -68,7 +68,7 @@ typedef struct {
      * The callingUid is the UID of the application which is requesting the socket. This is
      * used for traffic accounting purposes.
      */
-    bt_status_t (*connect)(const RawAddress *bd_addr, btsock_type_t type, const uint8_t* uuid,
+    bt_status_t (*connect)(const RawAddress *bd_addr, btsock_type_t type, const bluetooth::Uuid* uuid,
             int channel, int* sock_fd, int flags, int callingUid);
 } btsock_interface_t;
 

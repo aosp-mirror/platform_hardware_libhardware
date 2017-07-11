@@ -21,6 +21,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include <bluetooth/uuid.h>
+
 __BEGIN_DECLS
 
 /**
@@ -32,7 +34,7 @@ __BEGIN_DECLS
 /** GATT ID adding instance id tracking to the UUID */
 typedef struct
 {
-    bt_uuid_t           uuid;
+    bluetooth::Uuid     uuid;
     uint8_t             inst_id;
 } btgatt_gatt_id_t;
 

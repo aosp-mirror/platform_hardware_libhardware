@@ -46,7 +46,7 @@ typedef union
 
 /** Callback invoked in response to register_server */
 typedef void (*register_server_callback)(int status, int server_if,
-                const bt_uuid_t& app_uuid);
+                const bluetooth::Uuid& app_uuid);
 
 /** Callback indicating that a remote device has connected or been disconnected */
 typedef void (*connection_callback)(int conn_id, int server_if, int connected,
@@ -135,7 +135,7 @@ typedef struct {
 /** Represents the standard BT-GATT server interface. */
 typedef struct {
     /** Registers a GATT server application with the stack */
-    bt_status_t (*register_server)(const bt_uuid_t& uuid);
+    bt_status_t (*register_server)(const bluetooth::Uuid& uuid);
 
     /** Unregister a server application from the stack */
     bt_status_t (*unregister_server)(int server_if );
