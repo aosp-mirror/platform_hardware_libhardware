@@ -207,7 +207,8 @@ typedef struct {
 
     /** Create a connection to a remote LE or dual-mode device */
     bt_status_t (*connect)(int client_if, const RawAddress& bd_addr,
-                           bool is_direct, int transport, int initiating_phys);
+                           bool is_direct, int transport, bool opportunistic,
+                           int initiating_phys);
 
     /** Disconnect a remote device or cancel a pending connection */
     bt_status_t (*disconnect)( int client_if, const RawAddress& bd_addr,
