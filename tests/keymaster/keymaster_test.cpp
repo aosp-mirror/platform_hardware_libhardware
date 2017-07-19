@@ -33,7 +33,7 @@
 #define LOG_TAG "keymaster_test"
 #include <utils/Log.h>
 
-#include <UniquePtr.h>
+#include <nativehelper/UniquePtr.h>
 
 #include <hardware/keymaster0.h>
 
