@@ -33,6 +33,10 @@ cc_library_shared {
     export_header_lib_headers: ["libhardware_headers"],
 
     vendor_available: true,
+    vndk: {
+        enabled: true,
+        support_system_process: true,
+    },
 }
 
 subdirs = [
