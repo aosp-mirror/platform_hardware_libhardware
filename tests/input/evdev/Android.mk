@@ -21,7 +21,6 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_CLANG := true
 LOCAL_CFLAGS += -Wall -Wextra -Wno-unused-parameter
-LOCAL_CPPFLAGS += -std=c++14
 
 # TestHelpers uses mktemp. As the path is given to TempFile, we can't do too much
 # here (e.g., use mkdtemp first). At least races will lead to an early failure, as
