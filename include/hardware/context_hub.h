@@ -47,12 +47,13 @@ __BEGIN_DECLS
 /*****************************************************************************/
 
 #define CONTEXT_HUB_HEADER_MAJOR_VERSION          1
-#define CONTEXT_HUB_HEADER_MINOR_VERSION          0
+#define CONTEXT_HUB_HEADER_MINOR_VERSION          1
 #define CONTEXT_HUB_DEVICE_API_VERSION \
      HARDWARE_DEVICE_API_VERSION(CONTEXT_HUB_HEADER_MAJOR_VERSION, \
                                  CONTEXT_HUB_HEADER_MINOR_VERSION)
 
 #define CONTEXT_HUB_DEVICE_API_VERSION_1_0  HARDWARE_DEVICE_API_VERSION(1, 0)
+#define CONTEXT_HUB_DEVICE_API_VERSION_1_1  HARDWARE_DEVICE_API_VERSION(1, 1)
 
 /**
  * The id of this module
@@ -131,9 +132,17 @@ struct nano_app_binary_t {
     uint32_t app_version;          // Version of the app
     uint32_t flags;                // Signed, encrypted
     uint64_t hw_hub_type;          // which hub type is this compiled for
-    uint32_t reserved[2];          // Should be all zeroes
-    uint8_t  custom_binary[0];     // start of custom binary data
-};
+
+    // The version of the CHRE API that this nanoapp was compiled against.
+    // If these values are both set to 0, then they must be interpreted the same
+    // as if major version were set to 1, and minor 0 (the first valid CHRE API
+    // version).
+    uint8_t target_chre_api_major_version;
+    uint8_t target_chre_api_minor_version;
+
+    uint8_t reserved[6];           // Should be all zeroes
+    uint8_t custom_binary[0];      // start of custom binary data
+} __attribute__((packed));
 
 struct hub_app_info {
     struct hub_app_name_t app_name;
