@@ -17,5 +17,6 @@ cc_library_shared {
     relative_install_path: "hw",
     proprietary: true,
     srcs: ["fingerprint.c"],
+    header_libs: ["libhardware_headers"],
     shared_libs: ["liblog"],
 }
