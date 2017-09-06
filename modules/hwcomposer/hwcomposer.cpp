@@ -17,6 +17,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
+#include <string.h>
 
 #include <cutils/atomic.h>
 #include <log/log.h>

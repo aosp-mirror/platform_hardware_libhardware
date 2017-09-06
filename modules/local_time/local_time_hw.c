@@ -21,7 +21,7 @@
 #include <malloc.h>
 #include <stdint.h>
 #include <string.h>
-#include <sys/time.h>
+#include <time.h>
 
 #include <log/log.h>
 
