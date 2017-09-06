@@ -19,7 +19,7 @@ cc_library_shared {
     // hw/<VIBRATOR_HARDWARE_MODULE_ID>.default.so
     relative_install_path: "hw",
     proprietary: true,
-    include_dirs: ["hardware/libhardware"],
+    header_libs: ["libhardware_headers"],
     srcs: ["vibrator.c"],
     shared_libs: ["liblog"],
 }
