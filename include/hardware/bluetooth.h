@@ -34,7 +34,6 @@ __BEGIN_DECLS
 
 #define BT_HARDWARE_MODULE_ID "bluetooth"
 #define BT_STACK_MODULE_ID "bluetooth"
-#define BT_STACK_TEST_MODULE_ID "bluetooth_test"
 
 
 /** Bluetooth profile interface IDs */
