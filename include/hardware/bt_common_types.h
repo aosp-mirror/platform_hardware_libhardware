@@ -24,6 +24,8 @@
 
 #include "bluetooth.h"
 
+#include <bluetooth/uuid.h>
+
 typedef struct
 {
     uint8_t  client_if;
@@ -53,7 +55,7 @@ typedef enum
 typedef struct
 {
     uint16_t             id;
-    bt_uuid_t           uuid;
+    bluetooth::Uuid      uuid;
     bt_gatt_db_attribute_type_t type;
     uint16_t            attribute_handle;
 
