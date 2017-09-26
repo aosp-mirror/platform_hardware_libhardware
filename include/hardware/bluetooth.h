@@ -24,6 +24,7 @@
 
 #include <hardware/hardware.h>
 
+#include <bluetooth/uuid.h>
 #include <raw_address.h>
 
 __BEGIN_DECLS
@@ -127,15 +128,10 @@ typedef enum {
     BT_ACL_STATE_DISCONNECTED
 } bt_acl_state_t;
 
-/** Bluetooth 128-bit UUID */
-typedef struct {
-   uint8_t uu[16];
-} bt_uuid_t;
-
 /** Bluetooth SDP service record */
 typedef struct
 {
-   bt_uuid_t uuid;
+   bluetooth::Uuid uuid;
    uint16_t channel;
    char name[256]; // what's the maximum length
 } bt_service_record_t;
@@ -171,94 +167,95 @@ typedef struct
 
 /* Bluetooth Adapter and Remote Device property types */
 typedef enum {
-    /* Properties common to both adapter and remote device */
-    /**
-     * Description - Bluetooth Device Name
-     * Access mode - Adapter name can be GET/SET. Remote device can be GET
-     * Data type   - bt_bdname_t
-     */
-    BT_PROPERTY_BDNAME = 0x1,
-    /**
-     * Description - Bluetooth Device Address
-     * Access mode - Only GET.
-     * Data type   - RawAddress
-     */
-    BT_PROPERTY_BDADDR,
-    /**
-     * Description - Bluetooth Service 128-bit UUIDs
-     * Access mode - Only GET.
-     * Data type   - Array of bt_uuid_t (Array size inferred from property length).
-     */
-    BT_PROPERTY_UUIDS,
-    /**
-     * Description - Bluetooth Class of Device as found in Assigned Numbers
-     * Access mode - Only GET.
-     * Data type   - uint32_t.
-     */
-    BT_PROPERTY_CLASS_OF_DEVICE,
-    /**
-     * Description - Device Type - BREDR, BLE or DUAL Mode
-     * Access mode - Only GET.
-     * Data type   - bt_device_type_t
-     */
-    BT_PROPERTY_TYPE_OF_DEVICE,
-    /**
-     * Description - Bluetooth Service Record
-     * Access mode - Only GET.
-     * Data type   - bt_service_record_t
-     */
-    BT_PROPERTY_SERVICE_RECORD,
+  /* Properties common to both adapter and remote device */
+  /**
+   * Description - Bluetooth Device Name
+   * Access mode - Adapter name can be GET/SET. Remote device can be GET
+   * Data type   - bt_bdname_t
+   */
+  BT_PROPERTY_BDNAME = 0x1,
+  /**
+   * Description - Bluetooth Device Address
+   * Access mode - Only GET.
+   * Data type   - RawAddress
+   */
+  BT_PROPERTY_BDADDR,
+  /**
+   * Description - Bluetooth Service 128-bit UUIDs
+   * Access mode - Only GET.
+   * Data type   - Array of bluetooth::Uuid (Array size inferred from property
+   *               length).
+   */
+  BT_PROPERTY_UUIDS,
+  /**
+   * Description - Bluetooth Class of Device as found in Assigned Numbers
+   * Access mode - Only GET.
+   * Data type   - uint32_t.
+   */
+  BT_PROPERTY_CLASS_OF_DEVICE,
+  /**
+   * Description - Device Type - BREDR, BLE or DUAL Mode
+   * Access mode - Only GET.
+   * Data type   - bt_device_type_t
+   */
+  BT_PROPERTY_TYPE_OF_DEVICE,
+  /**
+   * Description - Bluetooth Service Record
+   * Access mode - Only GET.
+   * Data type   - bt_service_record_t
+   */
+  BT_PROPERTY_SERVICE_RECORD,
 
-    /* Properties unique to adapter */
-    /**
-     * Description - Bluetooth Adapter scan mode
-     * Access mode - GET and SET
-     * Data type   - bt_scan_mode_t.
-     */
-    BT_PROPERTY_ADAPTER_SCAN_MODE,
-    /**
-     * Description - List of bonded devices
-     * Access mode - Only GET.
-     * Data type   - Array of RawAddress of the bonded remote devices
-     *               (Array size inferred from property length).
-     */
-    BT_PROPERTY_ADAPTER_BONDED_DEVICES,
-    /**
-     * Description - Bluetooth Adapter Discovery timeout (in seconds)
-     * Access mode - GET and SET
-     * Data type   - uint32_t
-     */
-    BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT,
+  /* Properties unique to adapter */
+  /**
+   * Description - Bluetooth Adapter scan mode
+   * Access mode - GET and SET
+   * Data type   - bt_scan_mode_t.
+   */
+  BT_PROPERTY_ADAPTER_SCAN_MODE,
+  /**
+   * Description - List of bonded devices
+   * Access mode - Only GET.
+   * Data type   - Array of RawAddress of the bonded remote devices
+   *               (Array size inferred from property length).
+   */
+  BT_PROPERTY_ADAPTER_BONDED_DEVICES,
+  /**
+   * Description - Bluetooth Adapter Discovery timeout (in seconds)
+   * Access mode - GET and SET
+   * Data type   - uint32_t
+   */
+  BT_PROPERTY_ADAPTER_DISCOVERY_TIMEOUT,
 
-    /* Properties unique to remote device */
-    /**
-     * Description - User defined friendly name of the remote device
-     * Access mode - GET and SET
-     * Data type   - bt_bdname_t.
-     */
-    BT_PROPERTY_REMOTE_FRIENDLY_NAME,
-    /**
-     * Description - RSSI value of the inquired remote device
-     * Access mode - Only GET.
-     * Data type   - int32_t.
-     */
-    BT_PROPERTY_REMOTE_RSSI,
-    /**
-     * Description - Remote version info
-     * Access mode - SET/GET.
-     * Data type   - bt_remote_version_t.
-     */
+  /* Properties unique to remote device */
+  /**
+   * Description - User defined friendly name of the remote device
+   * Access mode - GET and SET
+   * Data type   - bt_bdname_t.
+   */
+  BT_PROPERTY_REMOTE_FRIENDLY_NAME,
+  /**
+   * Description - RSSI value of the inquired remote device
+   * Access mode - Only GET.
+   * Data type   - int32_t.
+   */
+  BT_PROPERTY_REMOTE_RSSI,
+  /**
+   * Description - Remote version info
+   * Access mode - SET/GET.
+   * Data type   - bt_remote_version_t.
+   */
 
-    BT_PROPERTY_REMOTE_VERSION_INFO,
+  BT_PROPERTY_REMOTE_VERSION_INFO,
 
-    /**
-     * Description - Local LE features
-     * Access mode - GET.
-     * Data type   - bt_local_le_features_t.
-     */
-    BT_PROPERTY_LOCAL_LE_FEATURES,
+  /**
+   * Description - Local LE features
+   * Access mode - GET.
+   * Data type   - bt_local_le_features_t.
+   */
+  BT_PROPERTY_LOCAL_LE_FEATURES,
 
-    BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
+  BT_PROPERTY_REMOTE_DEVICE_TIMESTAMP = 0xFF,
 } bt_property_type_t;
 
 /** Bluetooth Adapter Property data structure */
@@ -501,8 +498,8 @@ typedef struct {
                                       const bt_property_t *property);
 
     /** Get Remote Device's service record  for the given UUID */
-    int (*get_remote_service_record)(RawAddress *remote_addr,
-                                     bt_uuid_t *uuid);
+    int (*get_remote_service_record)(const RawAddress& remote_addr,
+                                     const bluetooth::Uuid& uuid);
 
     /** Start SDP to get remote services */
     int (*get_remote_services)(RawAddress *remote_addr);
