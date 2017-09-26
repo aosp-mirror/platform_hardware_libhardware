@@ -23,6 +23,8 @@
 #include "bt_gatt_types.h"
 #include "bt_common_types.h"
 
+#include <bluetooth/uuid.h>
+
 __BEGIN_DECLS
 
 /**
@@ -69,7 +71,7 @@ typedef struct
 typedef struct
 {
     RawAddress        *bda1;
-    bt_uuid_t          *uuid1;
+    bluetooth::Uuid   *uuid1;
     uint16_t            u1;
     uint16_t            u2;
     uint16_t            u3;
@@ -99,7 +101,7 @@ typedef enum
 /** BT-GATT Client callback structure. */
 
 /** Callback invoked in response to register_client */
-typedef void (*register_client_callback)(int status, int client_if, const bt_uuid_t& app_uuid);
+typedef void (*register_client_callback)(int status, int client_if, const bluetooth::Uuid& app_uuid);
 
 /** GATT open callback invoked in response to open */
 typedef void (*connect_callback)(int conn_id, int status, int client_if, const RawAddress& bda);
@@ -200,7 +202,7 @@ typedef struct {
 
 typedef struct {
     /** Registers a GATT client application with the stack */
-    bt_status_t (*register_client)(const bt_uuid_t& uuid);
+    bt_status_t (*register_client)(const bluetooth::Uuid& uuid);
 
     /** Unregister a client application from the stack */
     bt_status_t (*unregister_client)(int client_if);
@@ -221,12 +223,12 @@ typedef struct {
      * Enumerate all GATT services on a connected device.
      * Optionally, the results can be filtered for a given UUID.
      */
-    bt_status_t (*search_service)(int conn_id, const bt_uuid_t *filter_uuid);
+    bt_status_t (*search_service)(int conn_id, const bluetooth::Uuid *filter_uuid);
 
     /**
      * Sead "Find service by UUID" request. Used only for PTS tests.
      */
-    void (*btif_gattc_discover_service_by_uuid)(int conn_id, const bt_uuid_t& uuid);
+    void (*btif_gattc_discover_service_by_uuid)(int conn_id, const bluetooth::Uuid& uuid);
 
     /** Read a characteristic on a remote device */
     bt_status_t (*read_characteristic)(int conn_id, uint16_t handle,
@@ -234,7 +236,7 @@ typedef struct {
 
     /** Read a characteristic on a remote device */
     bt_status_t (*read_using_characteristic_uuid)(
-        int conn_id, const bt_uuid_t& uuid, uint16_t s_handle,
+        int conn_id, const bluetooth::Uuid& uuid, uint16_t s_handle,
         uint16_t e_handle, int auth_req);
 
     /** Write a remote characteristic */

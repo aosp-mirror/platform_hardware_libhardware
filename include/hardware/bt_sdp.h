@@ -37,7 +37,7 @@ typedef enum {
 
 typedef struct _bluetooth_sdp_hdr {
     bluetooth_sdp_types type;
-    bt_uuid_t   uuid;
+    bluetooth::Uuid uuid;
     uint32_t    service_name_length;
     char       *service_name;
     int32_t     rfcomm_channel_number;
@@ -51,7 +51,7 @@ typedef struct _bluetooth_sdp_hdr {
  */
 typedef struct _bluetooth_sdp_hdr_overlay {
     bluetooth_sdp_types type;
-    bt_uuid_t   uuid;
+    bluetooth::Uuid uuid;
     uint32_t    service_name_length;
     char       *service_name;
     int32_t     rfcomm_channel_number;
@@ -109,7 +109,11 @@ typedef union {
 
 
 /** Callback for SDP search */
-typedef void (*btsdp_search_callback)(bt_status_t status, RawAddress *bd_addr, uint8_t* uuid, int num_records, bluetooth_sdp_record *records);
+typedef void (*btsdp_search_callback)(bt_status_t status,
+                                      const RawAddress &bd_addr,
+                                      const bluetooth::Uuid &uuid,
+                                      int num_records,
+                                      bluetooth_sdp_record *records);
 
 typedef struct {
     /** Set to sizeof(btsdp_callbacks_t) */
@@ -128,7 +132,7 @@ typedef struct {
     bt_status_t (*deinit)();
 
     /** Search for SDP records with specific uuid on remote device */
-    bt_status_t (*sdp_search)(RawAddress *bd_addr,  const uint8_t* uuid);
+    bt_status_t (*sdp_search)(RawAddress *bd_addr, const bluetooth::Uuid& uuid);
 
     /**
      * Use listen in the socket interface to create rfcomm and/or l2cap PSM channels,

@@ -88,8 +88,8 @@ class BleScannerInterface {
   /** Configure a scan filter condition  */
   virtual void ScanFilterAddRemove(int action, int filt_type, int filt_index,
                                    int company_id, int company_id_mask,
-                                   const bt_uuid_t *p_uuid,
-                                   const bt_uuid_t *p_uuid_mask,
+                                   const bluetooth::Uuid *p_uuid,
+                                   const bluetooth::Uuid *p_uuid_mask,
                                    const RawAddress *bd_addr, char addr_type,
                                    std::vector<uint8_t> data,
                                    std::vector<uint8_t> p_mask,
