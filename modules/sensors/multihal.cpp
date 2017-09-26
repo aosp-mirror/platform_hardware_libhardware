@@ -49,10 +49,11 @@ static pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t data_available_cond = PTHREAD_COND_INITIALIZER;
 bool waiting_for_data = false;
 
-/*
- * Vector of sub modules, whose indexes are referred to in this file as module_index.
- */
-static std::vector<hw_module_t *> *sub_hw_modules = NULL;
+// Vector of sub modules, whose indexes are referred to in this file as module_index.
+static std::vector<hw_module_t *> *sub_hw_modules = nullptr;
+
+// Vector of sub modules shared object handles
+static std::vector<void *> *so_handles = nullptr;
 
 /*
  * Comparable class that globally identifies a sensor, by module index and local handle.
@@ -509,11 +510,26 @@ int sensors_poll_context_t::close() {
 
 
 static int device__close(struct hw_device_t *dev) {
+    pthread_mutex_lock(&init_modules_mutex);
     sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
     if (ctx != NULL) {
         int retval = ctx->close();
         delete ctx;
     }
+
+    if (sub_hw_modules != nullptr) {
+        delete sub_hw_modules;
+        sub_hw_modules = nullptr;
+    }
+
+    if (so_handles != nullptr) {
+        for (auto handle : *so_handles) {
+            dlclose(handle);
+        }
+        delete so_handles;
+        so_handles = nullptr;
+    }
+    pthread_mutex_unlock(&init_modules_mutex);
     return 0;
 }
 
@@ -583,7 +599,9 @@ static bool starts_with(const char* s, const char* prefix) {
  * Adds valid paths from the config file to the vector passed in.
  * The vector must not be null.
  */
-static void get_so_paths(std::vector<std::string> *so_paths) {
+static std::vector<std::string> get_so_paths() {
+    std::vector<std::string> so_paths;
+
     const std::vector<const char *> config_path_list(
             { MULTI_HAL_CONFIG_FILE_PATH, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH });
 
@@ -599,7 +617,7 @@ static void get_so_paths(std::vector<std::string> *so_paths) {
     }
     if(!stream) {
         ALOGW("No multihal config file found");
-        return;
+        return so_paths;
     }
 
     ALOGE_IF(strcmp(path, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH) == 0,
@@ -611,8 +629,9 @@ static void get_so_paths(std::vector<std::string> *so_paths) {
     std::string line;
     while (std::getline(stream, line)) {
         ALOGV("config file line: '%s'", line.c_str());
-        so_paths->push_back(line);
+        so_paths.push_back(line);
     }
+    return so_paths;
 }
 
 /*
@@ -625,15 +644,15 @@ static void lazy_init_modules() {
         pthread_mutex_unlock(&init_modules_mutex);
         return;
     }
-    std::vector<std::string> *so_paths = new std::vector<std::string>();
-    get_so_paths(so_paths);
+    std::vector<std::string> so_paths(get_so_paths());
 
     // dlopen the module files and cache their module symbols in sub_hw_modules
     sub_hw_modules = new std::vector<hw_module_t *>();
+    so_handles = new std::vector<void *>();
     dlerror(); // clear any old errors
     const char* sym = HAL_MODULE_INFO_SYM_AS_STR;
-    for (std::vector<std::string>::iterator it = so_paths->begin(); it != so_paths->end(); it++) {
-        const char* path = it->c_str();
+    for (const auto &s : so_paths) {
+        const char* path = s.c_str();
         void* lib_handle = dlopen(path, RTLD_LAZY);
         if (lib_handle == NULL) {
             ALOGW("dlerror(): %s", dlerror());
@@ -651,7 +670,12 @@ static void lazy_init_modules() {
             } else {
                 ALOGV("Loaded symbols from \"%s\"", sym);
                 sub_hw_modules->push_back(module);
+                so_handles->push_back(lib_handle);
+                lib_handle = nullptr;
             }
+        }
+        if (lib_handle != nullptr) {
+            dlclose(lib_handle);
         }
     }
     pthread_mutex_unlock(&init_modules_mutex);
