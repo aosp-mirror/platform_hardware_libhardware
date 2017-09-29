@@ -29,7 +29,11 @@ cc_library_shared {
         "libdl",
         "libvndksupport",
     ],
-    cflags: ["-DQEMU_HARDWARE"],
+    cflags: [
+        "-DQEMU_HARDWARE",
+        "-Wall",
+        "-Werror",
+    ],
 
     header_libs: ["libhardware_headers"],
     export_header_lib_headers: ["libhardware_headers"],
