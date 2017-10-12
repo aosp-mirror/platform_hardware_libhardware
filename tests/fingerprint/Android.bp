@@ -9,6 +9,7 @@ cc_test {
 
     cflags: [
         "-Wall",
+        "-Werror",
         "-Wextra",
     ],
 }

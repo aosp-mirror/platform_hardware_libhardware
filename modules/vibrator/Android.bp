@@ -21,5 +21,6 @@ cc_library_shared {
     proprietary: true,
     header_libs: ["libhardware_headers"],
     srcs: ["vibrator.c"],
+    cflags: ["-Wall", "-Werror"],
     shared_libs: ["liblog"],
 }

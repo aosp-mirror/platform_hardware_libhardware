@@ -108,7 +108,6 @@ static int write_led_file(const char *file, const char *value)
 
 static bool vibra_led_exists()
 {
-    int fd;
     char file_str[50];
 
     snprintf(file_str, sizeof(file_str), "%s/%s", LED_DEVICE, "activate");
