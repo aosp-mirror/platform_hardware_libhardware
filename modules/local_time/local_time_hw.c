@@ -72,8 +72,6 @@ static int ltdev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
     struct stub_local_time_device *ltdev;
-    struct timespec ts;
-    int ret;
 
     if (strcmp(name, LOCAL_TIME_HARDWARE_INTERFACE) != 0)
         return -EINVAL;
