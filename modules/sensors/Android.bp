@@ -15,4 +15,5 @@ cc_library_static {
         "libdl"
     ],
     export_include_dirs: ["."],
+    cflags: ["-Wall", "-Werror"],
 }
