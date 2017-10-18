@@ -20,10 +20,8 @@
 #include <stdint.h>
 #include <sys/cdefs.h>
 
-#ifndef _HW_DONT_INCLUDE_CORE_
 #include <cutils/native_handle.h>
 #include <system/graphics.h>
-#endif // _HW_DONT_INCLUDE_CORE_
 
 __BEGIN_DECLS
 
