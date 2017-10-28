@@ -87,7 +87,12 @@ struct stream_out {
 
     struct audio_device *adev;           /* hardware information - only using this for the lock */
 
-    alsa_device_profile * profile;      /* Points to the alsa_device_profile in the audio_device */
+    const alsa_device_profile *profile; /* Points to the alsa_device_profile in the audio_device.
+                                         * Const, so modifications go through adev->out_profile
+                                         * and thus should have the hardware lock and ensure
+                                         * stream is not active and no other open output streams.
+                                         */
+
     alsa_device_proxy proxy;            /* state of the stream */
 
     unsigned hal_channel_count;         /* channel count exposed to AudioFlinger.
@@ -118,7 +123,12 @@ struct stream_in {
 
     struct audio_device *adev;           /* hardware information - only using this for the lock */
 
-    alsa_device_profile * profile;      /* Points to the alsa_device_profile in the audio_device */
+    const alsa_device_profile *profile; /* Points to the alsa_device_profile in the audio_device.
+                                         * Const, so modifications go through adev->out_profile
+                                         * and thus should have the hardware lock and ensure
+                                         * stream is not active and no other open input streams.
+                                         */
+
     alsa_device_proxy proxy;            /* state of the stream */
 
     unsigned hal_channel_count;         /* channel count exposed to AudioFlinger.
@@ -234,7 +244,7 @@ static bool parse_card_device_params(const char *kvpairs, int *card, int *device
     return *card >= 0 && *device >= 0;
 }
 
-static char * device_get_parameters(alsa_device_profile * profile, const char * keys)
+static char *device_get_parameters(const alsa_device_profile *profile, const char * keys)
 {
     if (profile->card < 0 || profile->device < 0) {
         return strdup("");
@@ -386,12 +396,12 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
         else {
             int saved_card = out->profile->card;
             int saved_device = out->profile->device;
-            out->profile->card = card;
-            out->profile->device = device;
-            ret_value = profile_read_device_info(out->profile) ? 0 : -EINVAL;
+            out->adev->out_profile.card = card;
+            out->adev->out_profile.device = device;
+            ret_value = profile_read_device_info(&out->adev->out_profile) ? 0 : -EINVAL;
             if (ret_value != 0) {
-                out->profile->card = saved_card;
-                out->profile->device = saved_device;
+                out->adev->out_profile.card = saved_card;
+                out->adev->out_profile.device = saved_device;
             }
         }
     }
@@ -574,9 +584,9 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     memset(&proxy_config, 0, sizeof(proxy_config));
 
     /* Pull out the card/device pair */
-    parse_card_device_params(address, &(out->profile->card), &(out->profile->device));
+    parse_card_device_params(address, &out->adev->out_profile.card, &out->adev->out_profile.device);
 
-    profile_read_device_info(out->profile);
+    profile_read_device_info(&out->adev->out_profile);
 
     int ret = 0;
 
@@ -795,12 +805,12 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
         else {
             int saved_card = in->profile->card;
             int saved_device = in->profile->device;
-            in->profile->card = card;
-            in->profile->device = device;
-            ret_value = profile_read_device_info(in->profile) ? 0 : -EINVAL;
+            in->adev->in_profile.card = card;
+            in->adev->in_profile.device = device;
+            ret_value = profile_read_device_info(&in->adev->in_profile) ? 0 : -EINVAL;
             if (ret_value != 0) {
-                in->profile->card = saved_card;
-                in->profile->device = saved_device;
+                in->adev->in_profile.card = saved_card;
+                in->adev->in_profile.device = saved_device;
             }
         }
     }
@@ -870,7 +880,7 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         in->standby = false;
     }
 
-    alsa_device_profile * profile = in->profile;
+    const alsa_device_profile *profile = in->profile;
 
     /*
      * OK, we need to figure out how much data to read to be able to output the requested
@@ -994,9 +1004,9 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         }
     } else {
         /* Read input profile only if necessary */
-        in->profile->card = card;
-        in->profile->device = device;
-        if (!profile_read_device_info(in->profile)) {
+        in->adev->in_profile.card = card;
+        in->adev->in_profile.device = device;
+        if (!profile_read_device_info(&in->adev->in_profile)) {
             ALOGW("%s fail - cannot read profile", __func__);
             ret = -EINVAL;
         }
