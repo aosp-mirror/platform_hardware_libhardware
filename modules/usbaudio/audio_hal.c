@@ -69,6 +69,8 @@ struct audio_device {
     bool mic_muted;
 
     bool standby;
+
+    int32_t inputs_open; /* number of input streams currently open. */
 };
 
 struct stream_lock {
@@ -787,8 +789,8 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
     device_lock(in->adev);
 
     if (card >= 0 && device >= 0 && !profile_is_cached_for(in->profile, card, device)) {
-        /* cannot read pcm device info if playback is active */
-        if (!in->standby)
+        /* cannot read pcm device info if playback is active, or more than one open stream */
+        if (!in->standby || in->adev->inputs_open > 1)
             ret_value = -ENOSYS;
         else {
             int saved_card = in->profile->card;
@@ -940,10 +942,17 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     ALOGV("adev_open_input_stream() rate:%" PRIu32 ", chanMask:0x%" PRIX32 ", fmt:%" PRIu8,
           config->sample_rate, config->channel_mask, config->format);
 
-    struct stream_in *in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
-    int ret = 0;
+    /* Pull out the card/device pair */
+    int32_t card, device;
+    if (!parse_card_device_params(address, &card, &device)) {
+        ALOGW("%s fail - invalid address %s", __func__, address);
+        *stream_in = NULL;
+        return -EINVAL;
+    }
 
+    struct stream_in * const in = (struct stream_in *)calloc(1, sizeof(struct stream_in));
     if (in == NULL) {
+        *stream_in = NULL;
         return -ENOMEM;
     }
 
@@ -975,10 +984,29 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     struct pcm_config proxy_config;
     memset(&proxy_config, 0, sizeof(proxy_config));
 
-    /* Pull out the card/device pair */
-    parse_card_device_params(address, &(in->profile->card), &(in->profile->device));
-
-    profile_read_device_info(in->profile);
+    int ret = 0;
+    /* Check if an input stream is already open */
+    if (in->adev->inputs_open > 0) {
+        if (!profile_is_cached_for(in->profile, card, device)) {
+            ALOGW("%s fail - address card:%d device:%d doesn't match existing profile",
+                    __func__, card, device);
+            ret = -EINVAL;
+        }
+    } else {
+        /* Read input profile only if necessary */
+        in->profile->card = card;
+        in->profile->device = device;
+        if (!profile_read_device_info(in->profile)) {
+            ALOGW("%s fail - cannot read profile", __func__);
+            ret = -EINVAL;
+        }
+    }
+    if (ret != 0) {
+        device_unlock(in->adev);
+        free(in);
+        *stream_in = NULL;
+        return ret;
+    }
 
     /* Rate */
     if (config->sample_rate == 0) {
@@ -1083,6 +1111,10 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         free(in);
     }
 
+    device_lock(in->adev);
+    ++in->adev->inputs_open;
+    device_unlock(in->adev);
+
     return ret;
 }
 
@@ -1093,6 +1125,12 @@ static void adev_close_input_stream(struct audio_hw_device *hw_dev,
     ALOGV("adev_close_input_stream(c:%d d:%d)", in->profile->card, in->profile->device);
 
     adev_remove_stream_from_list(in->adev, &in->list_node);
+
+    device_lock(in->adev);
+    --in->adev->inputs_open;
+    LOG_ALWAYS_FATAL_IF(in->adev->inputs_open < 0,
+            "invalid inputs_open: %d", in->adev->inputs_open);
+    device_unlock(in->adev);
 
     /* Close the pcm device */
     in_standby(&stream->common);
