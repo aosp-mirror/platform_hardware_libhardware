@@ -21,13 +21,16 @@
 #include <malloc.h>
 #include <pthread.h>
 #include <stdint.h>
-#include <sys/time.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 
+#include <hardware/audio.h>
 #include <hardware/hardware.h>
 #include <system/audio.h>
-#include <hardware/audio.h>
 
 struct stub_audio_device {
     struct audio_hw_device device;
@@ -297,11 +300,9 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 {
     ALOGV("adev_open_output_stream...");
 
-    struct stub_audio_device *ladev = (struct stub_audio_device *)dev;
-    struct stub_stream_out *out;
-    int ret;
-
-    out = (struct stub_stream_out *)calloc(1, sizeof(struct stub_stream_out));
+    *stream_out = NULL;
+    struct stub_stream_out *out =
+            (struct stub_stream_out *)calloc(1, sizeof(struct stub_stream_out));
     if (!out)
         return -ENOMEM;
 
@@ -325,11 +326,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
 
     *stream_out = &out->stream;
     return 0;
-
-err_open:
-    free(out);
-    *stream_out = NULL;
-    return ret;
 }
 
 static void adev_close_output_stream(struct audio_hw_device *dev,
@@ -424,11 +420,8 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 {
     ALOGV("adev_open_input_stream...");
 
-    struct stub_audio_device *ladev = (struct stub_audio_device *)dev;
-    struct stub_stream_in *in;
-    int ret;
-
-    in = (struct stub_stream_in *)calloc(1, sizeof(struct stub_stream_in));
+    *stream_in = NULL;
+    struct stub_stream_in *in = (struct stub_stream_in *)calloc(1, sizeof(struct stub_stream_in));
     if (!in)
         return -ENOMEM;
 
@@ -450,11 +443,6 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     *stream_in = &in->stream;
     return 0;
-
-err_open:
-    free(in);
-    *stream_in = NULL;
-    return ret;
 }
 
 static void adev_close_input_stream(struct audio_hw_device *dev,
@@ -483,7 +471,6 @@ static int adev_open(const hw_module_t* module, const char* name,
     ALOGV("adev_open: %s", name);
 
     struct stub_audio_device *adev;
-    int ret;
 
     if (strcmp(name, AUDIO_HARDWARE_INTERFACE) != 0)
         return -EINVAL;

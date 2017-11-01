@@ -136,9 +136,9 @@ enum {
  */
 enum {
     /*
-     * HWC_SKIP_LAYER is set by SurfaceFlnger to indicate that the HAL
+     * HWC_SKIP_LAYER is set by SurfaceFlinger to indicate that the HAL
      * shall not consider this layer for composition as it will be handled
-     * by SurfaceFlinger (just as if compositionType was set to HWC_OVERLAY).
+     * by SurfaceFlinger (just as if compositionType was set to HWC_FRAMEBUFFER).
      */
     HWC_SKIP_LAYER = 0x00000001,
 

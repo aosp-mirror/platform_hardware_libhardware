@@ -32,7 +32,7 @@ bool checkSize(SensorEventQueue* queue, int expected) {
     return true;
 }
 
-bool checkInt(char* msg, int expected, int actual) {
+bool checkInt(const char* msg, int expected, int actual) {
     if (actual != expected) {
         printf("%s; expected %d; actual was %d\n", msg, expected, actual);
         return false;
@@ -187,7 +187,7 @@ bool testFullQueueIo() {
 }
 
 
-int main(int argc, char **argv) {
+int main(int argc __attribute((unused)), char **argv __attribute((unused))) {
     if (testSimpleWriteSizeCounts() &&
             testWrappingWriteSizeCounts() &&
             testFullQueueIo()) {

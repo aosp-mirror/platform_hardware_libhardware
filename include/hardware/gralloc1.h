@@ -18,7 +18,7 @@
 #define ANDROID_HARDWARE_GRALLOC1_H
 
 #include <hardware/hardware.h>
-#include <system/window.h>
+#include <cutils/native_handle.h>
 
 __BEGIN_DECLS
 
@@ -36,7 +36,19 @@ typedef enum {
      * allocate may be NULL, which instructs the device to report whether the
      * given allocation is possible or not. */
     GRALLOC1_CAPABILITY_TEST_ALLOCATE = 1,
-    GRALLOC1_LAST_CAPABILITY = 1,
+
+    /* If this capability is supported, then the implementation supports
+     * allocating buffers with more than one image layer. */
+    GRALLOC1_CAPABILITY_LAYERED_BUFFERS = 2,
+
+    /* If this capability is supported, then the implementation always closes
+     * and deletes a buffer handle whenever the last reference is removed.
+     *
+     * Supporting this capability is strongly recommended.  It will become
+     * mandatory in future releases. */
+    GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE = 3,
+
+    GRALLOC1_LAST_CAPABILITY = 3,
 } gralloc1_capability_t;
 
 typedef enum {
@@ -71,7 +83,7 @@ typedef enum {
     GRALLOC1_CONSUMER_USAGE_FOREIGN_BUFFERS = 1ULL << 21,
 
     /* 1ULL << 22 */
-    /* 1ULL << 23 */
+    GRALLOC1_CONSUMER_USAGE_GPU_DATA_BUFFER = 1ULL << 23,
     /* 1ULL << 24 */
     /* 1ULL << 25 */
     /* 1ULL << 26 */
@@ -141,7 +153,9 @@ typedef enum {
     GRALLOC1_FUNCTION_LOCK = 18,
     GRALLOC1_FUNCTION_LOCK_FLEX = 19,
     GRALLOC1_FUNCTION_UNLOCK = 20,
-    GRALLOC1_LAST_FUNCTION = 20,
+    GRALLOC1_FUNCTION_SET_LAYER_COUNT = 21,
+    GRALLOC1_FUNCTION_GET_LAYER_COUNT = 22,
+    GRALLOC1_LAST_FUNCTION = 22,
 } gralloc1_function_descriptor_t;
 
 typedef enum {
@@ -188,7 +202,7 @@ typedef enum {
     /* 1ULL << 20 */
     /* 1ULL << 21 */
     GRALLOC1_PRODUCER_USAGE_VIDEO_DECODER = 1ULL << 22,
-    /* 1ULL << 23 */
+    GRALLOC1_PRODUCER_USAGE_SENSOR_DIRECT_DATA = 1ULL << 23,
     /* 1ULL << 24 */
     /* 1ULL << 25 */
     /* 1ULL << 26 */
@@ -440,6 +454,30 @@ typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_SET_FORMAT)(
         gralloc1_device_t* device, gralloc1_buffer_descriptor_t descriptor,
         int32_t /*android_pixel_format_t*/ format);
 
+/* setLayerCount(..., layerCount)
+ * Function descriptor: GRALLOC1_FUNCTION_SET_LAYER_COUNT
+ * Must be provided by all gralloc1 devices that provide the
+ * GRALLOC1_CAPABILITY_LAYERED_BUFFERS capability.
+ *
+ * Sets the number of layers in the buffer.
+ *
+ * A buffer with multiple layers may be used as the backing store of an array
+ * texture. All layers of a buffer share the same characteristics (e.g.,
+ * dimensions, format, usage). Devices that do not support
+ * GRALLOC1_CAPABILITY_LAYERED_BUFFERS must allocate only buffers with a single
+ * layer.
+ *
+ * Parameters:
+ *   layerCount - the desired number of layers, must be non-zero
+ *
+ * Returns GRALLOC1_ERROR_NONE or one of the following errors:
+ *   GRALLOC1_ERROR_BAD_DESCRIPTOR - the buffer descriptor is invalid
+ *   GRALLOC1_ERROR_BAD_VALUE - the layer count is invalid
+ */
+typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_SET_LAYER_COUNT)(
+        gralloc1_device_t* device, gralloc1_buffer_descriptor_t descriptor,
+        uint32_t layerCount);
+
 /* setProducerUsage(..., usage)
  * Function descriptor: GRALLOC1_FUNCTION_SET_PRODUCER_USAGE
  * Must be provided by all gralloc1 devices
@@ -563,6 +601,28 @@ typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_GET_DIMENSIONS)(
 typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_GET_FORMAT)(
         gralloc1_device_t* device, buffer_handle_t descriptor,
         int32_t* outFormat);
+
+/* getLayerCount(..., outLayerCount)
+ * Function descriptor: GRALLOC1_FUNCTION_GET_LAYER_COUNT
+ * Must be provided by all gralloc1 devices that provide the
+ * GRALLOC1_CAPABILITY_LAYERED_BUFFERS capability.
+ *
+ * Gets the number of layers of the buffer.
+ *
+ * See setLayerCount for more information about this value.
+ *
+ * Parameters:
+ *   outLayerCount - the number of layers in the image, must be non-NULL
+ *
+ * Returns GRALLOC1_ERROR_NONE or one of the following errors:
+ *   GRALLOC1_ERROR_BAD_HANDLE - the buffer handle is invalid
+ *   GRALLOC1_ERROR_UNSUPPORTED - the device is unable to retrieve the
+ *       layer count from the buffer; see note [1] in this section's header for
+ *       more information
+ */
+typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_GET_LAYER_COUNT)(
+        gralloc1_device_t* device, buffer_handle_t buffer,
+        uint32_t* outLayerCount);
 
 /* getProducerUsage(..., outUsage)
  * Function descriptor: GRALLOC1_FUNCTION_GET_PRODUCER_USAGE
@@ -695,6 +755,12 @@ typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_RETAIN)(
  * If no references remain, the buffer should be freed. When the last buffer
  * referring to a particular backing store is freed, that backing store should
  * also be freed.
+ *
+ * When GRALLOC1_CAPABILITY_RELEASE_IMPLY_DELETE is supported,
+ * native_handle_close and native_handle_delete must always be called by the
+ * implementation whenever the last reference is removed.  Otherwise, a call
+ * to release() will be followed by native_handle_close and native_handle_delete
+ * by the caller when the buffer is not allocated locally through allocate().
  *
  * Parameters:
  *   buffer - the buffer from which a reference should be removed

@@ -31,7 +31,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
 #include <system/radio.h>
 #include <hardware/hardware.h>
 #include <hardware/vehicle.h>
@@ -279,10 +279,10 @@ static int vdev_set(vehicle_hw_device_t* device UNUSED, const vehicle_prop_value
             ALOGD("Value type: FLOAT\nValue: %f\n", data->value.float_value);
             break;
         case VEHICLE_VALUE_TYPE_INT32:
-            ALOGD("Value type: INT32\nValue: %d\n", data->value.int32_value);
+            ALOGD("Value type: INT32\nValue: %" PRId32 "\n", data->value.int32_value);
             break;
         case VEHICLE_VALUE_TYPE_INT64:
-            ALOGD("Value type: INT64\nValue: %lld\n", data->value.int64_value);
+            ALOGD("Value type: INT64\nValue: %" PRId64 "\n", data->value.int64_value);
             break;
         case VEHICLE_VALUE_TYPE_BOOLEAN:
             ALOGD("Value type: BOOLEAN\nValue: %d\n", data->value.boolean_value);
@@ -331,22 +331,6 @@ void fake_event_thread(struct subscription *sub) {
         event.prop = sub->prop;
         event.timestamp = elapsedRealtimeNano();
         switch (sub->prop) {
-            case VEHICLE_PROPERTY_DRIVING_STATUS:
-                event.value_type = VEHICLE_VALUE_TYPE_INT32;
-                switch ((event.timestamp & 0x30000000)>>28) {
-                    case 0:
-                        event.value.driving_status = VEHICLE_DRIVING_STATUS_UNRESTRICTED;
-                        break;
-                    case 1:
-                        event.value.driving_status = VEHICLE_DRIVING_STATUS_NO_VIDEO;
-                        break;
-                    case 2:
-                        event.value.driving_status = VEHICLE_DRIVING_STATUS_NO_KEYBOARD_INPUT;
-                        break;
-                    default:
-                        event.value.driving_status = VEHICLE_DRIVING_STATUS_NO_CONFIG;
-                }
-                break;
             case VEHICLE_PROPERTY_GEAR_SELECTION:
                 event.value_type = VEHICLE_VALUE_TYPE_INT32;
                 switch ((event.timestamp & 0x30000000)>>28) {

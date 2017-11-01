@@ -16,7 +16,8 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "HotplugThread"
-#include <cutils/log.h>
+
+#include <log/log.h>
 
 #include "HotplugThread.h"
 
@@ -39,6 +40,7 @@ void HotplugThread::requestExit() {
 }
 
 bool HotplugThread::threadLoop() {
+    (void)mModule;  // silence warning about unused member.
 
     /**
      * Check camera connection status change, if connected, do below:

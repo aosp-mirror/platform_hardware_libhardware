@@ -16,20 +16,27 @@
 
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera"
-#include <cutils/log.h>
+
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
 
 #include <cstdlib>
-#include <stdio.h>
-#include <hardware/camera3.h>
-#include <system/camera_metadata.h>
-#include <system/graphics.h>
+
+#include <log/log.h>
 #include <utils/Mutex.h>
-#include "CameraHAL.h"
-#include "Metadata.h"
-#include "Stream.h"
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
 #include <utils/Trace.h>
+
+#include <hardware/camera3.h>
+#include <system/camera_metadata.h>
+#include <system/graphics.h>
+
+#include "CameraHAL.h"
+#include "Metadata.h"
+#include "Stream.h"
 
 #include "Camera.h"
 
@@ -484,9 +491,9 @@ void Camera::dump(int fd) {
     // TODO: dump all settings
     dprintf(fd, "Most Recent Settings: (%p)\n", mSettings);
 
-    dprintf(fd, "Number of streams: %d\n", mStreams.size());
+    dprintf(fd, "Number of streams: %zu\n", mStreams.size());
     for (size_t i = 0; i < mStreams.size(); i++) {
-        dprintf(fd, "Stream %d/%d:\n", i, mStreams.size());
+        dprintf(fd, "Stream %zu/%zu:\n", i, mStreams.size());
         mStreams[i]->dump(fd);
     }
 }

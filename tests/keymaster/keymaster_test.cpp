@@ -23,6 +23,7 @@
 
 #include <fstream>
 #include <iostream>
+#include <memory>
 
 #include <gtest/gtest.h>
 
@@ -33,20 +34,18 @@
 #define LOG_TAG "keymaster_test"
 #include <utils/Log.h>
 
-#include <UniquePtr.h>
-
 #include <hardware/keymaster0.h>
 
 namespace android {
 
-class UniqueBlob : public UniquePtr<uint8_t[]> {
+class UniqueBlob : public std::unique_ptr<uint8_t[]> {
 public:
     explicit UniqueBlob(size_t length) :
             mLength(length) {
     }
 
     UniqueBlob(uint8_t* bytes, size_t length) :
-            UniquePtr<uint8_t[]>(bytes), mLength(length) {
+            std::unique_ptr<uint8_t[]>(bytes), mLength(length) {
     }
 
     bool operator==(const UniqueBlob &other) const {
@@ -164,35 +163,35 @@ struct BIGNUM_Delete {
         BN_free(p);
     }
 };
-typedef UniquePtr<BIGNUM, BIGNUM_Delete> Unique_BIGNUM;
+typedef std::unique_ptr<BIGNUM, BIGNUM_Delete> Unique_BIGNUM;
 
 struct EVP_PKEY_Delete {
     void operator()(EVP_PKEY* p) const {
         EVP_PKEY_free(p);
     }
 };
-typedef UniquePtr<EVP_PKEY, EVP_PKEY_Delete> Unique_EVP_PKEY;
+typedef std::unique_ptr<EVP_PKEY, EVP_PKEY_Delete> Unique_EVP_PKEY;
 
 struct PKCS8_PRIV_KEY_INFO_Delete {
     void operator()(PKCS8_PRIV_KEY_INFO* p) const {
         PKCS8_PRIV_KEY_INFO_free(p);
     }
 };
-typedef UniquePtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_Delete> Unique_PKCS8_PRIV_KEY_INFO;
+typedef std::unique_ptr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_Delete> Unique_PKCS8_PRIV_KEY_INFO;
 
 struct RSA_Delete {
     void operator()(RSA* p) const {
         RSA_free(p);
     }
 };
-typedef UniquePtr<RSA, RSA_Delete> Unique_RSA;
+typedef std::unique_ptr<RSA, RSA_Delete> Unique_RSA;
 
 struct EC_KEY_Delete {
     void operator()(EC_KEY* p) const {
         EC_KEY_free(p);
     }
 };
-typedef UniquePtr<EC_KEY, EC_KEY_Delete> Unique_EC_KEY;
+typedef std::unique_ptr<EC_KEY, EC_KEY_Delete> Unique_EC_KEY;
 
 
 /*
