@@ -22,6 +22,7 @@
 #include <strings.h>
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include <cutils/bitops.h>
 
@@ -59,19 +60,6 @@ __BEGIN_DECLS
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
 
-/**
- * List of known audio HAL modules. This is the base name of the audio HAL
- * library composed of the "audio." prefix, one of the base names below and
- * a suffix specific to the device.
- * e.g: audio.primary.goldfish.so or audio.a2dp.default.so
- */
-
-#define AUDIO_HARDWARE_MODULE_ID_PRIMARY "primary"
-#define AUDIO_HARDWARE_MODULE_ID_A2DP "a2dp"
-#define AUDIO_HARDWARE_MODULE_ID_USB "usb"
-#define AUDIO_HARDWARE_MODULE_ID_REMOTE_SUBMIX "r_submix"
-#define AUDIO_HARDWARE_MODULE_ID_CODEC_OFFLOAD "codec_offload"
-
 /**************************************/
 
 /**
@@ -82,11 +70,6 @@ __BEGIN_DECLS
  *  audio device parameters
  */
 
-/* BT SCO Noise Reduction + Echo Cancellation parameters */
-#define AUDIO_PARAMETER_KEY_BT_NREC "bt_headset_nrec"
-#define AUDIO_PARAMETER_VALUE_ON "on"
-#define AUDIO_PARAMETER_VALUE_OFF "off"
-
 /* TTY mode selection */
 #define AUDIO_PARAMETER_KEY_TTY_MODE "tty_mode"
 #define AUDIO_PARAMETER_VALUE_TTY_OFF "tty_off"
@@ -94,8 +77,7 @@ __BEGIN_DECLS
 #define AUDIO_PARAMETER_VALUE_TTY_HCO "tty_hco"
 #define AUDIO_PARAMETER_VALUE_TTY_FULL "tty_full"
 
-/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off
-   Strings must be in sync with CallFeaturesSetting.java */
+/* Hearing Aid Compatibility - Telecoil (HAC-T) mode on/off */
 #define AUDIO_PARAMETER_KEY_HAC "HACSetting"
 #define AUDIO_PARAMETER_VALUE_HAC_ON "ON"
 #define AUDIO_PARAMETER_VALUE_HAC_OFF "OFF"
@@ -106,63 +88,15 @@ __BEGIN_DECLS
 /* A2DP source address set by framework */
 #define AUDIO_PARAMETER_A2DP_SOURCE_ADDRESS "a2dp_source_address"
 
-/* Screen state */
-#define AUDIO_PARAMETER_KEY_SCREEN_STATE "screen_state"
-
 /* Bluetooth SCO wideband */
 #define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
-
-/* Get a new HW synchronization source identifier.
- * Return a valid source (positive integer) or AUDIO_HW_SYNC_INVALID if an error occurs
- * or no HW sync is available. */
-#define AUDIO_PARAMETER_HW_AV_SYNC "hw_av_sync"
 
 /**
  *  audio stream parameters
  */
 
-#define AUDIO_PARAMETER_STREAM_ROUTING "routing"             /* audio_devices_t */
-#define AUDIO_PARAMETER_STREAM_FORMAT "format"               /* audio_format_t */
-#define AUDIO_PARAMETER_STREAM_CHANNELS "channels"           /* audio_channel_mask_t */
-#define AUDIO_PARAMETER_STREAM_FRAME_COUNT "frame_count"     /* size_t */
-#define AUDIO_PARAMETER_STREAM_INPUT_SOURCE "input_source"   /* audio_source_t */
-#define AUDIO_PARAMETER_STREAM_SAMPLING_RATE "sampling_rate" /* uint32_t */
-
-#define AUDIO_PARAMETER_DEVICE_CONNECT "connect"            /* audio_devices_t */
-#define AUDIO_PARAMETER_DEVICE_DISCONNECT "disconnect"      /* audio_devices_t */
-
-/* Query supported formats. The response is a '|' separated list of strings from
- * audio_format_t enum e.g: "sup_formats=AUDIO_FORMAT_PCM_16_BIT" */
-#define AUDIO_PARAMETER_STREAM_SUP_FORMATS "sup_formats"
-/* Query supported channel masks. The response is a '|' separated list of strings from
- * audio_channel_mask_t enum e.g: "sup_channels=AUDIO_CHANNEL_OUT_STEREO|AUDIO_CHANNEL_OUT_MONO" */
-#define AUDIO_PARAMETER_STREAM_SUP_CHANNELS "sup_channels"
-/* Query supported sampling rates. The response is a '|' separated list of integer values e.g:
- * "sup_sampling_rates=44100|48000" */
-#define AUDIO_PARAMETER_STREAM_SUP_SAMPLING_RATES "sup_sampling_rates"
-
-/* Set the HW synchronization source for an output stream. */
-#define AUDIO_PARAMETER_STREAM_HW_AV_SYNC "hw_av_sync"
-
-/* Enable mono audio playback if 1, else should be 0. */
-#define AUDIO_PARAMETER_MONO_OUTPUT "mono_output"
-
-/**
- * audio codec parameters
- */
-
-#define AUDIO_OFFLOAD_CODEC_PARAMS "music_offload_codec_param"
-#define AUDIO_OFFLOAD_CODEC_BIT_PER_SAMPLE "music_offload_bit_per_sample"
-#define AUDIO_OFFLOAD_CODEC_BIT_RATE "music_offload_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_AVG_BIT_RATE "music_offload_avg_bit_rate"
-#define AUDIO_OFFLOAD_CODEC_ID "music_offload_codec_id"
-#define AUDIO_OFFLOAD_CODEC_BLOCK_ALIGN "music_offload_block_align"
-#define AUDIO_OFFLOAD_CODEC_SAMPLE_RATE "music_offload_sample_rate"
-#define AUDIO_OFFLOAD_CODEC_ENCODE_OPTION "music_offload_encode_option"
-#define AUDIO_OFFLOAD_CODEC_NUM_CHANNEL  "music_offload_num_channels"
-#define AUDIO_OFFLOAD_CODEC_DOWN_SAMPLING  "music_offload_down_sampling"
-#define AUDIO_OFFLOAD_CODEC_DELAY_SAMPLES  "delay_samples"
-#define AUDIO_OFFLOAD_CODEC_PADDING_SAMPLES  "padding_samples"
+/* Enable AANC */
+#define AUDIO_PARAMETER_KEY_AANC "aanc_enabled"
 
 /**************************************/
 
@@ -399,6 +333,65 @@ struct audio_stream_out {
     int (*get_presentation_position)(const struct audio_stream_out *stream,
                                uint64_t *frames, struct timespec *timestamp);
 
+    /**
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*start)(const struct audio_stream_out* stream);
+
+    /**
+     * Called by the framework to stop a stream operating in mmap mode.
+     * Must be called after start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*stop)(const struct audio_stream_out* stream);
+
+    /**
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
+     */
+    int (*create_mmap_buffer)(const struct audio_stream_out *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
+    /**
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retrieved
+     *         -ENOSYS if called before create_mmap_buffer()
+     */
+    int (*get_mmap_position)(const struct audio_stream_out *stream,
+                             struct audio_mmap_position *position);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -449,6 +442,65 @@ struct audio_stream_in {
      */
     int (*get_capture_position)(const struct audio_stream_in *stream,
                                 int64_t *frames, int64_t *time);
+
+    /**
+     * Called by the framework to start a stream operating in mmap mode.
+     * create_mmap_buffer must be called before calling start()
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case off success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*start)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to stop a stream operating in mmap mode.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \return 0 in case of success.
+     *         -ENOSYS if called out of sequence or on non mmap stream
+     */
+    int (*stop)(const struct audio_stream_in* stream);
+
+    /**
+     * Called by the framework to retrieve information on the mmap buffer used for audio
+     * samples transfer.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] min_size_frames minimum buffer size requested. The actual buffer
+     *        size returned in struct audio_mmap_buffer_info can be larger.
+     * \param[out] info address at which the mmap buffer information should be returned.
+     *
+     * \return 0 if the buffer was allocated.
+     *         -ENODEV in case of initialization error
+     *         -EINVAL if the requested buffer size is too large
+     *         -ENOSYS if called out of sequence (e.g. buffer already allocated)
+     */
+    int (*create_mmap_buffer)(const struct audio_stream_in *stream,
+                              int32_t min_size_frames,
+                              struct audio_mmap_buffer_info *info);
+
+    /**
+     * Called by the framework to read current read/write position in the mmap buffer
+     * with associated time stamp.
+     *
+     * \note Function only implemented by streams operating in mmap mode.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] position address at which the mmap read/write position should be returned.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -ENODATA if the position cannot be retreived
+     *         -ENOSYS if called before mmap_read_position()
+     */
+    int (*get_mmap_position)(const struct audio_stream_in *stream,
+                             struct audio_mmap_position *position);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 

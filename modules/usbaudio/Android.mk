@@ -18,6 +18,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := audio.usb.default
 LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES := \
 	audio_hal.c
 LOCAL_C_INCLUDES += \

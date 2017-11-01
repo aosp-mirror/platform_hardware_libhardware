@@ -16,15 +16,17 @@
 
 #define LOG_TAG "radio_hal_tool"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
-#include <cutils/log.h>
+#include <log/log.h>
+
 #include <hardware/hardware.h>
 #include <hardware/radio.h>
 #include <system/radio.h>
 #include <system/radio_metadata.h>
-
 
 // Global state variables.
 const struct radio_tuner *hal_tuner = NULL;
@@ -131,7 +133,7 @@ void get_tuner_metadata(radio_hw_device_t *device) {
         radio_metadata_key_t key;
         radio_metadata_type_t type;
         void *value;
-        uint32_t size;
+        size_t size;
 
         radio_metadata_get_at_index(info.metadata, i, &key, &type, &value, &size);
 

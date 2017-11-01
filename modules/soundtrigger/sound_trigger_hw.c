@@ -51,21 +51,20 @@
 
 #define ERROR_BAD_COMMAND "Bad command"
 
+#include <arpa/inet.h>
 #include <errno.h>
+#include <pthread.h>
+#include <netinet/in.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
-#include <errno.h>
-#include <pthread.h>
 #include <sys/prctl.h>
-#include <cutils/log.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <log/log.h>
 
 #include <hardware/hardware.h>
 #include <system/sound_trigger.h>

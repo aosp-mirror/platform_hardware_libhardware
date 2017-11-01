@@ -135,6 +135,26 @@ typedef enum {
     KM_TAG_OS_PATCHLEVEL = KM_UINT | 706,          /* Patch level of system (keymaster2) */
     KM_TAG_UNIQUE_ID = KM_BYTES | 707,             /* Used to provide unique ID in attestation */
     KM_TAG_ATTESTATION_CHALLENGE = KM_BYTES | 708, /* Used to provide challenge in attestation */
+    KM_TAG_ATTESTATION_APPLICATION_ID = KM_BYTES | 709, /* Used to identify the set of possible
+                                                         * applications of which one has initiated
+                                                         * a key attestation */
+    KM_TAG_ATTESTATION_ID_BRAND = KM_BYTES | 710,  /* Used to provide the device's brand name to be
+                                                      included in attestation */
+    KM_TAG_ATTESTATION_ID_DEVICE = KM_BYTES | 711, /* Used to provide the device's device name to be
+                                                      included in attestation */
+    KM_TAG_ATTESTATION_ID_PRODUCT = KM_BYTES | 712, /* Used to provide the device's product name to
+                                                       be included in attestation */
+    KM_TAG_ATTESTATION_ID_SERIAL = KM_BYTES | 713, /* Used to provide the device's serial number to
+                                                      be included in attestation */
+    KM_TAG_ATTESTATION_ID_IMEI = KM_BYTES | 714,   /* Used to provide the device's IMEI to be
+                                                      included in attestation */
+    KM_TAG_ATTESTATION_ID_MEID = KM_BYTES | 715,   /* Used to provide the device's MEID to be
+                                                      included in attestation */
+    KM_TAG_ATTESTATION_ID_MANUFACTURER = KM_BYTES | 716, /* Used to provide the device's
+                                                            manufacturer name to be included in
+                                                            attestation */
+    KM_TAG_ATTESTATION_ID_MODEL = KM_BYTES | 717,  /* Used to provide the device's model name to be
+                                                      included in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -427,6 +447,8 @@ typedef enum {
     KM_ERROR_KEY_REQUIRES_UPGRADE = -62,
     KM_ERROR_ATTESTATION_CHALLENGE_MISSING = -63,
     KM_ERROR_KEYMASTER_NOT_CONFIGURED = -64,
+    KM_ERROR_ATTESTATION_APPLICATION_ID_MISSING = -65,
+    KM_ERROR_CANNOT_ATTEST_IDS = -66,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,

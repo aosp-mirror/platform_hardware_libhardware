@@ -24,7 +24,10 @@
 cc_library_shared {
     name: "local_time.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["local_time_hw.c"],
+    cflags: ["-Wall", "-Werror"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
         "libcutils",

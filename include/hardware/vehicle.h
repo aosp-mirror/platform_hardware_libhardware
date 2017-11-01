@@ -83,7 +83,6 @@ __BEGIN_DECLS
 
 /**
  * Invalid property value used for argument where invalid property gives different result.
- * @range_start
  */
 #define VEHICLE_PROPERTY_INVALID (0x0)
 
@@ -122,7 +121,7 @@ __BEGIN_DECLS
  * @data_member info_model_year
  * @unit VEHICLE_UNIT_TYPE_YEAR
  */
-#define VEHICLE_PROPERTY_INFO_MODEL_YEAR                           (0x00000103)
+#define VEHICLE_PROPERTY_INFO_MODEL_YEAR                            (0x00000103)
 
 /**
  * Fuel capacity of the vehicle
@@ -253,7 +252,7 @@ __BEGIN_DECLS
 
 
 
- //==== HVAC Properties ====
+//==== HVAC Properties ====
 
 /**
  * Fan speed setting
@@ -261,8 +260,7 @@ __BEGIN_DECLS
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_speed
- * @zone_type VEHICLE_ZONE
- * @data_enum TODO
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_SPEED                             (0x00000500)
@@ -273,8 +271,8 @@ __BEGIN_DECLS
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member hvac.fan_direction
- * @zone_type VEHICLE_ZONE
- * @data_enum TODO
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
+ * @data_enum vehicle_hvac_fan_direction
  * @allow_out_of_range_value : OFF
  */
 #define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION                         (0x00000501)
@@ -293,9 +291,9 @@ enum vehicle_hvac_fan_direction {
 /**
  * HVAC current temperature.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.temperature_current
  */
 #define VEHICLE_PROPERTY_HVAC_TEMPERATURE_CURRENT                   (0x00000502)
@@ -303,9 +301,9 @@ enum vehicle_hvac_fan_direction {
 /**
  * HVAC, target temperature set.
  * @value_type VEHICLE_VALUE_TYPE_ZONED_FLOAT
- * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE|VEHICLE_PROP_CHANGE_MODE_CONTINUOUS
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.temperature_set
  * @allow_out_of_range_value : MIN / MAX / OFF
  */
@@ -316,7 +314,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_WINDOW
+ * @zone_type VEHICLE_ZONE_TYPE_WINDOW
  * @data_member hvac.defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_DEFROSTER                             (0x00000504)
@@ -327,7 +325,7 @@ enum vehicle_hvac_fan_direction {
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @config_flags Supported zones
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_AC_ON                                 (0x00000505)
@@ -337,7 +335,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_ac_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_AC_ON                             (0x00000506)
@@ -347,7 +345,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_defrost_on
  */
 #define VEHICLE_PROPERTY_HVAC_MAX_DEFROST_ON                        (0x00000507)
@@ -357,7 +355,7 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.max_recirc_on
  */
 #define VEHICLE_PROPERTY_HVAC_RECIRC_ON                             (0x00000508)
@@ -367,10 +365,92 @@ enum vehicle_hvac_fan_direction {
  * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
  * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.dual_on
  */
 #define VEHICLE_PROPERTY_HVAC_DUAL_ON                               (0x00000509)
+
+/**
+ * On/off automatic mode
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
+ * @data_member hvac.auto_on
+ */
+#define VEHICLE_PROPERTY_HVAC_AUTO_ON                               (0x0000050A)
+
+/**
+ * Seat temperature
+ *
+ * Negative values indicate cooling.
+ * 0 indicates off.
+ * Positive values indicate heating.
+ *
+ * Some vehicles may have multiple levels of heating and cooling. The min/max
+ * range defines the allowable range and number of steps in each direction.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_SEAT_TEMPERATURE                      (0x0000050B)
+
+/**
+ * Side Mirror Heat
+ *
+ * Increase values denote higher heating levels for side mirrors.
+ * 0 indicates heating is turned off.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_SIDE_MIRROR_HEAT                      (0x0000050C)
+
+/**
+ * Steering Wheel Temperature
+ *
+ * Sets the temperature for the steering wheel
+ * Positive value indicates heating.
+ * Negative value indicates cooling.
+ * 0 indicates tempreature control is off.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_STEERING_WHEEL_TEMP                   (0x0000050D)
+
+/**
+ * Temperature units
+ *
+ * Indicates whether the temperature is in Celsius, Fahrenheit, or a different unit.
+ * This parameter affects all HVAC temperatures in the system.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_enum vehicle_unit_type
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_HVAC_TEMPERATURE_UNITS                     (0x0000050E)
+
+/**
+ * Actual fan speed
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_member hvac.fan_speed
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
+ * @allow_out_of_range_value : OFF
+ */
+#define VEHICLE_PROPERTY_HVAC_ACTUAL_FAN_SPEED_RPM                  (0x0000050F)
+
 
 /**
  * Represents power state for HVAC. Some HVAC properties will require matching power to be turned on
@@ -383,10 +463,29 @@ enum vehicle_hvac_fan_direction {
  * @config_string list of HVAC properties whose power is controlled by this property. Format is
  *                hexa-decimal number (0x...) separated by comma like "0x500,0x503". All zones
  *                defined in these affected properties should be available in the property.
- * @zone_type VEHICLE_ZONE
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
  * @data_member hvac.power_on
  */
 #define VEHICLE_PROPERTY_HVAC_POWER_ON                              (0x00000510)
+
+/**
+ * Fan Positions Available
+ *
+ * This is a bit mask of fan positions available for the zone.  Each entry in
+ * vehicle_hvac_fan_direction is selected by bit position.  For instance, if
+ * only the FAN_DIRECTION_FACE (0x1) and FAN_DIRECTION_DEFROST (0x4) are available,
+ * then this value shall be set to 0x12.
+ *
+ * 0x12 = (1 << 1) | (1 << 4)
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_STATIC
+ * @access VEHICLE_PROP_ACCESS_READ
+ * @data_member int32_value
+ * @zone_type VEHICLE_ZONE_TYPE_ZONE
+ * @allow_out_of_range_value : OFF
+ */
+#define VEHICLE_PROPERTY_HVAC_FAN_DIRECTION_AVAILABLE               (0x00000511)
 
 /**
  * Outside temperature
@@ -396,8 +495,7 @@ enum vehicle_hvac_fan_direction {
  * @data_member outside_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
-
-#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                   (0x00000703)
+#define VEHICLE_PROPERTY_ENV_OUTSIDE_TEMPERATURE                    (0x00000703)
 
 
 /**
@@ -408,7 +506,7 @@ enum vehicle_hvac_fan_direction {
  * @data_member cabin_temperature
  * @unit VEHICLE_UNIT_TYPE_CELCIUS
  */
-#define VEHICLE_PROPERTY_ENV_CABIN_TEMPERATURE                  (0x00000704)
+#define VEHICLE_PROPERTY_ENV_CABIN_TEMPERATURE                      (0x00000704)
 
 
 /*
@@ -434,7 +532,7 @@ enum vehicle_hvac_fan_direction {
  * @config_flags Number of presets supported
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_RADIO_PRESET                               (0x0000801)
+#define VEHICLE_PROPERTY_RADIO_PRESET                               (0x00000801)
 
 /**
  * Constants relevant to radio.
@@ -492,7 +590,13 @@ enum vehicle_radio_consts {
  *                       VEHICLE_AUDIO_EXT_FOCUS_CAR_PERMANENT when car side is playing something
  *                       permanent.
  *                   LOSS_TRANSIENT: always should be VEHICLE_AUDIO_EXT_FOCUS_CAR_TRANSIENT
- *   int32_array[3]: should be zero.
+ *   int32_array[3]: context requested by android side when responding to focus request.
+ *                   When car side is taking focus away, this should be zero.
+ *
+ * A focus response should be sent per each focus request even if there is no change in
+ * focus state. This can happen in case like focus request only involving context change
+ * where android side still needs matching focus response to confirm that audio module
+ * has made necessary changes.
  *
  * If car does not support VEHICLE_PROPERTY_AUDIO_FOCUS, focus is assumed to be granted always.
  *
@@ -501,7 +605,7 @@ enum vehicle_radio_consts {
  * @access VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_FOCUS                                  (0x00000900)
+#define VEHICLE_PROPERTY_AUDIO_FOCUS                                (0x00000900)
 
 enum vehicle_audio_focus_request {
     VEHICLE_AUDIO_FOCUS_REQUEST_GAIN = 0x1,
@@ -638,13 +742,23 @@ enum vehicle_audio_context_flag {
     VEHICLE_AUDIO_CONTEXT_SYSTEM_SOUND_FLAG               = 0x400,
     /** Radio is played */
     VEHICLE_AUDIO_CONTEXT_RADIO_FLAG                      = 0x800,
+    /** Ext source is played. This is for tagging generic ext sources. */
+    VEHICLE_AUDIO_CONTEXT_EXT_SOURCE_FLAG                 = 0x1000,
 };
 
 /**
  * Property to control audio volume of each audio context.
  *
+ * vehicle_prop_config_t
+ *   config_array[0] : bit flags of all supported audio contexts. If this is 0,
+ *                     audio volume is controlled per physical stream
+ *   config_array[1] : flags defined in vehicle_audio_volume_capability_flag to
+ *                     represent audio module's capability.
+ *
  * Data type looks like:
- *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag. If only physical
+                      stream is supported (config_array[0] == 0), this will represent physical
+                      stream number.
  *   int32_array[1] : volume level, valid range is 0 to int32_max_value defined in config.
  *                    0 will be mute state. int32_min_value in config should be always 0.
  *   int32_array[2] : One of vehicle_audio_volume_state.
@@ -658,7 +772,34 @@ enum vehicle_audio_context_flag {
  * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_VOLUME                                 (0x00000901)
+#define VEHICLE_PROPERTY_AUDIO_VOLUME                               (0x00000901)
+
+
+/**
+ * flags to represent capability of audio volume property.
+ * used in config_array[1] of vehicle_prop_config_t.
+ */
+enum vehicle_audio_volume_capability_flag {
+    /**
+     * External audio module or vehicle hal has persistent storage
+     * to keep the volume level. This should be set only when per context
+     * volume level is supproted. When this is set, audio volume level per
+     * each context will be retrieved from the property when systen starts up.
+     * And external audio module is also expected to adjust volume automatically
+     * whenever there is an audio context change.
+     * When this flag is not set, android side will assume that there is no
+     * persistent storage and stored value in android side will be used to
+     * initialize the volume level. And android side will set volume level
+     * of each physical streams whenever there is an audio context change.
+     */
+    VEHICLE_AUDIO_VOLUME_CAPABILITY_PERSISTENT_STORAGE = 0x1,
+    /**
+     * When this flag is set, the H/W can support only single master volume for all streams.
+     * There is no way to set volume level differently per each stream or context.
+     */
+    VEHICLE_AUDIO_VOLUME_CAPABILITY_MASTER_VOLUME_ONLY = 0x2,
+};
+
 
 /**
  * enum to represent audio volume state.
@@ -683,8 +824,18 @@ enum vehicle_audio_volume_index {
 
 /**
  * Property for handling volume limit set by user. This limits maximum volume that can be set
- * per each context.
- *   int32_array[0] : stream context as defined in vehicle_audio_context_flag.
+ * per each context or physical stream.
+ *
+ * vehicle_prop_config_t
+ *   config_array[0] : bit flags of all supported audio contexts. If this is 0,
+ *                     audio volume is controlled per physical stream
+ *   config_array[1] : flags defined in vehicle_audio_volume_capability_flag to
+ *                     represent audio module's capability.
+ *
+ * Data type looks like:
+ *   int32_array[0] : stream context as defined in vehicle_audio_context_flag. If only physical
+ *                    stream is supported (config_array[0] == 0), this will represent physical
+ *                    stream number.
  *   int32_array[1] : maximum volume set to the stream. If there is no restriction, this value
  *                    will be  bigger than VEHICLE_PROPERTY_AUDIO_VOLUME's max value.
  *
@@ -698,7 +849,7 @@ enum vehicle_audio_volume_index {
  * @config_flags all audio contexts supported.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT                           (0x00000902)
+#define VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT                         (0x00000902)
 
 /**
  * Index in int32_array for VEHICLE_PROPERTY_AUDIO_VOLUME_LIMIT property.
@@ -727,7 +878,7 @@ enum vehicle_audio_volume_limit_index {
  * @access VEHICLE_PROP_ACCESS_WRITE
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY                         (0x00000903)
+#define VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY                       (0x00000903)
 
 /**
  * Index in int32_array for VEHICLE_PROPERTY_AUDIO_ROUTING_POLICY property.
@@ -750,7 +901,7 @@ enum vehicle_audio_routing_policy_index {
 *               this.
 * @data_member int32_value
 */
-#define VEHICLE_PROPERTY_AUDIO_HW_VARIANT                             (0x00000904)
+#define VEHICLE_PROPERTY_AUDIO_HW_VARIANT                           (0x00000904)
 
 /**
  * Flag to be used in vehicle_prop_config.config_flags for VEHICLE_PROPERTY_AUDIO_HW_VARIANT.
@@ -766,6 +917,70 @@ enum vehicle_audio_hw_variant_config_flag {
     VEHICLE_AUDIO_HW_VARIANT_FLAG_INTERNAL_RADIO_FLAG = 0x1,
 };
 
+/** audio routing for AM/FM. This should be also be the value when there is only one
+    radio module in the system. */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_AM_FM "RADIO_AM_FM"
+/** Should be added only when there is a separate radio module with HD capability. */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_AM_FM_HD "RADIO_AM_FM_HD"
+/** For digial audio broadcasting type of radio */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_DAB "RADIO_DAB"
+/** For satellite type of radio */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_RADIO_SATELLITE "RADIO_SATELLITE"
+/** For CD or DVD */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_CD_DVD "CD_DVD"
+/** For 1st auxiliary input */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_AUX_IN0 "AUX_IN0"
+/** For 2nd auxiliary input */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_AUX_IN1 "AUX_IN1"
+/** For navigation guidance from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_NAV_GUIDANCE "EXT_NAV_GUIDANCE"
+/** For voice command from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_VOICE_COMMAND "EXT_VOICE_COMMAND"
+/** For voice call from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_VOICE_CALL "EXT_VOICE_CALL"
+/** For safety alert from outside android */
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_EXT_SAFETY_ALERT "EXT_SAFETY_ALERT"
+
+/**
+* Property to pass hint on external audio routing. When android side request focus
+* with VEHICLE_AUDIO_EXT_FOCUS_CAR_PLAY_ONLY_FLAG flag, this property will be set
+* before setting AUDIO_FOCUS property as a hint for external audio source routing.
+* Note that setting this property alone should not trigger any change.
+* Audio routing should be changed only when AUDIO_FOCUS property is set. Note that
+* this property allows passing custom value as long as it is defined in config_string.
+* This allows supporting non-standard routing options through this property.
+* It is recommended to use separate name space for custom property to prevent conflict in future
+* android releases.
+* Enabling each external routing option is done by enabling each bit flag for the routing.
+* This property can support up to 128 external routings.
+* To give full flexibility, there is no standard definition for each bit flag and
+* assigning each big flag to specific routing type is decided by config_string.
+* config_string has format of each entry separated by ','
+* and each entry has format of bitFlagPositon:typeString[:physicalStreamNumber].
+*  bitFlagPosition: represents which big flag will be set to enable this routing. 0 means
+*    LSB in int32_array[0]. 31 will be MSB in int32_array[0]. 127 will MSB in int32_array[3].
+*  typeString: string representation of external routing. Some types are already defined
+*    in VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_SOURCE_* and use them first before adding something
+*    custom. Applications will find each routing using this string.
+*  physicalStreamNumber: This part is optional and represents physical stream to android
+*    which will be disabled when this routing is enabled. If not specified, this routing
+*    should not affect physical streams to android.
+* As an example, let's assume a system with two physical streams, 0 for media and 1 for
+* nav guidance. And let's assume external routing option of am fm radio, external navigation
+* guidance, satellite radio, and one custom. Let's assume that radio and satellite replaces
+* physical stream 0 and external navigation replaces physical stream 1. And bit flag will be
+* assigned in the order listed above. This configuration will look like this in config_string:
+*  "0:RADIO_AM_FM:0,1:EXT_NAV_GUIDANCE:1,2:RADIO_SATELLITE:0,3:com.test.SOMETHING_CUSTOM"
+* When android requests RADIO_AM_FM, int32_array[0] will be set to 0x1.
+* When android requests RADIO_SATELLITE + EXT_NAV_GUIDANCE, int32_array[0] will be set to 0x2|0x4.
+*
+* @value_type VEHICLE_VALUE_TYPE_INT32_VEC4
+* @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+* @access VEHICLE_PROP_ACCESS_WRITE|VEHICLE_PROP_ACCESS_READ_WRITE
+* @config_string List of all avaiable external source in the system.
+* @data_member int32_array
+*/
+#define VEHICLE_PROPERTY_AUDIO_EXT_ROUTING_HINT                     (0x00000905)
 
 /**
  * Property to control power state of application processor.
@@ -788,7 +1003,7 @@ enum vehicle_audio_hw_variant_config_flag {
  * @config_flags Additional info on power state. Should use vehicle_ap_power_state_config_flag.
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_AP_POWER_STATE                               (0x00000A00)
+#define VEHICLE_PROPERTY_AP_POWER_STATE                             (0x00000A00)
 
 enum vehicle_ap_power_state_config_flag {
     /**
@@ -895,7 +1110,7 @@ enum vehicle_ap_power_set_state {
  * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_READ_WRITE
  * @data_member int32
  */
-#define VEHICLE_PROPERTY_DISPLAY_BRIGHTNESS                        (0x00000A01)
+#define VEHICLE_PROPERTY_DISPLAY_BRIGHTNESS                         (0x00000A01)
 
 
 /**
@@ -999,7 +1214,7 @@ enum vehicle_display {
  * @config_array 0:vehicle_instument_cluster_type 1:hw type
  * @data_member int32_array
  */
-#define VEHICLE_PROPERTY_INSTRUMENT_CLUSTER_INFO                     (0x00000A20)
+#define VEHICLE_PROPERTY_INSTRUMENT_CLUSTER_INFO                    (0x00000A20)
 
 /**
  * Represents instrument cluster type available in system
@@ -1019,6 +1234,624 @@ enum vehicle_instument_cluster_type {
 };
 
 /**
+ * Current date and time, encoded as Unix time.
+ * This value denotes the number of seconds that have elapsed since 1/1/1970.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT64
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_SET
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int64_value
+ * @unit VEHICLE_UNIT_TYPE_SECS
+ */
+#define VEHICLE_PROPERTY_UNIX_TIME                                  (0x00000A30)
+
+/**
+ * Current time only.
+ * Some vehicles may not keep track of date.  This property only affects the current time, in
+ * seconds during the day.  Thus, the max value for this parameter is 86,400 (24 * 60 * 60)
+ *
+ * @value_type VEHICLE_VALUE_TYPE_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_SET
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ * @unit VEHICLE_UNIT_TYPE_SECS
+ */
+#define VEHICLE_PROPERTY_CURRENT_TIME_IN_SECONDS                    (0x00000A31)
+
+
+//==== Car Cabin Properties ====
+/**
+ * Most Car Cabin properties have both a MOVE and POSITION parameter associated with them.
+ *
+ * The MOVE parameter will start moving the device in the indicated direction.  The magnitude
+ * indicates the relative speed.  For instance, setting the WINDOW_MOVE parameter to +1 will roll
+ * the window up.  Setting it to +2 (if available) will roll it up faster.
+ *
+ * The POSITION parameter will move the device to the desired position.  For instance, if the
+ * WINDOW_POS has a range of 0-100, then setting this parameter to 50 will open the window halfway.
+ * Depending upon the initial position, the window may move up or down to the 50% value.
+ *
+ * OEMs may choose to implement one or both of the MOVE/POSITION parameters depending upon the
+ * capability of the hardware.
+ */
+
+// Doors
+/**
+ * Door position
+ *
+ * This is an integer in case a door may be set to a particular position.  Max
+ * value indicates fully open, min value (0) indicates fully closed.
+ *
+ * Some vehicles (minivans) can open the door electronically.  Hence, the ability
+ * to write this property.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_DOOR_POS                                   (0x00000B00)
+
+/**
+ * Door move
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_DOOR_MOVE                                  (0x00000B01)
+
+
+/**
+ * Door lock
+ *
+ * 'true' indicates door is locked
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_DOOR
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_DOOR_LOCK                                  (0x00000B02)
+
+// Mirrors
+/**
+ * Mirror Z Position
+ *
+ * Positive value indicates tilt upwards, negative value is downwards
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Z_POS                               (0x00000B40)
+
+/**
+ * Mirror Z Move
+ *
+ * Positive value indicates tilt upwards, negative value is downwards
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Z_MOVE                              (0x00000B41)
+
+/**
+ * Mirror Y Position
+ *
+ * Positive value indicate tilt right, negative value is left
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Y_POS                               (0x00000B42)
+
+/**
+ * Mirror Y Move
+ *
+ * Positive value indicate tilt right, negative value is left
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_MIRROR
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_Y_MOVE                              (0x00000B43)
+
+/**
+ * Mirror Lock
+ *
+ * True indicates mirror positions are locked and not changeable
+ *
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_LOCK                                (0x00000B44)
+
+/**
+ * Mirror Fold
+ *
+ * True indicates mirrors are folded
+ *
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_MIRROR_FOLD                                (0x00000B45)
+
+// Seats
+/**
+ * Seat memory select
+ *
+ * This parameter selects the memory preset to use to select the seat position.
+ * The minValue is always 0, and the maxValue determines the number of seat
+ * positions available.
+ *
+ * For instance, if the driver's seat has 3 memory presets, the maxValue will be 3.
+ * When the user wants to select a preset, the desired preset number (1, 2, or 3)
+ * is set.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SELECT                         (0x00000B80)
+
+/**
+ * Seat memory set
+ *
+ * This setting allows the user to save the current seat position settings into
+ * the selected preset slot.  The maxValue for each seat position shall match
+ * the maxValue for VEHICLE_PROPERTY_SEAT_MEMORY_SELECT.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_MEMORY_SET                            (0x00000B81)
+
+/**
+ * Seatbelt buckled
+ *
+ * True indicates belt is buckled.
+ *
+ * Write access indicates automatic seat buckling capabilities.  There are no known cars at this
+ * time, but you never know...
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_BUCKLED                          (0x00000B82)
+
+/**
+ * Seatbelt height position
+ *
+ * Adjusts the shoulder belt anchor point.
+ * Max value indicates highest position
+ * Min value indicates lowest position
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_POS                       (0x00000B83)
+
+/**
+ * Seatbelt height move
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BELT_HEIGHT_MOVE                      (0x00000B84)
+
+/**
+ * Seat fore/aft position
+ *
+ * Sets the seat position forward (closer to steering wheel) and backwards.
+ * Max value indicates closest to wheel, min value indicates most rearward
+ * position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_FORE_AFT_POS                          (0x00000B85)
+
+/**
+ * Seat fore/aft move
+ *
+ * Moves the seat position forward and aft.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_FORE_AFT_MOVE                         (0x00000B86)
+
+/**
+ * Seat backrest angle 1 position
+ *
+ * Backrest angle 1 is the actuator closest to the bottom of the seat.
+ * Max value indicates angling forward towards the steering wheel.
+ * Min value indicates full recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_POS                  (0x00000B87)
+
+/**
+ * Seat backrest angle 1 move
+ *
+ * Moves the backrest forward or recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_1_MOVE                 (0x00000B88)
+
+/**
+ * Seat backrest angle 2 position
+ *
+ * Backrest angle 2 is the next actuator up from the bottom of the seat.
+ * Max value indicates angling forward towards the steering wheel.
+ * Min value indicates full recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_POS                  (0x00000B89)
+
+/**
+ * Seat backrest angle 2 move
+ *
+ * Moves the backrest forward or recline.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_BACKREST_ANGLE_2_MOVE                 (0x00000B8A)
+
+/**
+ * Seat height position
+ *
+ * Sets the seat height.
+ * Max value indicates highest position.
+ * Min value indicates lowest position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEIGHT_POS                            (0x00000B8B)
+
+/**
+ * Seat height move
+ *
+ * Moves the seat height.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEIGHT_MOVE                           (0x00000B8C)
+
+/**
+ * Seat depth position
+ *
+ * Sets the seat depth, distance from back rest to front edge of seat.
+ * Max value indicates longest depth position.
+ * Min value indicates shortest position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_DEPTH_POS                             (0x00000B8D)
+
+/**
+ * Seat depth move
+ *
+ * Adjusts the seat depth.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_DEPTH_MOVE                            (0x00000B8E)
+
+/**
+ * Seat tilt position
+ *
+ * Sets the seat tilt.
+ * Max value indicates front edge of seat higher than back edge.
+ * Min value indicates front edge of seat lower than back edge.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_TILT_POS                              (0x00000B8F)
+
+/**
+ * Seat tilt move
+ *
+ * Tilts the seat.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_TILT_MOVE                             (0x00000B90)
+
+/**
+ * Lumber fore/aft position
+ *
+ * Pushes the lumbar support forward and backwards
+ * Max value indicates most forward position.
+ * Min value indicates most rearward position.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_POS                   (0x00000B91)
+
+/**
+ * Lumbar fore/aft move
+ *
+ * Adjusts the lumbar support.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_FORE_AFT_MOVE                  (0x00000B92)
+
+/**
+ * Lumbar side support position
+ *
+ * Sets the amount of lateral lumbar support.
+ * Max value indicates widest lumbar setting (i.e. least support)
+ * Min value indicates thinnest lumbar setting.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_POS               (0x00000B93)
+
+/**
+ * Lumbar side support move
+ *
+ * Adjusts the amount of lateral lumbar support.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_LUMBAR_SIDE_SUPPORT_MOVE              (0x00000B94)
+
+/**
+ * Headrest height position
+ *
+ * Sets the headrest height.
+ * Max value indicates tallest setting.
+ * Min value indicates shortest setting.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_POS                   (0x00000B95)
+
+/**
+ * Headrest height move
+ *
+ * Moves the headrest up and down.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_HEIGHT_MOVE                  (0x00000B96)
+
+/**
+ * Headrest angle position
+ *
+ * Sets the angle of the headrest.
+ * Max value indicates most upright angle.
+ * Min value indicates shallowest headrest angle.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_POS                    (0x00000B97)
+
+/**
+ * Headrest angle move
+ *
+ * Adjusts the angle of the headrest
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_ANGLE_MOVE                   (0x00000B98)
+
+/**
+ * Headrest fore/aft position
+ *
+ * Adjusts the headrest forwards and backwards.
+ * Max value indicates position closest to front of car.
+ * Min value indicates position closest to rear of car.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_POS                 (0x00000B99)
+
+/**
+ * Headrest fore/aft move
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @zone_type VEHICLE_ZONE_TYPE_SEAT
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_SEAT_HEADREST_FORE_AFT_MOVE                (0x00000B9A)
+
+
+// Windows
+/**
+ * Window Position
+ *
+ * Max = window up / closed
+ * Min = window down / open
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_POS                                 (0x00000BC0)
+
+/**
+ * Window Move
+ *
+ * Max = window up / closed
+ * Min = window down / open
+ * Magnitude denotes relative speed.  I.e. +2 is faster than +1 in raising the window.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_MOVE                                (0x00000BC1)
+
+/**
+ * Window Vent Position
+ *
+ * This feature is used to control the vent feature on a sunroof.
+ *
+ * Max = vent open
+ * Min = vent closed
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_VENT_POS                            (0x00000BC2)
+
+/**
+ * Window Vent Move
+ *
+ * This feature is used to control the vent feature on a sunroof.
+ *
+ * Max = vent open
+ * Min = vent closed
+ *
+ * @value_type VEHICLE_VALUE_TYPE_ZONED_INT32
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE|VEHICLE_PROP_ACCESS_WRITE
+ * @data_member int32_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_VENT_MOVE                           (0x00000BC3)
+
+/**
+ * Window Lock
+ *
+ * True indicates windows are locked and can't be moved.
+ *
+ * @value_type VEHICLE_VALUE_TYPE_BOOLEAN
+ * @change_mode VEHICLE_PROP_CHANGE_MODE_ON_CHANGE
+ * @access VEHICLE_PROP_ACCESS_READ_WRITE
+ * @data_member boolean_value
+ */
+#define VEHICLE_PROPERTY_WINDOW_LOCK                                (0x00000BC4)
+
+
+
+/**
  *  H/W specific, non-standard property can be added as necessary. Such property should use
  *  property number in range of [VEHICLE_PROPERTY_CUSTOM_START, VEHICLE_PROPERTY_CUSTOM_END].
  *  Definition of property in this range is completely up to each HAL implementation.
@@ -1027,20 +1860,20 @@ enum vehicle_instument_cluster_type {
  *  include config_string of "com.XYZ.some_further_details".
  *  @range_start
  */
-#define VEHICLE_PROPERTY_CUSTOM_START                       (0x70000000)
+#define VEHICLE_PROPERTY_CUSTOM_START                               (0x70000000)
 /** @range_end */
-#define VEHICLE_PROPERTY_CUSTOM_END                         (0x73ffffff)
+#define VEHICLE_PROPERTY_CUSTOM_END                                 (0x73ffffff)
 
 /**
  * Property range allocated for system's internal usage like testing. HAL should never declare
  * property in this range.
  * @range_start
  */
-#define VEHICLE_PROPERTY_INTERNAL_START                     (0x74000000)
+#define VEHICLE_PROPERTY_INTERNAL_START                             (0x74000000)
 /**
  * @range_end
  */
-#define VEHICLE_PROPERTY_INTERNAL_END                       (0x74ffffff)
+#define VEHICLE_PROPERTY_INTERNAL_END                               (0x74ffffff)
 
 /**
  * Value types for various properties.
@@ -1086,12 +1919,14 @@ enum vehicle_unit_type {
     VEHICLE_UNIT_TYPE_METER                 = 0x00000021,
     VEHICLE_UNIT_TYPE_KILOMETER             = 0x00000023,
     // temperature
-    VEHICLE_UNIT_TYPE_CELCIUS               = 0x00000030,
+    VEHICLE_UNIT_TYPE_CELSIUS               = 0x00000030,
+    VEHICLE_UNIT_TYPE_FAHRENHEIT            = 0x00000031,
+    VEHICLE_UNIT_TYPE_KELVIN                = 0x00000032,
     // volume
     VEHICLE_UNIT_TYPE_MILLILITER            = 0x00000040,
     // time
     VEHICLE_UNIT_TYPE_NANO_SECS             = 0x00000050,
-    VEHICLE_UNOT_TYPE_SECS                  = 0x00000053,
+    VEHICLE_UNIT_TYPE_SECS                  = 0x00000053,
     VEHICLE_UNIT_TYPE_YEAR                  = 0x00000059,
 };
 
@@ -1105,8 +1940,12 @@ enum vehicle_prop_change_mode {
      */
     VEHICLE_PROP_CHANGE_MODE_STATIC         = 0x00,
     /**
-     * Property of this type will be reported when there is a change. get should return the
-     * current value.
+     * Property of this type will be reported when there is a change.
+     * get call should return the current value.
+     * Set operation for this property is assumed to be asynchronous. When the property is read
+     * (get) after set, it may still return old value until underlying H/W backing this property
+     * has actually changed the state. Once state is changed, the property will dispatch changed
+     * value as event.
      */
     VEHICLE_PROP_CHANGE_MODE_ON_CHANGE      = 0x01,
     /**
@@ -1114,6 +1953,18 @@ enum vehicle_prop_change_mode {
      * the data.
      */
     VEHICLE_PROP_CHANGE_MODE_CONTINUOUS     = 0x02,
+    /**
+     * Property of this type may be polled to get the current value.
+     */
+    VEHICLE_PROP_CHANGE_MODE_POLL           = 0x03,
+    /**
+     * This is for property where change event should be sent only when the value is
+     * set from external component. Normal value change will not trigger event.
+     * For example, clock property can send change event only when it is set, outside android,
+     * for case like user setting time or time getting update. There is no need to send it
+     * per every value change.
+     */
+    VEHICLE_PROP_CHANGE_MODE_ON_SET         = 0x04,
 };
 
 /**
@@ -1238,17 +2089,15 @@ enum vehicle_zone {
  * Various Seats in the car.
  */
 enum vehicle_seat {
-    VEHICLE_SEAT_DRIVER_LHD             = 0x0001,
-    VEHICLE_SEAT_DRIVER_RHD             = 0x0002,
-    VEHICLE_SEAT_ROW_1_PASSENGER_LEFT   = 0x0010,
-    VEHICLE_SEAT_ROW_1_PASSENGER_CENTER = 0x0020,
-    VEHICLE_SEAT_ROW_1_PASSENGER_RIGHT  = 0x0040,
-    VEHICLE_SEAT_ROW_2_PASSENGER_LEFT   = 0x0100,
-    VEHICLE_SEAT_ROW_2_PASSENGER_CENTER = 0x0200,
-    VEHICLE_SEAT_ROW_2_PASSENGER_RIGHT  = 0x0400,
-    VEHICLE_SEAT_ROW_3_PASSENGER_LEFT   = 0x1000,
-    VEHICLE_SEAT_ROW_3_PASSENGER_CENTER = 0x2000,
-    VEHICLE_SEAT_ROW_3_PASSENGER_RIGHT  = 0x4000
+    VEHICLE_SEAT_ROW_1_LEFT   = 0x0001,
+    VEHICLE_SEAT_ROW_1_CENTER = 0x0002,
+    VEHICLE_SEAT_ROW_1_RIGHT  = 0x0004,
+    VEHICLE_SEAT_ROW_2_LEFT   = 0x0010,
+    VEHICLE_SEAT_ROW_2_CENTER = 0x0020,
+    VEHICLE_SEAT_ROW_2_RIGHT  = 0x0040,
+    VEHICLE_SEAT_ROW_3_LEFT   = 0x0100,
+    VEHICLE_SEAT_ROW_3_CENTER = 0x0200,
+    VEHICLE_SEAT_ROW_3_RIGHT  = 0x0400
 };
 
 /**
@@ -1282,11 +2131,21 @@ enum vehicle_mirror {
     VEHICLE_MIRROR_DRIVER_RIGHT  = 0x00000002,
     VEHICLE_MIRROR_DRIVER_CENTER = 0x00000004,
 };
+
 enum vehicle_turn_signal {
     VEHICLE_SIGNAL_NONE         = 0x00,
     VEHICLE_SIGNAL_RIGHT        = 0x01,
     VEHICLE_SIGNAL_LEFT         = 0x02,
     VEHICLE_SIGNAL_EMERGENCY    = 0x04
+};
+
+enum vehicle_zone_type {
+    VEHICLE_ZONE_TYPE_NONE      = 0x00,
+    VEHICLE_ZONE_TYPE_ZONE    = 0x01,
+    VEHICLE_ZONE_TYPE_SEAT      = 0x02,
+    VEHICLE_ZONE_TYPE_DOOR      = 0x04,
+    VEHICLE_ZONE_TYPE_WINDOW    = 0x10,
+    VEHICLE_ZONE_TYPE_MIRROR    = 0x20,
 };
 
 /*
@@ -1468,6 +2327,7 @@ typedef struct vehicle_hvac {
         vehicle_boolean_t max_defrost_on;
         vehicle_boolean_t recirc_on;
         vehicle_boolean_t dual_on;
+        vehicle_boolean_t auto_on;
         vehicle_boolean_t power_on;
 
         float temperature_current;

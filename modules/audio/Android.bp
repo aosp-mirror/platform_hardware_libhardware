@@ -21,12 +21,13 @@
 cc_library_shared {
     name: "audio.primary.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_hw.c"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }
 
 // The stub audio HAL module, identical to the default audio hal, but with
@@ -38,12 +39,13 @@ cc_library_shared {
 cc_library_shared {
     name: "audio.stub.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_hw.c"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }
 
 // The stub audio policy HAL module that can be used as a skeleton for
@@ -51,10 +53,11 @@ cc_library_shared {
 cc_library_shared {
     name: "audio_policy.stub",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["audio_policy.c"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
-    cflags: ["-Wno-unused-parameter"],
+    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
 }

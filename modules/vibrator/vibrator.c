@@ -14,34 +14,38 @@
  * limitations under the License.
  */
 
-#include <hardware/vibrator.h>
 #include <hardware/hardware.h>
+#include <hardware/vibrator.h>
 
-#include <cutils/log.h>
-
+#include <errno.h>
+#include <fcntl.h>
 #include <malloc.h>
-#include <stdio.h>
+#include <math.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <string.h>
 #include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <math.h>
+
+#include <log/log.h>
 
 #define TIMEOUT_STR_LEN         20
 
 static const char THE_DEVICE[] = "/sys/class/timed_output/vibrator/enable";
 
-static int vibra_exists() {
+static bool device_exists(const char *file) {
     int fd;
 
-    fd = TEMP_FAILURE_RETRY(open(THE_DEVICE, O_RDWR));
+    fd = TEMP_FAILURE_RETRY(open(file, O_RDWR));
     if(fd < 0) {
-        return 0;
+        return false;
     }
 
     close(fd);
-    return 1;
+    return true;
+}
+
+static bool vibra_exists() {
+    return device_exists(THE_DEVICE);
 }
 
 static int write_value(const char *file, const char *value)
@@ -102,9 +106,12 @@ static int write_led_file(const char *file, const char *value)
     return write_value(file_str, value);
 }
 
-static int vibra_led_exists()
+static bool vibra_led_exists()
 {
-    return !write_led_file("trigger", "transient");
+    char file_str[50];
+
+    snprintf(file_str, sizeof(file_str), "%s/%s", LED_DEVICE, "activate");
+    return device_exists(file_str);
 }
 
 static int vibra_led_on(vibrator_device_t* vibradev __unused, unsigned int timeout_ms)

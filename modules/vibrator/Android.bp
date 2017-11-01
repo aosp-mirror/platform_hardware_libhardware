@@ -18,7 +18,9 @@ cc_library_shared {
     // HAL module implementation stored in
     // hw/<VIBRATOR_HARDWARE_MODULE_ID>.default.so
     relative_install_path: "hw",
-    include_dirs: ["hardware/libhardware"],
+    proprietary: true,
+    header_libs: ["libhardware_headers"],
     srcs: ["vibrator.c"],
+    cflags: ["-Wall", "-Werror"],
     shared_libs: ["liblog"],
 }

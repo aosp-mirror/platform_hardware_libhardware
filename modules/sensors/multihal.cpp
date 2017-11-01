@@ -14,33 +14,30 @@
  * limitations under the License.
  */
 
-#include <hardware/sensors.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <dirent.h>
-#include <math.h>
-#include <poll.h>
-#include <pthread.h>
-#include <cutils/atomic.h>
+#include "SensorEventQueue.h"
+#include "multihal.h"
 
 #define LOG_NDEBUG 1
 #include <cutils/log.h>
+#include <cutils/atomic.h>
+#include <hardware/sensors.h>
 
 #include <vector>
 #include <string>
 #include <fstream>
 #include <map>
-#include <string>
 
-#include <stdio.h>
+#include <dirent.h>
 #include <dlfcn.h>
-#include <SensorEventQueue.h>
-
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <math.h>
+#include <poll.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 
-static const char* CONFIG_FILENAME = "/system/etc/sensors/hals.conf";
-static const int MAX_CONF_LINE_LENGTH = 1024;
 
 static pthread_mutex_t init_modules_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t init_sensors_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -52,10 +49,11 @@ static pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t data_available_cond = PTHREAD_COND_INITIALIZER;
 bool waiting_for_data = false;
 
-/*
- * Vector of sub modules, whose indexes are referred to in this file as module_index.
- */
-static std::vector<hw_module_t *> *sub_hw_modules = NULL;
+// Vector of sub modules, whose indexes are referred to in this file as module_index.
+static std::vector<hw_module_t *> *sub_hw_modules = nullptr;
+
+// Vector of sub modules shared object handles
+static std::vector<void *> *so_handles = nullptr;
 
 /*
  * Comparable class that globally identifies a sensor, by module index and local handle.
@@ -199,6 +197,12 @@ struct sensors_poll_context_t {
     int poll(sensors_event_t* data, int count);
     int batch(int handle, int flags, int64_t period_ns, int64_t timeout);
     int flush(int handle);
+    int inject_sensor_data(const sensors_event_t *data);
+    int register_direct_channel(const struct sensors_direct_mem_t* mem,
+                                int channel_handle);
+    int config_direct_report(int sensor_handle,
+                             int channel_handle,
+                             const struct sensors_direct_cfg_t *config);
     int close();
 
     std::vector<hw_device_t*> sub_hw_devices;
@@ -208,6 +212,7 @@ struct sensors_poll_context_t {
 
     sensors_poll_device_t* get_v0_device_by_handle(int global_handle);
     sensors_poll_device_1_t* get_v1_device_by_handle(int global_handle);
+    sensors_poll_device_1_t* get_primary_v1_device();
     int get_device_version_by_handle(int global_handle);
 
     void copy_event_remap_handle(sensors_event_t* src, sensors_event_t* dest, int sub_index);
@@ -247,6 +252,14 @@ sensors_poll_device_1_t* sensors_poll_context_t::get_v1_device_by_handle(int glo
     return (sensors_poll_device_1_t*) this->sub_hw_devices[sub_index];
 }
 
+// Returns the device pointer, or NULL if primary hal does not exist
+sensors_poll_device_1_t* sensors_poll_context_t::get_primary_v1_device() {
+    if (sub_hw_devices.size() < 1) {
+        return nullptr;
+    }
+    return (sensors_poll_device_1_t*) this->sub_hw_devices[0];
+}
+
 // Returns the device version, or -1 if the handle is invalid.
 int sensors_poll_context_t::get_device_version_by_handle(int handle) {
     sensors_poll_device_t* v0 = this->get_v0_device_by_handle(handle);
@@ -257,14 +270,24 @@ int sensors_poll_context_t::get_device_version_by_handle(int handle) {
     }
 }
 
-// Android L requires sensor HALs to be either 1_0 or 1_3 compliant
+// Android N and hire require sensor HALs to be at least 1_3 compliant
 #define HAL_VERSION_IS_COMPLIANT(version)  \
-    (version == SENSORS_DEVICE_API_VERSION_1_0 || version >= SENSORS_DEVICE_API_VERSION_1_3)
+    (version >= SENSORS_DEVICE_API_VERSION_1_3)
 
 // Returns true if HAL is compliant, false if HAL is not compliant or if handle is invalid
 static bool halIsCompliant(sensors_poll_context_t *ctx, int handle) {
     int version = ctx->get_device_version_by_handle(handle);
     return version != -1 && HAL_VERSION_IS_COMPLIANT(version);
+}
+
+static bool halIsAPILevelCompliant(sensors_poll_context_t *ctx, int handle, int level) {
+    int version = ctx->get_device_version_by_handle(handle);
+    return version != -1 && (version >= level);
+}
+
+static bool halSupportDirectSensorReport(sensors_poll_device_1_t* v1) {
+    return v1 != nullptr && HAL_VERSION_IS_COMPLIANT(v1->common.version) &&
+            v1->register_direct_channel != nullptr && v1->config_direct_report != nullptr;
 }
 
 const char *apiNumToStr(int version) {
@@ -277,6 +300,8 @@ const char *apiNumToStr(int version) {
         return "SENSORS_DEVICE_API_VERSION_1_2";
     case SENSORS_DEVICE_API_VERSION_1_3:
         return "SENSORS_DEVICE_API_VERSION_1_3";
+    case SENSORS_DEVICE_API_VERSION_1_4:
+        return "SENSORS_DEVICE_API_VERSION_1_4";
     default:
         return "UNKNOWN";
     }
@@ -350,7 +375,7 @@ int sensors_poll_context_t::poll(sensors_event_t *data, int maxReads) {
             } else {
                 empties = 0;
                 this->copy_event_remap_handle(&data[eventsRead], event, nextReadIndex);
-                if (data[eventsRead].sensor == -1) {
+                if (data[eventsRead].sensor == SENSORS_HANDLE_BASE - 1) {
                     // Bad handle, do not pass corrupted event upstream !
                     ALOGW("Dropping bad local handle event packet on the floor");
                 } else {
@@ -403,6 +428,75 @@ int sensors_poll_context_t::flush(int handle) {
     return retval;
 }
 
+int sensors_poll_context_t::inject_sensor_data(const sensors_event_t *data) {
+    int retval = -EINVAL;
+    ALOGV("inject_sensor_data");
+    if (data->sensor == -1) {
+        // operational parameter
+        sensors_poll_device_1_t* v1 = get_primary_v1_device();
+        if (v1 && v1->common.version >= SENSORS_DEVICE_API_VERSION_1_4) {
+            retval = v1->inject_sensor_data(v1, data);
+        } else {
+            ALOGE("IGNORED inject_sensor_data(operational param) call to non-API-compliant sensor");
+            return -ENOSYS;
+        }
+    } else {
+        // Get handle for the sensor owning the event being injected
+        int local_handle = get_local_handle(data->sensor);
+        sensors_poll_device_1_t* v1 = this->get_v1_device_by_handle(data->sensor);
+        if (halIsAPILevelCompliant(this, data->sensor, SENSORS_DEVICE_API_VERSION_1_4) &&
+                local_handle >= 0 && v1) {
+            // if specific sensor is used, we have to replace global sensor handle
+            // with local one, before passing to concrete HAL
+            sensors_event_t data_copy = *data;
+            data_copy.sensor = local_handle;
+            retval = v1->inject_sensor_data(v1, &data_copy);
+        } else {
+            ALOGE("IGNORED inject_sensor_data(type=%d, handle=%d) call to non-API-compliant sensor",
+                    data->type, data->sensor);
+            retval = -ENOSYS;
+        }
+    }
+    ALOGV("retval %d", retval);
+    return retval;
+}
+
+int sensors_poll_context_t::register_direct_channel(const struct sensors_direct_mem_t* mem,
+                                                   int channel_handle) {
+    int retval = -EINVAL;
+    ALOGV("register_direct_channel");
+    sensors_poll_device_1_t* v1 = get_primary_v1_device();
+    if (v1 && halSupportDirectSensorReport(v1)) {
+        retval = v1->register_direct_channel(v1, mem, channel_handle);
+    } else {
+        ALOGE("IGNORED register_direct_channel(mem=%p, handle=%d) call to non-API-compliant sensor",
+                mem, channel_handle);
+        retval = -ENOSYS;
+    }
+    ALOGV("retval %d", retval);
+    return retval;
+}
+
+int sensors_poll_context_t::config_direct_report(int sensor_handle,
+                                                int channel_handle,
+                                                const struct sensors_direct_cfg_t *config) {
+    int retval = -EINVAL;
+    ALOGV("config_direct_report");
+
+    if (config != nullptr) {
+        int local_handle = get_local_handle(sensor_handle);
+        sensors_poll_device_1_t* v1 = get_primary_v1_device();
+        if (v1 && halSupportDirectSensorReport(v1)) {
+            retval = v1->config_direct_report(v1, local_handle, channel_handle, config);
+        } else {
+            ALOGE("IGNORED config_direct_report(sensor=%d, channel=%d, rate_level=%d) call to "
+                  "non-API-compliant sensor", sensor_handle, channel_handle, config->rate_level);
+            retval = -ENOSYS;
+        }
+    }
+    ALOGV("retval %d", retval);
+    return retval;
+}
 int sensors_poll_context_t::close() {
     ALOGV("close");
     for (std::vector<hw_device_t*>::iterator it = this->sub_hw_devices.begin();
@@ -416,11 +510,27 @@ int sensors_poll_context_t::close() {
 
 
 static int device__close(struct hw_device_t *dev) {
+    pthread_mutex_lock(&init_modules_mutex);
     sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
     if (ctx != NULL) {
         int retval = ctx->close();
         delete ctx;
+        return retval;
     }
+
+    if (sub_hw_modules != nullptr) {
+        delete sub_hw_modules;
+        sub_hw_modules = nullptr;
+    }
+
+    if (so_handles != nullptr) {
+        for (auto handle : *so_handles) {
+            dlclose(handle);
+        }
+        delete so_handles;
+        so_handles = nullptr;
+    }
+    pthread_mutex_unlock(&init_modules_mutex);
     return 0;
 }
 
@@ -453,35 +563,67 @@ static int device__flush(struct sensors_poll_device_1 *dev, int handle) {
     return ctx->flush(handle);
 }
 
+static int device__inject_sensor_data(struct sensors_poll_device_1 *dev,
+        const sensors_event_t *data) {
+    sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
+    return ctx->inject_sensor_data(data);
+}
+
+static int device__register_direct_channel(struct sensors_poll_device_1 *dev,
+                                           const struct sensors_direct_mem_t* mem,
+                                           int channel_handle) {
+    sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
+    return ctx->register_direct_channel(mem, channel_handle);
+}
+
+static int device__config_direct_report(struct sensors_poll_device_1 *dev,
+                                        int sensor_handle,
+                                        int channel_handle,
+                                        const struct sensors_direct_cfg_t *config) {
+    sensors_poll_context_t* ctx = (sensors_poll_context_t*) dev;
+    return ctx->config_direct_report(sensor_handle, channel_handle, config);
+}
+
 static int open_sensors(const struct hw_module_t* module, const char* name,
         struct hw_device_t** device);
-
-static bool starts_with(const char* s, const char* prefix) {
-    if (s == NULL || prefix == NULL) {
-        return false;
-    }
-    size_t s_size = strlen(s);
-    size_t prefix_size = strlen(prefix);
-    return s_size >= prefix_size && strncmp(s, prefix, prefix_size) == 0;
-}
 
 /*
  * Adds valid paths from the config file to the vector passed in.
  * The vector must not be null.
  */
-static void get_so_paths(std::vector<std::string> *so_paths) {
-    std::string line;
-    std::ifstream conf_file(CONFIG_FILENAME);
+static std::vector<std::string> get_so_paths() {
+    std::vector<std::string> so_paths;
 
-    if(!conf_file) {
-        ALOGW("No multihal config file found at %s", CONFIG_FILENAME);
-        return;
+    const std::vector<const char *> config_path_list(
+            { MULTI_HAL_CONFIG_FILE_PATH, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH });
+
+    std::ifstream stream;
+    const char *path = nullptr;
+    for (auto i : config_path_list) {
+        std::ifstream f(i);
+        if (f) {
+            stream = std::move(f);
+            path = i;
+            break;
+        }
     }
-    ALOGV("Multihal config file found at %s", CONFIG_FILENAME);
-    while (std::getline(conf_file, line)) {
+    if(!stream) {
+        ALOGW("No multihal config file found");
+        return so_paths;
+    }
+
+    ALOGE_IF(strcmp(path, DEPRECATED_MULTI_HAL_CONFIG_FILE_PATH) == 0,
+            "Multihal configuration file path %s is not compatible with Treble "
+            "requirements. Please move it to %s.",
+            path, MULTI_HAL_CONFIG_FILE_PATH);
+
+    ALOGV("Multihal config file found at %s", path);
+    std::string line;
+    while (std::getline(stream, line)) {
         ALOGV("config file line: '%s'", line.c_str());
-        so_paths->push_back(line);
+        so_paths.push_back(line);
     }
+    return so_paths;
 }
 
 /*
@@ -494,15 +636,15 @@ static void lazy_init_modules() {
         pthread_mutex_unlock(&init_modules_mutex);
         return;
     }
-    std::vector<std::string> *so_paths = new std::vector<std::string>();
-    get_so_paths(so_paths);
+    std::vector<std::string> so_paths(get_so_paths());
 
     // dlopen the module files and cache their module symbols in sub_hw_modules
     sub_hw_modules = new std::vector<hw_module_t *>();
+    so_handles = new std::vector<void *>();
     dlerror(); // clear any old errors
     const char* sym = HAL_MODULE_INFO_SYM_AS_STR;
-    for (std::vector<std::string>::iterator it = so_paths->begin(); it != so_paths->end(); it++) {
-        const char* path = it->c_str();
+    for (const auto &s : so_paths) {
+        const char* path = s.c_str();
         void* lib_handle = dlopen(path, RTLD_LAZY);
         if (lib_handle == NULL) {
             ALOGW("dlerror(): %s", dlerror());
@@ -520,7 +662,12 @@ static void lazy_init_modules() {
             } else {
                 ALOGV("Loaded symbols from \"%s\"", sym);
                 sub_hw_modules->push_back(module);
+                so_handles->push_back(lib_handle);
+                lib_handle = nullptr;
             }
+        }
+        if (lib_handle != nullptr) {
+            dlclose(lib_handle);
         }
     }
     pthread_mutex_unlock(&init_modules_mutex);
@@ -578,6 +725,12 @@ static void lazy_init_sensors_list() {
             memcpy(&mutable_sensor_list[mutable_sensor_index], local_sensor,
                 sizeof(struct sensor_t));
 
+            // sensor direct report is only for primary module
+            if (module_index != 0) {
+                mutable_sensor_list[mutable_sensor_index].flags &=
+                    ~(SENSOR_FLAG_MASK_DIRECT_REPORT | SENSOR_FLAG_MASK_DIRECT_CHANNEL);
+            }
+
             // Overwrite the global version's handle with a global handle.
             int global_handle = assign_global_handle(module_index, local_handle);
 
@@ -627,6 +780,10 @@ struct sensors_module_t HAL_MODULE_INFO_SYM = {
     .get_sensors_list = module__get_sensors_list
 };
 
+struct sensors_module_t *get_multi_hal_module_info() {
+    return (&HAL_MODULE_INFO_SYM);
+}
+
 static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         struct hw_device_t** hw_device_out) {
     ALOGV("open_sensors begin...");
@@ -637,7 +794,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
     sensors_poll_context_t *dev = new sensors_poll_context_t();
     memset(dev, 0, sizeof(sensors_poll_device_1_t));
     dev->proxy_device.common.tag = HARDWARE_DEVICE_TAG;
-    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_3;
+    dev->proxy_device.common.version = SENSORS_DEVICE_API_VERSION_1_4;
     dev->proxy_device.common.module = const_cast<hw_module_t*>(hw_module);
     dev->proxy_device.common.close = device__close;
     dev->proxy_device.activate = device__activate;
@@ -645,6 +802,9 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
     dev->proxy_device.poll = device__poll;
     dev->proxy_device.batch = device__batch;
     dev->proxy_device.flush = device__flush;
+    dev->proxy_device.inject_sensor_data = device__inject_sensor_data;
+    dev->proxy_device.register_direct_channel = device__register_direct_channel;
+    dev->proxy_device.config_direct_report = device__config_direct_report;
 
     dev->nextReadIndex = 0;
 
@@ -656,7 +816,7 @@ static int open_sensors(const struct hw_module_t* hw_module, const char* name,
         int sub_open_result = sensors_module->common.methods->open(*it, name, &sub_hw_device);
         if (!sub_open_result) {
             if (!HAL_VERSION_IS_COMPLIANT(sub_hw_device->version)) {
-                ALOGE("SENSORS_DEVICE_API_VERSION_1_3 is required for all sensor HALs");
+                ALOGE("SENSORS_DEVICE_API_VERSION_1_3 or newer is required for all sensor HALs");
                 ALOGE("This HAL reports non-compliant API level : %s",
                         apiNumToStr(sub_hw_device->version));
                 ALOGE("Sensors belonging to this HAL will get ignored !");

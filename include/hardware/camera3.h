@@ -1479,6 +1479,13 @@ typedef enum camera3_stream_configuration_mode {
      *      android.lens.opticalStabilizationMode (if it is supported)
      *      android.scaler.cropRegion
      *      android.statistics.faceDetectMode (if it is supported)
+     *   6. To reduce the amount of data passed across process boundaries at
+     *      high frame rate, within one batch, camera framework only propagates
+     *      the last shutter notify and the last capture results (including partial
+     *      results and final result) to the app. The shutter notifies and capture
+     *      results for the other requests in the batch are derived by
+     *      the camera framework. As a result, the HAL can return empty metadata
+     *      except for the last result in the batch.
      *
      * For more details about high speed stream requirements, see
      * android.control.availableHighSpeedVideoConfigurations and CONSTRAINED_HIGH_SPEED_VIDEO
@@ -1597,6 +1604,13 @@ typedef struct camera3_stream {
      *   value of this is 0.
      *   For all streams passed via configure_streams(), the HAL must write
      *   over this field with its usage flags.
+     *
+     *   From Android O, the usage flag for an output stream may be bitwise
+     *   combination of usage flags for multiple consumers, for the purpose of
+     *   sharing one camera stream between those consumers. The HAL must fail
+     *   configure_streams call with -EINVAL if the combined flags cannot be
+     *   supported due to imcompatible buffer format, dataSpace, or other hardware
+     *   limitations.
      */
     uint32_t usage;
 

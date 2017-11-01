@@ -17,22 +17,26 @@
 #define LOG_TAG "radio_hw_stub"
 #define LOG_NDEBUG 0
 
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/prctl.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include <time.h>
 #include <unistd.h>
-#include <cutils/log.h>
+
 #include <cutils/list.h>
-#include <system/radio.h>
-#include <system/radio_metadata.h>
+#include <log/log.h>
+
 #include <hardware/hardware.h>
 #include <hardware/radio.h>
+#include <system/radio.h>
+#include <system/radio_metadata.h>
 
 static const radio_hal_properties_t hw_properties = {
     .class_id = RADIO_CLASS_AM_FM,
@@ -47,7 +51,7 @@ static const radio_hal_properties_t hw_properties = {
     .bands = {
         {
             .type = RADIO_BAND_FM,
-            .antenna_connected = false,
+            .antenna_connected = true,
             .lower_limit = 87900,
             .upper_limit = 107900,
             .num_spacings = 1,
@@ -110,8 +114,19 @@ typedef enum {
     CMD_CANCEL,
     CMD_METADATA,
     CMD_ANNOUNCEMENTS,
+    CMD_NUM
 } thread_cmd_type_t;
 
+uint32_t thread_cmd_delay_ms[CMD_NUM] = {
+    [CMD_EXIT]          = 0,
+    [CMD_CONFIG]        = 50,
+    [CMD_STEP]          = 100,
+    [CMD_SCAN]          = 200,
+    [CMD_TUNE]          = 150,
+    [CMD_CANCEL]        = 0,
+    [CMD_METADATA]      = 1000,
+    [CMD_ANNOUNCEMENTS] = 1000
+};
 struct thread_command {
     struct listnode node;
     thread_cmd_type_t type;
@@ -189,7 +204,7 @@ static int add_bitmap_metadata(radio_metadata_t **metadata, radio_metadata_key_t
 exit:
     close(fd);
     free(data);
-    ALOGE_IF(ret != 0, "%s error %d", __func__, ret);
+    ALOGE_IF(ret != 0, "%s error %d", __func__, (int)ret);
     return (int)ret;
 }
 
@@ -209,6 +224,7 @@ static int prepare_metadata(struct stub_radio_tuner *tuner,
     *metadata = NULL;
 
     ret = radio_metadata_allocate(metadata, tuner->program.channel, 0);
+
     if (ret != 0)
         return ret;
 
@@ -220,14 +236,14 @@ static int prepare_metadata(struct stub_radio_tuner *tuner,
         if (ret != 0)
             goto exit;
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ICON, BITMAP_FILE_PATH);
-        if (ret != 0)
+        if (ret != 0 && ret != -EPIPE)
             goto exit;
         ret = radio_metadata_add_clock(metadata, RADIO_METADATA_KEY_CLOCK, &hw_clock);
         if (ret != 0)
             goto exit;
     } else {
         ret = add_bitmap_metadata(metadata, RADIO_METADATA_KEY_ART, BITMAP_FILE_PATH);
-        if (ret != 0)
+        if (ret != 0 && ret != -EPIPE)
             goto exit;
     }
 
@@ -318,6 +334,7 @@ static void *callback_thread_loop(void *context)
 
                 case CMD_CONFIG: {
                     tuner->config = cmd->config;
+                    tuner->config.antenna_connected = true;
                     event.type = RADIO_EVENT_CONFIG;
                     event.config = tuner->config;
                     ALOGV("%s CMD_CONFIG type %d low %d up %d",
@@ -355,6 +372,7 @@ static void *callback_thread_loop(void *context)
                         tuner->program.stereo = false;
                     else
                         tuner->program.stereo = false;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
 
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
@@ -381,6 +399,7 @@ static void *callback_thread_loop(void *context)
                     else
                         tuner->program.stereo = tuner->config.am.stereo;
                     tuner->program.signal_strength = 50;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
 
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
@@ -393,12 +412,7 @@ static void *callback_thread_loop(void *context)
                                                 (tuner->config.spacings[0] * 5)) % 2;
 
                     if (tuner->program.tuned) {
-                        prepare_metadata(tuner, &tuner->program.metadata, true);
-                        send_command_l(tuner, CMD_ANNOUNCEMENTS, 1000, NULL);
-                    } else {
-                        if (tuner->program.metadata != NULL)
-                            radio_metadata_deallocate(tuner->program.metadata);
-                        tuner->program.metadata = NULL;
+                        send_command_l(tuner, CMD_ANNOUNCEMENTS, thread_cmd_delay_ms[CMD_ANNOUNCEMENTS], NULL);
                     }
                     tuner->program.signal_strength = 100;
                     if (tuner->config.type == RADIO_BAND_FM)
@@ -407,6 +421,8 @@ static void *callback_thread_loop(void *context)
                     else
                         tuner->program.stereo =
                             tuner->program.tuned ? tuner->config.am.stereo : false;
+                    prepare_metadata(tuner, &tuner->program.metadata, tuner->program.tuned);
+
                     event.type = RADIO_EVENT_TUNED;
                     event.info = tuner->program;
                     send_meta_data = true;
@@ -418,7 +434,6 @@ static void *callback_thread_loop(void *context)
                         event.type = RADIO_EVENT_METADATA;
                         event.metadata = metadata;
                     }
-                    send_meta_data = true;
                 } break;
 
                 case CMD_CANCEL: {
@@ -477,7 +492,7 @@ static void *callback_thread_loop(void *context)
                     free(cmd);
                 }
             }
-            send_command_l(tuner, CMD_METADATA, 1000, NULL);
+            send_command_l(tuner, CMD_METADATA, thread_cmd_delay_ms[CMD_METADATA], NULL);
         }
     }
 
@@ -502,8 +517,12 @@ static int tuner_set_configuration(const struct radio_tuner *tuner,
         status = -EINVAL;
         goto exit;
     }
-    send_command_l(stub_tuner, CMD_CANCEL, 0, NULL);
-    send_command_l(stub_tuner, CMD_CONFIG, 500, (void *)config);
+    if (config->lower_limit > config->upper_limit) {
+        status = -EINVAL;
+        goto exit;
+    }
+    send_command_l(stub_tuner, CMD_CANCEL, thread_cmd_delay_ms[CMD_CANCEL], NULL);
+    send_command_l(stub_tuner, CMD_CONFIG, thread_cmd_delay_ms[CMD_CONFIG], (void *)config);
 
 exit:
     pthread_mutex_unlock(&stub_tuner->lock);
@@ -548,7 +567,7 @@ static int tuner_step(const struct radio_tuner *tuner,
           __func__, stub_tuner, direction, skip_sub_channel);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_STEP, 20, &direction);
+    send_command_l(stub_tuner, CMD_STEP, thread_cmd_delay_ms[CMD_STEP], &direction);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -562,7 +581,7 @@ static int tuner_scan(const struct radio_tuner *tuner,
           __func__, stub_tuner, direction, skip_sub_channel);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_SCAN, 200, &direction);
+    send_command_l(stub_tuner, CMD_SCAN, thread_cmd_delay_ms[CMD_SCAN], &direction);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -581,7 +600,7 @@ static int tuner_tune(const struct radio_tuner *tuner,
         ALOGI("%s channel out of range", __func__);
         return -EINVAL;
     }
-    send_command_l(stub_tuner, CMD_TUNE, 100, &channel);
+    send_command_l(stub_tuner, CMD_TUNE, thread_cmd_delay_ms[CMD_TUNE], &channel);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -593,7 +612,7 @@ static int tuner_cancel(const struct radio_tuner *tuner)
     ALOGI("%s stub_tuner %p", __func__, stub_tuner);
 
     pthread_mutex_lock(&stub_tuner->lock);
-    send_command_l(stub_tuner, CMD_CANCEL, 0, NULL);
+    send_command_l(stub_tuner, CMD_CANCEL, thread_cmd_delay_ms[CMD_CANCEL], NULL);
     pthread_mutex_unlock(&stub_tuner->lock);
     return 0;
 }
@@ -614,7 +633,12 @@ static int tuner_get_program_information(const struct radio_tuner *tuner,
     metadata = info->metadata;
     *info = stub_tuner->program;
     info->metadata = metadata;
-    if (metadata != NULL && stub_tuner->program.metadata != NULL)
+    if (metadata == NULL) {
+        ALOGE("%s metadata is a nullptr", __func__);
+        status = -EINVAL;
+        goto exit;
+    }
+    if (stub_tuner->program.metadata != NULL)
         radio_metadata_add_metadata(&info->metadata, stub_tuner->program.metadata);
 
 exit:
@@ -625,8 +649,6 @@ exit:
 static int rdev_get_properties(const struct radio_hw_device *dev,
                                 radio_hal_properties_t *properties)
 {
-    struct stub_radio_device *rdev = (struct stub_radio_device *)dev;
-
     ALOGI("%s", __func__);
     if (properties == NULL)
         return -EINVAL;
@@ -648,6 +670,7 @@ static int rdev_open_tuner(const struct radio_hw_device *dev,
     pthread_mutex_lock(&rdev->lock);
 
     if (rdev->tuner != NULL) {
+        ALOGE("Can't open tuner twice");
         status = -ENOSYS;
         goto exit;
     }
@@ -684,7 +707,7 @@ static int rdev_open_tuner(const struct radio_hw_device *dev,
     list_init(&rdev->tuner->command_list);
 
     pthread_mutex_lock(&rdev->tuner->lock);
-    send_command_l(rdev->tuner, CMD_CONFIG, 500, (void *)config);
+    send_command_l(rdev->tuner, CMD_CONFIG, thread_cmd_delay_ms[CMD_CONFIG], (void *)config);
     pthread_mutex_unlock(&rdev->tuner->lock);
 
     *tuner = &rdev->tuner->interface;
@@ -712,7 +735,7 @@ static int rdev_close_tuner(const struct radio_hw_device *dev,
 
     pthread_mutex_lock(&stub_tuner->lock);
     stub_tuner->callback = NULL;
-    send_command_l(stub_tuner, CMD_EXIT, 0, NULL);
+    send_command_l(stub_tuner, CMD_EXIT, thread_cmd_delay_ms[CMD_EXIT], NULL);
     pthread_mutex_unlock(&stub_tuner->lock);
     pthread_join(stub_tuner->callback_thread, (void **) NULL);
 
@@ -741,7 +764,6 @@ static int rdev_open(const hw_module_t* module, const char* name,
                      hw_device_t** device)
 {
     struct stub_radio_device *rdev;
-    int ret;
 
     if (strcmp(name, RADIO_HARDWARE_DEVICE) != 0)
         return -EINVAL;

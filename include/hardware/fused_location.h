@@ -19,6 +19,7 @@
 
 #include <hardware/hardware.h>
 
+#include "gnss-base.h"
 
 /**
  * This header file defines the interface of the Fused Location Provider.
@@ -101,16 +102,6 @@ __BEGIN_DECLS
  * from being successful in determining location to being unsuccessful.
  */
 #define FLP_STATUS_LOCATION_UNAVAILABLE       1
-
-/**
- * This constant is used with the batched locations
- * APIs. Batching is mandatory when FLP implementation
- * is supported. If the flag is set, the hardware implementation
- * will wake up the application processor when the FIFO is full,
- * If the flag is not set, the hardware implementation will drop
- * the oldest data when the FIFO is full.
- */
-#define FLP_BATCH_WAKEUP_ON_FIFO_FULL        0x0000001
 
 /**
  * While batching, the implementation should not call the

@@ -33,7 +33,7 @@ LOCAL_SHARED_LIBRARIES := \
     libutils
 
 LOCAL_CLANG := true
-LOCAL_CPPFLAGS += -std=c++14 -Wno-unused-parameter
+LOCAL_CPPFLAGS += -Wno-unused-parameter
 
 LOCAL_MODULE := libinput_evdev
 LOCAL_MODULE_TAGS := optional
@@ -45,6 +45,7 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := input.evdev.default
 LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_SRC_FILES := \
     EvdevModule.cpp
@@ -54,7 +55,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog
 
 LOCAL_CLANG := true
-LOCAL_CPPFLAGS += -std=c++14 -Wno-unused-parameter
+LOCAL_CPPFLAGS += -Wno-unused-parameter
 
 LOCAL_MODULE_TAGS := optional
 

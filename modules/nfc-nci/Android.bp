@@ -15,9 +15,11 @@
 cc_library_shared {
     name: "nfc_nci.default",
     relative_install_path: "hw",
-    srcs: ["nfc_nci_example.c"],
+    proprietary: true,
+    srcs: ["nfc_nci_example.cpp"],
     shared_libs: [
         "liblog",
         "libcutils",
     ],
+    cflags: ["-Wall", "-Werror"],
 }

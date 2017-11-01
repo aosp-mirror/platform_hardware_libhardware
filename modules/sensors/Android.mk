@@ -17,12 +17,14 @@
 LOCAL_PATH := $(call my-dir)
 
 ifeq ($(USE_SENSOR_MULTI_HAL),true)
+ifneq ($(PRODUCT_FULL_TREBLE),true)
 
 include $(CLEAR_VARS)
 
 LOCAL_MODULE := sensors.$(TARGET_DEVICE)
 
 LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_CFLAGS := -DLOG_TAG=\"MultiHal\"
 
@@ -40,6 +42,10 @@ LOCAL_STRIP_MODULE := false
 
 include $(BUILD_SHARED_LIBRARY)
 
+else
+$(warning Treble enabled device have built-in sensor multihal support. \
+          USE_SENSOR_MULTI_HAL should not be set.)
+endif # PRODUCT_FULL_TREBLE
 endif # USE_SENSOR_MULTI_HAL
 
 include $(call all-makefiles-under, $(LOCAL_PATH))

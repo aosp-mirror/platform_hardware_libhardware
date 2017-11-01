@@ -17,11 +17,13 @@
 #ifndef ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 #define ANDROID_INCLUDE_HARDWARE_FINGERPRINT_H
 
+#include <hardware/hardware.h>
 #include <hardware/hw_auth_token.h>
 
 #define FINGERPRINT_MODULE_API_VERSION_1_0 HARDWARE_MODULE_API_VERSION(1, 0)
 #define FINGERPRINT_MODULE_API_VERSION_2_0 HARDWARE_MODULE_API_VERSION(2, 0)
 #define FINGERPRINT_MODULE_API_VERSION_2_1 HARDWARE_MODULE_API_VERSION(2, 1)
+#define FINGERPRINT_MODULE_API_VERSION_3_0 HARDWARE_MODULE_API_VERSION(3, 0)
 #define FINGERPRINT_HARDWARE_MODULE_ID "fingerprint"
 
 typedef enum fingerprint_msg_type {
@@ -50,6 +52,7 @@ typedef enum fingerprint_error {
     FINGERPRINT_ERROR_NO_SPACE = 4, /* No space available to store a template */
     FINGERPRINT_ERROR_CANCELED = 5, /* The current operation can't proceed. See above. */
     FINGERPRINT_ERROR_UNABLE_TO_REMOVE = 6, /* fingerprint with given id can't be removed */
+    FINGERPRINT_ERROR_LOCKOUT = 7, /* the fingerprint hardware is in lockout due to too many attempts */
     FINGERPRINT_ERROR_VENDOR_BASE = 1000 /* vendor-specific error messages start here */
 } fingerprint_error_t;
 
@@ -68,6 +71,8 @@ typedef enum fingerprint_acquired_info {
     FINGERPRINT_ACQUIRED_IMAGER_DIRTY = 3, /* sensor needs to be cleaned */
     FINGERPRINT_ACQUIRED_TOO_SLOW = 4, /* mostly swipe-type sensors; not enough data collected */
     FINGERPRINT_ACQUIRED_TOO_FAST = 5, /* for swipe and area sensors; tell user to slow down*/
+    FINGERPRINT_ACQUIRED_DETECTED = 6, /* when the finger is first detected. Used to optimize wakeup.
+                                          Should be followed by one of the above messages */
     FINGERPRINT_ACQUIRED_VENDOR_BASE = 1000 /* vendor-specific acquisition messages start here */
 } fingerprint_acquired_info_t;
 
@@ -84,14 +89,13 @@ typedef struct fingerprint_enroll {
     uint64_t msg; /* Vendor specific message. Used for user guidance */
 } fingerprint_enroll_t;
 
-typedef struct fingerprint_enumerated {
+typedef struct fingerprint_iterator {
     fingerprint_finger_id_t finger;
     uint32_t remaining_templates;
-} fingerprint_enumerated_t;
+} fingerprint_iterator_t;
 
-typedef struct fingerprint_removed {
-    fingerprint_finger_id_t finger;
-} fingerprint_removed_t;
+typedef fingerprint_iterator_t fingerprint_enumerated_t;
+typedef fingerprint_iterator_t fingerprint_removed_t;
 
 typedef struct fingerprint_acquired {
     fingerprint_acquired_info_t acquired_info; /* information about the image */
@@ -206,12 +210,13 @@ typedef struct fingerprint_device {
     /*
      * Enumerate all the fingerprint templates found in the directory set by
      * set_active_group()
-     * For each template found notify() will be called with:
+     * For each template found a notify() will be called with:
      * fingerprint_msg.type == FINGERPRINT_TEMPLATE_ENUMERATED
      * fingerprint_msg.data.enumerated.finger indicating a template id
      * fingerprint_msg.data.enumerated.remaining_templates indicating how many more
      * enumeration messages to expect.
-     *
+     * Note: If there are no fingerprints, then this should return 0 and the first fingerprint
+     *                  enumerated should have fingerid=0 and remaining=0
      * Function return: 0 if enumerate request is accepted
      *                  or a negative number in case of error, generally from the errno.h set.
      */
@@ -221,9 +226,14 @@ typedef struct fingerprint_device {
      * Fingerprint remove request:
      * Deletes a fingerprint template.
      * Works only within the path set by set_active_group().
-     * notify() will be called with details on the template deleted.
-     * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED and
-     * fingerprint_msg.data.removed.finger indicating the template id removed.
+     * The fid parameter can be used as a widcard:
+     *   * fid == 0 -- delete all the templates in the group.
+     *   * fid != 0 -- delete this specific template from the group.
+     * For each template found a notify() will be called with:
+     * fingerprint_msg.type == FINGERPRINT_TEMPLATE_REMOVED
+     * fingerprint_msg.data.removed.finger indicating a template id deleted
+     * fingerprint_msg.data.removed.remaining_templates indicating how many more
+     * templates will be deleted by this operation.
      *
      * Function return: 0 if fingerprint template(s) can be successfully deleted
      *                  or a negative number in case of error, generally from the errno.h set.

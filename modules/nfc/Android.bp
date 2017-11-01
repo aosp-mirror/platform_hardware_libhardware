@@ -15,9 +15,11 @@
 cc_library_shared {
     name: "nfc.default",
     relative_install_path: "hw",
+    proprietary: true,
     srcs: ["nfc_pn544_example.c"],
+    cflags: ["-Wall", "-Werror"],
+    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
-        "libcutils",
     ],
 }

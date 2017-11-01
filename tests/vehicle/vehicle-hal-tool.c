@@ -17,12 +17,14 @@
 #define LOG_TAG "vehicle-hal-tool"
 
 #include <inttypes.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <log/log.h>
+
 #include <hardware/hardware.h>
 #include <hardware/vehicle.h>
-
-#include <cutils/log.h>
 
 void usage() {
     printf("Usage: "
