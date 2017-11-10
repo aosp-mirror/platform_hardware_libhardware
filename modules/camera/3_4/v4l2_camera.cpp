@@ -295,32 +295,36 @@ bool V4L2Camera::enqueueRequestBuffers() {
 bool V4L2Camera::dequeueRequestBuffers() {
   // Dequeue a buffer.
   uint32_t result_index;
-  int res = device_->DequeueBuffer(&result_index);
-  if (res) {
-    if (res == -EAGAIN) {
-      // EAGAIN just means nothing to dequeue right now.
-      // Wait until something is available before looping again.
-      std::unique_lock<std::mutex> lock(in_flight_lock_);
-      while (in_flight_.empty()) {
-        buffers_in_flight_.wait(lock);
+  int res;
+
+  {
+    std::lock_guard<std::mutex> guard(in_flight_lock_);
+    res = device_->DequeueBuffer(&result_index);
+    if (!res) {
+      // Find the associated request and complete it.
+      auto index_request = in_flight_.find(result_index);
+      if (index_request != in_flight_.end()) {
+        completeRequest(index_request->second, 0);
+        in_flight_.erase(index_request);
+      } else {
+        HAL_LOGW(
+            "Dequeued non in-flight buffer index %d. "
+            "This buffer may have been flushed from the HAL but not the device.",
+            index_request->first);
       }
-    } else {
-      HAL_LOGW("Device failed to dequeue buffer: %d", res);
+      return true;
     }
-    return true;
   }
 
-  // Find the associated request and complete it.
-  std::lock_guard<std::mutex> guard(in_flight_lock_);
-  auto index_request = in_flight_.find(result_index);
-  if (index_request != in_flight_.end()) {
-    completeRequest(index_request->second, 0);
-    in_flight_.erase(index_request);
+  if (res == -EAGAIN) {
+    // EAGAIN just means nothing to dequeue right now.
+    // Wait until something is available before looping again.
+    std::unique_lock<std::mutex> lock(in_flight_lock_);
+    while (in_flight_.empty()) {
+      buffers_in_flight_.wait(lock);
+    }
   } else {
-    HAL_LOGW(
-        "Dequeued non in-flight buffer index %d. "
-        "This buffer may have been flushed from the HAL but not the device.",
-        index_request->first);
+    HAL_LOGW("Device failed to dequeue buffer: %d", res);
   }
   return true;
 }
