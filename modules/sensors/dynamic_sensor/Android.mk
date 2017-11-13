@@ -56,6 +56,10 @@ LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorExt\"
 
 LOCAL_SRC_FILES := $(dynamic_sensor_src)
 
+LOCAL_HEADER_LIBRARIES := \
+    libhardware_headers \
+    libstagefright_foundation_headers \
+
 LOCAL_SHARED_LIBRARIES := $(dynamic_sensor_shared_lib)
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)
@@ -75,6 +79,10 @@ LOCAL_PROPRIETARY_MODULE := true
 LOCAL_CFLAGS += $(COMMON_CFLAGS) -DLOG_TAG=\"DynamicSensorHal\"
 
 LOCAL_SRC_FILES := $(dynamic_sensor_src) sensors.cpp
+
+LOCAL_HEADER_LIBRARIES := \
+    libhardware_headers \
+    libstagefright_foundation_headers \
 
 LOCAL_SHARED_LIBRARIES := $(dynamic_sensor_shared_lib)
 

@@ -31,6 +31,9 @@ LOCAL_SRC_FILES := \
     multihal.cpp \
     SensorEventQueue.cpp \
 
+LOCAL_HEADER_LIBRARIES := \
+    libhardware_headers \
+
 LOCAL_SHARED_LIBRARIES := \
     libcutils \
     libdl \
