@@ -535,6 +535,7 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
     std::lock_guard<std::mutex> guard(buffer_queue_lock_);
     for (int i = 0; i < buffers_.size(); ++i) {
       if (!buffers_[i]) {
+        buffers_[i] = true;
         index = i;
         break;
       }
@@ -557,6 +558,9 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
   // and fill out remaining fields.
   if (IoctlLocked(VIDIOC_QUERYBUF, &device_buffer) < 0) {
     HAL_LOGE("QUERYBUF fails: %s", strerror(errno));
+    // Return buffer index.
+    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+    buffers_[index] = false;
     return -ENODEV;
   }
 
@@ -565,17 +569,19 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
       gralloc_->lock(camera_buffer, format_->bytes_per_line(), &device_buffer);
   if (res) {
     HAL_LOGE("Gralloc failed to lock buffer.");
+    // Return buffer index.
+    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+    buffers_[index] = false;
     return res;
   }
   if (IoctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
     HAL_LOGE("QBUF fails: %s", strerror(errno));
     gralloc_->unlock(&device_buffer);
+    // Return buffer index.
+    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+    buffers_[index] = false;
     return -ENODEV;
   }
-
-  // Mark the buffer as in flight.
-  std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-  buffers_[index] = true;
 
   if (enqueued_index) {
     *enqueued_index = index;
