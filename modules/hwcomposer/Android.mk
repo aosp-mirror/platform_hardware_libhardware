@@ -26,4 +26,5 @@ LOCAL_SRC_FILES := hwcomposer.cpp
 LOCAL_MODULE := hwcomposer.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := optional
+LOCAL_CFLAGS += -Wall -Werror
 include $(BUILD_SHARED_LIBRARY)

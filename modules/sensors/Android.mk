@@ -25,7 +25,7 @@ LOCAL_MODULE := sensors.$(TARGET_DEVICE)
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
 
-LOCAL_CFLAGS := -DLOG_TAG=\"MultiHal\"
+LOCAL_CFLAGS := -Wall -Werror -DLOG_TAG=\"MultiHal\"
 
 LOCAL_SRC_FILES := \
     multihal.cpp \
