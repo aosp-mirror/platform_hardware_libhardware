@@ -57,7 +57,7 @@ FormatCategory StreamFormat::Category() const {
     case V4L2_PIX_FMT_JPEG:
       return kFormatCategoryStalling;
     case V4L2_PIX_FMT_YUV420:  // Fall through.
-    case V4L2_PIX_FMT_BGR32:
+    case V4L2_PIX_FMT_RGB24:
       return kFormatCategoryNonStalling;
     default:
       // Note: currently no supported RAW formats.
@@ -87,7 +87,7 @@ int StreamFormat::V4L2ToHalPixelFormat(uint32_t v4l2_pixel_format) {
     case V4L2_PIX_FMT_YUV420:
       hal_pixel_format = HAL_PIXEL_FORMAT_YCbCr_420_888;
       break;
-    case V4L2_PIX_FMT_BGR32:
+    case V4L2_PIX_FMT_RGB24:
       hal_pixel_format = HAL_PIXEL_FORMAT_RGBA_8888;
       break;
     default:
@@ -106,7 +106,7 @@ uint32_t StreamFormat::HalToV4L2PixelFormat(int hal_pixel_format) {
     case HAL_PIXEL_FORMAT_RGBA_8888:
       // Should be RGB32, but RPi doesn't support that.
       // For now we accept that the colors will be off.
-      v4l2_pixel_format = V4L2_PIX_FMT_BGR32;
+      v4l2_pixel_format = V4L2_PIX_FMT_RGB24;
       break;
     case HAL_PIXEL_FORMAT_YCbCr_420_888:
       v4l2_pixel_format = V4L2_PIX_FMT_YUV420;

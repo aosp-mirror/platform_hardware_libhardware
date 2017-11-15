@@ -146,6 +146,7 @@ int V4L2Gralloc::lock(const camera3_stream_buffer_t* camera_buffer,
         return ret;
       }
       break;
+    case V4L2_PIX_FMT_RGB24:  // Fall-through.
     case V4L2_PIX_FMT_BGR32:  // Fall-through.
     case V4L2_PIX_FMT_RGB32:
       // RGB formats have nice agreed upon representation. Unless using android
@@ -203,6 +204,19 @@ int V4L2Gralloc::unlock(const v4l2_buffer* device_buffer) {
 
   const camera3_stream_buffer_t* camera_buffer = buffer_data->camera_buffer;
   const buffer_handle_t buffer = *camera_buffer->buffer;
+
+  if (StreamFormat::HalToV4L2PixelFormat(camera_buffer->stream->format) == V4L2_PIX_FMT_RGB24) {
+    // Convert RGB24 to RGB32.
+    size_t rgb_size = camera_buffer->stream->width * camera_buffer->stream->height;
+    uint8_t* tail_rgb24 = (uint8_t*)data + 3 * rgb_size - 1;
+    uint8_t* tail_rgb32 = (uint8_t*)data + 4 * rgb_size - 1;
+    for (int i = 0; i < rgb_size; i++) {
+      *(tail_rgb32--) = 0xff;
+      *(tail_rgb32--) = *(tail_rgb24--);
+      *(tail_rgb32--) = *(tail_rgb24--);
+      *(tail_rgb32--) = *(tail_rgb24--);
+    }
+  }
 
   // Check for transform.
   if (buffer_data->transform_dest) {

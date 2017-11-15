@@ -28,7 +28,7 @@ to load the V4L2 HAL instead of a default Camera HAL.
 Devices and cameras wishing to use this HAL must meet
 the following requirements:
 
-* The camera must support BGR32, YUV420, and JPEG formats.
+* The camera must support RGB24, YUV420, and JPEG formats.
 * The gralloc and other graphics modules used by the device must use
 `HAL_PIXEL_FORMAT_RGBA_8888` as the `HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED`
 
@@ -146,6 +146,3 @@ is underfeatured compared to the ideal/what is possible.
 
 * A variety of features are unimplemented: High speed capture,
 flash torch mode, hotplugging/unplugging.
-* The HAL uses BGR for RGBA. Again, the HAL was designed for the Raspberry Pi
-camera, which doesn't support RGB, but RGB is a common default format for
-graphics stacks.
