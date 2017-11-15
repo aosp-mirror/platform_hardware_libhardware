@@ -413,6 +413,11 @@ int V4L2Camera::setupStreams(camera3_stream_configuration_t* stream_config) {
   for (uint32_t i = 0; i < stream_config->num_streams; ++i) {
     stream = stream_config->streams[i];
 
+    // Override HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED format.
+    if (stream->format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+      stream->format = HAL_PIXEL_FORMAT_RGBA_8888;
+    }
+
     // Max buffers as reported by the device.
     stream->max_buffers = max_buffers;
 
