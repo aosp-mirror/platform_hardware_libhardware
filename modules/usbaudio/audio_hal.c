@@ -44,8 +44,6 @@
 #include "alsa_device_proxy.h"
 #include "alsa_logging.h"
 
-#define DEFAULT_INPUT_BUFFER_SIZE_MS 20
-
 /* Lock play & record samples rates at or above this threshold */
 #define RATELOCK_THRESHOLD 96000
 
