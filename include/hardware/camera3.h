@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 The Android Open Source Project
+ * Copyright (C) 2013-2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -158,7 +158,7 @@
  *     - ANDROID_SENSOR_OPAQUE_RAW_SIZE
  *     - ANDROID_SENSOR_OPTICAL_BLACK_REGIONS
  *
- * 3.5: Minor additions to supported metadata and changes to camera3_stream_configuration.
+ * 3.5: Minor revisions to support session parameters and logical multi camera:
  *
  *   - Add ANDROID_REQUEST_AVAILABLE_SESSION_KEYS static metadata, which is
  *     optional for implementations that want to support session parameters. If support is
@@ -169,6 +169,15 @@
  *
  *   - Add a session parameter field to camera3_stream_configuration which can be populated
  *     by clients with initial values for the keys found in ANDROID_REQUEST_AVAILABLE_SESSION_KEYS.
+ *
+ *   - Metadata additions for logical multi camera capability:
+ *     - ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA
+ *     - ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS
+ *     - ANDROID_LOGICAL_MULTI_CAMERA_SYNC_TYPE
+ *
+ *   - Add physical camera id field in camera3_stream, so that for a logical
+ *     multi camera, the application has the option to specify which physical camera
+ *     a particular stream is configured on.
  */
 
 /**
@@ -1699,8 +1708,31 @@ typedef struct camera3_stream {
      */
     int rotation;
 
+    /**
+     * The physical camera id this stream belongs to.
+     *
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERISON_3_5:
+     *
+     *    Always set by camera service. If the camera device is not a logical
+     *    multi camera, or if the camera is a logical multi camera but the stream
+     *    is not a physical output stream, this field will point to a 0-length
+     *    string.
+     *
+     *    A logical multi camera is a camera device backed by multiple physical
+     *    cameras that are also exposed to the application. And for a logical
+     *    multi camera, a physical output stream is an output stream specifically
+     *    requested on an underlying physical camera.
+     *
+     *    For an input stream, this field is guaranteed to be a 0-length string.
+     */
+    const char* physical_camera_id;
+
     /* reserved for future use */
-    void *reserved[7];
+    void *reserved[6];
 
 } camera3_stream_t;
 
