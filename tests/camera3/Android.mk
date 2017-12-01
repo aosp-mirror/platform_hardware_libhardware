@@ -12,7 +12,7 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_C_INCLUDES += \
     system/media/camera/include \
 
-LOCAL_CFLAGS += -Wall -Wextra
+LOCAL_CFLAGS += -Wall -Wextra -Werror
 
 LOCAL_MODULE:= camera3_tests
 LOCAL_MODULE_TAGS := tests
