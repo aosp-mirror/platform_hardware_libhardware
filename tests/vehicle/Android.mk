@@ -25,7 +25,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libhardware \
 
-LOCAL_CFLAGS += -Wall -Wextra
+LOCAL_CFLAGS += -Wall -Wextra -Werror
 
 LOCAL_MODULE:= vehicle_tests
 LOCAL_MODULE_TAGS := tests

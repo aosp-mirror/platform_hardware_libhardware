@@ -649,9 +649,6 @@ TEST_F(KeymasterTest, GetKeypairPublic_EC_Success) {
 }
 
 TEST_F(KeymasterTest, GetKeypairPublic_NullKey_Failure) {
-    uint8_t* key_blob;
-    size_t key_blob_length;
-
     uint8_t* x509_data = NULL;
     size_t x509_data_length;
     ASSERT_EQ(-1,
@@ -1032,9 +1029,6 @@ TEST_F(KeymasterTest, SignData_RSA_Raw_NullOutput_Failure) {
             .digest_type = DIGEST_NONE,
             .padding_type = PADDING_NONE,
     };
-
-    uint8_t* sig;
-    size_t sig_length;
 
     UniqueReadOnlyBlob testData(TEST_RSA_KEY_1, sizeof(TEST_RSA_KEY_1));
     ASSERT_TRUE(testData.get() != NULL);

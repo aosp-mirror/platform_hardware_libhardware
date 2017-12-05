@@ -181,7 +181,7 @@ static void hwc_post(CNativeWindow *win, aBuffer *buf, int ffd) {
 	hwc_composer_device_1_t *hwc = win->hwc;
 	hwc_display_contents_1_t *dc = &(win->dc);
 	hwc_layer_1_t *dl = win->dc.hwLayers;
-	int r, i;
+	int r;
 
 	dc->retireFenceFd = -1;
 	dc->outbufAcquireFenceFd = -1;
@@ -462,8 +462,8 @@ static int cnw_init(CNativeWindow *win) {
 	hw_module_t const* module;
 	framebuffer_device_t *fb = NULL;
 	alloc_device_t *gr;
-	int err, i, n;
-	unsigned usage, format;
+	int err, i;
+	unsigned usage;
 
 	memset(win, 0, sizeof(CNativeWindow));
 
