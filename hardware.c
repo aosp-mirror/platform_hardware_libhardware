@@ -76,13 +76,19 @@ static int load(const char *id,
     int status = -EINVAL;
     void *handle = NULL;
     struct hw_module_t *hmi = NULL;
+#ifdef __ANDROID_VNDK__
+    const bool try_system = false;
+#else
+    const bool try_system = true;
+#endif
 
     /*
      * load the symbols resolving undefined symbols before
      * dlopen returns. Since RTLD_GLOBAL is not or'd in with
      * RTLD_NOW the external symbols will not be global
      */
-    if (strncmp(path, "/system/", 8) == 0) {
+    if (try_system &&
+        strncmp(path, HAL_LIBRARY_PATH1, strlen(HAL_LIBRARY_PATH1)) == 0) {
         /* If the library is in system partition, no need to check
          * sphal namespace. Open it with dlopen.
          */
@@ -152,10 +158,12 @@ static int hw_module_exists(char *path, size_t path_len, const char *name,
     if (access(path, R_OK) == 0)
         return 0;
 
+#ifndef __ANDROID_VNDK__
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH1, name, subname);
     if (access(path, R_OK) == 0)
         return 0;
+#endif
 
     return -ENOENT;
 }
