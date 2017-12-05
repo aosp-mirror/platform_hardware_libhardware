@@ -14,6 +14,8 @@ LOCAL_SHARED_LIBRARIES := \
 
 LOCAL_MODULE := keymaster_test
 
+LOCAL_CFLAGS := -Wall -Werror
+
 LOCAL_MODULE_TAGS := tests
 
 include $(BUILD_NATIVE_TEST)
