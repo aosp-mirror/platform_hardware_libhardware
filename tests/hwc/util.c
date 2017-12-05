@@ -36,7 +36,7 @@ void matrix_init_ortho(GLfloat *m, float w, float h) {
 	m[7] = -1.0;
 	m[8] = 0.0;
 	m[9] = 0.0;
-	m[10] -1.0;
+	m[10] = -1.0;
 	m[11] = 0.0;
 	m[12] = 0.0;
 	m[13] = 0.0;
@@ -111,7 +111,7 @@ fail_frag:
 
 int select_config_for_window(EGLDisplay dpy, EGLint *attr,
 	unsigned format, EGLConfig *config) {
-	EGLint R,G,B,A,r,g,b,a;
+	EGLint R,G,B,A;
 	EGLint i, n, max;
 	EGLConfig *cfg;
 
