@@ -23,6 +23,6 @@ LOCAL_SRC_FILES := vr.c
 LOCAL_HEADER_LIBRARIES := libhardware_headers
 LOCAL_SHARED_LIBRARIES := libcutils
 LOCAL_MODULE_TAGS := optional
-LOCAL_CFLAGS += -Wno-unused-parameter
+LOCAL_CFLAGS += -Wall -Werror -Wno-unused-parameter
 
 include $(BUILD_SHARED_LIBRARY)

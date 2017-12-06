@@ -465,6 +465,9 @@ static int vdev_subscribe(vehicle_hw_device_t* device, int32_t prop, float sampl
     }
     int ret_code = pthread_create(
                                   &sub->thread, NULL, (void *(*)(void*))fake_event_thread, sub);
+    if (ret_code != 0) {
+        return -ret_code;
+    }
     print_subscribe_info(impl);
     pthread_mutex_unlock(&lock_);
     return 0;

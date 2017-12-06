@@ -38,7 +38,7 @@ LOCAL_SHARED_LIBRARIES := \
 	libsync \
 	libutils \
 
-LOCAL_CFLAGS += -Wall -Wextra -fvisibility=hidden
+LOCAL_CFLAGS += -Wall -Wextra -Werror -fvisibility=hidden
 
 LOCAL_MODULE_TAGS := optional
 
