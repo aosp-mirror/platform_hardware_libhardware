@@ -45,7 +45,6 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := input.evdev.default
 LOCAL_MODULE_RELATIVE_PATH := hw
-LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_SRC_FILES := \
     EvdevModule.cpp

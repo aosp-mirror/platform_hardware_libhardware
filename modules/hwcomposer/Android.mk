@@ -23,6 +23,7 @@ LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SHARED_LIBRARIES := liblog libEGL
 LOCAL_SRC_FILES := hwcomposer.cpp
+LOCAL_HEADER_LIBRARIES := libhardware_headers
 LOCAL_MODULE := hwcomposer.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := optional
