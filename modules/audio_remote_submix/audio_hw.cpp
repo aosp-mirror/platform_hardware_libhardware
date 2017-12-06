@@ -487,7 +487,6 @@ static void submix_audio_device_destroy_pipe_l(struct submix_audio_device * cons
                                              const struct submix_stream_in * const in,
                                              const struct submix_stream_out * const out)
 {
-    MonoPipe* sink;
     ALOGV("submix_audio_device_destroy_pipe_l()");
     int route_idx = -1;
     if (in != NULL) {
@@ -1087,7 +1086,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 {
     struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(stream);
     struct submix_audio_device * const rsxadev = in->dev;
-    struct audio_config *format;
     const size_t frame_size = audio_stream_in_frame_size(stream);
     const size_t frames_to_read = bytes / frame_size;
 

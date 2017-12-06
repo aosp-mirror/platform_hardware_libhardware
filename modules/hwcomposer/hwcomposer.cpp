@@ -55,6 +55,7 @@ hwc_module_t HAL_MODULE_INFO_SYM = {
 
 /*****************************************************************************/
 
+#if 0
 static void dump_layer(hwc_layer_1_t const* l) {
     ALOGD("\ttype=%d, flags=%08x, handle=%p, tr=%02x, blend=%04x, {%d,%d,%d,%d}, {%d,%d,%d,%d}",
             l->compositionType, l->flags, l->handle, l->transform, l->blending,
@@ -67,6 +68,7 @@ static void dump_layer(hwc_layer_1_t const* l) {
             l->displayFrame.right,
             l->displayFrame.bottom);
 }
+#endif
 
 static int hwc_prepare(hwc_composer_device_1_t * /*dev*/,
         size_t /*numDisplays*/, hwc_display_contents_1_t** displays) {

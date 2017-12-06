@@ -54,7 +54,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog
 
 LOCAL_CLANG := true
-LOCAL_CPPFLAGS += -Wno-unused-parameter
+LOCAL_CPPFLAGS += -Wall -Werror -Wno-unused-parameter
 
 LOCAL_MODULE_TAGS := optional
 

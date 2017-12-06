@@ -95,19 +95,6 @@ static uint32_t getAbsAxisUsage(int32_t axis, uint32_t deviceClasses) {
     return INPUT_DEVICE_CLASS_JOYSTICK;
 }
 
-static bool getBooleanProperty(const InputProperty& prop) {
-    const char* propValue = prop.getValue();
-    if (propValue == nullptr) return false;
-
-    char* end;
-    int value = std::strtol(propValue, &end, 10);
-    if (*end != '\0') {
-        ALOGW("Expected boolean for property %s; value=%s", prop.getKey(), propValue);
-        return false;
-    }
-    return value;
-}
-
 EvdevDevice::EvdevDevice(InputHostInterface* host, const std::shared_ptr<InputDeviceNode>& node) :
     mHost(host), mDeviceNode(node), mDeviceDefinition(mHost->createDeviceDefinition()) {
 
