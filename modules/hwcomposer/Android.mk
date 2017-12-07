@@ -27,4 +27,5 @@ LOCAL_HEADER_LIBRARIES := libhardware_headers
 LOCAL_MODULE := hwcomposer.default
 LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
 LOCAL_MODULE_TAGS := optional
+LOCAL_CFLAGS += -Wall -Werror
 include $(BUILD_SHARED_LIBRARY)
