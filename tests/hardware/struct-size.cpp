@@ -24,7 +24,7 @@
 #include <hardware/camera_common.h>
 #include <hardware/camera3.h>
 
-template<size_t> static constexpr size_t CheckSizeHelper(size_t, size_t);
+template<size_t> static constexpr size_t CheckSizeHelper(size_t, size_t) __attribute((unused));
 
 template<> constexpr size_t CheckSizeHelper<4>(size_t size32, size_t /* size64 */) {
     return size32;
