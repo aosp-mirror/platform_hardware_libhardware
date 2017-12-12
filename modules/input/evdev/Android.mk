@@ -45,7 +45,6 @@ include $(CLEAR_VARS)
 
 LOCAL_MODULE := input.evdev.default
 LOCAL_MODULE_RELATIVE_PATH := hw
-LOCAL_PROPRIETARY_MODULE := true
 
 LOCAL_SRC_FILES := \
     EvdevModule.cpp
@@ -55,7 +54,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog
 
 LOCAL_CLANG := true
-LOCAL_CPPFLAGS += -Wno-unused-parameter
+LOCAL_CPPFLAGS += -Wall -Werror -Wno-unused-parameter
 
 LOCAL_MODULE_TAGS := optional
 
