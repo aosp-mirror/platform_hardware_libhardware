@@ -66,20 +66,6 @@ static void getLinuxRelease(int* major, int* minor) {
     }
 }
 
-static bool processHasCapability(int capability) {
-    LOG_ALWAYS_FATAL_IF(!cap_valid(capability), "invalid linux capability: %d", capability);
-    struct __user_cap_header_struct cap_header_data;
-    struct __user_cap_data_struct cap_data_data[2];
-    cap_user_header_t caphdr = &cap_header_data;
-    cap_user_data_t capdata = cap_data_data;
-    caphdr->pid = 0;
-    caphdr->version = _LINUX_CAPABILITY_VERSION_3;
-    LOG_ALWAYS_FATAL_IF(capget(caphdr, capdata) != 0,
-            "Could not get process capabilities. errno=%d", errno);
-    int idx = CAP_TO_INDEX(capability);
-    return capdata[idx].effective & CAP_TO_MASK(capability);
-}
-
 class EvdevDeviceNode : public InputDeviceNode {
 public:
     static EvdevDeviceNode* openDeviceNode(const std::string& path);
@@ -691,7 +677,6 @@ status_t InputHub::readNotify() {
     }
 
     size_t event_pos = 0;
-    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
     while (res >= static_cast<int>(sizeof(*event))) {
         event = reinterpret_cast<struct inotify_event*>(event_buf + event_pos);
         if (event->len) {
