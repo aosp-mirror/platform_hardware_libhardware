@@ -21,7 +21,7 @@
 #include "camera_common.h"
 
 /**
- * Camera device HAL 3.4 [ CAMERA_DEVICE_API_VERSION_3_4 ]
+ * Camera device HAL 3.5[ CAMERA_DEVICE_API_VERSION_3_5 ]
  *
  * This is the current recommended version of the camera device HAL.
  *
@@ -29,7 +29,7 @@
  * android.hardware.camera2 API as LIMITED or above hardware level.
  *
  * Camera devices that support this version of the HAL must return
- * CAMERA_DEVICE_API_VERSION_3_4 in camera_device_t.common.version and in
+ * CAMERA_DEVICE_API_VERSION_3_5 in camera_device_t.common.version and in
  * camera_info_t.device_version (from camera_module_t.get_camera_info).
  *
  * CAMERA_DEVICE_API_VERSION_3_3 and above:
@@ -157,6 +157,18 @@
  *     - ANDROID_SENSOR_DYNAMIC_WHITE_LEVEL
  *     - ANDROID_SENSOR_OPAQUE_RAW_SIZE
  *     - ANDROID_SENSOR_OPTICAL_BLACK_REGIONS
+ *
+ * 3.5: Minor additions to supported metadata and changes to camera3_stream_configuration.
+ *
+ *   - Add ANDROID_REQUEST_AVAILABLE_SESSION_KEYS static metadata, which is
+ *     optional for implementations that want to support session parameters. If support is
+ *     needed, then Hal should populate the list with all available capture request keys
+ *     that can cause severe processing delays when modified by client. Typical examples
+ *     include parameters that require time-consuming HW re-configuration or internal camera
+ *     pipeline update.
+ *
+ *   - Add a session parameter field to camera3_stream_configuration which can be populated
+ *     by clients with initial values for the keys found in ANDROID_REQUEST_AVAILABLE_SESSION_KEYS.
  */
 
 /**
@@ -1734,6 +1746,18 @@ typedef struct camera3_stream_configuration {
      *
      */
     uint32_t operation_mode;
+
+    /**
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *
+     * The session metadata buffer contains the initial values of
+     * ANDROID_REQUEST_AVAILABLE_SESSION_KEYS. This field is optional
+     * and camera clients can choose to ignore it, in which case it will
+     * be set to NULL. If parameters are present, then Hal should examine
+     * the parameter values and configure its internal camera pipeline
+     * accordingly.
+     */
+    const camera_metadata_t *session_parameters;
 } camera3_stream_configuration_t;
 
 /**
