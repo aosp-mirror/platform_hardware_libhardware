@@ -4,14 +4,14 @@
 #include <pthread.h>
 #include <cutils/atomic.h>
 
-#include "SensorEventQueue.cpp"
+#include "SensorEventQueue.h"
 
 // Unit tests for the SensorEventQueue.
 
 // Run it like this:
 //
-// make sensorstests -j32 && \
-// out/host/linux-x86/obj/EXECUTABLES/sensorstests_intermediates/sensorstests
+// m sensorstests && \
+// out/host/linux-x86/nativetest64/sensorstests/sensorstests
 
 bool checkWritableBufferSize(SensorEventQueue* queue, int requested, int expected) {
     sensors_event_t* buffer;
