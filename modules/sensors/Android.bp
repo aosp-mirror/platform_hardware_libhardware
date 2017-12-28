@@ -3,7 +3,7 @@ cc_library_static {
     vendor: true,
     srcs: [
         "multihal.cpp",
-        "SensorEventQueue.cpp"
+        "SensorEventQueue.cpp",
     ],
     header_libs: [
         "libhardware_headers",
@@ -12,8 +12,28 @@ cc_library_static {
         "liblog",
         "libcutils",
         "libutils",
-        "libdl"
+        "libdl",
     ],
     export_include_dirs: ["."],
-    cflags: ["-Wall", "-Werror"],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
+}
+
+cc_test_host {
+    name: "sensorstests",
+    gtest: false,
+    srcs: [
+        "SensorEventQueue.cpp",
+        "tests/SensorEventQueue_test.cpp",
+    ],
+    static_libs: [
+        "libcutils",
+        "libutils",
+    ],
+    cflags: [
+        "-Wall",
+        "-Werror",
+    ],
 }

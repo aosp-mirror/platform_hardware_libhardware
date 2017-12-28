@@ -45,5 +45,3 @@ LOCAL_STRIP_MODULE := false
 include $(BUILD_SHARED_LIBRARY)
 
 endif # USE_SENSOR_MULTI_HAL
-
-include $(call all-makefiles-under, $(LOCAL_PATH))
