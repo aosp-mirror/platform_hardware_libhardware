@@ -103,7 +103,7 @@ V4L2CameraHAL::V4L2CameraHAL() : mCameras(), mCallbacks(NULL) {
         }
       }
     }
-    TEMP_FAILURE_RETRY(close(fd));
+    close(fd);
   }
 }
 
