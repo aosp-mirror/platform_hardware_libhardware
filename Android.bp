@@ -6,13 +6,13 @@ cc_library_headers {
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-	"libbluetooth-types-header",
+        "libbluetooth-types-header",
     ],
     export_header_lib_headers: [
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-	"libbluetooth-types-header",
+        "libbluetooth-types-header",
     ],
 
     export_include_dirs: ["include"],
@@ -44,8 +44,3 @@ cc_library_shared {
         support_system_process: true,
     },
 }
-
-subdirs = [
-    "modules/*",
-    "tests/*",
-]
