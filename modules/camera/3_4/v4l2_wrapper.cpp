@@ -35,7 +35,19 @@
 
 namespace v4l2_camera_hal {
 
-const int32_t kStandardSizes[][2] = {{640, 480}, {320, 240}};
+const int32_t kStandardSizes[][2] = {
+  {4096, 2160}, // 4KDCI (for USB camera)
+  {3840, 2160}, // 4KUHD (for USB camera)
+  {3280, 2464}, // 8MP
+  {2560, 1440}, // QHD
+  {1920, 1080}, // HD1080
+  {1640, 1232}, // 2MP
+  {1280,  720}, // HD
+  {1024,  768}, // XGA
+  { 640,  480}, // VGA
+  { 320,  240}, // QVGA
+  { 176,  144}  // QCIF
+};
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
   std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
@@ -364,7 +376,7 @@ int V4L2Wrapper::GetFormatFrameSizes(uint32_t v4l2_format,
                  desired_height,
                  v4l2_format);
         continue;
-      } else if (desired_width > size_query.stepwise.max_width &&
+      } else if (desired_width > size_query.stepwise.max_width ||
                  desired_height > size_query.stepwise.max_height) {
         HAL_LOGV("Standard size %u x %u is too big for format %d",
                  desired_width,

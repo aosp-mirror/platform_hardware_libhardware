@@ -476,7 +476,7 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       new Property<uint8_t>(ANDROID_SCALER_CROPPING_TYPE,
                             ANDROID_SCALER_CROPPING_TYPE_FREEFORM)));
   // Spoof pixel array size for now, eventually get from CROPCAP.
-  std::array<int32_t, 2> pixel_array_size = {{640, 480}};
+  std::array<int32_t, 2> pixel_array_size = {{3280, 2464}};
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<std::array<int32_t, 2>>(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
                                            pixel_array_size)));
