@@ -182,6 +182,7 @@ typedef enum {
 
     /* Block ciphers algorithms */
     KM_ALGORITHM_AES = 32,
+    KM_ALGORITHM_TRIPLE_DES = 33,
 
     /* MAC algorithms */
     KM_ALGORITHM_HMAC = 128,
