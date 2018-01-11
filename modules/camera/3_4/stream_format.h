@@ -21,6 +21,7 @@
 
 #include <linux/videodev2.h>
 
+#include "arc/common_types.h"
 #include "common.h"
 
 namespace v4l2_camera_hal {
@@ -36,6 +37,7 @@ class StreamFormat {
  public:
   StreamFormat(int format, uint32_t width, uint32_t height);
   StreamFormat(const v4l2_format& format);
+  StreamFormat(const arc::SupportedFormat& format);
   virtual ~StreamFormat() = default;
   // Only uint32_t members, use default generated copy and assign.
 
@@ -44,6 +46,9 @@ class StreamFormat {
 
   // Accessors.
   inline uint32_t type() const { return type_; };
+  inline uint32_t width() const { return width_; };
+  inline uint32_t height() const { return height_; };
+  inline uint32_t v4l2_pixel_format() const { return v4l2_pixel_format_; }
   inline uint32_t bytes_per_line() const { return bytes_per_line_; };
 
   bool operator==(const StreamFormat& other) const;
@@ -54,6 +59,18 @@ class StreamFormat {
   static uint32_t HalToV4L2PixelFormat(int hal_pixel_format);
   // Returns -1 for unrecognized.
   static int V4L2ToHalPixelFormat(uint32_t v4l2_pixel_format);
+
+  // ARC++ SupportedFormat Helpers
+  static bool FindBestFitFormat(const arc::SupportedFormats& supported_formats,
+                                const arc::SupportedFormats& qualified_formats,
+                                uint32_t fourcc, uint32_t width,
+                                uint32_t height,
+                                arc::SupportedFormat* out_format);
+  static bool FindFormatByResolution(const arc::SupportedFormats& formats,
+                                     uint32_t width, uint32_t height,
+                                     arc::SupportedFormat* out_format);
+  static arc::SupportedFormats GetQualifiedFormats(
+      const arc::SupportedFormats& supported_formats);
 
  private:
   uint32_t type_;

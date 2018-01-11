@@ -59,7 +59,7 @@ TEST_F(StateTest, Tags) {
   PrepareState();
   EXPECT_TRUE(state_->StaticTags().empty());
   EXPECT_TRUE(state_->ControlTags().empty());
-  ASSERT_EQ(state_->DynamicTags().size(), 1);
+  ASSERT_EQ(state_->DynamicTags().size(), 1u);
   EXPECT_EQ(state_->DynamicTags()[0], tag_);
 }
 
@@ -79,7 +79,7 @@ TEST_F(StateTest, PopulateDynamic) {
 
   android::CameraMetadata metadata;
   ASSERT_EQ(state_->PopulateDynamicFields(&metadata), 0);
-  EXPECT_EQ(metadata.entryCount(), 1);
+  EXPECT_EQ(metadata.entryCount(), 1u);
   ExpectMetadataEq(metadata, tag_, expected);
 }
 

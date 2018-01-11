@@ -29,11 +29,14 @@
 
 #include <android-base/unique_fd.h>
 
-#include "common.h"
-#include "stream_format.h"
-#include "v4l2_gralloc.h"
+#include "arc/cached_frame.h"
 
 namespace v4l2_camera_hal {
+
+using arc::AllocatedFrameBuffer;
+using arc::SupportedFormat;
+using arc::SupportedFormats;
+using default_camera_hal::CaptureRequest;
 
 const int32_t kStandardSizes[][2] = {
   {4096, 2160}, // 4KDCI (for USB camera)
@@ -50,20 +53,11 @@ const int32_t kStandardSizes[][2] = {
 };
 
 V4L2Wrapper* V4L2Wrapper::NewV4L2Wrapper(const std::string device_path) {
-  std::unique_ptr<V4L2Gralloc> gralloc(V4L2Gralloc::NewV4L2Gralloc());
-  if (!gralloc) {
-    HAL_LOGE("Failed to initialize gralloc helper.");
-    return nullptr;
-  }
-
-  return new V4L2Wrapper(device_path, std::move(gralloc));
+  return new V4L2Wrapper(device_path);
 }
 
-V4L2Wrapper::V4L2Wrapper(const std::string device_path,
-                         std::unique_ptr<V4L2Gralloc> gralloc)
-    : device_path_(std::move(device_path)),
-      gralloc_(std::move(gralloc)),
-      connection_count_(0) {}
+V4L2Wrapper::V4L2Wrapper(const std::string device_path)
+    : device_path_(std::move(device_path)), connection_count_(0) {}
 
 V4L2Wrapper::~V4L2Wrapper() {}
 
@@ -97,6 +91,10 @@ int V4L2Wrapper::Connect() {
   // (Alternatively, better hotplugging support may make this unecessary
   // by disabling cameras that get disconnected and checking newly connected
   // cameras, so Connect() is never called on an unsupported camera)
+
+  supported_formats_ = GetSupportedFormats();
+  qualified_formats_ = StreamFormat::GetQualifiedFormats(supported_formats_);
+
   return 0;
 }
 
@@ -114,15 +112,16 @@ void V4L2Wrapper::Disconnect() {
   --connection_count_;
   if (connection_count_ > 0) {
     HAL_LOGV("Disconnected from camera device %s. %d connections remain.",
-             device_path_.c_str());
+             device_path_.c_str(), connection_count_);
     return;
   }
 
   device_fd_.reset(-1);  // Includes close().
   format_.reset();
-  buffers_.clear();
-  // Closing the device releases all queued buffers back to the user.
-  gralloc_->unlockAllBuffers();
+  {
+    std::lock_guard<std::mutex> buffer_lock(buffer_queue_lock_);
+    buffers_.clear();
+  }
 }
 
 // Helper function. Should be used instead of ioctl throughout this class.
@@ -146,7 +145,7 @@ int V4L2Wrapper::StreamOn() {
 
   int32_t type = format_->type();
   if (IoctlLocked(VIDIOC_STREAMON, &type) < 0) {
-    HAL_LOGE("STREAMON fails: %s", strerror(errno));
+    HAL_LOGE("STREAMON fails (%d): %s", errno, strerror(errno));
     return -ENODEV;
   }
 
@@ -164,20 +163,16 @@ int V4L2Wrapper::StreamOff() {
   int32_t type = format_->type();
   int res = IoctlLocked(VIDIOC_STREAMOFF, &type);
   // Calling STREAMOFF releases all queued buffers back to the user.
-  int gralloc_res = gralloc_->unlockAllBuffers();
   // No buffers in flight.
-  for (size_t i = 0; i < buffers_.size(); ++i) {
-    buffers_[i] = false;
-  }
   if (res < 0) {
     HAL_LOGE("STREAMOFF fails: %s", strerror(errno));
     return -ENODEV;
   }
-  if (gralloc_res < 0) {
-    HAL_LOGE("Failed to unlock all buffers after turning stream off.");
-    return gralloc_res;
+  std::lock_guard<std::mutex> lock(buffer_queue_lock_);
+  for (auto& buffer : buffers_) {
+    buffer.active = false;
+    buffer.request.reset();
   }
-
   HAL_LOGV("Stream turned off.");
   return 0;
 }
@@ -316,6 +311,36 @@ int V4L2Wrapper::SetControl(uint32_t control_id,
   return 0;
 }
 
+const SupportedFormats V4L2Wrapper::GetSupportedFormats() {
+  SupportedFormats formats;
+  std::set<uint32_t> pixel_formats;
+  int res = GetFormats(&pixel_formats);
+  if (res) {
+    HAL_LOGE("Failed to get device formats.");
+    return formats;
+  }
+
+  arc::SupportedFormat supported_format;
+  std::set<std::array<int32_t, 2>> frame_sizes;
+
+  for (auto pixel_format : pixel_formats) {
+    supported_format.fourcc = pixel_format;
+
+    frame_sizes.clear();
+    res = GetFormatFrameSizes(pixel_format, &frame_sizes);
+    if (res) {
+      HAL_LOGE("Failed to get frame sizes for format: 0x%x", pixel_format);
+      continue;
+    }
+    for (auto frame_size : frame_sizes) {
+      supported_format.width = frame_size[0];
+      supported_format.height = frame_size[1];
+      formats.push_back(supported_format);
+    }
+  }
+  return formats;
+}
+
 int V4L2Wrapper::GetFormats(std::set<uint32_t>* v4l2_formats) {
   HAL_LOG_ENTER();
 
@@ -333,6 +358,22 @@ int V4L2Wrapper::GetFormats(std::set<uint32_t>* v4l2_formats) {
         "ENUM_FMT fails at index %d: %s", format_query.index, strerror(errno));
     return -ENODEV;
   }
+  return 0;
+}
+
+int V4L2Wrapper::GetQualifiedFormats(std::vector<uint32_t>* v4l2_formats) {
+  HAL_LOG_ENTER();
+  if (!connected()) {
+    HAL_LOGE(
+        "Device is not connected, qualified formats may not have been set.");
+    return -EINVAL;
+  }
+  v4l2_formats->clear();
+  std::set<uint32_t> unique_fourccs;
+  for (auto& format : qualified_formats_) {
+    unique_fourccs.insert(format.fourcc);
+  }
+  v4l2_formats->assign(unique_fourccs.begin(), unique_fourccs.end());
   return 0;
 }
 
@@ -459,8 +500,6 @@ int V4L2Wrapper::SetFormat(const StreamFormat& desired_format,
     return 0;
   }
 
-  // Not in the correct format, set the new one.
-
   if (format_) {
     // If we had an old format, first request 0 buffers to inform the device
     // we're no longer using any previously "allocated" buffers from the old
@@ -473,19 +512,34 @@ int V4L2Wrapper::SetFormat(const StreamFormat& desired_format,
     }
   }
 
+  // Select the matching format, or if not available, select a qualified format
+  // we can convert from.
+  SupportedFormat format;
+  if (!StreamFormat::FindBestFitFormat(supported_formats_, qualified_formats_,
+                                       desired_format.v4l2_pixel_format(),
+                                       desired_format.width(),
+                                       desired_format.height(), &format)) {
+    HAL_LOGE(
+        "Unable to find supported resolution in list, "
+        "width: %d, height: %d",
+        desired_format.width(), desired_format.height());
+    return -EINVAL;
+  }
+
   // Set the camera to the new format.
   v4l2_format new_format;
-  desired_format.FillFormatRequest(&new_format);
+  const StreamFormat resolved_format(format);
+  resolved_format.FillFormatRequest(&new_format);
+
   // TODO(b/29334616): When async, this will need to check if the stream
   // is on, and if so, lock it off while setting format.
-
   if (IoctlLocked(VIDIOC_S_FMT, &new_format) < 0) {
     HAL_LOGE("S_FMT failed: %s", strerror(errno));
     return -ENODEV;
   }
 
   // Check that the driver actually set to the requested values.
-  if (desired_format != new_format) {
+  if (resolved_format != new_format) {
     HAL_LOGE("Device doesn't support desired stream configuration.");
     return -EINVAL;
   }
@@ -512,14 +566,9 @@ int V4L2Wrapper::RequestBuffers(uint32_t num_requested) {
 
   int res = IoctlLocked(VIDIOC_REQBUFS, &req_buffers);
   // Calling REQBUFS releases all queued buffers back to the user.
-  int gralloc_res = gralloc_->unlockAllBuffers();
   if (res < 0) {
     HAL_LOGE("REQBUFS failed: %s", strerror(errno));
     return -ENODEV;
-  }
-  if (gralloc_res < 0) {
-    HAL_LOGE("Failed to unlock all buffers when setting up new buffers.");
-    return gralloc_res;
   }
 
   // V4L2 will set req_buffers.count to a number of buffers it can handle.
@@ -527,13 +576,12 @@ int V4L2Wrapper::RequestBuffers(uint32_t num_requested) {
     HAL_LOGE("REQBUFS claims it can't handle any buffers.");
     return -ENODEV;
   }
-  buffers_.resize(req_buffers.count, false);
-
+  buffers_.resize(req_buffers.count);
   return 0;
 }
 
-int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
-                               uint32_t* enqueued_index) {
+int V4L2Wrapper::EnqueueRequest(
+    std::shared_ptr<default_camera_hal::CaptureRequest> request) {
   if (!format_) {
     HAL_LOGE("Stream format must be set before enqueuing buffers.");
     return -ENODEV;
@@ -545,9 +593,8 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
   int index = -1;
   {
     std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    for (int i = 0; i < buffers_.size(); ++i) {
-      if (!buffers_[i]) {
-        buffers_[i] = true;
+    for (size_t i = 0; i < buffers_.size(); ++i) {
+      if (!buffers_[i].active) {
         index = i;
         break;
       }
@@ -572,36 +619,40 @@ int V4L2Wrapper::EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
     HAL_LOGE("QUERYBUF fails: %s", strerror(errno));
     // Return buffer index.
     std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    buffers_[index] = false;
+    buffers_[index].active = false;
     return -ENODEV;
   }
 
-  // Lock the buffer for writing (fills in the user pointer field).
-  int res =
-      gralloc_->lock(camera_buffer, format_->bytes_per_line(), &device_buffer);
-  if (res) {
-    HAL_LOGE("Gralloc failed to lock buffer.");
-    // Return buffer index.
+  // Setup our request context and fill in the user pointer field.
+  RequestContext* request_context;
+  void* data;
+  {
     std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    buffers_[index] = false;
-    return res;
+    request_context = &buffers_[index];
+    request_context->camera_buffer->SetDataSize(device_buffer.length);
+    request_context->camera_buffer->Reset();
+    request_context->camera_buffer->SetFourcc(format_->v4l2_pixel_format());
+    request_context->camera_buffer->SetWidth(format_->width());
+    request_context->camera_buffer->SetHeight(format_->height());
+    request_context->request = request;
+    data = request_context->camera_buffer->GetData();
   }
+  device_buffer.m.userptr = reinterpret_cast<unsigned long>(data);
+
+  // Pass the buffer to the camera.
   if (IoctlLocked(VIDIOC_QBUF, &device_buffer) < 0) {
     HAL_LOGE("QBUF fails: %s", strerror(errno));
-    gralloc_->unlock(&device_buffer);
-    // Return buffer index.
-    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    buffers_[index] = false;
     return -ENODEV;
   }
 
-  if (enqueued_index) {
-    *enqueued_index = index;
-  }
+  // Mark the buffer as in flight.
+  std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+  request_context->active = true;
+
   return 0;
 }
 
-int V4L2Wrapper::DequeueBuffer(uint32_t* dequeued_index) {
+int V4L2Wrapper::DequeueRequest(std::shared_ptr<CaptureRequest>* request) {
   if (!format_) {
     HAL_LOGV(
         "Format not set, so stream can't be on, "
@@ -625,23 +676,63 @@ int V4L2Wrapper::DequeueBuffer(uint32_t* dequeued_index) {
     }
   }
 
-  // Mark the buffer as no longer in flight.
-  {
-    std::lock_guard<std::mutex> guard(buffer_queue_lock_);
-    buffers_[buffer.index] = false;
+  std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+  RequestContext* request_context = &buffers_[buffer.index];
+
+  // Lock the camera stream buffer for painting.
+  const camera3_stream_buffer_t* stream_buffer =
+      &request_context->request->output_buffers[0];
+  uint32_t fourcc =
+      StreamFormat::HalToV4L2PixelFormat(stream_buffer->stream->format);
+
+  if (request) {
+    *request = request_context->request;
   }
 
-  // Now that we're done painting the buffer, we can unlock it.
-  res = gralloc_->unlock(&buffer);
+  // Note that the device buffer length is passed to the output frame. If the
+  // GrallocFrameBuffer does not have support for the transformation to
+  // |fourcc|, it will assume that the amount of data to lock is based on
+  // |buffer.length|, otherwise it will use the ImageProcessor::ConvertedSize.
+  arc::GrallocFrameBuffer output_frame(
+      *stream_buffer->buffer, stream_buffer->stream->width,
+      stream_buffer->stream->height, fourcc, buffer.length,
+      stream_buffer->stream->usage);
+  res = output_frame.Map();
   if (res) {
-    HAL_LOGE("Gralloc failed to unlock buffer after dequeueing.");
-    return res;
+    HAL_LOGE("Failed to map output frame.");
+    request_context->request.reset();
+    return -EINVAL;
+  }
+  if (request_context->camera_buffer->GetFourcc() == fourcc &&
+      request_context->camera_buffer->GetWidth() ==
+          stream_buffer->stream->width &&
+      request_context->camera_buffer->GetHeight() ==
+          stream_buffer->stream->height) {
+    // If no format conversion needs to be applied, directly copy the data over.
+    memcpy(output_frame.GetData(), request_context->camera_buffer->GetData(),
+           request_context->camera_buffer->GetDataSize());
+  } else {
+    // Perform the format conversion.
+    arc::CachedFrame cached_frame;
+    cached_frame.SetSource(request_context->camera_buffer.get(), 0);
+    cached_frame.Convert(request_context->request->settings, &output_frame);
   }
 
-  if (dequeued_index) {
-    *dequeued_index = buffer.index;
-  }
+  request_context->request.reset();
+  // Mark the buffer as not in flight.
+  request_context->active = false;
   return 0;
+}
+
+int V4L2Wrapper::GetInFlightBufferCount() {
+  int count = 0;
+  std::lock_guard<std::mutex> guard(buffer_queue_lock_);
+  for (auto& buffer : buffers_) {
+    if (buffer.active) {
+      count++;
+    }
+  }
+  return count;
 }
 
 }  // namespace v4l2_camera_hal

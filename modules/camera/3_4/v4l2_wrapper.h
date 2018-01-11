@@ -26,11 +26,14 @@
 
 #include <android-base/unique_fd.h>
 
+#include "arc/common_types.h"
+#include "arc/frame_buffer.h"
+#include "capture_request.h"
 #include "common.h"
 #include "stream_format.h"
-#include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
+
 class V4L2Wrapper {
  public:
   // Use this method to create V4L2Wrapper objects. Functionally equivalent
@@ -67,8 +70,10 @@ class V4L2Wrapper {
                          int32_t* result = nullptr);
   // Manage format.
   virtual int GetFormats(std::set<uint32_t>* v4l2_formats);
+  virtual int GetQualifiedFormats(std::vector<uint32_t>* v4l2_formats);
   virtual int GetFormatFrameSizes(uint32_t v4l2_format,
                                   std::set<std::array<int32_t, 2>>* sizes);
+
   // Durations are returned in ns.
   virtual int GetFormatFrameDurationRange(
       uint32_t v4l2_format,
@@ -77,15 +82,16 @@ class V4L2Wrapper {
   virtual int SetFormat(const StreamFormat& desired_format,
                         uint32_t* result_max_buffers);
   // Manage buffers.
-  virtual int EnqueueBuffer(const camera3_stream_buffer_t* camera_buffer,
-                            uint32_t* enqueued_index = nullptr);
-  virtual int DequeueBuffer(uint32_t* dequeued_index = nullptr);
+  virtual int EnqueueRequest(
+      std::shared_ptr<default_camera_hal::CaptureRequest> request);
+  virtual int DequeueRequest(
+      std::shared_ptr<default_camera_hal::CaptureRequest>* request);
+  virtual int GetInFlightBufferCount();
 
  private:
   // Constructor is private to allow failing on bad input.
   // Use NewV4L2Wrapper instead.
-  V4L2Wrapper(const std::string device_path,
-              std::unique_ptr<V4L2Gralloc> gralloc);
+  V4L2Wrapper(const std::string device_path);
 
   // Connect or disconnect to the device. Access by creating/destroying
   // a V4L2Wrapper::Connection object.
@@ -99,20 +105,19 @@ class V4L2Wrapper {
 
   inline bool connected() { return device_fd_.get() >= 0; }
 
+  // Format management.
+  const arc::SupportedFormats GetSupportedFormats();
+
   // The camera device path. For example, /dev/video0.
   const std::string device_path_;
   // The opened device fd.
   android::base::unique_fd device_fd_;
   // The underlying gralloc module.
-  std::unique_ptr<V4L2Gralloc> gralloc_;
+  // std::unique_ptr<V4L2Gralloc> gralloc_;
   // Whether or not the device supports the extended control query.
   bool extended_query_supported_;
   // The format this device is set up for.
   std::unique_ptr<StreamFormat> format_;
-  // Map indecies to buffer status. True if the index is in-flight.
-  // |buffers_.size()| will always be the maximum number of buffers this device
-  // can handle in its current format.
-  std::vector<bool> buffers_;
   // Lock protecting use of the buffer tracker.
   std::mutex buffer_queue_lock_;
   // Lock protecting use of the device.
@@ -121,6 +126,28 @@ class V4L2Wrapper {
   std::mutex connection_lock_;
   // Reference count connections.
   int connection_count_;
+  // Supported formats.
+  arc::SupportedFormats supported_formats_;
+  // Qualified formats.
+  arc::SupportedFormats qualified_formats_;
+
+  class RequestContext {
+   public:
+    RequestContext()
+        : active(false),
+          camera_buffer(std::make_shared<arc::AllocatedFrameBuffer>(0)){};
+    ~RequestContext(){};
+    // Indicates whether this request context is in use.
+    bool active;
+    // Buffer handles of the context.
+    std::shared_ptr<arc::AllocatedFrameBuffer> camera_buffer;
+    std::shared_ptr<default_camera_hal::CaptureRequest> request;
+  };
+
+  // Map of in flight requests.
+  // |buffers_.size()| will always be the maximum number of buffers this device
+  // can handle in its current format.
+  std::vector<RequestContext> buffers_;
 
   friend class Connection;
   friend class V4L2WrapperMock;
