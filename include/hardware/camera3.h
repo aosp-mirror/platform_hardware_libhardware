@@ -178,6 +178,10 @@
  *   - Add physical camera id field in camera3_stream, so that for a logical
  *     multi camera, the application has the option to specify which physical camera
  *     a particular stream is configured on.
+ *
+ *   - Add physical camera id and settings field in camera3_capture_request, so that
+ *     for a logical multi camera, the application has the option to specify individual
+ *     settings for a particular physical device.
  */
 
 /**
@@ -2273,6 +2277,44 @@ typedef struct camera3_capture_request {
      */
     const camera3_stream_buffer_t *output_buffers;
 
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The number of physical camera settings to be applied. If 'num_physcam_settings'
+     *    equals 0 or a physical device is not included, then Hal must decide the
+     *    specific physical device settings based on the default 'settings'.
+     */
+    uint32_t num_physcam_settings;
+
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The physical camera ids. The array will contain 'num_physcam_settings'
+     *    camera id strings for all physical devices that have specific settings.
+     *    In case some id is invalid, the process capture request must fail and return
+     *    -EINVAL.
+     */
+    const char **physcam_id;
+
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The capture settings for the physical cameras. The array will contain
+     *    'num_physcam_settings' settings for invididual physical devices. In
+     *    case the settings at some particular index are empty, the process capture
+     *    request must fail and return -EINVAL.
+     */
+    const camera_metadata_t **physcam_settings;
+
 } camera3_capture_request_t;
 
 /**
@@ -2982,7 +3024,8 @@ typedef struct camera3_device_ops {
      *  0:      On a successful start to processing the capture request
      *
      * -EINVAL: If the input is malformed (the settings are NULL when not
-     *          allowed, there are 0 output buffers, etc) and capture processing
+     *          allowed, invalid physical camera settings,
+     *          there are 0 output buffers, etc) and capture processing
      *          cannot start. Failures during request processing should be
      *          handled by calling camera3_callback_ops_t.notify(). In case of
      *          this error, the framework will retain responsibility for the
