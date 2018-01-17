@@ -17,16 +17,15 @@ cc_library_shared {
     relative_install_path: "hw",
     vendor: true,
     srcs: ["audio_hw.cpp"],
-    include_dirs: [
-        "system/media/audio_utils/include",
-    ],
+
     shared_libs: [
         "liblog",
         "libcutils",
         "libutils",
-        "libnbaio_mono",
+        "libnbaio_mono@2.0",
+        "libaudioutils",
     ],
-    static_libs: ["libmedia_helper"],
+    static_libs: ["libmedia_helper@2.0"],
 
     cflags: ["-Wno-unused-parameter"],
 

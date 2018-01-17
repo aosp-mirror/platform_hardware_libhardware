@@ -23,7 +23,10 @@ cc_library_shared {
     relative_install_path: "hw",
     proprietary: true,
     srcs: ["audio_hw.c"],
-    header_libs: ["libhardware_headers"],
+    header_libs: [
+        "libhardware_headers",
+        "android.hardware.audio.common.legacy@2.0",
+    ],
     shared_libs: [
         "liblog",
     ],
@@ -41,21 +44,10 @@ cc_library_shared {
     relative_install_path: "hw",
     proprietary: true,
     srcs: ["audio_hw.c"],
-    header_libs: ["libhardware_headers"],
-    shared_libs: [
-        "liblog",
+    header_libs: [
+        "libhardware_headers",
+        "android.hardware.audio.common.legacy@2.0",
     ],
-    cflags: ["-Wall", "-Werror", "-Wno-unused-parameter"],
-}
-
-// The stub audio policy HAL module that can be used as a skeleton for
-// new implementations.
-cc_library_shared {
-    name: "audio_policy.stub",
-    relative_install_path: "hw",
-    proprietary: true,
-    srcs: ["audio_policy.c"],
-    header_libs: ["libhardware_headers"],
     shared_libs: [
         "liblog",
     ],

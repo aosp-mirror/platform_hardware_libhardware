@@ -3,13 +3,11 @@
 cc_library_headers {
     name: "libhardware_headers",
     header_libs: [
-        "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
         "libbluetooth-types-header",
     ],
     export_header_lib_headers: [
-        "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
         "libbluetooth-types-header",
