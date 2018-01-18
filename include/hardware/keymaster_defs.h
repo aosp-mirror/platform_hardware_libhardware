@@ -182,6 +182,7 @@ typedef enum {
 
     /* Block ciphers algorithms */
     KM_ALGORITHM_AES = 32,
+    KM_ALGORITHM_TRIPLE_DES = 33,
 
     /* MAC algorithms */
     KM_ALGORITHM_HMAC = 128,
@@ -296,6 +297,8 @@ typedef enum {
     KM_PURPOSE_SIGN = 2,       /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
+    KM_PURPOSE_WRAP = 5,       /* Usable with wrapped keys. */
+
 } keymaster_purpose_t;
 
 typedef struct {
