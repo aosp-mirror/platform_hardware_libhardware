@@ -114,7 +114,7 @@ typedef enum {
      * presentDisplay should fail as fast as possible in the case a
      * validateDisplay step is needed.
      */
-    HWC2_CAPABILITY_SKIP_VALIDATE= 4,
+    HWC2_CAPABILITY_SKIP_VALIDATE = 4,
 } hwc2_capability_t;
 
 /* Possible composition types for a given layer */
@@ -262,6 +262,7 @@ typedef enum {
     HWC2_FUNCTION_SET_POWER_MODE,
     HWC2_FUNCTION_SET_VSYNC_ENABLED,
     HWC2_FUNCTION_VALIDATE_DISPLAY,
+    HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -479,6 +480,7 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_POWER_MODE: return "SetPowerMode";
         case HWC2_FUNCTION_SET_VSYNC_ENABLED: return "SetVsyncEnabled";
         case HWC2_FUNCTION_VALIDATE_DISPLAY: return "ValidateDisplay";
+        case HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR: return "SetLayerFloatColor";
         default: return "Unknown";
     }
 }
@@ -668,6 +670,7 @@ enum class FunctionDescriptor : int32_t {
     SetPowerMode = HWC2_FUNCTION_SET_POWER_MODE,
     SetVsyncEnabled = HWC2_FUNCTION_SET_VSYNC_ENABLED,
     ValidateDisplay = HWC2_FUNCTION_VALIDATE_DISPLAY,
+    SetLayerFloatColor = HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -1804,6 +1807,25 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_BLEND_MODE)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_COLOR)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
         hwc_color_t color);
+
+/* setLayerFloatColor(..., color)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR
+ * Provided by HWC2 devices which don't return nullptr function pointer.
+ *
+ * Sets the color of the given layer. If the composition type of the layer is
+ * not HWC2_COMPOSITION_SOLID_COLOR, this call must return HWC2_ERROR_NONE and
+ * have no other effect.
+ *
+ * Parameters:
+ *   color - the new color in float type, rage is [0.0, 1.0], the colorspace is
+ *   defined by the dataspace that gets set by calling setLayerDataspace.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_FLOAT_COLOR)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        hwc_float_color_t color);
 
 /* setLayerCompositionType(..., type)
  * Descriptor: HWC2_FUNCTION_SET_LAYER_COMPOSITION_TYPE
