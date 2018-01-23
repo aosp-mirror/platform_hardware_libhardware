@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013 The Android Open Source Project
+ * Copyright (C) 2013-2018 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -158,7 +158,7 @@
  *     - ANDROID_SENSOR_OPAQUE_RAW_SIZE
  *     - ANDROID_SENSOR_OPTICAL_BLACK_REGIONS
  *
- * 3.5: Minor additions to supported metadata and changes to camera3_stream_configuration.
+ * 3.5: Minor revisions to support session parameters and logical multi camera:
  *
  *   - Add ANDROID_REQUEST_AVAILABLE_SESSION_KEYS static metadata, which is
  *     optional for implementations that want to support session parameters. If support is
@@ -169,6 +169,19 @@
  *
  *   - Add a session parameter field to camera3_stream_configuration which can be populated
  *     by clients with initial values for the keys found in ANDROID_REQUEST_AVAILABLE_SESSION_KEYS.
+ *
+ *   - Metadata additions for logical multi camera capability:
+ *     - ANDROID_REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA
+ *     - ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS
+ *     - ANDROID_LOGICAL_MULTI_CAMERA_SYNC_TYPE
+ *
+ *   - Add physical camera id field in camera3_stream, so that for a logical
+ *     multi camera, the application has the option to specify which physical camera
+ *     a particular stream is configured on.
+ *
+ *   - Add physical camera id and settings field in camera3_capture_request, so that
+ *     for a logical multi camera, the application has the option to specify individual
+ *     settings for a particular physical device.
  */
 
 /**
@@ -1699,8 +1712,31 @@ typedef struct camera3_stream {
      */
     int rotation;
 
+    /**
+     * The physical camera id this stream belongs to.
+     *
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERISON_3_5:
+     *
+     *    Always set by camera service. If the camera device is not a logical
+     *    multi camera, or if the camera is a logical multi camera but the stream
+     *    is not a physical output stream, this field will point to a 0-length
+     *    string.
+     *
+     *    A logical multi camera is a camera device backed by multiple physical
+     *    cameras that are also exposed to the application. And for a logical
+     *    multi camera, a physical output stream is an output stream specifically
+     *    requested on an underlying physical camera.
+     *
+     *    For an input stream, this field is guaranteed to be a 0-length string.
+     */
+    const char* physical_camera_id;
+
     /* reserved for future use */
-    void *reserved[7];
+    void *reserved[6];
 
 } camera3_stream_t;
 
@@ -2240,6 +2276,44 @@ typedef struct camera3_capture_request {
      * request (having never before seen by the HAL).
      */
     const camera3_stream_buffer_t *output_buffers;
+
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The number of physical camera settings to be applied. If 'num_physcam_settings'
+     *    equals 0 or a physical device is not included, then Hal must decide the
+     *    specific physical device settings based on the default 'settings'.
+     */
+    uint32_t num_physcam_settings;
+
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The physical camera ids. The array will contain 'num_physcam_settings'
+     *    camera id strings for all physical devices that have specific settings.
+     *    In case some id is invalid, the process capture request must fail and return
+     *    -EINVAL.
+     */
+    const char **physcam_id;
+
+    /**
+     * <= CAMERA_DEVICE_API_VERISON_3_4:
+     *
+     *    Not defined and must not be accessed.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_5:
+     *    The capture settings for the physical cameras. The array will contain
+     *    'num_physcam_settings' settings for invididual physical devices. In
+     *    case the settings at some particular index are empty, the process capture
+     *    request must fail and return -EINVAL.
+     */
+    const camera_metadata_t **physcam_settings;
 
 } camera3_capture_request_t;
 
@@ -2950,7 +3024,8 @@ typedef struct camera3_device_ops {
      *  0:      On a successful start to processing the capture request
      *
      * -EINVAL: If the input is malformed (the settings are NULL when not
-     *          allowed, there are 0 output buffers, etc) and capture processing
+     *          allowed, invalid physical camera settings,
+     *          there are 0 output buffers, etc) and capture processing
      *          cannot start. Failures during request processing should be
      *          handled by calling camera3_callback_ops_t.notify(). In case of
      *          this error, the framework will retain responsibility for the
