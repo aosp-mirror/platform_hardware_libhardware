@@ -25,5 +25,7 @@ cc_library_shared {
         "libalsautils",
     ],
     cflags: ["-Wno-unused-parameter"],
-    header_libs: ["libhardware_headers"],
+    header_libs: [
+        "android.hardware.audio.common.legacy@2.0",
+    ],
 }
