@@ -35,7 +35,7 @@ class RequestTrackerTest : public Test {
     stream2_.max_buffers = 3;
     dut_.reset(new RequestTracker());
     streams_ = {&stream1_, &stream2_};
-    camera3_stream_configuration_t config{streams_.size(), streams_.data(), 0};
+    camera3_stream_configuration_t config{static_cast<uint32_t>(streams_.size()), streams_.data(), 0};
     dut_->SetStreamConfiguration(config);
   }
 
