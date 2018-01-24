@@ -107,7 +107,7 @@ class StaticPropertiesTest : public Test {
       stream_addresses.push_back(&streams[i]);
     }
     camera3_stream_configuration_t config = {
-        stream_addresses.size(),
+        static_cast<uint32_t>(stream_addresses.size()),
         stream_addresses.data(),
         CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE};
     PrepareDefaultDUT();
@@ -443,7 +443,7 @@ TEST_F(StaticPropertiesTest, ConfigureEmptyStreams) {
 TEST_F(StaticPropertiesTest, ConfigureNullStreams) {
   std::vector<camera3_stream_t*> streams(2, nullptr);
   camera3_stream_configuration_t config = {
-      streams.size(), streams.data(), CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE};
+      static_cast<uint32_t>(streams.size()), streams.data(), CAMERA3_STREAM_CONFIGURATION_NORMAL_MODE};
   PrepareDefaultDUT();
   EXPECT_FALSE(dut_->StreamConfigurationSupported(&config));
 }
