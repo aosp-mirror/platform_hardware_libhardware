@@ -114,7 +114,7 @@ typedef enum {
      * presentDisplay should fail as fast as possible in the case a
      * validateDisplay step is needed.
      */
-    HWC2_CAPABILITY_SKIP_VALIDATE= 4,
+    HWC2_CAPABILITY_SKIP_VALIDATE = 4,
 } hwc2_capability_t;
 
 /* Possible composition types for a given layer */
@@ -262,6 +262,12 @@ typedef enum {
     HWC2_FUNCTION_SET_POWER_MODE,
     HWC2_FUNCTION_SET_VSYNC_ENABLED,
     HWC2_FUNCTION_VALIDATE_DISPLAY,
+    HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR,
+    HWC2_FUNCTION_SET_PER_FRAME_METADATA,
+    HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS,
+    HWC2_FUNCTION_SET_READBACK_BUFFER,
+    HWC2_FUNCTION_GET_READBACK_BUFFER_ATTRIBUTES,
+    HWC2_FUNCTION_GET_READBACK_BUFFER_FENCE
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -310,6 +316,33 @@ typedef enum {
     /* Disable vsync */
     HWC2_VSYNC_DISABLE = 2,
 } hwc2_vsync_t;
+
+/* MUST match HIDL's V2_2::IComposerClient::PerFrameMetadataKey */
+typedef enum {
+    /* SMPTE ST 2084:2014.
+     * Coordinates defined in CIE 1931 xy chromaticity space
+     */
+    HWC2_DISPLAY_RED_PRIMARY_X = 0,
+    HWC2_DISPLAY_RED_PRIMARY_Y = 1,
+    HWC2_DISPLAY_GREEN_PRIMARY_X = 2,
+    HWC2_DISPLAY_GREEN_PRIMARY_Y = 3,
+    HWC2_DISPLAY_BLUE_PRIMARY_X = 4,
+    HWC2_DISPLAY_BLUE_PRIMARY_Y = 5,
+    HWC2_WHITE_POINT_X = 6,
+    HWC2_WHITE_POINT_Y = 7,
+    /* SMPTE ST 2084:2014.
+     * Units: nits
+     * max as defined by ST 2048: 10,000 nits
+     */
+    HWC2_MAX_LUMINANCE = 8,
+    HWC2_MIN_LUMINANCE = 9,
+
+    /* CTA 861.3
+     * Units: nits
+     */
+    HWC2_MAX_CONTENT_LIGHT_LEVEL = 10,
+    HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL = 11,
+} hwc2_per_frame_metadata_key_t;
 
 /*
  * Stringification Functions
@@ -479,6 +512,12 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_POWER_MODE: return "SetPowerMode";
         case HWC2_FUNCTION_SET_VSYNC_ENABLED: return "SetVsyncEnabled";
         case HWC2_FUNCTION_VALIDATE_DISPLAY: return "ValidateDisplay";
+        case HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR: return "SetLayerFloatColor";
+        case HWC2_FUNCTION_SET_PER_FRAME_METADATA: return "SetPerFrameMetadata";
+        case HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS: return "GetPerFrameMetadataKeys";
+        case HWC2_FUNCTION_SET_READBACK_BUFFER: return "SetReadbackBuffer";
+        case HWC2_FUNCTION_GET_READBACK_BUFFER_ATTRIBUTES: return "GetReadbackBufferAttributes";
+        case HWC2_FUNCTION_GET_READBACK_BUFFER_FENCE: return "GetReadbackBufferFence";
         default: return "Unknown";
     }
 }
@@ -668,6 +707,12 @@ enum class FunctionDescriptor : int32_t {
     SetPowerMode = HWC2_FUNCTION_SET_POWER_MODE,
     SetVsyncEnabled = HWC2_FUNCTION_SET_VSYNC_ENABLED,
     ValidateDisplay = HWC2_FUNCTION_VALIDATE_DISPLAY,
+    SetLayerFloatColor = HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR,
+    SetPerFrameMetadata = HWC2_FUNCTION_SET_PER_FRAME_METADATA,
+    GetPerFrameMetadataKeys = HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS,
+    SetReadbackBuffer = HWC2_FUNCTION_SET_READBACK_BUFFER,
+    GetReadbackBufferAttributes = HWC2_FUNCTION_GET_READBACK_BUFFER_ATTRIBUTES,
+    GetReadbackBufferFence = HWC2_FUNCTION_GET_READBACK_BUFFER_FENCE,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -1537,6 +1582,62 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_COLOR_TRANSFORM)(
         hwc2_device_t* device, hwc2_display_t display, const float* matrix,
         int32_t /*android_color_transform_t*/ hint);
 
+/* getPerFrameMetadataKeys(..., outKeys)
+ * Descriptor: HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS
+ * Optional for HWC2 devices
+ *
+ * If supported (getFunction(HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS) is non-null),
+ * getPerFrameMetadataKeys returns the list of supported PerFrameMetadataKeys
+ * which are invariant with regard to the active configuration.
+ *
+ * Devices which are not HDR-capable, must return null when getFunction is called
+ * with HWC2_FUNCTION_GET_PER_FRAME_METADATA_KEYS.
+ *
+ * If outKeys is NULL, the required number of PerFrameMetadataKey keys
+ * must be returned in outNumKeys.
+ *
+ * Parameters:
+ *   outNumKeys - if outKeys is NULL, the number of keys which would have
+ *       been returned; if outKeys is not NULL, the number of keys stored in
+ *       outKeys, which must not exceed the value stored in outNumKeys prior
+ *       to the call; pointer will be non-NULL
+ *   outKeys - an array of hwc2_per_frame_metadata_key_t keys
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_PER_FRAME_METADATA_KEYS)(
+        hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumKeys,
+        int32_t* /*hwc2_per_frame_metadata_key_t*/ outKeys);
+
+/* setPerFrameMetadata(..., numMetadata, metadata)
+ * Descriptor: HWC2_FUNCTION_SET_PER_FRAME_METADATA
+ * Optional for HWC2 devices
+ *
+ * If supported (getFunction(HWC2_FUNCTION_SET_PER_FRAME_METADATA) is non-null),
+ * sets the metadata for the given display for all following frames.
+ *
+ * Upon returning from this function, the metadata change must have
+ * fully taken effect.
+ *
+ * This function will only be called if getPerFrameMetadataKeys is non-NULL
+ * and returns at least one key.
+ *
+ * Parameters:
+ *   numKeys is the number of elements in each of the keys and metadata arrays
+ *   outKeys is a pointer to the array of keys.
+ *   outMetadata is a pointer to the corresponding array of metadata.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_PARAMETER - metadata is not valid
+ *   HWC2_ERROR_UNSUPPORTED - metadata is not supported on this display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_PER_FRAME_METADATA)(
+        hwc2_device_t* device, hwc2_display_t display,
+        uint32_t numMetadata, const int32_t* /*hw2_per_frame_metadata_key_t*/ outKeys,
+        const float* outMetadata);
+
 /* setOutputBuffer(..., buffer, releaseFence)
  * Descriptor: HWC2_FUNCTION_SET_OUTPUT_BUFFER
  * Must be provided by all HWC2 devices
@@ -1590,6 +1691,124 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_OUTPUT_BUFFER)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_POWER_MODE)(
         hwc2_device_t* device, hwc2_display_t display,
         int32_t /*hwc2_power_mode_t*/ mode);
+
+/* getReadbackBufferAttributes(..., outFormat, outDataspace)
+ * Optional for HWC2 devices
+ *
+ * Returns the format which should be used when allocating a buffer for use by
+ * device readback as well as the dataspace in which its contents should be
+ * interpreted.
+ *
+ * If readback is not supported by this HWC implementation, this call will also
+ * be able to return HWC2_ERROR_UNSUPPORTED so we can fall back to another method.
+ * Returning NULL to a getFunction request for this function will also indicate
+ * that readback is not supported.
+ *
+ * The width and height of this buffer will be those of the currently-active
+ * display configuration, and the usage flags will consist of the following:
+ *   BufferUsage::CPU_READ | BufferUsage::GPU_TEXTURE |
+ *   BufferUsage::COMPOSER_OUTPUT
+ *
+ * The format and dataspace provided must be sufficient such that if a
+ * correctly-configured buffer is passed into setReadbackBuffer, filled by
+ * the device, and then displayed by the client as a full-screen buffer, the
+ * output of the display remains the same (subject to the note about protected
+ * content in the description of setReadbackBuffer).
+ *
+ * Parameters:
+ *   outFormat - the format the client should use when allocating a device
+ *       readback buffer
+ *   outDataspace - the dataspace the client will use when interpreting the
+ *       contents of a device readback buffer
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_UNSUPPORTED - mode was a valid power mode, but is not supported
+ *
+ * See also:
+ *   setReadbackBuffer
+ *   getReadbackBufferFence
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_READBACK_BUFFER_ATTRIBUTES)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t* /*android_pixel_format_t*/ outFormat,
+        int32_t* /*android_dataspace_t*/ outDataspace);
+
+/* getReadbackBufferFence(..., outFence)
+ * Optional for HWC2 devices
+ *
+ * Returns an acquire sync fence file descriptor which will signal when the
+ * buffer provided to setReadbackBuffer has been filled by the device and is
+ * safe for the client to read.
+ *
+ * If it is already safe to read from this buffer, -1 may be returned instead.
+ * The client takes ownership of this file descriptor and is responsible for
+ * closing it when it is no longer needed.
+ *
+ * This function will be called immediately after the composition cycle being
+ * captured into the readback buffer. The complete ordering of a readback buffer
+ * capture is as follows:
+ *
+ *   getReadbackBufferAttributes
+ *   // Readback buffer is allocated
+ *   // Many frames may pass
+ *
+ *   setReadbackBuffer
+ *   validateDisplay
+ *   presentDisplay
+ *   getReadbackBufferFence
+ *   // Implicitly wait on the acquire fence before accessing the buffer
+ *
+ * Parameters:
+ *   outFence - a sync fence file descriptor as described above; pointer
+ *       will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_UNSUPPORTED - mode was a valid power mode, but is not supported
+ *
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_READBACK_BUFFER_FENCE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t* outFence);
+
+/* setReadbackBuffer(..., buffer, releaseFence)
+ * Optional for HWC2 devices
+ *
+ * Sets the readback buffer to be filled with the contents of the next
+ * composition performed for this display (i.e., the contents present at the
+ * time of the next validateDisplay/presentDisplay cycle).
+ *
+ * This buffer will have been allocated as described in
+ * getReadbackBufferAttributes and will be interpreted as being in the dataspace
+ * provided by the same.
+ *
+ * If there is hardware protected content on the display at the time of the next
+ * composition, the area of the readback buffer covered by such content must be
+ * completely black. Any areas of the buffer not covered by such content may
+ * optionally be black as well.
+ *
+ * The release fence file descriptor provided works identically to the one
+ * described for setOutputBuffer.
+ *
+ * This function will not be called between any call to validateDisplay and a
+ * subsequent call to presentDisplay.
+ *
+ * Parameters:
+ *   buffer - the new readback buffer
+ *   releaseFence - a sync fence file descriptor as described in setOutputBuffer
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_PARAMETER - the new readback buffer handle was invalid
+ *
+ * See also:
+ *   getReadbackBufferAttributes
+ *   getReadbackBufferFence
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_READBACK_BUFFER)(
+        hwc2_device_t* device, hwc2_display_t display,
+        buffer_handle_t buffer, int32_t releaseFence);
 
 /* setVsyncEnabled(..., enabled)
  * Descriptor: HWC2_FUNCTION_SET_VSYNC_ENABLED
@@ -1804,6 +2023,25 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_BLEND_MODE)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_COLOR)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
         hwc_color_t color);
+
+/* setLayerFloatColor(..., color)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_FLOAT_COLOR
+ * Provided by HWC2 devices which don't return nullptr function pointer.
+ *
+ * Sets the color of the given layer. If the composition type of the layer is
+ * not HWC2_COMPOSITION_SOLID_COLOR, this call must return HWC2_ERROR_NONE and
+ * have no other effect.
+ *
+ * Parameters:
+ *   color - the new color in float type, rage is [0.0, 1.0], the colorspace is
+ *   defined by the dataspace that gets set by calling setLayerDataspace.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_FLOAT_COLOR)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        hwc_float_color_t color);
 
 /* setLayerCompositionType(..., type)
  * Descriptor: HWC2_FUNCTION_SET_LAYER_COMPOSITION_TYPE

@@ -58,6 +58,13 @@ typedef struct hwc_color {
     uint8_t a;
 } hwc_color_t;
 
+typedef struct hwc_float_color {
+    float r;
+    float g;
+    float b;
+    float a;
+} hwc_float_color_t;
+
 typedef struct hwc_frect {
     float left;
     float top;
