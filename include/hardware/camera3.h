@@ -2498,6 +2498,37 @@ typedef struct camera3_capture_result {
       */
      uint32_t partial_result;
 
+     /**
+      * >= CAMERA_DEVICE_API_VERSION_3_5:
+      *
+      * Specifies the number of physical camera metadata this capture result
+      * contains. It must be equal to the number of physical cameras being
+      * requested from.
+      *
+      * If the current camera device is not a logical multi-camera, or the
+      * corresponding capture_request doesn't request on any physical camera,
+      * this field must be 0.
+      */
+     uint32_t num_physcam_metadata;
+
+     /**
+      * >= CAMERA_DEVICE_API_VERSION_3_5:
+      *
+      * An array of strings containing the physical camera ids for the returned
+      * physical camera metadata. The length of the array is
+      * num_physcam_metadata.
+      */
+     const char **physcam_ids;
+
+     /**
+      * >= CAMERA_DEVICE_API_VERSION_3_5:
+      *
+      * The array of physical camera metadata for the physical cameras being
+      * requested upon. This array should have a 1-to-1 mapping with the
+      * physcam_ids. The length of the array is num_physcam_metadata.
+      */
+     const camera_metadata_t **physcam_metadata;
+
 } camera3_capture_result_t;
 
 /**********************************************************************
