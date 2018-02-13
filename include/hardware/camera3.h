@@ -183,7 +183,6 @@
  *     for a logical multi camera, the application has the option to specify individual
  *     settings for a particular physical device.
  *
- *   - Add request templates MOTION_TRACKING_PREVIEW and MOTION_TRACKING_BEST
  */
 
 /**
@@ -2181,10 +2180,6 @@ typedef enum camera3_request_template {
      * application depending on the intended use case.
      */
     CAMERA3_TEMPLATE_MANUAL = 6,
-
-    // Added in 3.5
-    CAMERA3_TEMPLATE_MOTION_TRACKING_PREVIEW = 7,
-    CAMERA3_TEMPLATE_MOTION_TRACKING_BEST = 8,
 
     /* Total number of templates */
     CAMERA3_TEMPLATE_COUNT,
