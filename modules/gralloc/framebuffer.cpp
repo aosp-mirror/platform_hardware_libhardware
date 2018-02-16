@@ -332,6 +332,8 @@ int fb_device_open(hw_module_t const* module, const char* name,
             const_cast<int&>(dev->device.minSwapInterval) = 1;
             const_cast<int&>(dev->device.maxSwapInterval) = 1;
             *device = &dev->device.common;
+        } else {
+            free(dev);
         }
     }
     return status;
