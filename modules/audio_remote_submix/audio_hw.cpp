@@ -418,8 +418,8 @@ static void submix_audio_device_create_pipe_l(struct submix_audio_device * const
             config->format);
         const NBAIO_Format offers[1] = {format};
         size_t numCounterOffers = 0;
-        // Create a MonoPipe with optional blocking set to true.
-        MonoPipe* sink = new MonoPipe(buffer_size_frames, format, true /*writeCanBlock*/);
+        // Create a MonoPipe with optional blocking set to false.
+        MonoPipe* sink = new MonoPipe(buffer_size_frames, format, false /*writeCanBlock*/);
         // Negotiation between the source and sink cannot fail as the device open operation
         // creates both ends of the pipe using the same audio format.
         ssize_t index = sink->negotiate(offers, 1, NULL, numCounterOffers);
@@ -714,30 +714,8 @@ static int out_dump(const struct audio_stream *stream, int fd)
 
 static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
-    int exiting = -1;
-    AudioParameter parms = AudioParameter(String8(kvpairs));
+    (void)stream;
     SUBMIX_ALOGV("out_set_parameters() kvpairs='%s'", kvpairs);
-
-    // FIXME this is using hard-coded strings but in the future, this functionality will be
-    //       converted to use audio HAL extensions required to support tunneling
-    if ((parms.getInt(String8("exiting"), exiting) == NO_ERROR) && (exiting > 0)) {
-        struct submix_audio_device * const rsxadev =
-                audio_stream_get_submix_stream_out(stream)->dev;
-        pthread_mutex_lock(&rsxadev->lock);
-        { // using the sink
-            sp<MonoPipe> sink =
-                    rsxadev->routes[audio_stream_get_submix_stream_out(stream)->route_handle]
-                                    .rsxSink;
-            if (sink == NULL) {
-                pthread_mutex_unlock(&rsxadev->lock);
-                return 0;
-            }
-
-            ALOGD("out_set_parameters(): shutting down MonoPipe sink");
-            sink->shutdown(true);
-        } // done using the sink
-        pthread_mutex_unlock(&rsxadev->lock);
-    }
     return 0;
 }
 
@@ -805,12 +783,12 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         return 0;
     }
 
-    // If the write to the sink would block when no input stream is present, flush enough frames
+    // If the write to the sink would block, flush enough frames
     // from the pipe to make space to write the most recent data.
     {
         const size_t availableToWrite = sink->availableToWrite();
         sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
-        if (rsxadev->routes[out->route_handle].input == NULL && availableToWrite < frames) {
+        if (availableToWrite < frames) {
             static uint8_t flush_buffer[64];
             const size_t flushBufferSizeFrames = sizeof(flush_buffer) / frame_size;
             size_t frames_to_flush_from_source = frames - availableToWrite;
