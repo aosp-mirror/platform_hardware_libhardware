@@ -821,6 +821,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
 
             written_frames = 0;
             return 0;
+        } else if (written_frames == -EIO) {
+            // receiving -EIO means that the underlying FIFO has shut itself down
+            // due to reader/writer indices corruption. This state is irreversible,
+            // so shut down the monopipe. It will be destroyed on the next call to 'write.'
+            sink->shutdown(true);
         } else {
             // write() returned UNDERRUN or WOULD_BLOCK, retry
             ALOGE("out_write() write to pipe returned unexpected %zd", written_frames);
