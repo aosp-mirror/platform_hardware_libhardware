@@ -91,6 +91,17 @@ __BEGIN_DECLS
 /* Bluetooth SCO wideband */
 #define AUDIO_PARAMETER_KEY_BT_SCO_WB "bt_wbs"
 
+/* BT SCO headset name for debug */
+#define AUDIO_PARAMETER_KEY_BT_SCO_HEADSET_NAME "bt_headset_name"
+
+/* BT SCO HFP control */
+#define AUDIO_PARAMETER_KEY_HFP_ENABLE            "hfp_enable"
+#define AUDIO_PARAMETER_KEY_HFP_SET_SAMPLING_RATE "hfp_set_sampling_rate"
+#define AUDIO_PARAMETER_KEY_HFP_VOLUME            "hfp_volume"
+
+/* Set screen orientation */
+#define AUDIO_PARAMETER_KEY_ROTATION "rotation"
+
 /**
  *  audio stream parameters
  */
