@@ -270,7 +270,8 @@ typedef enum {
     HWC2_FUNCTION_GET_READBACK_BUFFER_FENCE,
     HWC2_FUNCTION_GET_RENDER_INTENTS,
     HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
-    HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX
+    HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
+    HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -524,6 +525,7 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_RENDER_INTENTS: return "GetRenderIntents";
         case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT: return "SetColorModeWithRenderIntent";
         case HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX: return "GetDataspaceSaturationMatrix";
+        case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA: return "GetDisplayIdentificationData";
         default: return "Unknown";
     }
 }
@@ -722,6 +724,7 @@ enum class FunctionDescriptor : int32_t {
     GetRenderIntents = HWC2_FUNCTION_GET_RENDER_INTENTS,
     SetColorModeWithRenderIntent = HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
     GetDataspaceSaturationMatrix = HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
+    GetDisplayIdentificationData = HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -1373,6 +1376,35 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_REQUESTS)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_TYPE)(
         hwc2_device_t* device, hwc2_display_t display,
         int32_t* /*hwc2_display_type_t*/ outType);
+
+/* getDisplayIdentificationData(..., outPort, outDataSize, outData)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA
+ * Optional for HWC2 devices
+ *
+ * If supported, getDisplayIdentificationData returns the port and data that
+ * describe a physical display. The port is a unique number that identifies a
+ * physical connector (e.g. eDP, HDMI) for display output. The data blob is
+ * parsed to determine its format, typically EDID 1.3 as specified in VESA
+ * E-EDID Standard Release A Revision 1.
+ *
+ * Devices for which display identification is unsupported must return null when
+ * getFunction is called with HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA.
+ *
+ * Parameters:
+ *   outPort - the connector to which the display is connected;
+ *             pointer will be non-NULL
+ *   outDataSize - if outData is NULL, the size in bytes of the data which would
+ *       have been returned; if outData is not NULL, the size of outData, which
+ *       must not exceed the value stored in outDataSize prior to the call;
+ *       pointer will be non-NULL
+ *   outData - the EDID 1.3 blob identifying the display
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_IDENTIFICATION_DATA)(
+        hwc2_device_t* device, hwc2_display_t display, uint8_t* outPort,
+        uint32_t* outDataSize, uint8_t* outData);
 
 /* getDozeSupport(..., outSupport)
  * Descriptor: HWC2_FUNCTION_GET_DOZE_SUPPORT
