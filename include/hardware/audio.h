@@ -212,13 +212,24 @@ typedef enum {
                                    give time for gapless track switch */
 } audio_drain_type_t;
 
+typedef struct source_metadata {
+    size_t track_count;
+    /** Array of metadata of each track connected to this source. */
+    struct playback_track_metadata* tracks;
+} source_metadata_t;
+
+typedef struct sink_metadata {
+    size_t track_count;
+    /** Array of metadata of each track connected to this sink. */
+    struct record_track_metadata* tracks;
+} sink_metadata_t;
+
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
  *
  * It provides information about various properties of the audio output
  * hardware driver.
  */
-
 struct audio_stream_out {
     /**
      * Common methods of the audio stream out.  This *must* be the first member of audio_stream_out
@@ -403,6 +414,13 @@ struct audio_stream_out {
      */
     int (*get_mmap_position)(const struct audio_stream_out *stream,
                              struct audio_mmap_position *position);
+
+    /**
+     * Called when the metadata of the stream's source has been changed.
+     * @param source_metadata Description of the audio that is played by the clients.
+     */
+    void (*update_source_metadata)(struct audio_stream_out *stream,
+                                   const struct source_metadata* source_metadata);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -512,6 +530,31 @@ struct audio_stream_in {
      */
     int (*get_mmap_position)(const struct audio_stream_in *stream,
                              struct audio_mmap_position *position);
+
+    /**
+     * Called by the framework to read active microphones
+     *
+     * \param[in] stream the stream object.
+     * \param[out] mic_array Pointer to first element on array with microphone info
+     * \param[out] mic_count When called, this holds the value of the max number of elements
+     *                       allowed in the mic_array. The actual number of elements written
+     *                       is returned here.
+     *                       if mic_count is passed as zero, mic_array will not be populated,
+     *                       and mic_count will return the actual number of active microphones.
+     *
+     * \return 0 if the microphone array is successfully filled.
+     *         -ENOSYS if there is an error filling the data
+     */
+    int (*get_active_microphones)(const struct audio_stream_in *stream,
+                                  struct audio_microphone_characteristic_t *mic_array,
+                                  size_t *mic_count);
+
+    /**
+     * Called when the metadata of the stream's sink has been changed.
+     * @param sink_metadata Description of the audio that is recorded by the clients.
+     */
+    void (*update_sink_metadata)(struct audio_stream_in *stream,
+                                 const struct sink_metadata* sink_metadata);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
@@ -683,6 +726,25 @@ struct audio_hw_device {
 
     void (*close_input_stream)(struct audio_hw_device *dev,
                                struct audio_stream_in *stream_in);
+
+    /**
+     * Called by the framework to read available microphones characteristics.
+     *
+     * \param[in] dev the hw_device object.
+     * \param[out] mic_array Pointer to first element on array with microphone info
+     * \param[out] mic_count When called, this holds the value of the max number of elements
+     *                       allowed in the mic_array. The actual number of elements written
+     *                       is returned here.
+     *                       if mic_count is passed as zero, mic_array will not be populated,
+     *                       and mic_count will return the actual number of microphones in the
+     *                       system.
+     *
+     * \return 0 if the microphone array is successfully filled.
+     *         -ENOSYS if there is an error filling the data
+     */
+    int (*get_microphones)(const struct audio_hw_device *dev,
+                           struct audio_microphone_characteristic_t *mic_array,
+                           size_t *mic_count);
 
     /** This method dumps the state of the audio hardware */
     int (*dump)(const struct audio_hw_device *dev, int fd);
