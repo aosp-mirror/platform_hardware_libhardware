@@ -1774,15 +1774,19 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_POWER_MODE)(
  * output of the display remains the same (subject to the note about protected
  * content in the description of setReadbackBuffer).
  *
+ * If the active configuration or color mode of this display has changed since
+ * the previous call to this function, it will be called again prior to setting
+ * a readback buffer such that the returned format and dataspace can be updated
+ * accordingly.
+ *
  * Parameters:
  *   outFormat - the format the client should use when allocating a device
- *       readback buffer
+ *       readback buffer; pointer will be non-NULL
  *   outDataspace - the dataspace the client will use when interpreting the
- *       contents of a device readback buffer
+ *       contents of a device readback buffer; pointer will be non-NULL
  *
  * Returns HWC2_ERROR_NONE or one of the following errors:
  *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
- *   HWC2_ERROR_UNSUPPORTED - mode was a valid power mode, but is not supported
  *
  * See also:
  *   setReadbackBuffer
@@ -1824,8 +1828,12 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_READBACK_BUFFER_ATTRIBUTES)(
  *
  * Returns HWC2_ERROR_NONE or one of the following errors:
  *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
- *   HWC2_ERROR_UNSUPPORTED - mode was a valid power mode, but is not supported
- *
+ *   HWC2_ERROR_NO_RESOURCES - the readback operation was successful, but
+ *       resulted in a different validate result than would have occurred
+ *       without readback
+ *   HWC2_ERROR_UNSUPPORTED - the readback operation was unsuccessful because
+ *       of resource constraints, the presence of protected content, or other
+ *       reasons; -1 must be returned in outFence
  */
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_READBACK_BUFFER_FENCE)(
         hwc2_device_t* device, hwc2_display_t display,
