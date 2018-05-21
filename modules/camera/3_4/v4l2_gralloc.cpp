@@ -18,6 +18,7 @@
 
 #include <linux/videodev2.h>
 
+#include <cerrno>
 #include <cstdlib>
 
 #include <hardware/camera3.h>
