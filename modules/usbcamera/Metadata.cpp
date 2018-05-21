@@ -17,6 +17,8 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Metadata"
 
+#include <errno.h>
+
 #include <log/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)

@@ -32,7 +32,7 @@ v4l2_shared_libs := \
 
 v4l2_static_libs :=
 
-v4l2_cflags := -fno-short-enums -Wall -Wextra -fvisibility=hidden
+v4l2_cflags := -fno-short-enums -Wall -Wno-error -Wextra -fvisibility=hidden
 
 v4l2_c_includes := $(call include-path-for, camera)
 
