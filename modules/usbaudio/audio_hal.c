@@ -929,6 +929,19 @@ static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
     return 0;
 }
 
+static int in_get_capture_position(const struct audio_stream_in *stream,
+                                   int64_t *frames, int64_t *time)
+{
+    struct stream_in *in = (struct stream_in *)stream; // discard const qualifier
+    stream_lock(&in->lock);
+
+    const alsa_device_proxy *proxy = &in->proxy;
+    const int ret = proxy_get_capture_position(proxy, frames, time);
+
+    stream_unlock(&in->lock);
+    return ret;
+}
+
 static int adev_open_input_stream(struct audio_hw_device *hw_dev,
                                   audio_io_handle_t handle,
                                   audio_devices_t devicesSpec __unused,
@@ -972,6 +985,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     in->stream.set_gain = in_set_gain;
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
+    in->stream.get_capture_position = in_get_capture_position;
 
     stream_lock_init(&in->lock);
 
