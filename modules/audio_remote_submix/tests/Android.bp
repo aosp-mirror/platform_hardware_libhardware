@@ -1,4 +1,4 @@
-// Copyright (C) 2012 The Android Open Source Project
+// Copyright (C) 2018 The Android Open Source Project
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-cc_library_shared {
-    name: "vehicle.default",
+cc_test {
+    name: "r_submix_tests",
 
-    relative_install_path: "hw",
-    vendor: true,
-    srcs: [
-        "vehicle.c",
-        "timeUtil.cpp",
-    ],
-    cflags: [
-        "-Wall",
-        "-Werror",
-    ],
-    header_libs: ["libhardware_headers"],
+    srcs: ["remote_submix_tests.cpp"],
+
     shared_libs: [
+        "libhardware",
         "liblog",
-        "libcutils",
         "libutils",
     ],
+
+    cflags: ["-Wall", "-Werror", "-O0", "-g",],
+
+    header_libs: ["libaudiohal_headers"],
 }

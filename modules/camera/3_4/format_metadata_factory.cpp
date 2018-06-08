@@ -16,6 +16,7 @@
 
 #include "format_metadata_factory.h"
 
+#include "arc/image_processor.h"
 #include "metadata/array_vector.h"
 #include "metadata/partial_metadata_factory.h"
 #include "metadata/property.h"
@@ -35,6 +36,7 @@ static int GetHalFormats(const std::shared_ptr<V4L2Wrapper>& device,
     HAL_LOGE("Failed to get device formats.");
     return res;
   }
+
   for (auto v4l2_format : v4l2_formats) {
     int32_t hal_format = StreamFormat::V4L2ToHalPixelFormat(v4l2_format);
     if (hal_format < 0) {
@@ -44,19 +46,15 @@ static int GetHalFormats(const std::shared_ptr<V4L2Wrapper>& device,
     result_formats->insert(hal_format);
   }
 
-  // In addition to well-defined formats, there may be an
-  // "Implementation Defined" format chosen by the HAL (in this
-  // case what that means is managed by the StreamFormat class).
-
-  // Get the V4L2 format for IMPLEMENTATION_DEFINED.
-  int v4l2_format = StreamFormat::HalToV4L2PixelFormat(
-      HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
-  // If it's available, add IMPLEMENTATION_DEFINED to the result set.
-  if (v4l2_format && v4l2_formats.count(v4l2_format) > 0) {
-    result_formats->insert(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
-  }
-
   return 0;
+}
+
+static int FpsRangesCompare(std::array<int32_t, 2> a,
+                            std::array<int32_t, 2> b) {
+  if (a[1] == b[1]) {
+    return a[0] > b[0];
+  }
+  return a[1] > b[1];
 }
 
 int AddFormatComponents(
@@ -71,19 +69,39 @@ int AddFormatComponents(
     return res;
   }
 
-  // Requirements check: need to support YCbCr_420_888, JPEG,
-  // and "Implementation Defined".
+  std::set<int32_t> unsupported_hal_formats;
   if (hal_formats.find(HAL_PIXEL_FORMAT_YCbCr_420_888) == hal_formats.end()) {
-    HAL_LOGE("YCbCr_420_888 not supported by device.");
-    return -ENODEV;
-  } else if (hal_formats.find(HAL_PIXEL_FORMAT_BLOB) == hal_formats.end()) {
-    HAL_LOGE("JPEG not supported by device.");
-    return -ENODEV;
-  } else if (hal_formats.find(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) ==
-             hal_formats.end()) {
-    HAL_LOGE("HAL implementation defined format not supported by device.");
-    return -ENODEV;
+    HAL_LOGW("YCbCr_420_888 (0x%x) not directly supported by device.",
+             HAL_PIXEL_FORMAT_YCbCr_420_888);
+    hal_formats.insert(HAL_PIXEL_FORMAT_YCbCr_420_888);
+    unsupported_hal_formats.insert(HAL_PIXEL_FORMAT_YCbCr_420_888);
   }
+  if (hal_formats.find(HAL_PIXEL_FORMAT_BLOB) == hal_formats.end()) {
+    HAL_LOGW("JPEG (0x%x) not directly supported by device.",
+             HAL_PIXEL_FORMAT_BLOB);
+    hal_formats.insert(HAL_PIXEL_FORMAT_BLOB);
+    unsupported_hal_formats.insert(HAL_PIXEL_FORMAT_BLOB);
+  }
+
+  // As hal_formats is populated by reading and converting V4L2 formats to the
+  // matching HAL formats, we will never see an implementation defined format in
+  // the list. We populate it ourselves and map it to a qualified format. If no
+  // qualified formats exist, this will be the first available format.
+  hal_formats.insert(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+  unsupported_hal_formats.insert(HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED);
+
+  // Qualified formats are the set of formats supported by this camera that the
+  // image processor can translate into the YU12 format. We additionally check
+  // that the conversion from YU12 to the desired hal format is supported.
+  std::vector<uint32_t> qualified_formats;
+  res = device->GetQualifiedFormats(&qualified_formats);
+  if (res && unsupported_hal_formats.size() > 1) {
+    HAL_LOGE(
+        "Failed to retrieve qualified formats, cannot perform conversions.");
+    return res;
+  }
+
+  HAL_LOGI("Supports %d qualified formats.", qualified_formats.size());
 
   // Find sizes and frame/stall durations for all formats.
   // We also want to find the smallest max frame duration amongst all formats,
@@ -96,7 +114,7 @@ int AddFormatComponents(
   // Stall durations are {format, width, height, duration} (duration in ns).
   ArrayVector<int64_t, 4> stall_durations;
   int64_t min_max_frame_duration = std::numeric_limits<int64_t>::max();
-  int64_t max_min_frame_duration_yuv = std::numeric_limits<int64_t>::min();
+  std::vector<std::array<int32_t, 2>> fps_ranges;
   for (auto hal_format : hal_formats) {
     // Get the corresponding V4L2 format.
     uint32_t v4l2_format = StreamFormat::HalToV4L2PixelFormat(hal_format);
@@ -105,6 +123,42 @@ int AddFormatComponents(
       // came from translating a bunch of V4L2 formats above.
       HAL_LOGE("Couldn't find V4L2 format for HAL format %d", hal_format);
       return -ENODEV;
+    } else if (unsupported_hal_formats.find(hal_format) !=
+               unsupported_hal_formats.end()) {
+      if (hal_format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+        if (qualified_formats.size() != 0) {
+          v4l2_format = qualified_formats[0];
+        } else if (unsupported_hal_formats.size() == 1) {
+          v4l2_format = StreamFormat::HalToV4L2PixelFormat(
+              HAL_PIXEL_FORMAT_YCbCr_420_888);
+        } else {
+          // No-op. If there are no qualified formats, and implementation
+          // defined is not the only unsupported format, then other unsupported
+          // formats will throw an error.
+        }
+        HAL_LOGW(
+            "Implementation-defined format is set to V4L2 pixel format 0x%x",
+            v4l2_format);
+      } else if (qualified_formats.size() == 0) {
+        HAL_LOGE(
+            "Camera does not support required format: 0x%x, and there are no "
+            "qualified"
+            "formats to transform from.",
+            hal_format);
+        return -ENODEV;
+      } else if (!arc::ImageProcessor::SupportsConversion(V4L2_PIX_FMT_YUV420,
+                                                          v4l2_format)) {
+        HAL_LOGE(
+            "The image processor does not support conversion to required "
+            "format: 0x%x",
+            hal_format);
+        return -ENODEV;
+      } else {
+        v4l2_format = qualified_formats[0];
+        HAL_LOGW(
+            "Hal format 0x%x will be converted from V4L2 pixel format 0x%x",
+            hal_format, v4l2_format);
+      }
     }
 
     // Get the available sizes for this format.
@@ -160,39 +214,25 @@ int AddFormatComponents(
       if (size_max_frame_duration < min_max_frame_duration) {
         min_max_frame_duration = size_max_frame_duration;
       }
-      // We only care about the largest min frame duration
-      // (smallest max frame rate) for YUV sizes.
-      if (hal_format == HAL_PIXEL_FORMAT_YCbCr_420_888 &&
-          size_min_frame_duration > max_min_frame_duration_yuv) {
-        max_min_frame_duration_yuv = size_min_frame_duration;
+      // ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES will contain all
+      // the fps ranges for YUV_420_888 only since YUV_420_888 format is
+      // the default camera format by Android.
+      if (hal_format == HAL_PIXEL_FORMAT_YCbCr_420_888) {
+        // Convert from frame durations measured in ns.
+        // Min, max fps supported by all YUV formats.
+        const int32_t min_fps = 1000000000 / size_max_frame_duration;
+        const int32_t max_fps = 1000000000 / size_min_frame_duration;
+        if (std::find(fps_ranges.begin(), fps_ranges.end(),
+                      std::array<int32_t, 2>{min_fps, max_fps}) ==
+            fps_ranges.end()) {
+          fps_ranges.push_back({min_fps, max_fps});
+        }
       }
     }
   }
 
-  // Convert from frame durations measured in ns.
-  // Min fps supported by all formats.
-  int32_t min_fps = 1000000000 / min_max_frame_duration;
-  if (min_fps > 15) {
-    HAL_LOGE("Minimum FPS %d is larger than HAL max allowable value of 15",
-             min_fps);
-    return -ENODEV;
-  }
-  // Max fps supported by all YUV formats.
-  int32_t max_yuv_fps = 1000000000 / max_min_frame_duration_yuv;
-  // ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES should be at minimum
-  // {mi, ma}, {ma, ma} where mi and ma are min and max frame rates for
-  // YUV_420_888. Min should be at most 15.
-  std::vector<std::array<int32_t, 2>> fps_ranges;
-  fps_ranges.push_back({{min_fps, max_yuv_fps}});
-
-  std::array<int32_t, 2> video_fps_range;
-  int32_t video_fps = 30;
-  if (video_fps >= max_yuv_fps) {
-    video_fps_range = {{max_yuv_fps, max_yuv_fps}};
-  } else {
-    video_fps_range = {{video_fps, video_fps}};
-  }
-  fps_ranges.push_back(video_fps_range);
+  // Sort fps ranges in descending order.
+  std::sort(fps_ranges.begin(), fps_ranges.end(), FpsRangesCompare);
 
   // Construct the metadata components.
   insertion_point = std::make_unique<Property<ArrayVector<int32_t, 4>>>(
@@ -208,10 +248,9 @@ int AddFormatComponents(
   // TODO(b/31019725): This should probably not be a NoEffect control.
   insertion_point = NoEffectMenuControl<std::array<int32_t, 2>>(
       ANDROID_CONTROL_AE_TARGET_FPS_RANGE,
-      ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES,
-      fps_ranges,
-      {{CAMERA3_TEMPLATE_VIDEO_RECORD, video_fps_range},
-       {OTHER_TEMPLATES, fps_ranges[0]}});
+      ANDROID_CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES, fps_ranges,
+      {{CAMERA3_TEMPLATE_VIDEO_RECORD, fps_ranges.front()},
+       {OTHER_TEMPLATES, fps_ranges.back()}});
 
   return 0;
 }

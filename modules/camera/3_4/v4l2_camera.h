@@ -99,9 +99,7 @@ class V4L2Camera : public default_camera_hal::Camera {
   std::queue<std::shared_ptr<default_camera_hal::CaptureRequest>>
       request_queue_;
   std::mutex in_flight_lock_;
-  // Maps buffer index : request.
-  std::map<uint32_t, std::shared_ptr<default_camera_hal::CaptureRequest>>
-      in_flight_;
+  uint32_t in_flight_buffer_count_;
   // Threads require holding an Android strong pointer.
   android::sp<android::Thread> buffer_enqueuer_;
   android::sp<android::Thread> buffer_dequeuer_;
