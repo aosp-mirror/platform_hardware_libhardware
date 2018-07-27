@@ -47,6 +47,9 @@
 /* Lock play & record samples rates at or above this threshold */
 #define RATELOCK_THRESHOLD 96000
 
+#define max(a, b) ((a) > (b) ? (a) : (b))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 struct audio_device {
     struct audio_hw_device hw_device;
 
@@ -62,7 +65,7 @@ struct audio_device {
 
     /* lock input & output sample rates */
     /*FIXME - How do we address multiple output streams? */
-    uint32_t device_sample_rate;
+    uint32_t device_sample_rate;    // this should be a rate that is common to both input & output
 
     bool mic_muted;
 
@@ -597,6 +600,7 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
         ret = -EINVAL;
     }
 
+    /* TODO: This is a problem if the input does not support this rate */
     out->adev->device_sample_rate = config->sample_rate;
     device_unlock(out->adev);
 
@@ -1022,20 +1026,36 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     }
 
     /* Rate */
+    int request_config_rate = config->sample_rate;
     if (config->sample_rate == 0) {
         config->sample_rate = profile_get_default_sample_rate(in->profile);
     }
 
-    if (in->adev->device_sample_rate != 0 &&                 /* we are playing, so lock the rate */
+    if (in->adev->device_sample_rate != 0 &&   /* we are playing, so lock the rate if possible */
         in->adev->device_sample_rate >= RATELOCK_THRESHOLD) {/* but only for high sample rates */
-        ret = config->sample_rate != in->adev->device_sample_rate ? -EINVAL : 0;
-        proxy_config.rate = config->sample_rate = in->adev->device_sample_rate;
+        if (config->sample_rate != in->adev->device_sample_rate) {
+            unsigned highest_rate = profile_get_highest_sample_rate(in->profile);
+            if (highest_rate == 0) {
+                ret = -EINVAL; /* error with device */
+            } else {
+                proxy_config.rate = config->sample_rate =
+                        min(highest_rate, in->adev->device_sample_rate);
+                if (request_config_rate != 0 && proxy_config.rate != config->sample_rate) {
+                    /* Changing the requested rate */
+                    ret = -EINVAL;
+                } else {
+                    /* Everything AOK! */
+                    ret = 0;
+                }
+            }
+        }
     } else if (profile_is_sample_rate_valid(in->profile, config->sample_rate)) {
         proxy_config.rate = config->sample_rate;
     } else {
         proxy_config.rate = config->sample_rate = profile_get_default_sample_rate(in->profile);
         ret = -EINVAL;
     }
+
     device_unlock(in->adev);
 
     /* Format */
