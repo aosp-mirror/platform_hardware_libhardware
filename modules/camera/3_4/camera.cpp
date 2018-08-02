@@ -76,7 +76,7 @@ int Camera::openDevice(const hw_module_t *module, hw_device_t **device)
 {
     ALOGI("%s:%d: Opening camera device", __func__, mId);
     ATRACE_CALL();
-    android::Mutex::Autolock al(mDeviceLock);
+    android::Mutex::Autolock dl(mDeviceLock);
 
     if (mBusy) {
         ALOGE("%s:%d: Error! Camera device already opened", __func__, mId);
@@ -113,7 +113,7 @@ int Camera::getInfo(struct camera_info *info)
 int Camera::loadStaticInfo() {
   // Using a lock here ensures |mStaticInfo| will only ever be set once,
   // even in concurrent situations.
-  android::Mutex::Autolock al(mStaticInfoLock);
+  android::Mutex::Autolock sl(mStaticInfoLock);
 
   if (mStaticInfo) {
     return 0;
@@ -143,7 +143,7 @@ int Camera::close()
 {
     ALOGI("%s:%d: Closing camera device", __func__, mId);
     ATRACE_CALL();
-    android::Mutex::Autolock al(mDeviceLock);
+    android::Mutex::Autolock dl(mDeviceLock);
 
     if (!mBusy) {
         ALOGE("%s:%d: Error! Camera device not open", __func__, mId);
@@ -173,7 +173,8 @@ int Camera::initialize(const camera3_callback_ops_t *callback_ops)
 
 int Camera::configureStreams(camera3_stream_configuration_t *stream_config)
 {
-    android::Mutex::Autolock al(mDeviceLock);
+    android::Mutex::Autolock dl(mDeviceLock);
+    android::Mutex::Autolock tl(mInFlightTrackerLock);
 
     ALOGV("%s:%d: stream_config=%p", __func__, mId, stream_config);
     ATRACE_CALL();
@@ -302,7 +303,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
     int res;
     // TODO(b/32917568): A capture request submitted or ongoing during a flush
     // should be returned with an error; for now they are mutually exclusive.
-    android::Mutex::Autolock al(mFlushLock);
+    android::Mutex::Autolock tl(mInFlightTrackerLock);
 
     ATRACE_CALL();
 
@@ -376,6 +377,8 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 
 void Camera::completeRequest(std::shared_ptr<CaptureRequest> request, int err)
 {
+    android::Mutex::Autolock tl(mInFlightTrackerLock);
+
     if (!mInFlightTracker->Remove(request)) {
         ALOGE("%s:%d: Completed request %p is not being tracked. "
               "It may have been cleared out during a flush.",
@@ -424,7 +427,7 @@ int Camera::flush()
     // is called concurrently with this (in either order).
     // Since the callback to completeRequest also may happen on a separate
     // thread, this function should behave nicely concurrently with that too.
-    android::Mutex::Autolock al(mFlushLock);
+    android::Mutex::Autolock tl(mInFlightTrackerLock);
 
     std::set<std::shared_ptr<CaptureRequest>> requests;
     mInFlightTracker->Clear(&requests);
@@ -517,7 +520,7 @@ void Camera::dump(int fd)
 {
     ALOGV("%s:%d: Dumping to fd %d", __func__, mId, fd);
     ATRACE_CALL();
-    android::Mutex::Autolock al(mDeviceLock);
+    android::Mutex::Autolock dl(mDeviceLock);
 
     dprintf(fd, "Camera ID: %d (Busy: %d)\n", mId, mBusy);
 
