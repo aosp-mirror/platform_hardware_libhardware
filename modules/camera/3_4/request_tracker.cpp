@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include "request_tracker.h"
-
 // #define LOG_NDEBUG 0
 #define LOG_TAG "RequestTracker"
+
+#include "request_tracker.h"
+
 #include <cutils/log.h>
 
 namespace default_camera_hal {

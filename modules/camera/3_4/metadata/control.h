@@ -19,9 +19,9 @@
 
 #include <vector>
 
+#include <android-base/macros.h>
 #include <system/camera_metadata.h>
 
-#include "../common.h"
 #include "metadata_common.h"
 #include "partial_metadata_interface.h"
 #include "tagged_control_delegate.h"

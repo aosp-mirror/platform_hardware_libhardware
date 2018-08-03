@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "StreamFormat"
+
 #include "stream_format.h"
 
 #include <linux/videodev2.h>

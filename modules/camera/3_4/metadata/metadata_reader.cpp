@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include "metadata_reader.h"
-
 // #define LOG_NDEBUG 0
 #define LOG_TAG "MetadataReader"
+
+#include "metadata_reader.h"
+
 #include <cutils/log.h>
 #include <system/camera.h>
 

@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "FormatMetadataFactory"
+
 #include "format_metadata_factory.h"
 
 #include "arc/image_processor.h"

@@ -16,6 +16,9 @@
 
 // Modified from hardware/libhardware/modules/camera/Camera.cpp
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "Camera"
+
 #include <cstdlib>
 #include <memory>
 #include <vector>
@@ -28,8 +31,6 @@
 
 #include "metadata/metadata_common.h"
 
-//#define LOG_NDEBUG 0
-#define LOG_TAG "Camera"
 #include <cutils/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)

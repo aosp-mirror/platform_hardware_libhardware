@@ -16,6 +16,9 @@
 
 // Modified from hardware/libhardware/modules/camera/CameraHAL.cpp
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "V4L2CameraHAL"
+
 #include "v4l2_camera_hal.h"
 
 #include <dirent.h>

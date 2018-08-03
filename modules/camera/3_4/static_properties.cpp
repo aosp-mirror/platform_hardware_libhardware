@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include "static_properties.h"
-
 // #define LOG_NDEBUG 0
 #define LOG_TAG "StaticProperties"
+
+#include "static_properties.h"
+
 #include <cutils/log.h>
 #include <hardware/camera3.h>
 #include <system/camera.h>
