@@ -134,22 +134,22 @@ int V4L2CameraHAL::setCallbacks(const camera_module_callbacks_t* callbacks) {
   return 0;
 }
 
-void V4L2CameraHAL::getVendorTagOps(vendor_tag_ops_t* ops) {
+void V4L2CameraHAL::getVendorTagOps(vendor_tag_ops_t* /*ops*/) {
   HAL_LOG_ENTER();
   // No vendor ops for this HAL. From <hardware/camera_common.h>:
   // "leave ops unchanged if no vendor tags are defined."
 }
 
-int V4L2CameraHAL::openLegacy(const hw_module_t* module,
-                              const char* id,
-                              uint32_t halVersion,
-                              hw_device_t** device) {
+int V4L2CameraHAL::openLegacy(const hw_module_t* /*module*/,
+                              const char* /*id*/,
+                              uint32_t /*halVersion*/,
+                              hw_device_t** /*device*/) {
   HAL_LOG_ENTER();
   // Not supported.
   return -ENOSYS;
 }
 
-int V4L2CameraHAL::setTorchMode(const char* camera_id, bool enabled) {
+int V4L2CameraHAL::setTorchMode(const char* /*camera_id*/, bool /*enabled*/) {
   HAL_LOG_ENTER();
   // TODO(b/29158098): HAL is required to respond appropriately if
   // the desired camera actually does support flash.

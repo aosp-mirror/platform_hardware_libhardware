@@ -32,7 +32,7 @@ class IgnoredControlDelegate : public ControlDelegateInterface<T> {
     *value = value_;
     return 0;
   };
-  int SetValue(const T& value) override { return 0; };
+  int SetValue(const T& /*value*/) override { return 0; };
 
  private:
   const T value_;
