@@ -201,9 +201,9 @@ int MetadataReader::StreamStallDurations(
     }
     // Must have a non-negative stall.
     if (stall.duration < 0) {
-      ALOGE("%s: Invalid stall duration: negative stall %d.",
+      ALOGE("%s: Invalid stall duration: negative stall %lld.",
             __func__,
-            stall.duration);
+            static_cast<long long>(stall.duration));
       return -EINVAL;
     }
     // TODO(b/31384253): YUV_420_888, RAW10, RAW12, RAW_OPAQUE,

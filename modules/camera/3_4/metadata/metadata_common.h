@@ -180,7 +180,7 @@ static int SingleTagValue(const android::CameraMetadata& metadata,
   } else if (entry.count != 1) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain exactly 1 value "
-        "(had %d).",
+        "(had %zu).",
         tag,
         entry.count);
     return -EINVAL;
@@ -211,7 +211,7 @@ static int SingleTagValue(const android::CameraMetadata& metadata,
   } else if (entry.count != N) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain a single array of "
-        "exactly %d values (had %d).",
+        "exactly %zu values (had %zu).",
         tag,
         N,
         entry.count);
@@ -284,7 +284,7 @@ static int VectorTagValue(const android::CameraMetadata& metadata,
   if (entry.count % N != 0) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain a vector of arrays of "
-        "length %d (had %d entries, which is not divisible by %d).",
+        "length %zu (had %zu entries, which is not divisible by %zu).",
         tag,
         N,
         entry.count,

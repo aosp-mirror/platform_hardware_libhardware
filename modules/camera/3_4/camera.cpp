@@ -344,7 +344,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 
     // Pre-process output buffers.
     if (request->output_buffers.size() <= 0) {
-        ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
+        ALOGE("%s:%d: Invalid number of output buffers: %zu", __func__, mId,
               request->output_buffers.size());
         return -EINVAL;
     }
@@ -434,7 +434,7 @@ int Camera::flush()
         completeRequestWithError(request);
     }
 
-    ALOGV("%s:%d: Flushed %u requests.", __func__, mId, requests.size());
+    ALOGV("%s:%d: Flushed %zu requests.", __func__, mId, requests.size());
 
     // Call down into the device flushing.
     return flushBuffers();

@@ -104,7 +104,7 @@ int AddFormatComponents(
     return res;
   }
 
-  HAL_LOGI("Supports %d qualified formats.", qualified_formats.size());
+  HAL_LOGI("Supports %zu qualified formats.", qualified_formats.size());
 
   // Find sizes and frame/stall durations for all formats.
   // We also want to find the smallest max frame duration amongst all formats,

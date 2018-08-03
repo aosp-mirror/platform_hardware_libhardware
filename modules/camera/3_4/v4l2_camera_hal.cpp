@@ -115,7 +115,7 @@ V4L2CameraHAL::~V4L2CameraHAL() {
 }
 
 int V4L2CameraHAL::getNumberOfCameras() {
-  HAL_LOGV("returns %d", mCameras.size());
+  HAL_LOGV("returns %zu", mCameras.size());
   return mCameras.size();
 }
 
