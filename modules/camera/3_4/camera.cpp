@@ -504,7 +504,10 @@ void Camera::sendResult(std::shared_ptr<CaptureRequest> request) {
         static_cast<uint32_t>(request->output_buffers.size()),
         request->output_buffers.data(),
         request->input_buffer.get(),
-        1  // Total result; only 1 part.
+        1,  // Total result; only 1 part.
+        0,  // Number of physical camera metadata.
+        nullptr,
+        nullptr
     };
     // Make the framework callback.
     mCallbackOps->process_capture_result(mCallbackOps, &result);
