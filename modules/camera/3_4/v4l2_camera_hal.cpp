@@ -121,7 +121,7 @@ int V4L2CameraHAL::getNumberOfCameras() {
 
 int V4L2CameraHAL::getCameraInfo(int id, camera_info_t* info) {
   HAL_LOG_ENTER();
-  if (id < 0 || id >= mCameras.size()) {
+  if (id < 0 || static_cast<size_t>(id) >= mCameras.size()) {
     return -EINVAL;
   }
   // TODO(b/29185945): Hotplugging: return -EINVAL if unplugged.

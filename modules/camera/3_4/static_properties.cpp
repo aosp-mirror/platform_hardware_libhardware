@@ -295,7 +295,7 @@ bool StaticProperties::SanityCheckStreamConfiguration(
 bool StaticProperties::InputStreamsSupported(
     const camera3_stream_configuration_t* stream_config) {
   // Find the input stream(s).
-  size_t num_input_streams = 0;
+  int32_t num_input_streams = 0;
   int input_format = -1;
   for (size_t i = 0; i < stream_config->num_streams; ++i) {
     const camera3_stream_t* stream = stream_config->streams[i];
@@ -321,7 +321,7 @@ bool StaticProperties::InputStreamsSupported(
   // Check the count.
   if (num_input_streams > max_input_streams_) {
     ALOGE(
-        "%s: Requested number of input streams %zu is greater than "
+        "%s: Requested number of input streams %d is greater than "
         "the maximum number supported by the device (%d).",
         __func__,
         num_input_streams,
@@ -371,10 +371,10 @@ bool StaticProperties::InputStreamsSupported(
 bool StaticProperties::OutputStreamsSupported(
     const camera3_stream_configuration_t* stream_config) {
   // Find and count output streams.
-  size_t num_raw = 0;
-  size_t num_stalling = 0;
-  size_t num_non_stalling = 0;
-  for (int i = 0; i < stream_config->num_streams; ++i) {
+  int32_t num_raw = 0;
+  int32_t num_stalling = 0;
+  int32_t num_non_stalling = 0;
+  for (size_t i = 0; i < stream_config->num_streams; ++i) {
     const camera3_stream_t* stream = stream_config->streams[i];
     if (IsOutputType(stream->stream_type)) {
       // Check that this stream is valid as an output.
@@ -406,7 +406,7 @@ bool StaticProperties::OutputStreamsSupported(
   if (num_raw > max_raw_output_streams_) {
     ALOGE(
         "%s: Requested stream configuration exceeds maximum supported "
-        "raw output streams %d (requested %zu).",
+        "raw output streams %d (requested %d).",
         __func__,
         max_raw_output_streams_,
         num_raw);
@@ -414,7 +414,7 @@ bool StaticProperties::OutputStreamsSupported(
   } else if (num_stalling > max_stalling_output_streams_) {
     ALOGE(
         "%s: Requested stream configuration exceeds maximum supported "
-        "stalling output streams %d (requested %zu).",
+        "stalling output streams %d (requested %u).",
         __func__,
         max_stalling_output_streams_,
         num_stalling);
@@ -422,7 +422,7 @@ bool StaticProperties::OutputStreamsSupported(
   } else if (num_non_stalling > max_non_stalling_output_streams_) {
     ALOGE(
         "%s: Requested stream configuration exceeds maximum supported "
-        "non-stalling output streams %d (requested %zu).",
+        "non-stalling output streams %d (requested %d).",
         __func__,
         max_non_stalling_output_streams_,
         num_non_stalling);
