@@ -128,7 +128,6 @@ bool RequestTracker::CanAddRequest(const CaptureRequest& request) const {
 
   // Check that each stream has space
   // (which implicitly checks if it is configured).
-  bool result = true;
   for (const auto stream : RequestStreams(request)) {
     if (StreamFull(stream)) {
       ALOGE("%s: Stream %p is full.", __func__, stream);
