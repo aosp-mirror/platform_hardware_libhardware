@@ -146,6 +146,3 @@ is underfeatured compared to the ideal/what is possible.
 
 * A variety of features are unimplemented: High speed capture,
 flash torch mode, hotplugging/unplugging.
-* The HAL uses BGR for RGBA. Again, the HAL was designed for the Raspberry Pi
-camera, which doesn't support RGB, but RGB is a common default format for
-graphics stacks.

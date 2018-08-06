@@ -52,9 +52,9 @@ extern "C" {
 
 namespace android {
 
-// Set to 1 to enable extremely verbose logging in this module.
-#define SUBMIX_VERBOSE_LOGGING 0
-#if SUBMIX_VERBOSE_LOGGING
+// Uncomment to enable extremely verbose logging in this module.
+// #define SUBMIX_VERBOSE_LOGGING
+#if defined(SUBMIX_VERBOSE_LOGGING)
 #define SUBMIX_ALOGV(...) ALOGV(__VA_ARGS__)
 #define SUBMIX_ALOGE(...) ALOGE(__VA_ARGS__)
 #else
@@ -205,7 +205,7 @@ struct submix_stream_in {
     int log_fd;
 #endif // LOG_STREAMS_TO_FILES
 
-    volatile int16_t read_error_count;
+    volatile uint16_t read_error_count;
 };
 
 // Determine whether the specified sample rate is supported by the submix module.
@@ -467,11 +467,9 @@ static void submix_audio_device_release_pipe_l(struct submix_audio_device * cons
             rsxadev->routes[route_idx].address);
     if (rsxadev->routes[route_idx].rsxSink != 0) {
         rsxadev->routes[route_idx].rsxSink.clear();
-        rsxadev->routes[route_idx].rsxSink = 0;
     }
     if (rsxadev->routes[route_idx].rsxSource != 0) {
         rsxadev->routes[route_idx].rsxSource.clear();
-        rsxadev->routes[route_idx].rsxSource = 0;
     }
     memset(rsxadev->routes[route_idx].address, 0, AUDIO_DEVICE_MAX_ADDRESS_LEN);
 #ifdef ENABLE_RESAMPLING
@@ -816,8 +814,8 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             static uint8_t flush_buffer[64];
             const size_t flushBufferSizeFrames = sizeof(flush_buffer) / frame_size;
             size_t frames_to_flush_from_source = frames - availableToWrite;
-            SUBMIX_ALOGV("out_write(): flushing %d frames from the pipe to avoid blocking",
-                         frames_to_flush_from_source);
+            SUBMIX_ALOGV("out_write(): flushing %llu frames from the pipe to avoid blocking",
+                    (unsigned long long)frames_to_flush_from_source);
             while (frames_to_flush_from_source) {
                 const size_t flush_size = min(frames_to_flush_from_source, flushBufferSizeFrames);
                 frames_to_flush_from_source -= flush_size;
@@ -898,7 +896,8 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
     }
 
     SUBMIX_ALOGV("out_get_presentation_position() got frames=%llu timestamp sec=%llu",
-            frames ? *frames : -1, timestamp ? timestamp->tv_sec : -1);
+            frames ? (unsigned long long)*frames : -1ULL,
+            timestamp ? (unsigned long long)timestamp->tv_sec : -1ULL);
 
     return ret;
 }
@@ -1541,7 +1540,7 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
                 audio_bytes_per_sample(config->format);
         const size_t buffer_size = max_buffer_period_size_frames * frame_size_in_bytes;
         SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
-                 buffer_size, buffer_period_size_frames);
+                 buffer_size, max_buffer_period_size_frames);
         return buffer_size;
     }
     return 0;
@@ -1692,10 +1691,10 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
                     reinterpret_cast<const uint8_t *>(device) -
                             offsetof(struct submix_audio_device, device));
     char msg[100];
-    int n = sprintf(msg, "\nReroute submix audio module:\n");
+    int n = snprintf(msg, sizeof(msg), "\nReroute submix audio module:\n");
     write(fd, &msg, n);
     for (int i=0 ; i < MAX_ROUTES ; i++) {
-        n = sprintf(msg, " route[%d] rate in=%d out=%d, addr=[%s]\n", i,
+        n = snprintf(msg, sizeof(msg), " route[%d] rate in=%d out=%d, addr=[%s]\n", i,
                 rsxadev->routes[i].config.input_sample_rate,
                 rsxadev->routes[i].config.output_sample_rate,
                 rsxadev->routes[i].address);

@@ -27,7 +27,6 @@
 #include "metadata/partial_metadata_factory.h"
 #include "metadata/property.h"
 #include "metadata/scaling_converter.h"
-#include "v4l2_gralloc.h"
 
 namespace v4l2_camera_hal {
 
@@ -37,6 +36,8 @@ const camera_metadata_rational_t kAeCompensationUnit = {1, 1000};
 const int64_t kV4L2ExposureTimeStepNs = 100000;
 // According to spec, each unit of V4L2_CID_ISO_SENSITIVITY is ISO/1000.
 const int32_t kV4L2SensitivityDenominator = 1000;
+// Generously allow up to 6MB (the largest size on the RPi Camera is about 5MB).
+const size_t kV4L2MaxJpegSize = 6000000;
 
 int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
                     std::unique_ptr<Metadata>* result) {
@@ -433,10 +434,9 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       ANDROID_JPEG_THUMBNAIL_SIZE,
       ANDROID_JPEG_AVAILABLE_THUMBNAIL_SIZES,
       {{{0, 0}}}));
-  // TODO(b/31022752): Get this from the device,
-  // not constant (from V4L2Gralloc.h).
+  // TODO(b/31022752): Get this from the device, not constant.
   components.insert(std::unique_ptr<PartialMetadataInterface>(
-      new Property<int32_t>(ANDROID_JPEG_MAX_SIZE, V4L2_MAX_JPEG_SIZE)));
+      new Property<int32_t>(ANDROID_JPEG_MAX_SIZE, kV4L2MaxJpegSize)));
   // TODO(b/31021672): Other JPEG controls (GPS, quality, orientation).
   // TODO(b/29939583): V4L2 can only support 1 stream at a time.
   // For now, just reporting minimum allowable for LIMITED devices.
@@ -476,7 +476,7 @@ int GetV4L2Metadata(std::shared_ptr<V4L2Wrapper> device,
       new Property<uint8_t>(ANDROID_SCALER_CROPPING_TYPE,
                             ANDROID_SCALER_CROPPING_TYPE_FREEFORM)));
   // Spoof pixel array size for now, eventually get from CROPCAP.
-  std::array<int32_t, 2> pixel_array_size = {{640, 480}};
+  std::array<int32_t, 2> pixel_array_size = {{3280, 2464}};
   components.insert(std::unique_ptr<PartialMetadataInterface>(
       new Property<std::array<int32_t, 2>>(ANDROID_SENSOR_INFO_PIXEL_ARRAY_SIZE,
                                            pixel_array_size)));

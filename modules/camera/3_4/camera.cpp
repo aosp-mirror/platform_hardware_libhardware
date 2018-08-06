@@ -455,6 +455,7 @@ int Camera::preprocessCaptureBuffer(camera3_stream_buffer_t *buffer)
                     __func__, mId, strerror(-res), res);
             return res;
         }
+        ::close(buffer->acquire_fence);
     }
 
     // Acquire fence has been waited upon.

@@ -22,21 +22,31 @@ ifeq ($(USE_CAMERA_V4L2_HAL), true)
 
 v4l2_shared_libs := \
   libbase \
+  libchrome \
   libcamera_client \
   libcamera_metadata \
   libcutils \
+  libexif \
   libhardware \
   liblog \
   libsync \
   libutils \
 
-v4l2_static_libs :=
+v4l2_static_libs := \
+  libyuv_static \
+  libjpeg_static_ndk \
 
-v4l2_cflags := -fno-short-enums -Wall -Wno-error -Wextra -fvisibility=hidden
+v4l2_cflags := -fno-short-enums -Wall -Wno-error -Wextra -fvisibility=hidden -DHAVE_JPEG
 
-v4l2_c_includes := $(call include-path-for, camera)
+v4l2_c_includes := $(call include-path-for, camera) \
+  external/libyuv/files/include \
 
 v4l2_src_files := \
+  arc/cached_frame.cpp \
+  arc/exif_utils.cpp \
+  arc/frame_buffer.cpp \
+  arc/image_processor.cpp \
+  arc/jpeg_compressor.cpp \
   camera.cpp \
   capture_request.cpp \
   format_metadata_factory.cpp \
@@ -49,7 +59,6 @@ v4l2_src_files := \
   stream_format.cpp \
   v4l2_camera.cpp \
   v4l2_camera_hal.cpp \
-  v4l2_gralloc.cpp \
   v4l2_metadata_factory.cpp \
   v4l2_wrapper.cpp \
 
