@@ -76,12 +76,12 @@ V4L2Camera::V4L2Camera(int id,
     : default_camera_hal::Camera(id),
       device_(std::move(v4l2_wrapper)),
       metadata_(std::move(metadata)),
-      max_input_streams_(0),
-      max_output_streams_({{0, 0, 0}}),
       buffer_enqueuer_(new FunctionThread(
           std::bind(&V4L2Camera::enqueueRequestBuffers, this))),
       buffer_dequeuer_(new FunctionThread(
-          std::bind(&V4L2Camera::dequeueRequestBuffers, this))) {
+          std::bind(&V4L2Camera::dequeueRequestBuffers, this))),
+      max_input_streams_(0),
+      max_output_streams_({{0, 0, 0}}) {
   HAL_LOG_ENTER();
 }
 
