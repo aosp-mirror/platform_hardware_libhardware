@@ -51,7 +51,7 @@ std::set<camera3_stream_t*> RequestStreams(const CaptureRequest& request) {
   for (const auto& output_buffer : request.output_buffers) {
     result.insert(output_buffer.stream);
   }
-  return std::move(result);
+  return result;
 }
 
 bool RequestTracker::Add(std::shared_ptr<CaptureRequest> request) {
