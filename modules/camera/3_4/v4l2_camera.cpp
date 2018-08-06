@@ -39,18 +39,6 @@
 
 namespace v4l2_camera_hal {
 
-// Helper function for managing metadata.
-static std::vector<int32_t> getMetadataKeys(const camera_metadata_t* metadata) {
-  std::vector<int32_t> keys;
-  size_t num_entries = get_camera_metadata_entry_count(metadata);
-  for (size_t i = 0; i < num_entries; ++i) {
-    camera_metadata_ro_entry_t entry;
-    get_camera_metadata_ro_entry(metadata, i, &entry);
-    keys.push_back(entry.tag);
-  }
-  return keys;
-}
-
 V4L2Camera* V4L2Camera::NewV4L2Camera(int id, const std::string path) {
   HAL_LOG_ENTER();
 
