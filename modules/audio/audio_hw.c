@@ -32,6 +32,15 @@
 #include <hardware/hardware.h>
 #include <system/audio.h>
 
+#define STUB_DEFAULT_SAMPLE_RATE   48000
+#define STUB_DEFAULT_AUDIO_FORMAT  AUDIO_FORMAT_PCM_16_BIT
+
+#define STUB_INPUT_BUFFER_MILLISECONDS  20
+#define STUB_INPUT_DEFAULT_CHANNEL_MASK AUDIO_CHANNEL_IN_STEREO
+
+#define STUB_OUTPUT_BUFFER_MILLISECONDS  10
+#define STUB_OUTPUT_DEFAULT_CHANNEL_MASK AUDIO_CHANNEL_OUT_STEREO
+
 struct stub_audio_device {
     struct audio_hw_device device;
 };
@@ -39,46 +48,71 @@ struct stub_audio_device {
 struct stub_stream_out {
     struct audio_stream_out stream;
     int64_t last_write_time_us;
+    uint32_t sample_rate;
+    audio_channel_mask_t channel_mask;
+    audio_format_t format;
+    size_t frame_count;
 };
 
 struct stub_stream_in {
     struct audio_stream_in stream;
     int64_t last_read_time_us;
+    uint32_t sample_rate;
+    audio_channel_mask_t channel_mask;
+    audio_format_t format;
+    size_t frame_count;
 };
 
 static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
-    return 44100;
+    const struct stub_stream_out *out = (const struct stub_stream_out *)stream;
+
+    ALOGV("out_get_sample_rate: %u", out->sample_rate);
+    return out->sample_rate;
 }
 
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
-    ALOGV("out_set_sample_rate: %d", 0);
-    return -ENOSYS;
+    struct stub_stream_out *out = (struct stub_stream_out *)stream;
+
+    ALOGV("out_set_sample_rate: %d", rate);
+    out->sample_rate = rate;
+    return 0;
 }
 
 static size_t out_get_buffer_size(const struct audio_stream *stream)
 {
-    ALOGV("out_get_buffer_size: %d", 4096);
-    return 4096;
+    const struct stub_stream_out *out = (const struct stub_stream_out *)stream;
+    size_t buffer_size = out->frame_count *
+                         audio_stream_out_frame_size(&out->stream);
+
+    ALOGV("out_get_buffer_size: %zu", buffer_size);
+    return buffer_size;
 }
 
 static audio_channel_mask_t out_get_channels(const struct audio_stream *stream)
 {
-    ALOGV("out_get_channels");
-    return AUDIO_CHANNEL_OUT_STEREO;
+    const struct stub_stream_out *out = (const struct stub_stream_out *)stream;
+
+    ALOGV("out_get_channels: %x", out->channel_mask);
+    return out->channel_mask;
 }
 
 static audio_format_t out_get_format(const struct audio_stream *stream)
 {
-    ALOGV("out_get_format");
-    return AUDIO_FORMAT_PCM_16_BIT;
+    const struct stub_stream_out *out = (const struct stub_stream_out *)stream;
+
+    ALOGV("out_get_format: %d", out->format);
+    return out->format;
 }
 
 static int out_set_format(struct audio_stream *stream, audio_format_t format)
 {
-    ALOGV("out_set_format: %d",format);
-    return -ENOSYS;
+    struct stub_stream_out *out = (struct stub_stream_out *)stream;
+
+    ALOGV("out_set_format: %d", format);
+    out->format = format;
+    return 0;
 }
 
 static int out_standby(struct audio_stream *stream)
@@ -109,7 +143,7 @@ static char * out_get_parameters(const struct audio_stream *stream, const char *
 static uint32_t out_get_latency(const struct audio_stream_out *stream)
 {
     ALOGV("out_get_latency");
-    return 0;
+    return STUB_OUTPUT_BUFFER_MILLISECONDS;
 }
 
 static int out_set_volume(struct audio_stream_out *stream, float left,
@@ -182,36 +216,54 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
 /** audio_stream_in implementation **/
 static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
-    ALOGV("in_get_sample_rate");
-    return 8000;
+    const struct stub_stream_in *in = (const struct stub_stream_in *)stream;
+
+    ALOGV("in_get_sample_rate: %u", in->sample_rate);
+    return in->sample_rate;
 }
 
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
-    ALOGV("in_set_sample_rate: %d", rate);
-    return -ENOSYS;
+    struct stub_stream_in *in = (struct stub_stream_in *)stream;
+
+    ALOGV("in_set_sample_rate: %u", rate);
+    in->sample_rate = rate;
+    return 0;
 }
 
 static size_t in_get_buffer_size(const struct audio_stream *stream)
 {
-    ALOGV("in_get_buffer_size: %d", 320);
-    return 320;
+    const struct stub_stream_in *in = (const struct stub_stream_in *)stream;
+    size_t buffer_size = in->frame_count *
+                         audio_stream_in_frame_size(&in->stream);
+
+    ALOGV("in_get_buffer_size: %zu", buffer_size);
+    return buffer_size;
 }
 
 static audio_channel_mask_t in_get_channels(const struct audio_stream *stream)
 {
-    ALOGV("in_get_channels: %d", AUDIO_CHANNEL_IN_MONO);
-    return AUDIO_CHANNEL_IN_MONO;
+    const struct stub_stream_in *in = (const struct stub_stream_in *)stream;
+
+    ALOGV("in_get_channels: %x", in->channel_mask);
+    return in->channel_mask;
 }
 
 static audio_format_t in_get_format(const struct audio_stream *stream)
 {
-    return AUDIO_FORMAT_PCM_16_BIT;
+    const struct stub_stream_in *in = (const struct stub_stream_in *)stream;
+
+    ALOGV("in_get_format: %d", in->format);
+    return in->format;
 }
 
 static int in_set_format(struct audio_stream *stream, audio_format_t format)
 {
-    return -ENOSYS;
+    struct stub_stream_in *in = (struct stub_stream_in *)stream;
+
+    ALOGV("in_set_format: %d", format);
+    in->format = format;
+    return 0;
 }
 
 static int in_standby(struct audio_stream *stream)
@@ -290,6 +342,13 @@ static int in_remove_audio_effect(const struct audio_stream *stream, effect_hand
     return 0;
 }
 
+static size_t samples_per_milliseconds(size_t milliseconds,
+                                       uint32_t sample_rate,
+                                       size_t channel_count)
+{
+    return milliseconds * sample_rate * channel_count / 1000;
+}
+
 static int adev_open_output_stream(struct audio_hw_device *dev,
                                    audio_io_handle_t handle,
                                    audio_devices_t devices,
@@ -323,7 +382,22 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.write = out_write;
     out->stream.get_render_position = out_get_render_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
+    out->sample_rate = config->sample_rate;
+    if (out->sample_rate == 0)
+        out->sample_rate = STUB_DEFAULT_SAMPLE_RATE;
+    out->channel_mask = config->channel_mask;
+    if (out->channel_mask == AUDIO_CHANNEL_NONE)
+        out->channel_mask = STUB_OUTPUT_DEFAULT_CHANNEL_MASK;
+    out->format = config->format;
+    if (out->format == AUDIO_FORMAT_DEFAULT)
+        out->format = STUB_DEFAULT_AUDIO_FORMAT;
+    out->frame_count = samples_per_milliseconds(
+                           STUB_OUTPUT_BUFFER_MILLISECONDS,
+                           out->sample_rate, 1);
 
+    ALOGV("adev_open_output_stream: sample_rate: %u, channels: %x, format: %d,"
+          " frames: %zu", out->sample_rate, out->channel_mask, out->format,
+          out->frame_count);
     *stream_out = &out->stream;
     return 0;
 }
@@ -405,8 +479,21 @@ static int adev_get_mic_mute(const struct audio_hw_device *dev, bool *state)
 static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
                                          const struct audio_config *config)
 {
-    ALOGV("adev_get_input_buffer_size: %d", 320);
-    return 320;
+    size_t buffer_size = samples_per_milliseconds(
+                             STUB_INPUT_BUFFER_MILLISECONDS,
+                             config->sample_rate,
+                             audio_channel_count_from_in_mask(
+                                 config->channel_mask));
+
+    if (!audio_has_proportional_frames(config->format)) {
+        // Since the audio data is not proportional choose an arbitrary size for
+        // the buffer.
+        buffer_size *= 4;
+    } else {
+        buffer_size *= audio_bytes_per_sample(config->format);
+    }
+    ALOGV("adev_get_input_buffer_size: %zu", buffer_size);
+    return buffer_size;
 }
 
 static int adev_open_input_stream(struct audio_hw_device *dev,
@@ -440,7 +527,21 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     in->stream.set_gain = in_set_gain;
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
+    in->sample_rate = config->sample_rate;
+    if (in->sample_rate == 0)
+        in->sample_rate = STUB_DEFAULT_SAMPLE_RATE;
+    in->channel_mask = config->channel_mask;
+    if (in->channel_mask == AUDIO_CHANNEL_NONE)
+        in->channel_mask = STUB_INPUT_DEFAULT_CHANNEL_MASK;
+    in->format = config->format;
+    if (in->format == AUDIO_FORMAT_DEFAULT)
+        in->format = STUB_DEFAULT_AUDIO_FORMAT;
+    in->frame_count = samples_per_milliseconds(
+                          STUB_INPUT_BUFFER_MILLISECONDS, in->sample_rate, 1);
 
+    ALOGV("adev_open_input_stream: sample_rate: %u, channels: %x, format: %d,"
+          "frames: %zu", in->sample_rate, in->channel_mask, in->format,
+          in->frame_count);
     *stream_in = &in->stream;
     return 0;
 }
