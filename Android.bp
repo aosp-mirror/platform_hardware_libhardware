@@ -16,7 +16,17 @@ cc_library_headers {
     ],
 
     export_include_dirs: ["include"],
+    recovery_available: true,
     vendor_available: true,
+    target: {
+        recovery: {
+            exclude_header_libs: [
+                "libaudio_system_headers",
+                "libbluetooth-types-header",
+            ],
+        },
+    },
+
 }
 
 cc_library_shared {
@@ -38,9 +48,15 @@ cc_library_shared {
     header_libs: ["libhardware_headers"],
     export_header_lib_headers: ["libhardware_headers"],
 
+    recovery_available: true,
     vendor_available: true,
     vndk: {
         enabled: true,
         support_system_process: true,
+    },
+    target: {
+        recovery: {
+            exclude_shared_libs: ["libvndksupport"],
+        },
     },
 }
