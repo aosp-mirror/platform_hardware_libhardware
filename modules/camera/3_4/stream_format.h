@@ -78,7 +78,6 @@ class StreamFormat {
   uint32_t width_;
   uint32_t height_;
   uint32_t bytes_per_line_;
-  uint32_t min_buffer_size_;
 };
 
 }  // namespace v4l2_camera_hal

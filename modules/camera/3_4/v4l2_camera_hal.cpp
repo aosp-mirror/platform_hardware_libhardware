@@ -16,6 +16,9 @@
 
 // Modified from hardware/libhardware/modules/camera/CameraHAL.cpp
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "V4L2CameraHAL"
+
 #include "v4l2_camera_hal.h"
 
 #include <dirent.h>
@@ -112,13 +115,13 @@ V4L2CameraHAL::~V4L2CameraHAL() {
 }
 
 int V4L2CameraHAL::getNumberOfCameras() {
-  HAL_LOGV("returns %d", mCameras.size());
+  HAL_LOGV("returns %zu", mCameras.size());
   return mCameras.size();
 }
 
 int V4L2CameraHAL::getCameraInfo(int id, camera_info_t* info) {
   HAL_LOG_ENTER();
-  if (id < 0 || id >= mCameras.size()) {
+  if (id < 0 || static_cast<size_t>(id) >= mCameras.size()) {
     return -EINVAL;
   }
   // TODO(b/29185945): Hotplugging: return -EINVAL if unplugged.
@@ -131,22 +134,22 @@ int V4L2CameraHAL::setCallbacks(const camera_module_callbacks_t* callbacks) {
   return 0;
 }
 
-void V4L2CameraHAL::getVendorTagOps(vendor_tag_ops_t* ops) {
+void V4L2CameraHAL::getVendorTagOps(vendor_tag_ops_t* /*ops*/) {
   HAL_LOG_ENTER();
   // No vendor ops for this HAL. From <hardware/camera_common.h>:
   // "leave ops unchanged if no vendor tags are defined."
 }
 
-int V4L2CameraHAL::openLegacy(const hw_module_t* module,
-                              const char* id,
-                              uint32_t halVersion,
-                              hw_device_t** device) {
+int V4L2CameraHAL::openLegacy(const hw_module_t* /*module*/,
+                              const char* /*id*/,
+                              uint32_t /*halVersion*/,
+                              hw_device_t** /*device*/) {
   HAL_LOG_ENTER();
   // Not supported.
   return -ENOSYS;
 }
 
-int V4L2CameraHAL::setTorchMode(const char* camera_id, bool enabled) {
+int V4L2CameraHAL::setTorchMode(const char* /*camera_id*/, bool /*enabled*/) {
   HAL_LOG_ENTER();
   // TODO(b/29158098): HAL is required to respond appropriately if
   // the desired camera actually does support flash.
