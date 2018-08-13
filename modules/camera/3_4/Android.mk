@@ -36,7 +36,7 @@ v4l2_static_libs := \
   libyuv_static \
   libjpeg_static_ndk \
 
-v4l2_cflags := -fno-short-enums -Wall -Wno-error -Wextra -fvisibility=hidden -DHAVE_JPEG
+v4l2_cflags := -fno-short-enums -Wall -Wextra -Werror -fvisibility=hidden -DHAVE_JPEG
 
 v4l2_c_includes := $(call include-path-for, camera) \
   external/libyuv/files/include \
