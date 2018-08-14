@@ -17,10 +17,7 @@
 #ifndef V4L2_CAMERA_HAL_COMMON_H_
 #define V4L2_CAMERA_HAL_COMMON_H_
 
-// #define LOG_NDEBUG 0
 #include <cutils/log.h>
-
-#define LOG_TAG "V4L2CameraHAL"
 
 // Helpers of logging (showing function name and line number).
 #define HAL_LOGE(fmt, args...) do { \
@@ -58,12 +55,5 @@
 // Log enter/exit of methods.
 #define HAL_LOG_ENTER() HAL_LOGV("enter")
 #define HAL_LOG_EXIT() HAL_LOGV("exit")
-
-// Fix confliction in case it's defined elsewhere.
-#ifndef DISALLOW_COPY_AND_ASSIGN
-#define DISALLOW_COPY_AND_ASSIGN(TypeName) \
-  TypeName(const TypeName&);  \
-  void operator=(const TypeName&);
-#endif
 
 #endif  // V4L2_CAMERA_HAL_COMMON_H_

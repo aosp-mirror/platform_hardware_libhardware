@@ -29,7 +29,9 @@
 #define LOG_TAG "HAL"
 #include <log/log.h>
 
+#if !defined(__ANDROID_RECOVERY__)
 #include <vndksupport/linker.h>
+#endif
 
 /** Base path of the hal modules */
 #if defined(__LP64__)
@@ -94,7 +96,11 @@ static int load(const char *id,
          */
         handle = dlopen(path, RTLD_NOW);
     } else {
+#if defined(__ANDROID_RECOVERY__)
+        handle = dlopen(path, RTLD_NOW);
+#else
         handle = android_load_sphal_library(path, RTLD_NOW);
+#endif
     }
     if (handle == NULL) {
         char const *err_str = dlerror();
