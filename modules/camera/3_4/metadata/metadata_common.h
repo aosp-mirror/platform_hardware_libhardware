@@ -120,32 +120,41 @@ static int UpdateMetadata(android::CameraMetadata* metadata,
 // A helper for other methods in this file.
 // Gets the data pointer of a given metadata entry into |*val|.
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <typename T>
+inline void GetDataPointer(camera_metadata_ro_entry_t&, const T**);
+
+template <>
+inline void GetDataPointer<uint8_t>(camera_metadata_ro_entry_t& entry,
                            const uint8_t** val) {
   *val = entry.data.u8;
 }
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <>
+inline void GetDataPointer<int32_t>(camera_metadata_ro_entry_t& entry,
                            const int32_t** val) {
   *val = entry.data.i32;
 }
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <>
+inline void GetDataPointer<float>(camera_metadata_ro_entry_t& entry,
                            const float** val) {
   *val = entry.data.f;
 }
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <>
+inline void GetDataPointer<int64_t>(camera_metadata_ro_entry_t& entry,
                            const int64_t** val) {
   *val = entry.data.i64;
 }
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <>
+inline void GetDataPointer<double>(camera_metadata_ro_entry_t& entry,
                            const double** val) {
   *val = entry.data.d;
 }
 
-static void GetDataPointer(camera_metadata_ro_entry_t& entry,
+template <>
+inline void GetDataPointer<camera_metadata_rational_t>(camera_metadata_ro_entry_t& entry,
                            const camera_metadata_rational_t** val) {
   *val = entry.data.r;
 }
@@ -180,7 +189,7 @@ static int SingleTagValue(const android::CameraMetadata& metadata,
   } else if (entry.count != 1) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain exactly 1 value "
-        "(had %d).",
+        "(had %zu).",
         tag,
         entry.count);
     return -EINVAL;
@@ -211,7 +220,7 @@ static int SingleTagValue(const android::CameraMetadata& metadata,
   } else if (entry.count != N) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain a single array of "
-        "exactly %d values (had %d).",
+        "exactly %zu values (had %zu).",
         tag,
         N,
         entry.count);
@@ -284,7 +293,7 @@ static int VectorTagValue(const android::CameraMetadata& metadata,
   if (entry.count % N != 0) {
     HAL_LOGE(
         "Error: expected metadata tag %d to contain a vector of arrays of "
-        "length %d (had %d entries, which is not divisible by %d).",
+        "length %zu (had %zu entries, which is not divisible by %zu).",
         tag,
         N,
         entry.count,

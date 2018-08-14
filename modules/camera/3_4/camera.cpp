@@ -16,6 +16,9 @@
 
 // Modified from hardware/libhardware/modules/camera/Camera.cpp
 
+//#define LOG_NDEBUG 0
+#define LOG_TAG "Camera"
+
 #include <cstdlib>
 #include <memory>
 #include <vector>
@@ -28,8 +31,6 @@
 
 #include "metadata/metadata_common.h"
 
-//#define LOG_NDEBUG 0
-#define LOG_TAG "Camera"
 #include <cutils/log.h>
 
 #define ATRACE_TAG (ATRACE_TAG_CAMERA | ATRACE_TAG_HAL)
@@ -343,7 +344,7 @@ int Camera::processCaptureRequest(camera3_capture_request_t *temp_request)
 
     // Pre-process output buffers.
     if (request->output_buffers.size() <= 0) {
-        ALOGE("%s:%d: Invalid number of output buffers: %d", __func__, mId,
+        ALOGE("%s:%d: Invalid number of output buffers: %zu", __func__, mId,
               request->output_buffers.size());
         return -EINVAL;
     }
@@ -433,7 +434,7 @@ int Camera::flush()
         completeRequestWithError(request);
     }
 
-    ALOGV("%s:%d: Flushed %u requests.", __func__, mId, requests.size());
+    ALOGV("%s:%d: Flushed %zu requests.", __func__, mId, requests.size());
 
     // Call down into the device flushing.
     return flushBuffers();
@@ -503,7 +504,10 @@ void Camera::sendResult(std::shared_ptr<CaptureRequest> request) {
         static_cast<uint32_t>(request->output_buffers.size()),
         request->output_buffers.data(),
         request->input_buffer.get(),
-        1  // Total result; only 1 part.
+        1,  // Total result; only 1 part.
+        0,  // Number of physical camera metadata.
+        nullptr,
+        nullptr
     };
     // Make the framework callback.
     mCallbackOps->process_capture_result(mCallbackOps, &result);
