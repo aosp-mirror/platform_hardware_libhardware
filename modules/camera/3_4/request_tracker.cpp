@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-#include "request_tracker.h"
-
 // #define LOG_NDEBUG 0
 #define LOG_TAG "RequestTracker"
+
+#include "request_tracker.h"
+
 #include <cutils/log.h>
 
 namespace default_camera_hal {
@@ -50,7 +51,7 @@ std::set<camera3_stream_t*> RequestStreams(const CaptureRequest& request) {
   for (const auto& output_buffer : request.output_buffers) {
     result.insert(output_buffer.stream);
   }
-  return std::move(result);
+  return result;
 }
 
 bool RequestTracker::Add(std::shared_ptr<CaptureRequest> request) {
@@ -127,7 +128,6 @@ bool RequestTracker::CanAddRequest(const CaptureRequest& request) const {
 
   // Check that each stream has space
   // (which implicitly checks if it is configured).
-  bool result = true;
   for (const auto stream : RequestStreams(request)) {
     if (StreamFull(stream)) {
       ALOGE("%s: Stream %p is full.", __func__, stream);
