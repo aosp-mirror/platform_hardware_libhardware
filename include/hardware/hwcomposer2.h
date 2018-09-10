@@ -275,6 +275,9 @@ typedef enum {
     // composer 2.3
     HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
     HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
+    HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
+    HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
+    HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -350,6 +353,24 @@ typedef enum {
     HWC2_MAX_CONTENT_LIGHT_LEVEL = 10,
     HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL = 11,
 } hwc2_per_frame_metadata_key_t;
+
+/* SetDisplayedContentSampling values passed to setDisplayedContentSamplingEnabled */
+typedef enum {
+    HWC2_DISPLAYED_CONTENT_SAMPLING_INVALID = 0,
+
+    /* Enable displayed content sampling */
+    HWC2_DISPLAYED_CONTENT_SAMPLING_ENABLE = 1,
+
+    /* Disable displayed content sampling */
+    HWC2_DISPLAYED_CONTENT_SAMPLING_DISABLE = 2,
+} hwc2_displayed_content_sampling_t;
+
+typedef enum {
+    HWC2_FORMAT_COMPONENT_0 = 1 << 0, /* The first component (eg, for RGBA_8888, this is R) */
+    HWC2_FORMAT_COMPONENT_1 = 1 << 1, /* The second component (eg, for RGBA_8888, this is G) */
+    HWC2_FORMAT_COMPONENT_2 = 1 << 2, /* The third component (eg, for RGBA_8888, this is B) */
+    HWC2_FORMAT_COMPONENT_3 = 1 << 3, /* The fourth component (eg, for RGBA_8888, this is A) */
+} hwc2_format_color_component_t;
 
 /*
  * Stringification Functions
@@ -532,6 +553,9 @@ static inline const char* getFunctionDescriptorName(
         // composer 2.3
         case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA: return "GetDisplayIdentificationData";
         case HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM: return "SetLayerColorTransform";
+        case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES: return "GetDisplayedContentSamplingAttributes";
+        case HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED: return "SetDisplayedContentSamplingEnabled";
+        case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE: return "GetDisplayedContentSample";
         default: return "Unknown";
     }
 }
@@ -573,6 +597,26 @@ static inline const char* getVsyncName(hwc2_vsync_t vsync) {
         case HWC2_VSYNC_INVALID: return "Invalid";
         case HWC2_VSYNC_ENABLE: return "Enable";
         case HWC2_VSYNC_DISABLE: return "Disable";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getDisplayedContentSamplingName(
+        hwc2_displayed_content_sampling_t sampling) {
+    switch (sampling) {
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_INVALID: return "Invalid";
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_ENABLE: return "Enable";
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_DISABLE: return "Disable";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getFormatColorComponentName(hwc2_format_color_component_t component) {
+    switch (component) {
+        case HWC2_FORMAT_COMPONENT_0: return "FirstComponent";
+        case HWC2_FORMAT_COMPONENT_1: return "SecondComponent";
+        case HWC2_FORMAT_COMPONENT_2: return "ThirdComponent";
+        case HWC2_FORMAT_COMPONENT_3: return "FourthComponent";
         default: return "Unknown";
     }
 }
@@ -734,6 +778,9 @@ enum class FunctionDescriptor : int32_t {
     // composer 2.3
     GetDisplayIdentificationData = HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
     SetLayerColorTransform = HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
+    GetDisplayedContentSamplingAttributes = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
+    SetDisplayedContentSamplingEnabled = HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
+    GetDisplayedContentSample = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -2410,6 +2457,104 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_Z_ORDER)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_COLOR_TRANSFORM)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
         const float* matrix);
+
+/* getDisplayedContentSamplingAttributes(...,
+ *      format, dataspace, supported_components, max_frames)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES
+ * Optional by all HWC2 devices
+ *
+ * Query for what types of color sampling the hardware supports.
+ *
+ * Parameters:
+ *   format - The format of the sampled pixels; pointer will be non-NULL
+ *   dataspace - The dataspace of the sampled pixels; pointer will be non-NULL
+ *   supported_components - The mask of which components can be sampled; pointer
+ *      will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when an invalid display was passed in, or
+ *   HWC2_ERROR_UNSUPPORTED when there is no efficient way to sample.
+ */
+typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t* /* android_pixel_format_t */ format,
+        int32_t* /* android_dataspace_t */ dataspace,
+        uint8_t* /* mask of android_component_t */ supported_components);
+
+/* setDisplayedContentSamplingEnabled(..., enabled)
+ * Descriptor: HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED
+ * Optional by all HWC2 devices
+ *
+ * Enables or disables the collection of color content statistics
+ * on this display.
+ *
+ * Sampling occurs on the contents of the final composition on this display
+ * (i.e., the contents presented on screen).
+ *
+ * Sampling support is optional, and is set to DISABLE by default.
+ * On each call to ENABLE, all collected statistics will be reset.
+ *
+ * Sample data can be queried via getDisplayedContentSample().
+ *
+ * Parameters:
+ *   enabled - indicates whether to enable or disable sampling.
+ *   component_mask - The mask of which components should be sampled.
+ *      If zero, all supported components are to be enabled.
+ *   max_frames - is the maximum number of frames that should be stored before
+ *      discard. The sample represents the most-recently posted frames.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when an invalid display handle was passed in,
+ *   HWC2_ERROR_BAD_PARAMETER when enabled was an invalid value, or
+ *   HWC2_ERROR_NO_RESOURCES when the requested ringbuffer size via max_frames
+ *                           was not available.
+ *   HWC2_ERROR_UNSUPPORTED when there is no efficient way to sample.
+ */
+typedef int32_t (*HWC2_PFN_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t /*hwc2_displayed_content_sampling_t*/ enabled,
+        uint8_t /* mask of android_component_t */ component_mask,
+        uint64_t max_frames);
+
+/* getDisplayedContentSample(..., component, max_frames, timestamp,
+ *     samples_size, samples, frame_count)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE
+ * Optional by all HWC2 devices
+ *
+ * Collects the results of display content color sampling for display.
+ *
+ * Collection of data can occur whether the sampling is in ENABLE or
+ * DISABLE state.
+ *
+ * Parameters:
+ * max_frames - is the maximum number of frames that should be represented in
+ *      the sample. The sample represents the most-recently posted frames.
+ *      If max_frames is 0, all frames are to be represented by the sample.
+ * timestamp - is the timestamp after which any frames were posted that should
+ *      be included in the sample. Timestamp is CLOCK_MONOTONIC.
+ *      If timestamp is 0, do not filter from the sample by time.
+ * frame_count - The number of frames represented by this sample; pointer will
+ *      be non-NULL.
+ * samples_size - The sizes of the color histogram representing the color
+ *      sampling. Sample_sizes are indexed in the same order as
+ *      HWC2_FORMAT_COMPONENT_.
+ * samples - The arrays of data corresponding to the sampling data. Samples are
+ *      indexed in the same order as HWC2_FORMAT_COMPONENT_.
+ *      The size of each sample is the samples_size for the same index.
+ *      Each components sample is an array that is to be filled with the
+ *      evenly-weighted buckets of a histogram counting how many times a pixel
+ *      of the given component was displayed onscreen. Caller owns the data and
+ *      pointer may be NULL to query samples_size.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY   when an invalid display was passed in, or
+ *   HWC2_ERROR_UNSUPPORTED   when there is no efficient way to sample, or
+ *   HWC2_ERROR_BAD_PARAMETER when the component is not supported by the hardware.
+ */
+typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        uint64_t max_frames, uint64_t timestamp,
+        uint64_t* frame_count, int32_t samples_size[4], uint64_t* samples[4]);
 
 __END_DECLS
 
