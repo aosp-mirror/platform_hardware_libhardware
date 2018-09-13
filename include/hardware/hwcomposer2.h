@@ -271,7 +271,10 @@ typedef enum {
     HWC2_FUNCTION_GET_RENDER_INTENTS,
     HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
     HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
-    HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA
+
+    // composer 2.3
+    HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -525,7 +528,10 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_RENDER_INTENTS: return "GetRenderIntents";
         case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT: return "SetColorModeWithRenderIntent";
         case HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX: return "GetDataspaceSaturationMatrix";
+
+        // composer 2.3
         case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA: return "GetDisplayIdentificationData";
+        case HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM: return "SetLayerColorTransform";
         default: return "Unknown";
     }
 }
@@ -724,7 +730,10 @@ enum class FunctionDescriptor : int32_t {
     GetRenderIntents = HWC2_FUNCTION_GET_RENDER_INTENTS,
     SetColorModeWithRenderIntent = HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
     GetDataspaceSaturationMatrix = HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
+
+    // composer 2.3
     GetDisplayIdentificationData = HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    SetLayerColorTransform = HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -2357,6 +2366,50 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_VISIBLE_REGION)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_Z_ORDER)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
         uint32_t z);
+
+/* setLayerColorTransform(..., matrix)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM
+ * Optional by all HWC2 devices
+ *
+ * Sets a matrix for color transform which will be applied on this layer
+ * before composition.
+ *
+ * If the device is not capable of apply the matrix on this layer, it must force
+ * this layer to client composition during VALIDATE_DISPLAY.
+ *
+ * The matrix provided is an affine color transformation of the following form:
+ *
+ * |r.r r.g r.b 0|
+ * |g.r g.g g.b 0|
+ * |b.r b.g b.b 0|
+ * |Tr  Tg  Tb  1|
+ *
+ * This matrix must be provided in row-major form:
+ *
+ * {r.r, r.g, r.b, 0, g.r, ...}.
+ *
+ * Given a matrix of this form and an input color [R_in, G_in, B_in],
+ * the input color must first be converted to linear space
+ * [R_linear, G_linear, B_linear], then the output linear color
+ * [R_out_linear, G_out_linear, B_out_linear] will be:
+ *
+ * R_out_linear = R_linear * r.r + G_linear * g.r + B_linear * b.r + Tr
+ * G_out_linear = R_linear * r.g + G_linear * g.g + B_linear * b.g + Tg
+ * B_out_linear = R_linear * r.b + G_linear * g.b + B_linear * b.b + Tb
+ *
+ * [R_out_linear, G_out_linear, B_out_linear] must then be converted to
+ * gamma space: [R_out, G_out, B_out] before blending.
+ *
+ * Parameters:
+ *   matrix - a 4x4 transform matrix (16 floats) as described above
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_COLOR_TRANSFORM)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        const float* matrix);
 
 __END_DECLS
 
