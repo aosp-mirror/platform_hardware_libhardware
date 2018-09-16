@@ -117,6 +117,14 @@ __BEGIN_DECLS
  * 4. Module initialization method. This will be called by the camera service
  *    right after the HAL module is loaded, to allow for one-time initialization
  *    of the HAL. It is called before any other module methods are invoked.
+ *
+ *******************************************************************************
+ * Version: 2.5 [CAMERA_MODULE_API_VERSION_2_5]
+ *
+ * This camera module version adds support to query characteristics of a
+ * non-standalone physical camera, which can only be accessed as part of a
+ * logical camera.
+ *
  */
 
 /**
@@ -133,8 +141,9 @@ __BEGIN_DECLS
 #define CAMERA_MODULE_API_VERSION_2_2 HARDWARE_MODULE_API_VERSION(2, 2)
 #define CAMERA_MODULE_API_VERSION_2_3 HARDWARE_MODULE_API_VERSION(2, 3)
 #define CAMERA_MODULE_API_VERSION_2_4 HARDWARE_MODULE_API_VERSION(2, 4)
+#define CAMERA_MODULE_API_VERSION_2_5 HARDWARE_MODULE_API_VERSION(2, 5)
 
-#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_4
+#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_5
 
 /**
  * All device versions <= HARDWARE_DEVICE_API_VERSION(1, 0xFF) must be treated
@@ -909,8 +918,41 @@ typedef struct camera_module {
      */
     int (*init)();
 
+    /**
+     * get_physical_camera_info:
+     *
+     * Return the static metadata for a physical camera as a part of a logical
+     * camera device. This function is only called for those physical camera
+     * ID(s) that are not exposed independently. In other words, camera_id will
+     * be greater or equal to the return value of get_number_of_cameras().
+     *
+     * Return values:
+     *
+     * 0:           On a successful operation
+     *
+     * -ENODEV:     The information cannot be provided due to an internal
+     *              error.
+     *
+     * -EINVAL:     The input arguments are invalid, i.e. the id is invalid,
+     *              and/or the module is invalid.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3/2_4:
+     *   Not provided by HAL module. Framework will not call this function.
+     *
+     * CAMERA_MODULE_API_VERSION_2_5 or higher:
+     *   If any of the camera devices accessible through this camera module is
+     *   a logical multi-camera, and at least one of the physical cameras isn't
+     *   a stand-alone camera device, this function will be called by the camera
+     *   framework. Calling this function with invalid physical_camera_id will
+     *   get -EINVAL, and NULL static_metadata.
+     */
+    int (*get_physical_camera_info)(int physical_camera_id,
+            camera_metadata_t **static_metadata);
+
     /* reserved for future use */
-    void* reserved[5];
+    void* reserved[4];
 } camera_module_t;
 
 __END_DECLS
