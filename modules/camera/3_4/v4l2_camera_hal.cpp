@@ -238,4 +238,5 @@ camera_module_t HAL_MODULE_INFO_SYM __attribute__((visibility("default"))) = {
     .open_legacy = v4l2_camera_hal::open_legacy,
     .set_torch_mode = v4l2_camera_hal::set_torch_mode,
     .init = nullptr,
-    .reserved = {nullptr, nullptr, nullptr, nullptr, nullptr}};
+    .get_physical_camera_info = nullptr,
+    .reserved = {nullptr, nullptr, nullptr, nullptr}};
