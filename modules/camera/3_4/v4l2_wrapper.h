@@ -25,7 +25,6 @@
 #include <vector>
 
 #include <android-base/unique_fd.h>
-
 #include "arc/common_types.h"
 #include "arc/frame_buffer.h"
 #include "capture_request.h"

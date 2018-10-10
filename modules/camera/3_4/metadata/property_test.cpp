@@ -20,19 +20,13 @@
 #include <vector>
 
 #include <camera/CameraMetadata.h>
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <hardware/camera3.h>
-
 #include "array_vector.h"
 #include "metadata_common.h"
 #include "test_common.h"
 
-using testing::AtMost;
-using testing::Return;
-using testing::ReturnRef;
 using testing::Test;
-using testing::_;
 
 namespace v4l2_camera_hal {
 

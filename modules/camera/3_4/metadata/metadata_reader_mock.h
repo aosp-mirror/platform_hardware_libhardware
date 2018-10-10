@@ -19,9 +19,9 @@
 #ifndef DEFAULT_CAMERA_HAL_METADATA_METADATA_READER_MOCK_H_
 #define DEFAULT_CAMERA_HAL_METADATA_METADATA_READER_MOCK_H_
 
-#include <gmock/gmock.h>
-
 #include "metadata_reader.h"
+
+#include <gmock/gmock.h>
 
 namespace default_camera_hal {
 

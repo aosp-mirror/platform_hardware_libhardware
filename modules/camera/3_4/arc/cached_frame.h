@@ -9,7 +9,6 @@
 #include <memory>
 
 #include <camera/CameraMetadata.h>
-
 #include "arc/image_processor.h"
 
 namespace arc {

@@ -21,14 +21,12 @@
 
 #include <array>
 #include <condition_variable>
-#include <map>
 #include <queue>
 #include <string>
 
 #include <camera/CameraMetadata.h>
 #include <utils/StrongPointer.h>
 #include <utils/Thread.h>
-
 #include "camera.h"
 #include "common.h"
 #include "metadata/metadata.h"
