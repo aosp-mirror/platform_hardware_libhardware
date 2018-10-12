@@ -129,7 +129,7 @@ void V4L2Wrapper::Disconnect() {
 
 // Helper function. Should be used instead of ioctl throughout this class.
 template <typename T>
-int V4L2Wrapper::IoctlLocked(int request, T data) {
+int V4L2Wrapper::IoctlLocked(unsigned long request, T data) {
   // Potentially called so many times logging entry is a bad idea.
   std::lock_guard<std::mutex> lock(device_lock_);
 
