@@ -40,7 +40,8 @@ __BEGIN_DECLS
 
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_1 HARDWARE_DEVICE_API_VERSION(1, 1)
-#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_1
+#define SOUND_TRIGGER_DEVICE_API_VERSION_1_2 HARDWARE_DEVICE_API_VERSION(1, 2)
+#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_2
 
 /**
  * List of known sound trigger HAL modules. This is the base name of the sound_trigger HAL
@@ -114,6 +115,15 @@ struct sound_trigger_hw_device {
      * If no implementation is provided, stop_recognition will be called for each running model.
      */
     int (*stop_all_recognitions)(const struct sound_trigger_hw_device* dev);
+
+    /* Get the current state of a given model.
+     * The state is returned as a recognition event, or null if not implemented or on error.
+     * Caller takes ownership of the returned event memory.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_2 or above.
+     */
+    struct sound_trigger_recognition_event* (*get_model_state)(
+        const struct sound_trigger_hw_device *dev,
+        sound_model_handle_t sound_model_handle);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
