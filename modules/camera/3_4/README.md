@@ -6,6 +6,14 @@ work with a wide variety of devices, though the limitations of V4L2
 introduce some [caveats](#V4L2-Deficiencies), causing this HAL to
 not be fully spec-compliant.
 
+## Current status
+
+People are free to use that library if that works for their purpose,
+but it's not maintained by Android Camera team. There is another V4L2
+camera HAL implementation which is maintained by Android Camera team
+starting in Android P. See more information
+[here](https://source.android.com/devices/camera/external-usb-cameras).
+
 ## Building a Device with the HAL
 
 To ensure the HAL is built for a device, include the following in your
