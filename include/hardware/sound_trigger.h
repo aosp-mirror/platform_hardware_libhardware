@@ -117,13 +117,12 @@ struct sound_trigger_hw_device {
     int (*stop_all_recognitions)(const struct sound_trigger_hw_device* dev);
 
     /* Get the current state of a given model.
-     * The state is returned as a recognition event, or null if not implemented or on error.
-     * Caller takes ownership of the returned event memory.
+     * The state will be returned as a recognition event, via the callback that was registered
+     * in the start_recognition method.
      * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_2 or above.
      */
-    struct sound_trigger_recognition_event* (*get_model_state)(
-        const struct sound_trigger_hw_device *dev,
-        sound_model_handle_t sound_model_handle);
+    int (*get_model_state)(const struct sound_trigger_hw_device *dev,
+                           sound_model_handle_t sound_model_handle);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
