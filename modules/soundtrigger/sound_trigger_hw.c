@@ -811,10 +811,9 @@ static int stdev_stop_all_recognitions(const struct sound_trigger_hw_device *dev
     return 0;
 }
 
-// Caller is responsible for freeing the memory
-static struct sound_trigger_recognition_event * stdev_get_model_state(
-            const struct sound_trigger_hw_device *dev,
-            sound_model_handle_t handle) {
+static int stdev_get_model_state(const struct sound_trigger_hw_device *dev,
+                                 sound_model_handle_t handle) {
+    int ret = 0;
     struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
     ALOGI("%s", __func__);
     pthread_mutex_lock(&stdev->lock);
@@ -822,26 +821,29 @@ static struct sound_trigger_recognition_event * stdev_get_model_state(
     struct recognition_context *model_context = get_model_context(stdev, handle);
     if (!model_context) {
         ALOGW("Can't find sound model handle %d in registered list", handle);
-        pthread_mutex_unlock(&stdev->lock);
-        return NULL;
+        ret = -ENOSYS;
+        goto exit;
     }
 
-    struct sound_trigger_recognition_event *event = NULL;
-    if (model_context->model_type == SOUND_MODEL_TYPE_GENERIC) {
-      // TODO(mdooley): define a new status for this use case?
-      int status = RECOGNITION_STATUS_SUCCESS;
-      event = (struct sound_trigger_recognition_event *)
-              sound_trigger_generic_event_alloc(model_context->model_handle,
-                                                model_context->config, status);
-    } else {
-      ALOGI("Unsupported sound model type: %d, state not available.",
-            model_context->model_type);
+    if (!model_context->model_started) {
+        ALOGW("Sound model %d not started", handle);
+        ret = -ENOSYS;
+        goto exit;
     }
 
+    if (model_context->recognition_callback == NULL) {
+        ALOGW("Sound model %d not initialized", handle);
+        ret = -ENOSYS;
+        goto exit;
+    }
+
+    // TODO(mdooley): trigger recognition event
+
+exit:
     pthread_mutex_unlock(&stdev->lock);
     ALOGI("%s done for handle %d", __func__, handle);
 
-    return event;
+    return ret;
 }
 
 __attribute__ ((visibility ("default")))
