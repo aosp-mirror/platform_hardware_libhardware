@@ -274,6 +274,7 @@ typedef enum {
 
     // composer 2.3
     HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES,
     HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
     HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
     HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
@@ -371,6 +372,39 @@ typedef enum {
     HWC2_FORMAT_COMPONENT_2 = 1 << 2, /* The third component (eg, for RGBA_8888, this is B) */
     HWC2_FORMAT_COMPONENT_3 = 1 << 3, /* The fourth component (eg, for RGBA_8888, this is A) */
 } hwc2_format_color_component_t;
+
+/* Optional display capabilities which may be supported by some displays.
+ * The particular set of supported capabilities for a given display may be
+ * retrieved using getDisplayCapabilities. */
+typedef enum {
+    HWC2_DISPLAY_CAPABILITY_INVALID = 0,
+
+    /**
+     * Specifies that the display must apply a color transform even when either
+     * the client or the device has chosen that all layers should be composed by
+     * the client. This prevents the client from applying the color transform
+     * during its composition step.
+     * If getDisplayCapabilities is supported, the global capability
+     * HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM is ignored.
+     * If getDisplayCapabilities is not supported, and the global capability
+     * HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM is returned by getCapabilities,
+     * then all displays must be treated as having
+     * HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM.
+     */
+    HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM = 1,
+
+    /**
+     * Specifies that the display supports PowerMode::DOZE and
+     * PowerMode::DOZE_SUSPEND. DOZE_SUSPEND may not provide any benefit
+     * over DOZE (see the definition of PowerMode for more information),
+     * but if both DOZE and DOZE_SUSPEND are no different from
+     * PowerMode::ON, the device must not claim support.
+     * HWC2_DISPLAY_CAPABILITY_DOZE must be returned by getDisplayCapabilities
+     * when getDozeSupport indicates the display supports PowerMode::DOZE and
+     * PowerMode::DOZE_SUSPEND.
+     */
+    HWC2_DISPLAY_CAPABILITY_DOZE = 2,
+} hwc2_display_capability_t;
 
 /*
  * Stringification Functions
@@ -552,6 +586,7 @@ static inline const char* getFunctionDescriptorName(
 
         // composer 2.3
         case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA: return "GetDisplayIdentificationData";
+        case HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES: return "GetDisplayCapabilities";
         case HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM: return "SetLayerColorTransform";
         case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES: return "GetDisplayedContentSamplingAttributes";
         case HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED: return "SetDisplayedContentSamplingEnabled";
@@ -618,6 +653,18 @@ static inline const char* getFormatColorComponentName(hwc2_format_color_componen
         case HWC2_FORMAT_COMPONENT_2: return "ThirdComponent";
         case HWC2_FORMAT_COMPONENT_3: return "FourthComponent";
         default: return "Unknown";
+    }
+}
+
+static inline const char* getDisplayCapabilityName(hwc2_display_capability_t capability) {
+    switch (capability) {
+        case HWC2_DISPLAY_CAPABILITY_INVALID: return "Invalid";
+        case HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM:
+            return "SkipClientColorTransform";
+        case HWC2_DISPLAY_CAPABILITY_DOZE:
+            return "Doze";
+        default:
+            return "Unknown";
     }
 }
 
@@ -777,6 +824,7 @@ enum class FunctionDescriptor : int32_t {
 
     // composer 2.3
     GetDisplayIdentificationData = HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    GetDisplayCapabilities = HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES,
     SetLayerColorTransform = HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
     GetDisplayedContentSamplingAttributes = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
     SetDisplayedContentSamplingEnabled = HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
@@ -816,6 +864,13 @@ enum class Vsync : int32_t {
     Disable = HWC2_VSYNC_DISABLE,
 };
 TO_STRING(hwc2_vsync_t, Vsync, getVsyncName)
+
+enum class DisplayCapability : int32_t {
+    Invalid = HWC2_DISPLAY_CAPABILITY_INVALID,
+    SkipClientColorTransform = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
+    Doze = HWC2_DISPLAY_CAPABILITY_DOZE,
+};
+TO_STRING(hwc2_display_capability_t, DisplayCapability, getDisplayCapabilityName)
 
 } // namespace HWC2
 
@@ -2555,6 +2610,29 @@ typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLE)(
         hwc2_device_t* device, hwc2_display_t display,
         uint64_t max_frames, uint64_t timestamp,
         uint64_t* frame_count, int32_t samples_size[4], uint64_t* samples[4]);
+
+/* getDisplayCapabilities(..., outCapabilities)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * getDisplayCapabilities returns a list of supported capabilities
+ * (as described in the definition of Capability above).
+ * This list must not change after initialization.
+ *
+ * Parameters:
+ *   outNumCapabilities - if outCapabilities was nullptr, returns the number of capabilities
+ *       if outCapabilities was not nullptr, returns the number of capabilities stored in
+ *       outCapabilities, which must not exceed the value stored in outNumCapabilities prior
+ *       to the call; pointer will be non-NULL
+ *   outCapabilities - a list of supported capabilities.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CAPABILITIES)(
+        hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumCapabilities,
+        uint32_t* outCapabilities);
 
 __END_DECLS
 
