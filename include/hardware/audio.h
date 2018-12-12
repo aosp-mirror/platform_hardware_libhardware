@@ -550,6 +550,36 @@ struct audio_stream_in {
                                   size_t *mic_count);
 
     /**
+     * Called by the framework to instruct the HAL to optimize the capture stream in the
+     * specified direction.
+     *
+     * \param[in] stream    the stream object.
+     * \param[in] direction The direction constant (from audio-base.h)
+     *   MIC_DIRECTION_UNSPECIFIED  Don't do any directionality processing of the
+     *      activated microphone(s).
+     *   MIC_DIRECTION_FRONT        Optimize capture for audio coming from the screen-side
+     *      of the device.
+     *   MIC_DIRECTION_BACK         Optimize capture for audio coming from the side of the
+     *      device opposite the screen.
+     *   MIC_DIRECTION_EXTERNAL     Optimize capture for audio coming from an off-device
+     *      microphone.
+     * \return OK if the call is successful, an error code otherwise.
+     */
+    int (*set_microphone_direction)(const struct audio_stream_in *stream,
+                                    audio_microphone_direction_t direction);
+
+    /**
+     * Called by the framework to specify to the HAL the desired zoom factor for the selected
+     * microphone(s).
+     *
+     * \param[in] stream    the stream object.
+     * \param[in] zoom      the zoom factor.
+     * \return OK if the call is successful, an error code otherwise.
+     */
+    int (*set_microphone_field_dimension)(const struct audio_stream_in *stream,
+                                          float zoom);
+
+    /**
      * Called when the metadata of the stream's sink has been changed.
      * @param sink_metadata Description of the audio that is recorded by the clients.
      */

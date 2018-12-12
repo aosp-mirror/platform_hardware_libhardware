@@ -918,6 +918,30 @@ static int in_get_capture_position(const struct audio_stream_in *stream,
     return ret;
 }
 
+static int in_get_active_microphones(const struct audio_stream_in *stream,
+                                     struct audio_microphone_characteristic_t *mic_array,
+                                     size_t *mic_count) {
+    (void)stream;
+    (void)mic_array;
+    (void)mic_count;
+
+    return -ENOSYS;
+}
+
+static int in_set_microphone_direction(const struct audio_stream_in *stream,
+                                           audio_microphone_direction_t dir) {
+    (void)stream;
+    (void)dir;
+    ALOGV("---- in_set_microphone_direction()");
+    return -ENOSYS;
+}
+
+static int in_set_microphone_field_dimension(const struct audio_stream_in *stream, float zoom) {
+    (void)zoom;
+    ALOGV("---- in_set_microphone_field_dimension()");
+    return -ENOSYS;
+}
+
 static int adev_open_input_stream(struct audio_hw_device *hw_dev,
                                   audio_io_handle_t handle,
                                   audio_devices_t devicesSpec __unused,
@@ -962,6 +986,10 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     in->stream.read = in_read;
     in->stream.get_input_frames_lost = in_get_input_frames_lost;
     in->stream.get_capture_position = in_get_capture_position;
+
+    in->stream.get_active_microphones = in_get_active_microphones;
+    in->stream.set_microphone_direction = in_set_microphone_direction;
+    in->stream.set_microphone_field_dimension = in_set_microphone_field_dimension;
 
     stream_lock_init(&in->lock);
 
