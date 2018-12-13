@@ -35,7 +35,7 @@ const std::string CUSTOM_TYPE_PREFIX("com.google.hardware.sensor.hid_dynamic.");
 HidRawSensor::HidRawSensor(
         SP(HidDevice) device, uint32_t usage, const std::vector<HidParser::ReportPacket> &packets)
         : mReportingStateId(-1), mPowerStateId(-1), mReportIntervalId(-1), mInputReportId(-1),
-        mEnabled(false), mSamplingPeriod(1000ll*1000*1000), mBatchingPeriod(0),
+        mEnabled(false), mSamplingPeriod(1000LL*1000*1000), mBatchingPeriod(0),
         mDevice(device), mValid(false) {
     if (device == nullptr) {
         return;
