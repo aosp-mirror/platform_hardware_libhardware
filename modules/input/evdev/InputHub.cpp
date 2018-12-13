@@ -495,7 +495,7 @@ status_t InputHub::registerDevicePath(const std::string& path) {
 
 status_t InputHub::unregisterDevicePath(const std::string& path) {
     int wd = -1;
-    for (auto pair : mWatchedPaths) {
+    for (const auto& pair : mWatchedPaths) {
         if (pair.second == path) {
             wd = pair.first;
             break;
@@ -781,7 +781,7 @@ std::shared_ptr<InputDeviceNode> InputHub::openNode(const std::string& path) {
 }
 
 status_t InputHub::closeNode(const InputDeviceNode* node) {
-    for (auto pair : mDeviceNodes) {
+    for (const auto& pair : mDeviceNodes) {
         if (pair.second.get() == node) {
             return closeNodeByFd(pair.first);
         }
@@ -801,7 +801,7 @@ status_t InputHub::closeNodeByFd(int fd) {
 }
 
 std::shared_ptr<InputDeviceNode> InputHub::findNodeByPath(const std::string& path) {
-    for (auto pair : mDeviceNodes) {
+    for (const auto& pair : mDeviceNodes) {
         if (pair.second->getPath() == path) return pair.second;
     }
     return nullptr;
