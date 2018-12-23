@@ -279,6 +279,7 @@ typedef enum {
     HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
     HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
     HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
+    HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -591,6 +592,7 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES: return "GetDisplayedContentSamplingAttributes";
         case HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED: return "SetDisplayedContentSamplingEnabled";
         case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE: return "GetDisplayedContentSample";
+        case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS: return "SetLayerPerFrameMetadataBlobs";
         default: return "Unknown";
     }
 }
@@ -829,6 +831,7 @@ enum class FunctionDescriptor : int32_t {
     GetDisplayedContentSamplingAttributes = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
     SetDisplayedContentSamplingEnabled = HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
     GetDisplayedContentSample = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
+    SetLayerPerFrameMetadataBlobs = HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -2216,6 +2219,42 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_PER_FRAME_METADATA)(
         uint32_t numElements, const int32_t* /*hw2_per_frame_metadata_key_t*/ keys,
         const float* metadata);
 
+/* setLayerPerFrameMetadataBlobs(...,numElements, keys, sizes, blobs)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS
+ * Optional for HWC2 devices
+ *
+ * If supported, (getFunction(HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS)
+ * is non-null), sets the metadata for the given display and layer.
+ *
+ * Upon returning from this function, the metadata change must have fully taken
+ * effect.
+ *
+ * This function must only be called if getPerFrameMetadataKeys is non-NULL
+ * and returns at least one key that corresponds to a blob type.
+ *
+ * Current valid blob type keys are: HDR10_PLUS_SEI
+ *
+ * Parameters:
+ *   numElements is the number of elements in each of the keys, sizes, and
+ *   metadata arrays
+ *   keys is a pointer to an array of keys.  Current valid keys are those listed
+ *   above as valid blob type keys.
+ *   sizes is a pointer to an array of unsigned ints specifying the sizes of
+ *   each metadata blob
+ *   metadata is a pointer to a blob of data holding all blobs contiguously in
+ *   memory
+ *
+ *   Returns HWC2_ERROR_NONE or one of the following erros:
+ *     HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *     HWC2_ERROR_BAD_PARAMETER - sizes of keys and metadata parameters does
+ *     not match numElements, numElements < 0, or keys contains a
+ *     non-valid key (see above for current valid blob type keys).
+ *     HWC2_ERROR_UNSUPPORTED - metadata is not supported on this display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_PER_FRAME_METADATA_BLOBS)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        uint32_t numElements, const int32_t* keys, const uint32_t* sizes,
+        const uint8_t* metadata);
 /*
  * Layer State Functions
  *
