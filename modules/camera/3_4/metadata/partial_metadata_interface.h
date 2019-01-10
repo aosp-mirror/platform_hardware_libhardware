@@ -17,13 +17,9 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_PARTIAL_METADATA_INTERFACE_H_
 #define V4L2_CAMERA_HAL_METADATA_PARTIAL_METADATA_INTERFACE_H_
 
-#include <array>
 #include <vector>
 
 #include <camera/CameraMetadata.h>
-
-#include "../common.h"
-#include "array_vector.h"
 
 namespace v4l2_camera_hal {
 

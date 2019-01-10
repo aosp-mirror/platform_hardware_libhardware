@@ -20,7 +20,7 @@
 #include <memory>
 
 #include <android-base/macros.h>
-
+#include "common.h"
 #include "converter_interface.h"
 
 namespace v4l2_camera_hal {

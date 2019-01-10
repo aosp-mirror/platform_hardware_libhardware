@@ -17,7 +17,6 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_PROPERTY_H_
 #define V4L2_CAMERA_HAL_METADATA_PROPERTY_H_
 
-#include "../common.h"
 #include "metadata_common.h"
 #include "partial_metadata_interface.h"
 

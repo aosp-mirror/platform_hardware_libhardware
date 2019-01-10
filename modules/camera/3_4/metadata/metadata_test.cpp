@@ -23,7 +23,6 @@
 #include <camera/CameraMetadata.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
 #include "metadata_common.h"
 #include "partial_metadata_interface_mock.h"
 
