@@ -23,8 +23,8 @@
 #include <vector>
 
 #include <camera/CameraMetadata.h>
-
 #include "array_vector.h"
+#include "common.h"
 #include "partial_metadata_interface.h"
 
 namespace v4l2_camera_hal {
