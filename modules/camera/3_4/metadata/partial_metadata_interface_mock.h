@@ -19,9 +19,9 @@
 #ifndef V4L2_CAMERA_HAL_PARTIAL_METADATA_INTERFACE_MOCK_H_
 #define V4L2_CAMERA_HAL_PARTIAL_METADATA_INTERFACE_MOCK_H_
 
-#include <gmock/gmock.h>
-
 #include "partial_metadata_interface.h"
+
+#include <gmock/gmock.h>
 
 namespace v4l2_camera_hal {
 

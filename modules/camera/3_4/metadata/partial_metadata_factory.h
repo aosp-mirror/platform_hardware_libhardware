@@ -17,7 +17,7 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_CONTROL_FACTORY_H_
 #define V4L2_CAMERA_HAL_METADATA_CONTROL_FACTORY_H_
 
-#include "../common.h"
+#include "common.h"
 #include "control.h"
 #include "menu_control_options.h"
 #include "no_effect_control_delegate.h"

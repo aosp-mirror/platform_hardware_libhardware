@@ -21,9 +21,8 @@
 #include <memory>
 #include <set>
 
-#include <hardware/camera3.h>
 #include <android-base/macros.h>
-
+#include <hardware/camera3.h>
 #include "capture_request.h"
 
 namespace default_camera_hal {
