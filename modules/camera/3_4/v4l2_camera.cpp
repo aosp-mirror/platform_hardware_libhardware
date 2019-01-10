@@ -19,16 +19,14 @@
 
 #include "v4l2_camera.h"
 
-#include <fcntl.h>
-#include <linux/videodev2.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
 #include <cstdlib>
+#include <fcntl.h>
 
 #include <camera/CameraMetadata.h>
 #include <hardware/camera3.h>
-
+#include <linux/videodev2.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include "common.h"
 #include "function_thread.h"
 #include "metadata/metadata_common.h"

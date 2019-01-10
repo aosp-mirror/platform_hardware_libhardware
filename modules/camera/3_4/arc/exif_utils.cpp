@@ -10,7 +10,6 @@
 #include <ctime>
 
 #include <libyuv.h>
-
 #include "arc/common.h"
 
 namespace std {

@@ -20,7 +20,6 @@
 #include <map>
 
 #include <android-base/macros.h>
-
 #include "converter_interface.h"
 
 namespace v4l2_camera_hal {
