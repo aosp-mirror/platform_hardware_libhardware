@@ -17,7 +17,8 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_BOOTTIME_STATE_DELEGATE_H_
 #define V4L2_CAMERA_HAL_METADATA_BOOTTIME_STATE_DELEGATE_H_
 
-#include "../common.h"
+#include <cstdint>
+
 #include "state_delegate_interface.h"
 
 namespace v4l2_camera_hal {

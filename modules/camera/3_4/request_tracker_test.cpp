@@ -16,15 +16,9 @@
 
 #include "request_tracker.h"
 
-#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-using testing::AtMost;
-using testing::Expectation;
-using testing::Return;
-using testing::SetArgPointee;
 using testing::Test;
-using testing::_;
 
 namespace default_camera_hal {
 
