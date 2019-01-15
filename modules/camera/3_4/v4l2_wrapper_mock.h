@@ -19,9 +19,9 @@
 #ifndef V4L2_CAMERA_HAL_V4L2_WRAPPER_MOCK_H_
 #define V4L2_CAMERA_HAL_V4L2_WRAPPER_MOCK_H_
 
-#include <gmock/gmock.h>
-
 #include "v4l2_wrapper.h"
+
+#include <gmock/gmock.h>
 
 namespace v4l2_camera_hal {
 

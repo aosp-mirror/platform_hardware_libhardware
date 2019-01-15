@@ -25,7 +25,6 @@
 #include <vector>
 
 #include <android-base/unique_fd.h>
-
 #include "arc/common_types.h"
 #include "arc/frame_buffer.h"
 #include "capture_request.h"
@@ -99,7 +98,7 @@ class V4L2Wrapper {
   void Disconnect();
   // Perform an ioctl call in a thread-safe fashion.
   template <typename T>
-  int IoctlLocked(int request, T data);
+  int IoctlLocked(unsigned long request, T data);
   // Request/release userspace buffer mode via VIDIOC_REQBUFS.
   int RequestBuffers(uint32_t num_buffers);
 

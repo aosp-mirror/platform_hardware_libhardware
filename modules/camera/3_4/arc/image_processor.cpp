@@ -5,12 +5,12 @@
 
 #include "arc/image_processor.h"
 
-#include <errno.h>
-#include <libyuv.h>
-#include <time.h>
+#include <cerrno>
+#include <ctime>
+#include <string>
 
+#include <libyuv.h>
 #include "arc/common.h"
-#include "arc/common_types.h"
 #include "arc/exif_utils.h"
 #include "arc/jpeg_compressor.h"
 
@@ -85,6 +85,8 @@ size_t ImageProcessor::GetConvertedSize(int fourcc, uint32_t width,
     case V4L2_PIX_FMT_BGR32:
     case V4L2_PIX_FMT_RGB32:
       return width * height * 4;
+    case V4L2_PIX_FMT_JPEG:
+      return 0; // For JPEG real size will be calculated after conversion.
     default:
       LOGF(ERROR) << "Pixel format " << FormatToString(fourcc)
                   << " is unsupported.";
@@ -388,6 +390,9 @@ static bool ConvertToJpeg(const CameraMetadata& metadata,
     return false;
   }
   size_t buffer_length = compressor.GetCompressedImageSize();
+  if (out_frame->SetDataSize(buffer_length)) {
+    return false;
+  }
   memcpy(out_frame->GetData(), compressor.GetCompressedImagePtr(),
          buffer_length);
   return true;

@@ -18,9 +18,8 @@
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include "../v4l2_wrapper_mock.h"
 #include "converter_interface_mock.h"
+#include "v4l2_wrapper_mock.h"
 
 using testing::Return;
 using testing::SetArgPointee;

@@ -134,11 +134,11 @@ class Camera {
         // Lock protecting only static camera characteristics, which may
         // be accessed without the camera device open
         android::Mutex mStaticInfoLock;
-        android::Mutex mFlushLock;
         // Standard camera settings templates
         std::unique_ptr<const android::CameraMetadata> mTemplates[CAMERA3_TEMPLATE_COUNT];
         // Track in flight requests.
         std::unique_ptr<RequestTracker> mInFlightTracker;
+        android::Mutex mInFlightTrackerLock;
 };
 }  // namespace default_camera_hal
 

@@ -586,7 +586,7 @@ inline int keymaster_param_compare(const keymaster_key_param_t* a, const keymast
                 return -1;
             if (a->blob.data_length > b->blob.data_length)
                 return 1;
-        };
+        }
     }
 
     return 0;

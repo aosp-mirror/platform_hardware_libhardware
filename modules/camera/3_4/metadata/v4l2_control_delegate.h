@@ -17,9 +17,9 @@
 #ifndef V4L2_CAMERA_HAL_METADATA_V4L2_CONTROL_DELEGATE_H_
 #define V4L2_CAMERA_HAL_METADATA_V4L2_CONTROL_DELEGATE_H_
 
-#include "../v4l2_wrapper.h"
 #include "control_delegate_interface.h"
 #include "converter_interface.h"
+#include "v4l2_wrapper.h"
 
 namespace v4l2_camera_hal {
 
