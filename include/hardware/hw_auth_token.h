@@ -1,0 +1,1 @@
+../../include_all/hardware/hw_auth_token.h

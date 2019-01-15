@@ -1,0 +1,1 @@
+../../include_all/hardware/gnss-base.h
