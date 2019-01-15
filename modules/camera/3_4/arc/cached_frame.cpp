@@ -5,11 +5,10 @@
 
 #include "arc/cached_frame.h"
 
-#include <errno.h>
-#include <libyuv.h>
+#include <cerrno>
 
+#include <libyuv.h>
 #include "arc/common.h"
-#include "arc/common_types.h"
 
 namespace arc {
 
@@ -18,7 +17,8 @@ using android::CameraMetadata;
 CachedFrame::CachedFrame()
     : source_frame_(nullptr),
       cropped_buffer_capacity_(0),
-      yu12_frame_(new AllocatedFrameBuffer(0)) {}
+      yu12_frame_(new AllocatedFrameBuffer(0)),
+      scaled_frame_(new AllocatedFrameBuffer(0)) {}
 
 CachedFrame::~CachedFrame() { UnsetSource(); }
 

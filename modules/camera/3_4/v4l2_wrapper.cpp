@@ -20,18 +20,13 @@
 #include "v4l2_wrapper.h"
 
 #include <algorithm>
-#include <array>
-#include <limits>
-#include <mutex>
-#include <vector>
-
 #include <fcntl.h>
+#include <limits>
+
+#include <android-base/unique_fd.h>
 #include <linux/videodev2.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-
-#include <android-base/unique_fd.h>
-
 #include "arc/cached_frame.h"
 
 namespace v4l2_camera_hal {
@@ -129,7 +124,7 @@ void V4L2Wrapper::Disconnect() {
 
 // Helper function. Should be used instead of ioctl throughout this class.
 template <typename T>
-int V4L2Wrapper::IoctlLocked(int request, T data) {
+int V4L2Wrapper::IoctlLocked(unsigned long request, T data) {
   // Potentially called so many times logging entry is a bad idea.
   std::lock_guard<std::mutex> lock(device_lock_);
 

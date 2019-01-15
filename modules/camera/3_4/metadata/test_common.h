@@ -22,7 +22,6 @@
 
 #include <camera/CameraMetadata.h>
 #include <gtest/gtest.h>
-
 #include "array_vector.h"
 #include "metadata_common.h"
 
