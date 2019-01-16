@@ -97,10 +97,6 @@ LOCAL_STATIC_LIBRARIES := \
 
 LOCAL_C_INCLUDES += $(v4l2_c_includes)
 LOCAL_SRC_FILES := $(v4l2_src_files)
-
-# Remove when libjpeg_static_ndk is XOM compatible
-LOCAL_XOM := false
-
 include $(BUILD_SHARED_LIBRARY)
 
 # Unit tests for V4L2 Camera HAL.
@@ -118,9 +114,6 @@ LOCAL_C_INCLUDES += $(v4l2_c_includes)
 LOCAL_SRC_FILES := \
   $(v4l2_src_files) \
   $(v4l2_test_files) \
-
-# Remove when libjpeg_static_ndk is XOM compatible
-LOCAL_XOM := false
 
 include $(BUILD_NATIVE_TEST)
 
