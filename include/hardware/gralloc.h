@@ -131,6 +131,9 @@ enum {
      * handle this flag. */
     GRALLOC_USAGE_FOREIGN_BUFFERS       = 0x00200000U,
 
+    /* buffer will be used as input to HW HEIC image encoder */
+    GRALLOC_USAGE_HW_IMAGE_ENCODER      = 0x08000000U,
+
     /* Mask of all flags which could be passed to a gralloc module for buffer
      * allocation. Any flags not in this mask do not need to be handled by
      * gralloc modules. */
