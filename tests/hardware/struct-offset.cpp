@@ -229,6 +229,7 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(camera3_device_ops_t, get_metadata_vendor_tag_ops, 20, 40);
     CHECK_MEMBER_AT(camera3_device_ops_t, dump, 24, 48);
     CHECK_MEMBER_AT(camera3_device_ops_t, flush, 28, 56);
-    CHECK_MEMBER_AT(camera3_device_ops_t, reserved, 32, 64);
+    CHECK_MEMBER_AT(camera3_device_ops_t, signal_stream_flush, 32, 64);
+    CHECK_MEMBER_AT(camera3_device_ops_t, reserved, 36, 72);
 }
 
