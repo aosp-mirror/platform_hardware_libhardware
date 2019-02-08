@@ -2200,7 +2200,9 @@ typedef enum camera3_buffer_request_status {
 
     /**
      * request_stream_buffers() call failed for all streams and no buffers are
-     * returned at all due to unknown reason.
+     * returned at all. This can happen for unknown reasons or a combination
+     * of different failure reasons per stream. For the latter case, caller can
+     * check per stream failure reason returned in camera3_stream_buffer_ret.
      */
     CAMERA3_BUF_REQ_FAILED_UNKNOWN = 4,
 
