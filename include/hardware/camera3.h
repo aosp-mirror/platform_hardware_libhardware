@@ -196,6 +196,10 @@
  *     stream_configuration_counter to camera3_stream_configuration_t to address the potential
  *     race condition between signal_stream_flush() call and configure_streams() call.
  *
+ *   - Add CAMERA3_JPEG_APP_SEGMENTS_BLOB_ID to support BLOB with only JPEG apps
+ *     segments and thumbnail (without main image bitstream). Camera framework
+ *     uses such stream togerther with a HAL YUV_420_888/IMPLEMENTATION_DEFINED
+ *     stream to encode HEIC (ISO/IEC 23008-12) image.
  */
 
 /**
@@ -1964,21 +1968,25 @@ typedef struct camera3_stream_buffer_set {
 /**
  * camera3_jpeg_blob:
  *
- * Transport header for compressed JPEG buffers in output streams.
+ * Transport header for compressed JPEG or JPEG_APP_SEGMENTS buffers in output streams.
  *
- * To capture JPEG images, a stream is created using the pixel format
+ * To capture JPEG or JPEG_APP_SEGMENTS images, a stream is created using the pixel format
  * HAL_PIXEL_FORMAT_BLOB. The buffer size for the stream is calculated by the
- * framework, based on the static metadata field android.jpeg.maxSize. Since
- * compressed JPEG images are of variable size, the HAL needs to include the
- * final size of the compressed image using this structure inside the output
- * stream buffer. The JPEG blob ID field must be set to CAMERA3_JPEG_BLOB_ID.
+ * framework, based on the static metadata field android.jpeg.maxSize for JPEG,
+ * and android.jpeg.maxAppsSegments for JPEG_APP_SEGMENTS.
  *
- * Transport header should be at the end of the JPEG output stream buffer. That
+ * Since compressed JPEG/JPEG_APP_SEGMENTS images are of variable size, the HAL needs to
+ * include the final size of the image using this structure inside the output
+ * stream buffer. The JPEG blob ID field must be set to CAMERA3_JPEG_BLOB_ID for
+ * JPEG and CAMERA3_JPEG_APP_SEGMENTS_BLOB_ID for APP segments.
+ *
+ * Transport header should be at the end of the output stream buffer. That
  * means the jpeg_blob_id must start at byte[buffer_size -
  * sizeof(camera3_jpeg_blob)], where the buffer_size is the size of gralloc buffer.
- * Any HAL using this transport header must account for it in android.jpeg.maxSize
- * The JPEG data itself starts at the beginning of the buffer and should be
- * jpeg_size bytes long.
+ * The blob data itself starts at the beginning of the buffer and should be
+ * jpeg_size bytes long. HAL using this transport header for JPEG must account for
+ * it in android.jpeg.maxSize. For JPEG APP segments, camera framework makes
+ * sure that the output stream buffer is large enough for the transport header.
  */
 typedef struct camera3_jpeg_blob {
     uint16_t jpeg_blob_id;
@@ -1986,7 +1994,8 @@ typedef struct camera3_jpeg_blob {
 } camera3_jpeg_blob_t;
 
 enum {
-    CAMERA3_JPEG_BLOB_ID = 0x00FF
+    CAMERA3_JPEG_BLOB_ID = 0x00FF,
+    CAMERA3_JPEG_APP_SEGMENTS_BLOB_ID = 0x0100,
 };
 
 /**********************************************************************
