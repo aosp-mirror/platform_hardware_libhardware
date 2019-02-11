@@ -121,10 +121,18 @@ __BEGIN_DECLS
  *******************************************************************************
  * Version: 2.5 [CAMERA_MODULE_API_VERSION_2_5]
  *
- * This camera module version adds support to query characteristics of a
- * non-standalone physical camera, which can only be accessed as part of a
- * logical camera. It also adds camera stream combination query.
+ * This camera module version adds below API changes:
  *
+ * 1. Support to query characteristics of a non-standalone physical camera, which can
+ *    only be accessed as part of a logical camera. It also adds camera stream combination
+ *    query.
+ *
+ * 2. Ability to query whether a particular camera stream combination is
+ *    supported by the camera device.
+ *
+ * 3. Device state change notification. This module version also supports
+ *    notification about the overall device state change, such as
+ *    folding/unfolding, or covering/uncovering of shutter.
  */
 
 /**
@@ -799,6 +807,47 @@ typedef struct camera_stream_combination {
 
 } camera_stream_combination_t;
 
+/**
+ * device_state_t:
+ *
+ * Possible physical states of the overall device, for use with
+ * notify_device_state_change.
+ */
+typedef enum device_state {
+    /**
+     * The device is in its normal physical configuration. This is the default if the
+     * device does not support multiple different states.
+     */
+    NORMAL = 0,
+
+    /**
+     * Camera device(s) facing backward are covered.
+     */
+    BACK_COVERED = 1 << 0,
+
+    /**
+     * Camera device(s) facing foward are covered.
+     */
+    FRONT_COVERED = 1 << 1,
+
+    /**
+     * The device is folded.  If not set, the device is unfolded or does not
+     * support folding.
+     *
+     * The exact point when this status change happens during the folding
+     * operation is device-specific.
+     */
+    FOLDED = 1 << 2,
+
+    /**
+     * First vendor-specific device state. All bits above and including this one
+     * are for vendor state values.  Values below this one must only be used
+     * for framework-defined states.
+     */
+    VENDOR_STATE_START = 1LL << 32
+
+} device_state_t;
+
 typedef struct camera_module {
     /**
      * Common methods of the camera module.  This *must* be the first member of
@@ -1121,8 +1170,47 @@ typedef struct camera_module {
     int (*is_stream_combination_supported)(int camera_id,
             const camera_stream_combination_t *streams);
 
+    /**
+     * notify_device_state_change:
+     *
+     * Notify the camera module that the state of the overall device has
+     * changed in some way that the HAL may want to know about.
+     *
+     * For example, a physical shutter may have been uncovered or covered,
+     * or a camera may have been covered or uncovered by an add-on keyboard
+     * or other accessory.
+     *
+     * The state is a bitfield of potential states, and some physical configurations
+     * could plausibly correspond to multiple different combinations of state bits.
+     * The HAL must ignore any state bits it is not actively using to determine
+     * the appropriate camera configuration.
+     *
+     * For example, on some devices the FOLDED state could mean that
+     * backward-facing cameras are covered by the fold, so FOLDED by itself implies
+     * BACK_COVERED. But other devices may support folding but not cover any cameras
+     * when folded, so for those FOLDED would not imply any of the other flags.
+     * Since these relationships are very device-specific, it is difficult to specify
+     * a comprehensive policy.  But as a recommendation, it is suggested that if a flag
+     * necessarily implies other flags are set as well, then those flags should be set.
+     * So even though FOLDED would be enough to infer BACK_COVERED on some devices, the
+     * BACK_COVERED flag should also be set for clarity.
+     *
+     * This method may be invoked by the HAL client at any time. It must not
+     * cause any active camera device sessions to be closed, but may dynamically
+     * change which physical camera a logical multi-camera is using for its
+     * active and future output.
+     *
+     * The method must be invoked by the HAL client at least once before the
+     * client calls ICameraDevice::open on any camera device interfaces listed
+     * by this provider, to establish the initial device state.
+     *
+     * Note that the deviceState is 64-bit bitmask, with system defined states in
+     * lower 32-bit and vendor defined states in upper 32-bit.
+     */
+    void (*notify_device_state_change)(uint64_t deviceState);
+
     /* reserved for future use */
-    void* reserved[3];
+    void* reserved[2];
 } camera_module_t;
 
 __END_DECLS
