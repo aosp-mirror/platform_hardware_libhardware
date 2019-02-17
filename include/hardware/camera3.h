@@ -200,6 +200,10 @@
  *     segments and thumbnail (without main image bitstream). Camera framework
  *     uses such stream togerther with a HAL YUV_420_888/IMPLEMENTATION_DEFINED
  *     stream to encode HEIC (ISO/IEC 23008-12) image.
+ *
+ *   - Add is_reconfiguration_required() to camera3_device_ops_t to enable HAL to skip or
+ *     trigger stream reconfiguration depending on new session parameter values.
+ *
  */
 
 /**
@@ -2200,7 +2204,9 @@ typedef enum camera3_buffer_request_status {
 
     /**
      * request_stream_buffers() call failed for all streams and no buffers are
-     * returned at all due to unknown reason.
+     * returned at all. This can happen for unknown reasons or a combination
+     * of different failure reasons per stream. For the latter case, caller can
+     * check per stream failure reason returned in camera3_stream_buffer_ret.
      */
     CAMERA3_BUF_REQ_FAILED_UNKNOWN = 4,
 
@@ -3489,8 +3495,58 @@ typedef struct camera3_device_ops {
             uint32_t num_streams,
             const camera3_stream_t* const* streams);
 
+    /**
+     * is_reconfiguration_required:
+     *
+     * <= CAMERA_DEVICE_API_VERISON_3_5:
+     *
+     *    Not defined and must be NULL
+     *
+     * >= CAMERA_DEVICE_API_VERISON_3_6:
+     *
+     * Check whether complete stream reconfiguration is required for possible new session
+     * parameter values.
+     *
+     * This method must be called by the camera framework in case the client changes
+     * the value of any advertised session parameters. Depending on the specific values
+     * the HAL can decide whether a complete stream reconfiguration is required. In case
+     * the HAL returns -ENVAL, the camera framework must skip the internal reconfiguration.
+     * In case Hal returns 0, the framework must reconfigure the streams and pass the
+     * new session parameter values accordingly.
+     * This call may be done by the framework some time before the request with new parameters
+     * is submitted to the HAL, and the request may be cancelled before it ever gets submitted.
+     * Therefore, the HAL must not use this query as an indication to change its behavior in any
+     * way.
+     * ------------------------------------------------------------------------
+     *
+     * Preconditions:
+     *
+     * The framework can call this method at any time after active
+     * session configuration. There must be no impact on the performance of
+     * pending camera requests in any way. In particular there must not be
+     * any glitches or delays during normal camera streaming.
+     *
+     * Performance requirements:
+     * HW and SW camera settings must not be changed and there must not be
+     * a user-visible impact on camera performance.
+     *
+     * @param oldSessionParams The currently applied session parameters.
+     * @param newSessionParams The new session parameters set by client.
+     *
+     * @return Status Status code for the operation, one of:
+     * 0:                    In case the stream reconfiguration is required
+     *
+     * -EINVAL:              In case the stream reconfiguration is not required.
+     *
+     * -ENOSYS:              In case the camera device does not support the
+     *                       reconfiguration query.
+     */
+    int (*is_reconfiguration_required)(const struct camera3_device*,
+            const camera_metadata_t* old_session_params,
+            const camera_metadata_t* new_session_params);
+
     /* reserved for future use */
-    void *reserved[7];
+    void *reserved[6];
 } camera3_device_ops_t;
 
 /**********************************************************************
