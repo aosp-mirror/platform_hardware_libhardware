@@ -239,4 +239,4 @@ camera_module_t HAL_MODULE_INFO_SYM __attribute__((visibility("default"))) = {
     .set_torch_mode = v4l2_camera_hal::set_torch_mode,
     .init = nullptr,
     .get_physical_camera_info = nullptr,
-    .reserved = {nullptr, nullptr, nullptr, nullptr}};
+    .reserved = {nullptr, nullptr}};
