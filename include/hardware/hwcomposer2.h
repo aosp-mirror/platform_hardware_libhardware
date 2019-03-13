@@ -280,6 +280,8 @@ typedef enum {
     HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
     HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
     HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
+    HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
+    HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -405,6 +407,11 @@ typedef enum {
      * PowerMode::DOZE_SUSPEND.
      */
     HWC2_DISPLAY_CAPABILITY_DOZE = 2,
+
+    /**
+     * Specified that the display supports brightness operations.
+     */
+    HWC2_DISPLAY_CAPABILITY_BRIGHTNESS = 3,
 } hwc2_display_capability_t;
 
 /*
@@ -593,6 +600,8 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED: return "SetDisplayedContentSamplingEnabled";
         case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE: return "GetDisplayedContentSample";
         case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS: return "SetLayerPerFrameMetadataBlobs";
+        case HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT: return "GetDisplayBrightnessSupport";
+        case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS: return "SetDisplayBrightness";
         default: return "Unknown";
     }
 }
@@ -665,6 +674,8 @@ static inline const char* getDisplayCapabilityName(hwc2_display_capability_t cap
             return "SkipClientColorTransform";
         case HWC2_DISPLAY_CAPABILITY_DOZE:
             return "Doze";
+        case HWC2_DISPLAY_CAPABILITY_BRIGHTNESS:
+            return "Brightness";
         default:
             return "Unknown";
     }
@@ -832,6 +843,8 @@ enum class FunctionDescriptor : int32_t {
     SetDisplayedContentSamplingEnabled = HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
     GetDisplayedContentSample = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
     SetLayerPerFrameMetadataBlobs = HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
+    GetDisplayBrightnessSupport = HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
+    SetDisplayBrightness = HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -872,6 +885,7 @@ enum class DisplayCapability : int32_t {
     Invalid = HWC2_DISPLAY_CAPABILITY_INVALID,
     SkipClientColorTransform = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
     Doze = HWC2_DISPLAY_CAPABILITY_DOZE,
+    Brightness = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS,
 };
 TO_STRING(hwc2_display_capability_t, DisplayCapability, getDisplayCapabilityName)
 
@@ -2672,6 +2686,42 @@ typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLE)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CAPABILITIES)(
         hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumCapabilities,
         uint32_t* outCapabilities);
+
+/* getDisplayBrightnessSupport(displayToken)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * getDisplayBrightnessSupport returns whether brightness operations are supported on a display.
+ *
+ * Parameters:
+ *   outSupport - whether the display supports operations.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when the display is invalid.
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_DISPLAY_BRIGHTNESS_SUPPORT)(hwc2_device_t* device,
+        hwc2_display_t display, bool* outSupport);
+
+/* setDisplayBrightness(displayToken, brightnesss)
+ * Descriptor: HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * setDisplayBrightness sets the brightness of a display.
+ *
+ * Parameters:
+ *   brightness - a number between 0.0f (minimum brightness) and 1.0f (maximum brightness), or
+ *          -1.0f to turn the backlight off.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY   when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED   when brightness operations are not supported, or
+ *   HWC2_ERROR_BAD_PARAMETER when the brightness is invalid, or
+ *   HWC2_ERROR_NO_RESOURCES  when the brightness cannot be applied.
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_DISPLAY_BRIGHTNESS)(hwc2_device_t* device,
+        hwc2_display_t display, float brightness);
 
 __END_DECLS
 
