@@ -2053,6 +2053,14 @@ typedef enum camera3_error_msg_code {
      * available. Subsequent requests are unaffected, and the device remains
      * operational.  The frame_number field specifies the request for which
      * result metadata won't be available.
+     *
+     * >= CAMERA_DEVICE_API_VERSION_3_6:
+     *
+     * In case the result metadata is absent for a logical camera device, then the
+     * error_stream pointer must be set to NULL.
+     * If the result metadata cannot be produced for a physical camera device, then
+     * error_stream must contain a pointer to a respective stream associated with
+     * that physical device.
      */
     CAMERA3_MSG_ERROR_RESULT = 3,
 
