@@ -805,6 +805,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             // the pipe has already been shutdown, this buffer will be lost but we must
             //   simulate timing so we don't drain the output faster than realtime
             usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
+
+            pthread_mutex_lock(&rsxadev->lock);
+            out->frames_written += frames;
+            out->frames_written_since_standby += frames;
+            pthread_mutex_unlock(&rsxadev->lock);
             return bytes;
         }
     } else {
