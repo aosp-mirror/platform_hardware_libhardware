@@ -2687,7 +2687,11 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CAPABILITIES)(
         hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumCapabilities,
         uint32_t* outCapabilities);
 
-/* getDisplayBrightnessSupport(displayToken)
+/* Use getDisplayCapabilities instead. If brightness is supported, must return
+ * DisplayCapability::BRIGHTNESS as one of the display capabilities via getDisplayCapabilities.
+ * Only use getDisplayCapabilities as the source of truth to query brightness support.
+ *
+ * getDisplayBrightnessSupport(displayToken)
  * Descriptor: HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT
  * Required for HWC2 devices for composer 2.3
  * Optional for HWC2 devices for composer 2.1 and 2.2
