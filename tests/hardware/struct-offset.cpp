@@ -185,7 +185,9 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(gralloc_module_t, lockAsync, 152, 296);
     CHECK_MEMBER_AT(gralloc_module_t, unlockAsync, 156, 304);
     CHECK_MEMBER_AT(gralloc_module_t, lockAsync_ycbcr, 160, 312);
-    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 164, 320);
+    CHECK_MEMBER_AT(gralloc_module_t, getTransportSize, 164, 320);
+    CHECK_MEMBER_AT(gralloc_module_t, validateBufferSize, 168, 328);
+    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 172, 336);
 
     CHECK_MEMBER_AT(alloc_device_t, common, 0, 0);
     CHECK_MEMBER_AT(alloc_device_t, alloc, 64, 120);
