@@ -106,7 +106,6 @@ LOCAL_MODULE := camera.v4l2_test
 LOCAL_CFLAGS += $(v4l2_cflags)
 LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
 LOCAL_STATIC_LIBRARIES := \
-  libBionicGtestMain \
   libgmock \
   $(v4l2_static_libs) \
 
