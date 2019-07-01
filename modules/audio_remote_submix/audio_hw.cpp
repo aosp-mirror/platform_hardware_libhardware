@@ -488,17 +488,26 @@ static void submix_audio_device_destroy_pipe_l(struct submix_audio_device * cons
     ALOGV("submix_audio_device_destroy_pipe_l()");
     int route_idx = -1;
     if (in != NULL) {
+        bool shut_down = false;
 #if ENABLE_LEGACY_INPUT_OPEN
         const_cast<struct submix_stream_in*>(in)->ref_count--;
         route_idx = in->route_handle;
         ALOG_ASSERT(rsxadev->routes[route_idx].input == in);
         if (in->ref_count == 0) {
             rsxadev->routes[route_idx].input = NULL;
+            shut_down = true;
         }
         ALOGV("submix_audio_device_destroy_pipe_l(): input ref_count %d", in->ref_count);
 #else
         rsxadev->input = NULL;
+        shut_down = true;
 #endif // ENABLE_LEGACY_INPUT_OPEN
+        if (shut_down) {
+            sp <MonoPipe> sink = rsxadev->routes[in->route_handle].rsxSink;
+            if (sink != NULL) {
+              sink->shutdown(true);
+            }
+        }
     }
     if (out != NULL) {
         route_idx = out->route_handle;
@@ -796,6 +805,11 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
             // the pipe has already been shutdown, this buffer will be lost but we must
             //   simulate timing so we don't drain the output faster than realtime
             usleep(frames * 1000000 / out_get_sample_rate(&stream->common));
+
+            pthread_mutex_lock(&rsxadev->lock);
+            out->frames_written += frames;
+            out->frames_written_since_standby += frames;
+            pthread_mutex_unlock(&rsxadev->lock);
             return bytes;
         }
     } else {
@@ -1648,6 +1662,12 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     ALOGV("adev_open_input_stream(): about to create pipe");
     submix_audio_device_create_pipe_l(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
                                     DEFAULT_PIPE_PERIOD_COUNT, in, NULL, address, route_idx);
+
+    sp <MonoPipe> sink = rsxadev->routes[route_idx].rsxSink;
+    if (sink != NULL) {
+        sink->shutdown(false);
+    }
+
 #if LOG_STREAMS_TO_FILES
     if (in->log_fd >= 0) close(in->log_fd);
     in->log_fd = open(LOG_STREAM_IN_FILENAME, O_CREAT | O_TRUNC | O_WRONLY,

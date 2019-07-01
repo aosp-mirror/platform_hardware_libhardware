@@ -675,7 +675,6 @@ typedef int32_t /*gralloc1_error_t*/ (*GRALLOC1_PFN_GET_STRIDE)(
 
 /* getTransportSize(..., outNumFds, outNumInts)
  * Function descriptor: GRALLOC1_FUNCTION_GET_TRANSPORT_SIZE
- * This function is optional for all gralloc1 devices.
  *
  * Get the transport size of a buffer. An imported buffer handle is a raw
  * buffer handle with the process-local runtime data appended. This
@@ -710,7 +709,6 @@ typedef struct gralloc1_buffer_descriptor_info {
 
 /* validateBufferSize(..., )
  * Function descriptor: GRALLOC1_FUNCTION_VALIDATE_BUFFER_SIZE
- * This function is optional for all gralloc1 devices.
  *
  * Validate that the buffer can be safely accessed by a caller who assumes
  * the specified descriptorInfo and stride. This must at least validate
