@@ -472,7 +472,7 @@ static void submix_audio_device_release_pipe_l(struct submix_audio_device * cons
         rsxadev->routes[route_idx].rsxSource.clear();
     }
     memset(rsxadev->routes[route_idx].address, 0, AUDIO_DEVICE_MAX_ADDRESS_LEN);
-#ifdef ENABLE_RESAMPLING
+#if ENABLE_RESAMPLING
     memset(rsxadev->routes[route_idx].resampler_buffer, 0,
             sizeof(int16_t) * DEFAULT_PIPE_SIZE_IN_FRAMES);
 #endif
@@ -499,7 +499,9 @@ static void submix_audio_device_destroy_pipe_l(struct submix_audio_device * cons
         }
         ALOGV("submix_audio_device_destroy_pipe_l(): input ref_count %d", in->ref_count);
 #else
-        rsxadev->input = NULL;
+        route_idx = in->route_handle;
+        ALOG_ASSERT(rsxadev->routes[route_idx].input == in);
+        rsxadev->routes[route_idx].input = NULL;
         shut_down = true;
 #endif // ENABLE_LEGACY_INPUT_OPEN
         if (shut_down) {
@@ -1618,7 +1620,9 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     if (!in) {
         in = (struct submix_stream_in *)calloc(1, sizeof(struct submix_stream_in));
         if (!in) return -ENOMEM;
+#if ENABLE_LEGACY_INPUT_OPEN
         in->ref_count = 1;
+#endif
 
         // Initialize the function pointer tables (v-tables).
         in->stream.common.get_sample_rate = in_get_sample_rate;
@@ -1709,10 +1713,16 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
     int n = snprintf(msg, sizeof(msg), "\nReroute submix audio module:\n");
     write(fd, &msg, n);
     for (int i=0 ; i < MAX_ROUTES ; i++) {
+#if ENABLE_RESAMPLING
         n = snprintf(msg, sizeof(msg), " route[%d] rate in=%d out=%d, addr=[%s]\n", i,
                 rsxadev->routes[i].config.input_sample_rate,
                 rsxadev->routes[i].config.output_sample_rate,
                 rsxadev->routes[i].address);
+#else
+        n = snprintf(msg, sizeof(msg), " route[%d], rate=%d addr=[%s]\n", i,
+                rsxadev->routes[i].config.common.sample_rate,
+                rsxadev->routes[i].address);
+#endif
         write(fd, &msg, n);
     }
     return 0;
