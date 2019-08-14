@@ -31,8 +31,6 @@
 // # of milliseconds to allow for timing measurements
 #define TIMING_TOLERANCE_MS 25
 
-#define MSC_ANDROID_TIME_SEC  0x6
-#define MSC_ANDROID_TIME_USEC 0x7
 
 using ::testing::_;
 using ::testing::NiceMock;
@@ -65,35 +63,6 @@ protected:
     NiceMock<MockInputReportDefinition> mReportDef;
     NiceMock<MockInputDeviceDefinition> mDeviceDef;
 };
-
-TEST_F(EvdevDeviceTest, testOverrideTime) {
-    auto node = std::make_shared<MockInputDeviceNode>();
-    auto device = std::make_unique<EvdevDevice>(&mHost, node);
-    ASSERT_TRUE(device != nullptr);
-
-    // Send two timestamp override events before an input event.
-    nsecs_t when = 2ULL;
-    InputEvent msc1 = { when, EV_MSC, MSC_ANDROID_TIME_SEC, 1 };
-    InputEvent msc2 = { when, EV_MSC, MSC_ANDROID_TIME_USEC, 900000 };
-
-    // Send a key down and syn. Should get the overridden timestamp.
-    InputEvent keyDown = { when, EV_KEY, KEY_HOME, 1 };
-    InputEvent syn = { when, EV_SYN, SYN_REPORT, 0 };
-
-    // Send a key up, which should be at the reported timestamp.
-    InputEvent keyUp = { when, EV_KEY, KEY_HOME, 0 };
-
-    device->processInput(msc1, when);
-    device->processInput(msc2, when);
-    device->processInput(keyDown, when);
-    device->processInput(syn, when);
-    device->processInput(keyUp, when);
-
-    nsecs_t expectedWhen = s2ns(1) + us2ns(900000);
-    EXPECT_EQ(expectedWhen, keyDown.when);
-    EXPECT_EQ(expectedWhen, syn.when);
-    EXPECT_EQ(when, keyUp.when);
-}
 
 TEST_F(EvdevDeviceTest, testWrongClockCorrection) {
     auto node = std::make_shared<MockInputDeviceNode>();

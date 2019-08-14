@@ -72,9 +72,6 @@ private:
     InputDeviceHandle* mDeviceHandle = nullptr;
     std::vector<std::unique_ptr<InputMapper>> mMappers;
     uint32_t mClasses = 0;
-
-    int32_t mOverrideSec = 0;
-    int32_t mOverrideUsec = 0;
 };
 
 /* Input device classes. */
