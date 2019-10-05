@@ -203,6 +203,12 @@ typedef enum {
     HWC2_DISPLAY_TYPE_VIRTUAL = 2,
 } hwc2_display_type_t;
 
+/* Physical display types returned by getDisplayConnectionType */
+typedef enum {
+    HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL = 0,
+    HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL = 1,
+} hwc2_display_connection_type_t;
+
 /* Return codes from all functions */
 typedef enum {
     HWC2_ERROR_NONE = 0,
@@ -282,6 +288,9 @@ typedef enum {
     HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
     HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
     HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
+
+    // composer 2.4
+    HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -509,6 +518,14 @@ static inline const char* getDisplayTypeName(hwc2_display_type_t type) {
     }
 }
 
+static inline const char* getDisplayConnectionTypeName(hwc2_display_connection_type_t type) {
+    switch (type) {
+        case HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL: return "Internal";
+        case HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL: return "External";
+        default: return "Unknown";
+    }
+}
+
 static inline const char* getErrorName(hwc2_error_t error) {
     switch (error) {
         case HWC2_ERROR_NONE: return "None";
@@ -602,6 +619,10 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS: return "SetLayerPerFrameMetadataBlobs";
         case HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT: return "GetDisplayBrightnessSupport";
         case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS: return "SetDisplayBrightness";
+
+        // composer 2.4
+        case HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE: return "GetDisplayConnectionType";
+
         default: return "Unknown";
     }
 }
@@ -767,6 +788,12 @@ enum class DisplayType : int32_t {
 };
 TO_STRING(hwc2_display_type_t, DisplayType, getDisplayTypeName)
 
+enum class DisplayConnectionType : uint32_t {
+    Internal = HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL,
+    External = HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL,
+};
+TO_STRING(hwc2_display_connection_type_t, DisplayConnectionType, getDisplayConnectionTypeName)
+
 enum class Error : int32_t {
     None = HWC2_ERROR_NONE,
     BadConfig = HWC2_ERROR_BAD_CONFIG,
@@ -845,6 +872,9 @@ enum class FunctionDescriptor : int32_t {
     SetLayerPerFrameMetadataBlobs = HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
     GetDisplayBrightnessSupport = HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
     SetDisplayBrightness = HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
+
+    // composer 2.4
+    GetDisplayConnectionType = HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -2726,6 +2756,22 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_DISPLAY_BRIGHTNESS_SUPPORT)(hwc2_
  */
 typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_DISPLAY_BRIGHTNESS)(hwc2_device_t* device,
         hwc2_display_t display, float brightness);
+
+/* getDisplayConnectionType(..., outType)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE
+ * Optional for all HWC2 devices
+ *
+ * Returns whether the given physical display is internal or external.
+ *
+ * Parameters:
+ *   outType - the connection type of the display; pointer will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when the display is invalid or virtual.
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CONNECTION_TYPE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        uint32_t* /*hwc2_display_connection_type_t*/ outType);
 
 __END_DECLS
 
