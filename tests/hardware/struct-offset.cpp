@@ -185,7 +185,9 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(gralloc_module_t, lockAsync, 152, 296);
     CHECK_MEMBER_AT(gralloc_module_t, unlockAsync, 156, 304);
     CHECK_MEMBER_AT(gralloc_module_t, lockAsync_ycbcr, 160, 312);
-    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 164, 320);
+    CHECK_MEMBER_AT(gralloc_module_t, getTransportSize, 164, 320);
+    CHECK_MEMBER_AT(gralloc_module_t, validateBufferSize, 168, 328);
+    CHECK_MEMBER_AT(gralloc_module_t, reserved_proc, 172, 336);
 
     CHECK_MEMBER_AT(alloc_device_t, common, 0, 0);
     CHECK_MEMBER_AT(alloc_device_t, alloc, 64, 120);
@@ -216,7 +218,10 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(camera_module_t, open_legacy, 144, 280);
     CHECK_MEMBER_AT(camera_module_t, set_torch_mode, 148, 288);
     CHECK_MEMBER_AT(camera_module_t, init, 152, 296);
-    CHECK_MEMBER_AT(camera_module_t, reserved, 156, 304);
+    CHECK_MEMBER_AT(camera_module_t, get_physical_camera_info, 156, 304);
+    CHECK_MEMBER_AT(camera_module_t, is_stream_combination_supported, 160, 312);
+    CHECK_MEMBER_AT(camera_module_t, notify_device_state_change, 164, 320);
+    CHECK_MEMBER_AT(camera_module_t, reserved, 168, 328);
 
     //Types defined in camera3.h
     CHECK_MEMBER_AT(camera3_device_ops_t, initialize, 0, 0);
@@ -227,6 +232,7 @@ void CheckOffsets(void) {
     CHECK_MEMBER_AT(camera3_device_ops_t, get_metadata_vendor_tag_ops, 20, 40);
     CHECK_MEMBER_AT(camera3_device_ops_t, dump, 24, 48);
     CHECK_MEMBER_AT(camera3_device_ops_t, flush, 28, 56);
-    CHECK_MEMBER_AT(camera3_device_ops_t, reserved, 32, 64);
+    CHECK_MEMBER_AT(camera3_device_ops_t, signal_stream_flush, 32, 64);
+    CHECK_MEMBER_AT(camera3_device_ops_t, is_reconfiguration_required, 36, 72);
+    CHECK_MEMBER_AT(camera3_device_ops_t, reserved, 40, 80);
 }
-
