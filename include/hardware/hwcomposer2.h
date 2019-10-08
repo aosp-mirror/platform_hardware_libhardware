@@ -270,7 +270,18 @@ typedef enum {
     HWC2_FUNCTION_GET_READBACK_BUFFER_FENCE,
     HWC2_FUNCTION_GET_RENDER_INTENTS,
     HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
-    HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX
+    HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
+
+    // composer 2.3
+    HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES,
+    HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
+    HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
+    HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
+    HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
+    HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
+    HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
+    HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -346,6 +357,62 @@ typedef enum {
     HWC2_MAX_CONTENT_LIGHT_LEVEL = 10,
     HWC2_MAX_FRAME_AVERAGE_LIGHT_LEVEL = 11,
 } hwc2_per_frame_metadata_key_t;
+
+/* SetDisplayedContentSampling values passed to setDisplayedContentSamplingEnabled */
+typedef enum {
+    HWC2_DISPLAYED_CONTENT_SAMPLING_INVALID = 0,
+
+    /* Enable displayed content sampling */
+    HWC2_DISPLAYED_CONTENT_SAMPLING_ENABLE = 1,
+
+    /* Disable displayed content sampling */
+    HWC2_DISPLAYED_CONTENT_SAMPLING_DISABLE = 2,
+} hwc2_displayed_content_sampling_t;
+
+typedef enum {
+    HWC2_FORMAT_COMPONENT_0 = 1 << 0, /* The first component (eg, for RGBA_8888, this is R) */
+    HWC2_FORMAT_COMPONENT_1 = 1 << 1, /* The second component (eg, for RGBA_8888, this is G) */
+    HWC2_FORMAT_COMPONENT_2 = 1 << 2, /* The third component (eg, for RGBA_8888, this is B) */
+    HWC2_FORMAT_COMPONENT_3 = 1 << 3, /* The fourth component (eg, for RGBA_8888, this is A) */
+} hwc2_format_color_component_t;
+
+/* Optional display capabilities which may be supported by some displays.
+ * The particular set of supported capabilities for a given display may be
+ * retrieved using getDisplayCapabilities. */
+typedef enum {
+    HWC2_DISPLAY_CAPABILITY_INVALID = 0,
+
+    /**
+     * Specifies that the display must apply a color transform even when either
+     * the client or the device has chosen that all layers should be composed by
+     * the client. This prevents the client from applying the color transform
+     * during its composition step.
+     * If getDisplayCapabilities is supported, the global capability
+     * HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM is ignored.
+     * If getDisplayCapabilities is not supported, and the global capability
+     * HWC2_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM is returned by getCapabilities,
+     * then all displays must be treated as having
+     * HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM.
+     */
+    HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM = 1,
+
+    /**
+     * Specifies that the display supports PowerMode::DOZE and
+     * PowerMode::DOZE_SUSPEND. DOZE_SUSPEND may not provide any benefit
+     * over DOZE (see the definition of PowerMode for more information),
+     * but if both DOZE and DOZE_SUSPEND are no different from
+     * PowerMode::ON, the device must not claim support.
+     * HWC2_DISPLAY_CAPABILITY_DOZE must be returned by getDisplayCapabilities
+     * when getDozeSupport indicates the display supports PowerMode::DOZE and
+     * PowerMode::DOZE_SUSPEND.
+     */
+    HWC2_DISPLAY_CAPABILITY_DOZE = 2,
+
+    /**
+     * Specified that the display supports brightness operations.
+     */
+    HWC2_DISPLAY_CAPABILITY_BRIGHTNESS = 3,
+} hwc2_display_capability_t;
 
 /*
  * Stringification Functions
@@ -524,6 +591,17 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_RENDER_INTENTS: return "GetRenderIntents";
         case HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT: return "SetColorModeWithRenderIntent";
         case HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX: return "GetDataspaceSaturationMatrix";
+
+        // composer 2.3
+        case HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA: return "GetDisplayIdentificationData";
+        case HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES: return "GetDisplayCapabilities";
+        case HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM: return "SetLayerColorTransform";
+        case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES: return "GetDisplayedContentSamplingAttributes";
+        case HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED: return "SetDisplayedContentSamplingEnabled";
+        case HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE: return "GetDisplayedContentSample";
+        case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS: return "SetLayerPerFrameMetadataBlobs";
+        case HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT: return "GetDisplayBrightnessSupport";
+        case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS: return "SetDisplayBrightness";
         default: return "Unknown";
     }
 }
@@ -566,6 +644,40 @@ static inline const char* getVsyncName(hwc2_vsync_t vsync) {
         case HWC2_VSYNC_ENABLE: return "Enable";
         case HWC2_VSYNC_DISABLE: return "Disable";
         default: return "Unknown";
+    }
+}
+
+static inline const char* getDisplayedContentSamplingName(
+        hwc2_displayed_content_sampling_t sampling) {
+    switch (sampling) {
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_INVALID: return "Invalid";
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_ENABLE: return "Enable";
+        case HWC2_DISPLAYED_CONTENT_SAMPLING_DISABLE: return "Disable";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getFormatColorComponentName(hwc2_format_color_component_t component) {
+    switch (component) {
+        case HWC2_FORMAT_COMPONENT_0: return "FirstComponent";
+        case HWC2_FORMAT_COMPONENT_1: return "SecondComponent";
+        case HWC2_FORMAT_COMPONENT_2: return "ThirdComponent";
+        case HWC2_FORMAT_COMPONENT_3: return "FourthComponent";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getDisplayCapabilityName(hwc2_display_capability_t capability) {
+    switch (capability) {
+        case HWC2_DISPLAY_CAPABILITY_INVALID: return "Invalid";
+        case HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM:
+            return "SkipClientColorTransform";
+        case HWC2_DISPLAY_CAPABILITY_DOZE:
+            return "Doze";
+        case HWC2_DISPLAY_CAPABILITY_BRIGHTNESS:
+            return "Brightness";
+        default:
+            return "Unknown";
     }
 }
 
@@ -722,6 +834,17 @@ enum class FunctionDescriptor : int32_t {
     GetRenderIntents = HWC2_FUNCTION_GET_RENDER_INTENTS,
     SetColorModeWithRenderIntent = HWC2_FUNCTION_SET_COLOR_MODE_WITH_RENDER_INTENT,
     GetDataspaceSaturationMatrix = HWC2_FUNCTION_GET_DATASPACE_SATURATION_MATRIX,
+
+    // composer 2.3
+    GetDisplayIdentificationData = HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA,
+    GetDisplayCapabilities = HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES,
+    SetLayerColorTransform = HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM,
+    GetDisplayedContentSamplingAttributes = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES,
+    SetDisplayedContentSamplingEnabled = HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED,
+    GetDisplayedContentSample = HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE,
+    SetLayerPerFrameMetadataBlobs = HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
+    GetDisplayBrightnessSupport = HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
+    SetDisplayBrightness = HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -757,6 +880,14 @@ enum class Vsync : int32_t {
     Disable = HWC2_VSYNC_DISABLE,
 };
 TO_STRING(hwc2_vsync_t, Vsync, getVsyncName)
+
+enum class DisplayCapability : int32_t {
+    Invalid = HWC2_DISPLAY_CAPABILITY_INVALID,
+    SkipClientColorTransform = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
+    Doze = HWC2_DISPLAY_CAPABILITY_DOZE,
+    Brightness = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS,
+};
+TO_STRING(hwc2_display_capability_t, DisplayCapability, getDisplayCapabilityName)
 
 } // namespace HWC2
 
@@ -1373,6 +1504,35 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_REQUESTS)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_TYPE)(
         hwc2_device_t* device, hwc2_display_t display,
         int32_t* /*hwc2_display_type_t*/ outType);
+
+/* getDisplayIdentificationData(..., outPort, outDataSize, outData)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA
+ * Optional for HWC2 devices
+ *
+ * If supported, getDisplayIdentificationData returns the port and data that
+ * describe a physical display. The port is a unique number that identifies a
+ * physical connector (e.g. eDP, HDMI) for display output. The data blob is
+ * parsed to determine its format, typically EDID 1.3 as specified in VESA
+ * E-EDID Standard Release A Revision 1.
+ *
+ * Devices for which display identification is unsupported must return null when
+ * getFunction is called with HWC2_FUNCTION_GET_DISPLAY_IDENTIFICATION_DATA.
+ *
+ * Parameters:
+ *   outPort - the connector to which the display is connected;
+ *             pointer will be non-NULL
+ *   outDataSize - if outData is NULL, the size in bytes of the data which would
+ *       have been returned; if outData is not NULL, the size of outData, which
+ *       must not exceed the value stored in outDataSize prior to the call;
+ *       pointer will be non-NULL
+ *   outData - the EDID 1.3 blob identifying the display
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_IDENTIFICATION_DATA)(
+        hwc2_device_t* device, hwc2_display_t display, uint8_t* outPort,
+        uint32_t* outDataSize, uint8_t* outData);
 
 /* getDozeSupport(..., outSupport)
  * Descriptor: HWC2_FUNCTION_GET_DOZE_SUPPORT
@@ -2073,6 +2233,42 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_PER_FRAME_METADATA)(
         uint32_t numElements, const int32_t* /*hw2_per_frame_metadata_key_t*/ keys,
         const float* metadata);
 
+/* setLayerPerFrameMetadataBlobs(...,numElements, keys, sizes, blobs)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS
+ * Optional for HWC2 devices
+ *
+ * If supported, (getFunction(HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS)
+ * is non-null), sets the metadata for the given display and layer.
+ *
+ * Upon returning from this function, the metadata change must have fully taken
+ * effect.
+ *
+ * This function must only be called if getPerFrameMetadataKeys is non-NULL
+ * and returns at least one key that corresponds to a blob type.
+ *
+ * Current valid blob type keys are: HDR10_PLUS_SEI
+ *
+ * Parameters:
+ *   numElements is the number of elements in each of the keys, sizes, and
+ *   metadata arrays
+ *   keys is a pointer to an array of keys.  Current valid keys are those listed
+ *   above as valid blob type keys.
+ *   sizes is a pointer to an array of unsigned ints specifying the sizes of
+ *   each metadata blob
+ *   metadata is a pointer to a blob of data holding all blobs contiguously in
+ *   memory
+ *
+ *   Returns HWC2_ERROR_NONE or one of the following erros:
+ *     HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *     HWC2_ERROR_BAD_PARAMETER - sizes of keys and metadata parameters does
+ *     not match numElements, numElements < 0, or keys contains a
+ *     non-valid key (see above for current valid blob type keys).
+ *     HWC2_ERROR_UNSUPPORTED - metadata is not supported on this display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_PER_FRAME_METADATA_BLOBS)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        uint32_t numElements, const int32_t* keys, const uint32_t* sizes,
+        const uint8_t* metadata);
 /*
  * Layer State Functions
  *
@@ -2325,6 +2521,211 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_VISIBLE_REGION)(
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_Z_ORDER)(
         hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
         uint32_t z);
+
+/* setLayerColorTransform(..., matrix)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_COLOR_TRANSFORM
+ * Optional by all HWC2 devices
+ *
+ * Sets a matrix for color transform which will be applied on this layer
+ * before composition.
+ *
+ * If the device is not capable of apply the matrix on this layer, it must force
+ * this layer to client composition during VALIDATE_DISPLAY.
+ *
+ * The matrix provided is an affine color transformation of the following form:
+ *
+ * |r.r r.g r.b 0|
+ * |g.r g.g g.b 0|
+ * |b.r b.g b.b 0|
+ * |Tr  Tg  Tb  1|
+ *
+ * This matrix must be provided in row-major form:
+ *
+ * {r.r, r.g, r.b, 0, g.r, ...}.
+ *
+ * Given a matrix of this form and an input color [R_in, G_in, B_in],
+ * the input color must first be converted to linear space
+ * [R_linear, G_linear, B_linear], then the output linear color
+ * [R_out_linear, G_out_linear, B_out_linear] will be:
+ *
+ * R_out_linear = R_linear * r.r + G_linear * g.r + B_linear * b.r + Tr
+ * G_out_linear = R_linear * r.g + G_linear * g.g + B_linear * b.g + Tg
+ * B_out_linear = R_linear * r.b + G_linear * g.b + B_linear * b.b + Tb
+ *
+ * [R_out_linear, G_out_linear, B_out_linear] must then be converted to
+ * gamma space: [R_out, G_out, B_out] before blending.
+ *
+ * Parameters:
+ *   matrix - a 4x4 transform matrix (16 floats) as described above
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_LAYER_COLOR_TRANSFORM)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_layer_t layer,
+        const float* matrix);
+
+/* getDisplayedContentSamplingAttributes(...,
+ *      format, dataspace, supported_components, max_frames)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES
+ * Optional by all HWC2 devices
+ *
+ * Query for what types of color sampling the hardware supports.
+ *
+ * Parameters:
+ *   format - The format of the sampled pixels; pointer will be non-NULL
+ *   dataspace - The dataspace of the sampled pixels; pointer will be non-NULL
+ *   supported_components - The mask of which components can be sampled; pointer
+ *      will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when an invalid display was passed in, or
+ *   HWC2_ERROR_UNSUPPORTED when there is no efficient way to sample.
+ */
+typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLING_ATTRIBUTES)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t* /* android_pixel_format_t */ format,
+        int32_t* /* android_dataspace_t */ dataspace,
+        uint8_t* /* mask of android_component_t */ supported_components);
+
+/* setDisplayedContentSamplingEnabled(..., enabled)
+ * Descriptor: HWC2_FUNCTION_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED
+ * Optional by all HWC2 devices
+ *
+ * Enables or disables the collection of color content statistics
+ * on this display.
+ *
+ * Sampling occurs on the contents of the final composition on this display
+ * (i.e., the contents presented on screen).
+ *
+ * Sampling support is optional, and is set to DISABLE by default.
+ * On each call to ENABLE, all collected statistics will be reset.
+ *
+ * Sample data can be queried via getDisplayedContentSample().
+ *
+ * Parameters:
+ *   enabled - indicates whether to enable or disable sampling.
+ *   component_mask - The mask of which components should be sampled.
+ *      If zero, all supported components are to be enabled.
+ *   max_frames - is the maximum number of frames that should be stored before
+ *      discard. The sample represents the most-recently posted frames.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when an invalid display handle was passed in,
+ *   HWC2_ERROR_BAD_PARAMETER when enabled was an invalid value, or
+ *   HWC2_ERROR_NO_RESOURCES when the requested ringbuffer size via max_frames
+ *                           was not available.
+ *   HWC2_ERROR_UNSUPPORTED when there is no efficient way to sample.
+ */
+typedef int32_t (*HWC2_PFN_SET_DISPLAYED_CONTENT_SAMPLING_ENABLED)(
+        hwc2_device_t* device, hwc2_display_t display,
+        int32_t /*hwc2_displayed_content_sampling_t*/ enabled,
+        uint8_t /* mask of android_component_t */ component_mask,
+        uint64_t max_frames);
+
+/* getDisplayedContentSample(..., component, max_frames, timestamp,
+ *     samples_size, samples, frame_count)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAYED_CONTENT_SAMPLE
+ * Optional by all HWC2 devices
+ *
+ * Collects the results of display content color sampling for display.
+ *
+ * Collection of data can occur whether the sampling is in ENABLE or
+ * DISABLE state.
+ *
+ * Parameters:
+ * max_frames - is the maximum number of frames that should be represented in
+ *      the sample. The sample represents the most-recently posted frames.
+ *      If max_frames is 0, all frames are to be represented by the sample.
+ * timestamp - is the timestamp after which any frames were posted that should
+ *      be included in the sample. Timestamp is CLOCK_MONOTONIC.
+ *      If timestamp is 0, do not filter from the sample by time.
+ * frame_count - The number of frames represented by this sample; pointer will
+ *      be non-NULL.
+ * samples_size - The sizes of the color histogram representing the color
+ *      sampling. Sample_sizes are indexed in the same order as
+ *      HWC2_FORMAT_COMPONENT_.
+ * samples - The arrays of data corresponding to the sampling data. Samples are
+ *      indexed in the same order as HWC2_FORMAT_COMPONENT_.
+ *      The size of each sample is the samples_size for the same index.
+ *      Each components sample is an array that is to be filled with the
+ *      evenly-weighted buckets of a histogram counting how many times a pixel
+ *      of the given component was displayed onscreen. Caller owns the data and
+ *      pointer may be NULL to query samples_size.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY   when an invalid display was passed in, or
+ *   HWC2_ERROR_UNSUPPORTED   when there is no efficient way to sample, or
+ *   HWC2_ERROR_BAD_PARAMETER when the component is not supported by the hardware.
+ */
+typedef int32_t (*HWC2_PFN_GET_DISPLAYED_CONTENT_SAMPLE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        uint64_t max_frames, uint64_t timestamp,
+        uint64_t* frame_count, int32_t samples_size[4], uint64_t* samples[4]);
+
+/* getDisplayCapabilities(..., outCapabilities)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_CAPABILITIES
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * getDisplayCapabilities returns a list of supported capabilities
+ * (as described in the definition of Capability above).
+ * This list must not change after initialization.
+ *
+ * Parameters:
+ *   outNumCapabilities - if outCapabilities was nullptr, returns the number of capabilities
+ *       if outCapabilities was not nullptr, returns the number of capabilities stored in
+ *       outCapabilities, which must not exceed the value stored in outNumCapabilities prior
+ *       to the call; pointer will be non-NULL
+ *   outCapabilities - a list of supported capabilities.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CAPABILITIES)(
+        hwc2_device_t* device, hwc2_display_t display, uint32_t* outNumCapabilities,
+        uint32_t* outCapabilities);
+
+/* Use getDisplayCapabilities instead. If brightness is supported, must return
+ * DisplayCapability::BRIGHTNESS as one of the display capabilities via getDisplayCapabilities.
+ * Only use getDisplayCapabilities as the source of truth to query brightness support.
+ *
+ * getDisplayBrightnessSupport(displayToken)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * getDisplayBrightnessSupport returns whether brightness operations are supported on a display.
+ *
+ * Parameters:
+ *   outSupport - whether the display supports operations.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when the display is invalid.
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_DISPLAY_BRIGHTNESS_SUPPORT)(hwc2_device_t* device,
+        hwc2_display_t display, bool* outSupport);
+
+/* setDisplayBrightness(displayToken, brightnesss)
+ * Descriptor: HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS
+ * Required for HWC2 devices for composer 2.3
+ * Optional for HWC2 devices for composer 2.1 and 2.2
+ *
+ * setDisplayBrightness sets the brightness of a display.
+ *
+ * Parameters:
+ *   brightness - a number between 0.0f (minimum brightness) and 1.0f (maximum brightness), or
+ *          -1.0f to turn the backlight off.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY   when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED   when brightness operations are not supported, or
+ *   HWC2_ERROR_BAD_PARAMETER when the brightness is invalid, or
+ *   HWC2_ERROR_NO_RESOURCES  when the brightness cannot be applied.
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_DISPLAY_BRIGHTNESS)(hwc2_device_t* device,
+        hwc2_display_t display, float brightness);
 
 __END_DECLS
 

@@ -117,6 +117,22 @@ __BEGIN_DECLS
  * 4. Module initialization method. This will be called by the camera service
  *    right after the HAL module is loaded, to allow for one-time initialization
  *    of the HAL. It is called before any other module methods are invoked.
+ *
+ *******************************************************************************
+ * Version: 2.5 [CAMERA_MODULE_API_VERSION_2_5]
+ *
+ * This camera module version adds below API changes:
+ *
+ * 1. Support to query characteristics of a non-standalone physical camera, which can
+ *    only be accessed as part of a logical camera. It also adds camera stream combination
+ *    query.
+ *
+ * 2. Ability to query whether a particular camera stream combination is
+ *    supported by the camera device.
+ *
+ * 3. Device state change notification. This module version also supports
+ *    notification about the overall device state change, such as
+ *    folding/unfolding, or covering/uncovering of shutter.
  */
 
 /**
@@ -133,8 +149,9 @@ __BEGIN_DECLS
 #define CAMERA_MODULE_API_VERSION_2_2 HARDWARE_MODULE_API_VERSION(2, 2)
 #define CAMERA_MODULE_API_VERSION_2_3 HARDWARE_MODULE_API_VERSION(2, 3)
 #define CAMERA_MODULE_API_VERSION_2_4 HARDWARE_MODULE_API_VERSION(2, 4)
+#define CAMERA_MODULE_API_VERSION_2_5 HARDWARE_MODULE_API_VERSION(2, 5)
 
-#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_4
+#define CAMERA_MODULE_API_VERSION_CURRENT CAMERA_MODULE_API_VERSION_2_5
 
 /**
  * All device versions <= HARDWARE_DEVICE_API_VERSION(1, 0xFF) must be treated
@@ -149,6 +166,7 @@ __BEGIN_DECLS
 #define CAMERA_DEVICE_API_VERSION_3_3 HARDWARE_DEVICE_API_VERSION(3, 3)
 #define CAMERA_DEVICE_API_VERSION_3_4 HARDWARE_DEVICE_API_VERSION(3, 4)
 #define CAMERA_DEVICE_API_VERSION_3_5 HARDWARE_DEVICE_API_VERSION(3, 5)
+#define CAMERA_DEVICE_API_VERSION_3_6 HARDWARE_DEVICE_API_VERSION(3, 6)
 
 // Device version 3.5 is current, older HAL camera device versions are not
 // recommended for new devices.
@@ -644,6 +662,192 @@ typedef struct camera_module_callbacks {
 
 } camera_module_callbacks_t;
 
+/**
+ * camera_stream_t:
+ *
+ * A handle to a single camera input or output stream. A stream is defined by
+ * the framework by its buffer resolution and format and gralloc usage flags.
+ *
+ * The stream structures are owned by the framework and pointers to a
+ * camera_stream passed into the HAL by is_stream_combination_supported() are
+ * only valid within the scope of the call.
+ *
+ * All camera_stream members are immutable.
+ */
+typedef struct camera_stream {
+    /**
+     * The type of the stream, one of the camera3_stream_type_t values.
+     */
+    int stream_type;
+
+    /**
+     * The width in pixels of the buffers in this stream
+     */
+    uint32_t width;
+
+    /**
+     * The height in pixels of the buffers in this stream
+     */
+    uint32_t height;
+
+    /**
+     * The pixel format for the buffers in this stream. Format is a value from
+     * the HAL_PIXEL_FORMAT_* list in system/core/include/system/graphics.h, or
+     * from device-specific headers.
+     *
+     * If HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED is used, then the platform
+     * gralloc module will select a format based on the usage flags provided by
+     * the camera device and the other endpoint of the stream.
+     *
+     */
+    int format;
+
+    /**
+     * The gralloc usage flags for this stream, as needed by the HAL. The usage
+     * flags are defined in gralloc.h (GRALLOC_USAGE_*), or in device-specific
+     * headers.
+     *
+     * For output streams, these are the HAL's producer usage flags. For input
+     * streams, these are the HAL's consumer usage flags. The usage flags from
+     * the producer and the consumer will be combined together and then passed
+     * to the platform gralloc HAL module for allocating the gralloc buffers for
+     * each stream.
+     *
+     * The usage flag for an output stream may be bitwise
+     * combination of usage flags for multiple consumers, for the purpose of
+     * sharing one camera stream between those consumers. The HAL must fail
+     * the stream combination query call with -EINVAL if the combined flags cannot be
+     * supported due to imcompatible buffer format, dataSpace, or other hardware
+     * limitations.
+     */
+    uint32_t usage;
+
+    /**
+     * A field that describes the contents of the buffer. The format and buffer
+     * dimensions define the memory layout and structure of the stream buffers,
+     * while dataSpace defines the meaning of the data within the buffer.
+     *
+     * For most formats, dataSpace defines the color space of the image data.
+     * In addition, for some formats, dataSpace indicates whether image- or
+     * depth-based data is requested.  See system/core/include/system/graphics.h
+     * for details of formats and valid dataSpace values for each format.
+     *
+     * Always set by the camera service. The dataspace values are set
+     * using the V0 dataspace definitions in graphics.h
+     */
+    android_dataspace_t data_space;
+
+    /**
+     * The required output rotation of the stream, one of
+     * the camera3_stream_rotation_t values. This must be inspected by HAL along
+     * with stream width and height. For example, if the rotation is 90 degree
+     * and the stream width and height is 720 and 1280 respectively, camera service
+     * will supply buffers of size 720x1280, and HAL should capture a 1280x720 image
+     * and rotate the image by 90 degree counterclockwise. The rotation field is
+     * no-op when the stream type is input. Camera HAL must ignore the rotation
+     * field for an input stream.
+     *
+     * Always set by camera service. HAL must inspect this field during stream
+     * combination query and return -EINVAL if it cannot perform such rotation.
+     * HAL must always support CAMERA3_STREAM_ROTATION_0, so a
+     * is_stream_combination_supported() call must not fail for unsupported rotation if
+     * rotation field of all streams is CAMERA3_STREAM_ROTATION_0.
+     *
+     */
+    int rotation;
+
+    /**
+     * The physical camera id this stream belongs to.
+     * Always set by camera service. If the camera device is not a logical
+     * multi camera, or if the camera is a logical multi camera but the stream
+     * is not a physical output stream, this field will point to a 0-length
+     * string.
+     *
+     * A logical multi camera is a camera device backed by multiple physical
+     * cameras that are also exposed to the application. And for a logical
+     * multi camera, a physical output stream is an output stream specifically
+     * requested on an underlying physical camera.
+     *
+     * For an input stream, this field is guaranteed to be a 0-length string.
+     */
+    const char* physical_camera_id;
+
+} camera_stream_t;
+
+/**
+ * camera_stream_combination_t:
+ *
+ * A structure of stream definitions, used by is_stream_combination_supported(). This
+ * structure defines all the input & output streams for specific camera use case.
+ */
+typedef struct camera_stream_combination {
+    /**
+     * The total number of streams by the framework.  This includes
+     * both input and output streams. The number of streams will be at least 1,
+     * and there will be at least one output-capable stream.
+     */
+    uint32_t num_streams;
+
+    /**
+     * An array of camera streams, defining the input/output
+     * stream combination for the camera HAL device.
+     *
+     * At most one input-capable stream may be defined.
+     *
+     * At least one output-capable stream must be defined.
+     */
+    camera_stream_t *streams;
+
+    /**
+     * The operation mode of streams in this stream combination, one of the value
+     * defined in camera3_stream_configuration_mode_t.
+     *
+     */
+    uint32_t operation_mode;
+
+} camera_stream_combination_t;
+
+/**
+ * device_state_t:
+ *
+ * Possible physical states of the overall device, for use with
+ * notify_device_state_change.
+ */
+typedef enum device_state {
+    /**
+     * The device is in its normal physical configuration. This is the default if the
+     * device does not support multiple different states.
+     */
+    NORMAL = 0,
+
+    /**
+     * Camera device(s) facing backward are covered.
+     */
+    BACK_COVERED = 1 << 0,
+
+    /**
+     * Camera device(s) facing foward are covered.
+     */
+    FRONT_COVERED = 1 << 1,
+
+    /**
+     * The device is folded.  If not set, the device is unfolded or does not
+     * support folding.
+     *
+     * The exact point when this status change happens during the folding
+     * operation is device-specific.
+     */
+    FOLDED = 1 << 2,
+
+    /**
+     * First vendor-specific device state. All bits above and including this one
+     * are for vendor state values.  Values below this one must only be used
+     * for framework-defined states.
+     */
+    VENDOR_STATE_START = 1LL << 32
+
+} device_state_t;
+
 typedef struct camera_module {
     /**
      * Common methods of the camera module.  This *must* be the first member of
@@ -909,8 +1113,104 @@ typedef struct camera_module {
      */
     int (*init)();
 
+    /**
+     * get_physical_camera_info:
+     *
+     * Return the static metadata for a physical camera as a part of a logical
+     * camera device. This function is only called for those physical camera
+     * ID(s) that are not exposed independently. In other words, camera_id will
+     * be greater or equal to the return value of get_number_of_cameras().
+     *
+     * Return values:
+     *
+     * 0:           On a successful operation
+     *
+     * -ENODEV:     The information cannot be provided due to an internal
+     *              error.
+     *
+     * -EINVAL:     The input arguments are invalid, i.e. the id is invalid,
+     *              and/or the module is invalid.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3/2_4:
+     *   Not provided by HAL module. Framework will not call this function.
+     *
+     * CAMERA_MODULE_API_VERSION_2_5 or higher:
+     *   If any of the camera devices accessible through this camera module is
+     *   a logical multi-camera, and at least one of the physical cameras isn't
+     *   a stand-alone camera device, this function will be called by the camera
+     *   framework. Calling this function with invalid physical_camera_id will
+     *   get -EINVAL, and NULL static_metadata.
+     */
+    int (*get_physical_camera_info)(int physical_camera_id,
+            camera_metadata_t **static_metadata);
+
+    /**
+     * is_stream_combination_supported:
+     *
+     * Check for device support of specific camera stream combination.
+     *
+     * Return values:
+     *
+     * 0:           In case the stream combination is supported.
+     *
+     * -EINVAL:     In case the stream combination is not supported.
+     *
+     * -ENOSYS:     In case stream combination query is not supported.
+     *
+     * Version information (based on camera_module_t.common.module_api_version):
+     *
+     * CAMERA_MODULE_API_VERSION_1_x/2_0/2_1/2_2/2_3/2_4:
+     *   Not provided by HAL module. Framework will not call this function.
+     *
+     * CAMERA_MODULE_API_VERSION_2_5 or higher:
+     *   Valid to be called by the framework.
+     */
+    int (*is_stream_combination_supported)(int camera_id,
+            const camera_stream_combination_t *streams);
+
+    /**
+     * notify_device_state_change:
+     *
+     * Notify the camera module that the state of the overall device has
+     * changed in some way that the HAL may want to know about.
+     *
+     * For example, a physical shutter may have been uncovered or covered,
+     * or a camera may have been covered or uncovered by an add-on keyboard
+     * or other accessory.
+     *
+     * The state is a bitfield of potential states, and some physical configurations
+     * could plausibly correspond to multiple different combinations of state bits.
+     * The HAL must ignore any state bits it is not actively using to determine
+     * the appropriate camera configuration.
+     *
+     * For example, on some devices the FOLDED state could mean that
+     * backward-facing cameras are covered by the fold, so FOLDED by itself implies
+     * BACK_COVERED. But other devices may support folding but not cover any cameras
+     * when folded, so for those FOLDED would not imply any of the other flags.
+     * Since these relationships are very device-specific, it is difficult to specify
+     * a comprehensive policy.  But as a recommendation, it is suggested that if a flag
+     * necessarily implies other flags are set as well, then those flags should be set.
+     * So even though FOLDED would be enough to infer BACK_COVERED on some devices, the
+     * BACK_COVERED flag should also be set for clarity.
+     *
+     * This method may be invoked by the HAL client at any time. It must not
+     * cause any active camera device sessions to be closed, but may dynamically
+     * change which physical camera a logical multi-camera is using for its
+     * active and future output.
+     *
+     * The method must be invoked by the HAL client at least once before the
+     * client calls ICameraDevice::open on any camera device interfaces listed
+     * by this provider, to establish the initial device state.
+     *
+     * Note that the deviceState is 64-bit bitmask, with system defined states in
+     * lower 32-bit and vendor defined states in upper 32-bit.
+     */
+    void (*notify_device_state_change)(uint64_t deviceState);
+
     /* reserved for future use */
-    void* reserved[5];
+    void* reserved[2];
 } camera_module_t;
 
 __END_DECLS

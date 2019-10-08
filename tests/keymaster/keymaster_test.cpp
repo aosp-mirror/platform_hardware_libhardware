@@ -29,6 +29,7 @@
 
 #include <openssl/bn.h>
 #include <openssl/evp.h>
+#include <openssl/pkcs8.h>
 #include <openssl/x509.h>
 
 #define LOG_TAG "keymaster_test"
@@ -157,41 +158,6 @@ private:
     size_t mBufferSize;
     size_t mDataSize;
 };
-
-struct BIGNUM_Delete {
-    void operator()(BIGNUM* p) const {
-        BN_free(p);
-    }
-};
-typedef std::unique_ptr<BIGNUM, BIGNUM_Delete> Unique_BIGNUM;
-
-struct EVP_PKEY_Delete {
-    void operator()(EVP_PKEY* p) const {
-        EVP_PKEY_free(p);
-    }
-};
-typedef std::unique_ptr<EVP_PKEY, EVP_PKEY_Delete> Unique_EVP_PKEY;
-
-struct PKCS8_PRIV_KEY_INFO_Delete {
-    void operator()(PKCS8_PRIV_KEY_INFO* p) const {
-        PKCS8_PRIV_KEY_INFO_free(p);
-    }
-};
-typedef std::unique_ptr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_Delete> Unique_PKCS8_PRIV_KEY_INFO;
-
-struct RSA_Delete {
-    void operator()(RSA* p) const {
-        RSA_free(p);
-    }
-};
-typedef std::unique_ptr<RSA, RSA_Delete> Unique_RSA;
-
-struct EC_KEY_Delete {
-    void operator()(EC_KEY* p) const {
-        EC_KEY_free(p);
-    }
-};
-typedef std::unique_ptr<EC_KEY, EC_KEY_Delete> Unique_EC_KEY;
 
 
 /*
@@ -417,13 +383,13 @@ TEST_P(KeymasterGenerateRSATest, GenerateKeyPair_RSA_Success) {
             << "X509 data should be allocated";
 
     const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
-    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+    bssl::UniquePtr<EVP_PKEY> actual(d2i_PUBKEY(NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
     ASSERT_EQ(EVP_PKEY_RSA, EVP_PKEY_type(actual.get()->type))
             << "Generated key type should be of type RSA";
 
-    Unique_RSA rsa(EVP_PKEY_get1_RSA(actual.get()));
+    bssl::UniquePtr<RSA> rsa(EVP_PKEY_get1_RSA(actual.get()));
     ASSERT_FALSE(rsa.get() == NULL)
             << "Should be able to extract RSA key from EVP_PKEY";
 
@@ -464,13 +430,13 @@ TEST_P(KeymasterGenerateECTest, GenerateKeyPair_EC_Success) {
             << "X509 data should be allocated";
 
     const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
-    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+    bssl::UniquePtr<EVP_PKEY> actual(d2i_PUBKEY(NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
     ASSERT_EQ(EVP_PKEY_EC, EVP_PKEY_type(actual.get()->type))
             << "Generated key type should be of type EC";
 
-    Unique_EC_KEY ecKey(EVP_PKEY_get1_EC_KEY(actual.get()));
+    bssl::UniquePtr<EC_KEY> ecKey(EVP_PKEY_get1_EC_KEY(actual.get()));
     ASSERT_FALSE(ecKey.get() == NULL)
             << "Should be able to extract EC key from EVP_PKEY";
 
@@ -531,18 +497,18 @@ TEST_F(KeymasterTest, ImportKeyPair_RSA_Success) {
     UniqueBlob x509_blob(x509_data, x509_data_length);
 
     const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
-    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+    bssl::UniquePtr<EVP_PKEY> actual(d2i_PUBKEY(NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
     ASSERT_EQ(EVP_PKEY_type(actual.get()->type), EVP_PKEY_RSA)
             << "Generated key type should be of type RSA";
 
     const unsigned char *expectedTmp = static_cast<const unsigned char*>(TEST_RSA_KEY_1);
-    Unique_PKCS8_PRIV_KEY_INFO expectedPkcs8(
-            d2i_PKCS8_PRIV_KEY_INFO((PKCS8_PRIV_KEY_INFO**) NULL, &expectedTmp,
+    bssl::UniquePtr<PKCS8_PRIV_KEY_INFO> expectedPkcs8(
+            d2i_PKCS8_PRIV_KEY_INFO(NULL, &expectedTmp,
                     sizeof(TEST_RSA_KEY_1)));
 
-    Unique_EVP_PKEY expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
+    bssl::UniquePtr<EVP_PKEY> expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
 
     ASSERT_EQ(1, EVP_PKEY_cmp(expected.get(), actual.get()))
             << "Expected and actual keys should match";
@@ -567,18 +533,18 @@ TEST_F(KeymasterTest, ImportKeyPair_EC_Success) {
     UniqueBlob x509_blob(x509_data, x509_data_length);
 
     const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
-    Unique_EVP_PKEY actual(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+    bssl::UniquePtr<EVP_PKEY> actual(d2i_PUBKEY(NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
     ASSERT_EQ(EVP_PKEY_type(actual.get()->type), EVP_PKEY_EC)
             << "Generated key type should be of type EC";
 
     const unsigned char *expectedTmp = static_cast<const unsigned char*>(TEST_EC_KEY_1);
-    Unique_PKCS8_PRIV_KEY_INFO expectedPkcs8(
-            d2i_PKCS8_PRIV_KEY_INFO((PKCS8_PRIV_KEY_INFO**) NULL, &expectedTmp,
+    bssl::UniquePtr<PKCS8_PRIV_KEY_INFO> expectedPkcs8(
+            d2i_PKCS8_PRIV_KEY_INFO(NULL, &expectedTmp,
                     sizeof(TEST_EC_KEY_1)));
 
-    Unique_EVP_PKEY expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
+    bssl::UniquePtr<EVP_PKEY> expected(EVP_PKCS82PKEY(expectedPkcs8.get()));
 
     ASSERT_EQ(1, EVP_PKEY_cmp(expected.get(), actual.get()))
             << "Expected and actual keys should match";
@@ -925,10 +891,10 @@ TEST_F(KeymasterTest, SignData_EC_Success) {
     UniqueBlob x509_blob(x509_data, x509_data_length);
 
     const unsigned char *tmp = static_cast<const unsigned char*>(x509_blob.get());
-    Unique_EVP_PKEY expected(d2i_PUBKEY((EVP_PKEY**) NULL, &tmp,
+    bssl::UniquePtr<EVP_PKEY> expected(d2i_PUBKEY(NULL, &tmp,
             static_cast<long>(x509_blob.length())));
 
-    Unique_EC_KEY ecKey(EVP_PKEY_get1_EC_KEY(expected.get()));
+    bssl::UniquePtr<EC_KEY> ecKey(EVP_PKEY_get1_EC_KEY(expected.get()));
 
     ASSERT_EQ(1, ECDSA_verify(0, testData.get(), testData.length(), sig_blob.get(), sig_blob.length(), ecKey.get()))
             << "Signature should verify";
