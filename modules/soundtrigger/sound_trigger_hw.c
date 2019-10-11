@@ -811,6 +811,41 @@ static int stdev_stop_all_recognitions(const struct sound_trigger_hw_device *dev
     return 0;
 }
 
+static int stdev_get_model_state(const struct sound_trigger_hw_device *dev,
+                                 sound_model_handle_t handle) {
+    int ret = 0;
+    struct stub_sound_trigger_device *stdev = (struct stub_sound_trigger_device *)dev;
+    ALOGI("%s", __func__);
+    pthread_mutex_lock(&stdev->lock);
+
+    struct recognition_context *model_context = get_model_context(stdev, handle);
+    if (!model_context) {
+        ALOGW("Can't find sound model handle %d in registered list", handle);
+        ret = -ENOSYS;
+        goto exit;
+    }
+
+    if (!model_context->model_started) {
+        ALOGW("Sound model %d not started", handle);
+        ret = -ENOSYS;
+        goto exit;
+    }
+
+    if (model_context->recognition_callback == NULL) {
+        ALOGW("Sound model %d not initialized", handle);
+        ret = -ENOSYS;
+        goto exit;
+    }
+
+    // TODO(mdooley): trigger recognition event
+
+exit:
+    pthread_mutex_unlock(&stdev->lock);
+    ALOGI("%s done for handle %d", __func__, handle);
+
+    return ret;
+}
+
 __attribute__ ((visibility ("default")))
 int sound_trigger_open_for_streaming() {
     int ret = 0;
@@ -863,6 +898,7 @@ static int stdev_open(const hw_module_t* module, const char* name,
     stdev->device.start_recognition = stdev_start_recognition;
     stdev->device.stop_recognition = stdev_stop_recognition;
     stdev->device.stop_all_recognitions = stdev_stop_all_recognitions;
+    stdev->device.get_model_state = stdev_get_model_state;
 
     pthread_mutex_init(&stdev->lock, (const pthread_mutexattr_t *) NULL);
 
@@ -890,4 +926,3 @@ struct sound_trigger_module HAL_MODULE_INFO_SYM = {
         .methods = &hal_module_methods,
     },
 };
-
