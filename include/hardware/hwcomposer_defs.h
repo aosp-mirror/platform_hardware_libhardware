@@ -299,6 +299,17 @@ enum {
     HWC_POWER_MODE_DOZE_SUSPEND  = 3,
 };
 
+/* Constraints for changing vsync period */
+typedef struct hwc_vsync_period_change_constraints {
+    /* Time in CLOCK_MONOTONIC after which the vsync period may change
+     * (i.e., the vsync period must not change before this time). */
+    int64_t desiredTimeNanos;
+    /*
+     * If true, requires that the vsync period change must happen seamlessly without
+     * a noticeable visual artifact. */
+    uint8_t seamlessRequired;
+} hwc_vsync_period_change_constraints_t;
+
 /*****************************************************************************/
 
 __END_DECLS
