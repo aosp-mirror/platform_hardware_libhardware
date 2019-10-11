@@ -24,6 +24,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 #define LOG_TAG "HAL"
@@ -148,6 +149,25 @@ static int load(const char *id,
 }
 
 /*
+ * If path is in in_path.
+ */
+static bool path_in_path(const char *path, const char *in_path) {
+    char real_path[PATH_MAX];
+    if (realpath(path, real_path) == NULL) return false;
+
+    char real_in_path[PATH_MAX];
+    if (realpath(in_path, real_in_path) == NULL) return false;
+
+    const size_t real_in_path_len = strlen(real_in_path);
+    if (strncmp(real_path, real_in_path, real_in_path_len) != 0) {
+        return false;
+    }
+
+    return strlen(real_path) > real_in_path_len &&
+        real_path[real_in_path_len] == '/';
+}
+
+/*
  * Check if a HAL with given name and subname exists, if so return 0, otherwise
  * otherwise return negative.  On success path will contain the path to the HAL.
  */
@@ -156,18 +176,18 @@ static int hw_module_exists(char *path, size_t path_len, const char *name,
 {
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH3, name, subname);
-    if (access(path, R_OK) == 0)
+    if (path_in_path(path, HAL_LIBRARY_PATH3) && access(path, R_OK) == 0)
         return 0;
 
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH2, name, subname);
-    if (access(path, R_OK) == 0)
+    if (path_in_path(path, HAL_LIBRARY_PATH2) && access(path, R_OK) == 0)
         return 0;
 
 #ifndef __ANDROID_VNDK__
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH1, name, subname);
-    if (access(path, R_OK) == 0)
+    if (path_in_path(path, HAL_LIBRARY_PATH1) && access(path, R_OK) == 0)
         return 0;
 #endif
 
