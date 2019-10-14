@@ -821,13 +821,22 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         return 0;
     }
 
-    // If the write to the sink would block when no input stream is present, flush enough frames
+    // If the write to the sink would block, flush enough frames
     // from the pipe to make space to write the most recent data.
+    // We DO NOT block if:
+    // - no peer input stream is present
+    // - the peer input is in standby AFTER having been active.
+    // We DO block if:
+    // - the input was never activated to avoid discarding first frames
+    // in the pipe in case capture start was delayed
     {
         const size_t availableToWrite = sink->availableToWrite();
         // NOTE: rsxSink has been checked above and sink and source life cycles are synchronized
         sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
-        if (rsxadev->routes[out->route_handle].input == NULL && availableToWrite < frames) {
+        const struct submix_stream_in *in = rsxadev->routes[out->route_handle].input;
+        const bool dont_block = (in == NULL)
+                || (in->input_standby && (in->read_counter_frames != 0));
+        if (dont_block && availableToWrite < frames) {
             static uint8_t flush_buffer[64];
             const size_t flushBufferSizeFrames = sizeof(flush_buffer) / frame_size;
             size_t frames_to_flush_from_source = frames - availableToWrite;
