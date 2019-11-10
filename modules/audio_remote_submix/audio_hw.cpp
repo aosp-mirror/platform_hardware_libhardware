@@ -984,7 +984,7 @@ static int out_get_next_write_timestamp(const struct audio_stream_out *stream,
 {
     (void)stream;
     (void)timestamp;
-    return -EINVAL;
+    return -ENOSYS;
 }
 
 /** audio_stream_in implementation **/
@@ -1576,6 +1576,9 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
         }
         const size_t frame_size_in_bytes = audio_channel_count_from_in_mask(config->channel_mask) *
                 audio_bytes_per_sample(config->format);
+        if (max_buffer_period_size_frames == 0) {
+            max_buffer_period_size_frames = DEFAULT_PIPE_SIZE_IN_FRAMES;
+        }
         const size_t buffer_size = max_buffer_period_size_frames * frame_size_in_bytes;
         SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
                  buffer_size, max_buffer_period_size_frames);
