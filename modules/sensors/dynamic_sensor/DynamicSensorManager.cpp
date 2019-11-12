@@ -111,8 +111,8 @@ int DynamicSensorManager::flush(int handle) {
     if (handle == mHandleRange.first) {
         // submit a flush complete here
         static const sensors_event_t event = {
-            .type = SENSOR_TYPE_META_DATA,
             .sensor = mHandleRange.first,
+            .type = SENSOR_TYPE_META_DATA,
             .timestamp = TIMESTAMP_AUTO_FILL,  // timestamp will be filled at dispatcher
         };
         submitEvent(nullptr, event);
