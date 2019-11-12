@@ -177,13 +177,13 @@ HidRawSensor::HidRawSensor(
                 }
 
                 ReportTranslateRecord record = {
-                    .minValue = digest.minRaw,
+                    .type = TYPE_FLOAT,
                     .maxValue = digest.maxRaw,
+                    .minValue = digest.minRaw,
                     .byteOffset = digest.bitOffset / 8,
                     .byteSize = digest.bitSize / 8,
                     .a = digest.a,
                     .b = digest.b,
-                    .type = TYPE_FLOAT
                 };
                 // keep track of range and resolution
                 range = std::max(std::max(std::abs((digest.maxRaw + digest.b) * digest.a),
@@ -250,12 +250,12 @@ bool HidRawSensor::processQuaternionUsage(const std::vector<HidParser::ReportPac
     }
 
     ReportTranslateRecord record = {
-        .minValue = quat.minRaw,
+        .type = TYPE_FLOAT,
         .maxValue = quat.maxRaw,
+        .minValue = quat.minRaw,
         .byteOffset = quat.bitOffset / 8,
         .byteSize = quat.bitSize / 8,
         .b = quat.b,
-        .type = TYPE_FLOAT,
     };
 
     // Android X Y Z maps to HID X -Z Y
@@ -351,10 +351,10 @@ bool HidRawSensor::processTriAxisUsage(const std::vector<HidParser::ReportPacket
     mFeatureInfo.reportModeFlag = SENSOR_FLAG_CONTINUOUS_MODE;
 
     ReportTranslateRecord record = {
-        .minValue = reportX.minRaw,
+        .type = TYPE_FLOAT,
         .maxValue = reportX.maxRaw,
+        .minValue = reportX.minRaw,
         .byteSize = reportX.bitSize / 8,
-        .type = TYPE_FLOAT
     };
 
     // Reorder and swap axis
