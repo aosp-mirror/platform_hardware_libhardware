@@ -20,10 +20,10 @@ cc_library_shared {
     shared_libs: [
         "liblog",
         "libcutils",
-        "libutils",
+        "libmedia_helper",
         "libnbaio_mono",
+        "libutils",
     ],
-    static_libs: ["libmedia_helper"],
 
     cflags: ["-Wno-unused-parameter"],
 
