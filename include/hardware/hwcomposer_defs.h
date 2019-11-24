@@ -250,6 +250,11 @@ enum {
     /* Indicates which of the vendor-defined color transforms is provided by
      * this configuration. */
     HWC_DISPLAY_COLOR_TRANSFORM             = 6,
+
+    /* The configuration group this config is associated to. The groups are defined
+     * to mark certain configs as similar and changing configs within a certain group
+     * may be done seamlessly in some conditions. setActiveConfigWithConstraints. */
+    HWC_DISPLAY_CONFIG_GROUP                = 7,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
@@ -309,6 +314,21 @@ typedef struct hwc_vsync_period_change_constraints {
      * a noticeable visual artifact. */
     uint8_t seamlessRequired;
 } hwc_vsync_period_change_constraints_t;
+
+/* Timing for a vsync period change. */
+typedef struct hwc_vsync_period_change_timeline {
+    /* The time in CLOCK_MONOTONIC when the new display will start to refresh at
+     * the new vsync period. */
+    int64_t newVsyncAppliedTimeNanos;
+
+    /* Set to true if the client is required to sent a frame to be displayed before
+     * the change can take place. */
+    uint8_t refreshRequired;
+
+    /* The time in CLOCK_MONOTONIC when the client is expected to send the new frame.
+     * Should be ignored if refreshRequired is false. */
+    int64_t refreshTimeNanos;
+} hwc_vsync_period_change_timeline_t;
 
 /*****************************************************************************/
 
