@@ -150,11 +150,22 @@ struct sound_trigger_hw_device {
      * handle. Along with determining the valid range, this API is also used
      * to determine if a given parameter ID is supported at all by the
      * modelHandle for use with getParameter and setParameter APIs.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
      */
     int (*query_parameter)(const struct sound_trigger_hw_device *dev,
                            sound_model_handle_t sound_model_handle,
                            sound_trigger_model_parameter_t model_param,
                            sound_trigger_model_parameter_range_t* param_range);
+
+    /*
+     * Retrieve verbose extended implementation properties.
+     * The header pointer is intented to be cast to the proper extended
+     * properties struct based on the header version.
+     * The returned pointer is valid throughout the lifetime of the driver.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    const struct sound_trigger_properties_header* (*get_properties_extended)
+            (const struct sound_trigger_hw_device *dev);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
