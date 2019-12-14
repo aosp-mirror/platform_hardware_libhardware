@@ -302,6 +302,9 @@ typedef enum {
     HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
     HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD,
     HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS,
+    HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
+    HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
+    HWC2_FUNCTION_SET_CONTENT_TYPE,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -339,6 +342,14 @@ typedef enum {
     /* The display is fully on */
     HWC2_POWER_MODE_ON = 2,
 } hwc2_power_mode_t;
+
+typedef enum {
+    HWC2_CONTENT_TYPE_NONE = 0,
+    HWC2_CONTENT_TYPE_GRAPHICS = 1,
+    HWC2_CONTENT_TYPE_PHOTO = 2,
+    HWC2_CONTENT_TYPE_CINEMA = 3,
+    HWC2_CONTENT_TYPE_GAME = 4,
+} hwc2_content_type_t;
 
 /* Vsync values passed to setVsyncEnabled */
 typedef enum {
@@ -432,6 +443,15 @@ typedef enum {
      * Specified that the display supports brightness operations.
      */
     HWC2_DISPLAY_CAPABILITY_BRIGHTNESS = 3,
+
+    /**
+     * Specifies that the display supports a low latency mode. If the connection
+     * to the display is via HDMI, this specifies whether Auto Low Latency Mode
+     * is supported. If, instead, there is an internal connection to the display,
+     * then this specifies that the display has some other custom low latency
+     * mode.
+     */
+    HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE = 5,
 } hwc2_display_capability_t;
 
 /*
@@ -640,6 +660,9 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE: return "GetDisplayConnectionType";
         case HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD: return "GetDisplayVsyncPeriod";
         case HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS: return "SetActiveConfigWithConstraints";
+        case HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE: return "SetAutoLowLatencyMode";
+        case HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES: return "GetSupportedContentTypes";
+        case HWC2_FUNCTION_SET_CONTENT_TYPE: return "SetContentType";
 
         default: return "Unknown";
     }
@@ -659,6 +682,17 @@ static inline const char* getPowerModeName(hwc2_power_mode_t mode) {
         case HWC2_POWER_MODE_DOZE_SUSPEND: return "DozeSuspend";
         case HWC2_POWER_MODE_DOZE: return "Doze";
         case HWC2_POWER_MODE_ON: return "On";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getContentTypeName(hwc2_content_type_t contentType) {
+    switch(contentType) {
+        case HWC2_CONTENT_TYPE_NONE: return "None";
+        case HWC2_CONTENT_TYPE_GRAPHICS: return "Graphics";
+        case HWC2_CONTENT_TYPE_PHOTO: return "Photo";
+        case HWC2_CONTENT_TYPE_CINEMA: return "Cinema";
+        case HWC2_CONTENT_TYPE_GAME: return "Game";
         default: return "Unknown";
     }
 }
@@ -715,6 +749,8 @@ static inline const char* getDisplayCapabilityName(hwc2_display_capability_t cap
             return "Doze";
         case HWC2_DISPLAY_CAPABILITY_BRIGHTNESS:
             return "Brightness";
+        case HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE:
+            return "AutoLowLatencyMode";
         default:
             return "Unknown";
     }
@@ -900,7 +936,9 @@ enum class FunctionDescriptor : int32_t {
     GetDisplayConnectionType = HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
     GetDisplayVsyncPeriod = HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD,
     SetActiveConfigWithConstraints = HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS,
-
+    SetAutoLowLatencyMode = HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
+    GetSupportedContentTypes = HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
+    SetContentType = HWC2_FUNCTION_SET_CONTENT_TYPE,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -917,6 +955,15 @@ enum class PowerMode : int32_t {
     On = HWC2_POWER_MODE_ON,
 };
 TO_STRING(hwc2_power_mode_t, PowerMode, getPowerModeName)
+
+enum class ContentType : int32_t {
+    None = HWC2_CONTENT_TYPE_NONE,
+    Graphics = HWC2_CONTENT_TYPE_GRAPHICS,
+    Photo = HWC2_CONTENT_TYPE_PHOTO,
+    Cinema = HWC2_CONTENT_TYPE_CINEMA,
+    Game = HWC2_CONTENT_TYPE_GAME,
+};
+TO_STRING(hwc2_content_type_t, ContentType, getContentTypeName)
 
 enum class Transform : int32_t {
     None = 0,
@@ -942,6 +989,7 @@ enum class DisplayCapability : int32_t {
     SkipClientColorTransform = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
     Doze = HWC2_DISPLAY_CAPABILITY_DOZE,
     Brightness = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS,
+    AutoLowLatencyMode = HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE,
 };
 TO_STRING(hwc2_display_capability_t, DisplayCapability, getDisplayCapabilityName)
 
@@ -2903,6 +2951,68 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS)(
         hwc_vsync_period_change_constraints_t* vsyncPeriodChangeConstraints,
         hwc_vsync_period_change_timeline_t* outTimeline);
 
+/* setAutoLowLatencyMode(displayToken, on)
+ * Descriptor: HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE
+ * Required for HWC2 devices for composer 2.4, connected to a display via HDMI 2.1
+ * Optional for internally connected devices and HDMI <2.1 display connections
+ *
+ * setAutoLowLatencyMode requests that the display goes into low latency mode. If the display
+ * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
+ * internally connected, then a custom low latency mode should be triggered (if available).
+ *
+ * Parameters:
+ *   on - indicates whether to turn low latency mode on (=true) or off (=false)
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED - when the display does not support any low latency mode
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_AUTO_LOW_LATENCY_MODE)(hwc2_device_t* device,
+        hwc2_display_t display, bool on);
+
+/* getSupportedContentTypes(..., outSupportedContentTypes)
+ * Descriptor: HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES
+ * Required for HWC2 devices for composer 2.4
+ *
+ * getSupportedContentTypes returns a list of supported content types
+ * (as described in the definition of ContentType above).
+ * This list must not change after initialization.
+ *
+ * Parameters:
+ *   outNumSupportedContentTypes - if outSupportedContentTypes was nullptr, returns the number
+ *       of supported content types; if outSupportedContentTypes was not nullptr, returns the
+ *       number of capabilities stored in outSupportedContentTypes, which must not exceed the
+ *       value stored in outNumSupportedContentTypes prior to the call; pointer will be non-NULL
+ *   outSupportedContentTypes - a list of supported content types.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_SUPPORTED_CONTENT_TYPES)(hwc2_device_t* device,
+        hwc2_display_t display, uint32_t* outNumSupportedContentTypes, uint32_t* outSupportedContentTypes);
+
+/* setContentType(displayToken, contentType)
+ * Descriptor: HWC2_FUNCTION_SET_CONTENT_TYPE
+ * Required for HWC2 devices for composer 2.4
+ * Optional for HWC2 devices for composer 2.1, 2.2, 2.3
+ *
+ * setContentType instructs the display that the content being shown is of the given contentType
+ * (one of GRAPHICS, PHOTO, CINEMA, GAME).
+ *
+ * According to the HDMI 1.4 specification, supporting all content types is optional. Whether
+ * the display supports a given content type is reported by getSupportedContentTypes.
+ *
+ * Parameters:
+ *   contentType - the type of content that is currently being shown on the display
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED - when the given content type is a valid content type, but is not
+ *                            supported on this display, or
+ *   HWC2_ERROR_BAD_PARAMETER - when the given content type is invalid
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_CONTENT_TYPE)(hwc2_device_t* device,
+        hwc2_display_t display, int32_t /* hwc2_content_type_t */ contentType);
 
 __END_DECLS
 
