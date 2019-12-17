@@ -475,15 +475,15 @@ bool ExifUtils::GenerateThumbnail() {
 
 bool ExifUtils::GenerateYuvThumbnail(std::vector<uint8_t>* scaled_buffer) {
   size_t y_plane_size = yu12_width_ * yu12_height_;
-  const uint8* y_plane = yu12_buffer_;
-  const uint8* u_plane = y_plane + y_plane_size;
-  const uint8* v_plane = u_plane + y_plane_size / 4;
+  const uint8_t* y_plane = yu12_buffer_;
+  const uint8_t* u_plane = y_plane + y_plane_size;
+  const uint8_t* v_plane = u_plane + y_plane_size / 4;
 
   size_t scaled_y_plane_size = thumbnail_width_ * thumbnail_height_;
   scaled_buffer->resize(scaled_y_plane_size * 3 / 2);
-  uint8* scaled_y_plane = scaled_buffer->data();
-  uint8* scaled_u_plane = scaled_y_plane + scaled_y_plane_size;
-  uint8* scaled_v_plane = scaled_u_plane + scaled_y_plane_size / 4;
+  uint8_t* scaled_y_plane = scaled_buffer->data();
+  uint8_t* scaled_u_plane = scaled_y_plane + scaled_y_plane_size;
+  uint8_t* scaled_v_plane = scaled_u_plane + scaled_y_plane_size / 4;
 
   int result = libyuv::I420Scale(
       y_plane, yu12_width_, u_plane, yu12_width_ / 2, v_plane, yu12_width_ / 2,

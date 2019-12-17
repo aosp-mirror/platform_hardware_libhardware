@@ -39,8 +39,8 @@ private:
     void processSwitch(int32_t switchCode, int32_t switchValue);
     void sync(nsecs_t when);
 
-    BitSet32 mSwitchValues;
-    BitSet32 mUpdatedSwitchMask;
+    BitSet64 mSwitchValues;
+    BitSet64 mUpdatedSwitchMask;
 };
 
 }  // namespace android
