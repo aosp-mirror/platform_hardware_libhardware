@@ -306,6 +306,7 @@ typedef enum {
     HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
     HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
     HWC2_FUNCTION_SET_CONTENT_TYPE,
+    HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -665,6 +666,7 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE: return "SetAutoLowLatencyMode";
         case HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES: return "GetSupportedContentTypes";
         case HWC2_FUNCTION_SET_CONTENT_TYPE: return "SetContentType";
+        case HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY: return "GetClientTargetProperty";
 
         default: return "Unknown";
     }
@@ -942,6 +944,7 @@ enum class FunctionDescriptor : int32_t {
     SetAutoLowLatencyMode = HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
     GetSupportedContentTypes = HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
     SetContentType = HWC2_FUNCTION_SET_CONTENT_TYPE,
+    GetClientTargetProperty = HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -3035,6 +3038,35 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_SUPPORTED_CONTENT_TYPES)(hwc2_dev
  */
 typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_CONTENT_TYPE)(hwc2_device_t* device,
         hwc2_display_t display, int32_t /* hwc2_content_type_t */ contentType);
+
+/* getClientTargetProperty(..., outClientTargetProperty)
+ * Descriptor: HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY
+ * Optional for HWC2 devices
+ *
+ * Retrieves the client target properties for which the hardware composer
+ * requests after the last call to validateDisplay. The client must set the
+ * properties of the client target to match the returned values.
+ * When this API is implemented, if client composition is needed, the hardware
+ * composer must return meaningful client target property with dataspace not
+ * setting to UNKNOWN.
+ * When the returned dataspace is set to UNKNOWN, it means hardware composer
+ * requests nothing, the client must ignore the returned client target property
+ * structrue.
+ *
+ * Parameters:
+ *   outClientTargetProperty - the client target properties that hardware
+ *       composer requests. If dataspace field is set to UNKNOWN, it means
+ *       the hardware composer requests nothing, the client must ignore the
+ *       returned client target property structure.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_NOT_VALIDATED - validateDisplay has not been called for this
+ *       display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_CLIENT_TARGET_PROPERTY)(
+        hwc2_device_t* device, hwc2_display_t display,
+        hwc_client_target_property_t* outClientTargetProperty);
 
 __END_DECLS
 
