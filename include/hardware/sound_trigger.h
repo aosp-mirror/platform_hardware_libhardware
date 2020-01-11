@@ -166,6 +166,18 @@ struct sound_trigger_hw_device {
      */
     const struct sound_trigger_properties_header* (*get_properties_extended)
             (const struct sound_trigger_hw_device *dev);
+
+    /* Start recognition on a given model. Only one recognition active at a time per model.
+     * Once recognition succeeds of fails, the callback is called.
+     * Recognition API includes extended config fields. The header is intended to be base to
+     * the proper config struct based on the header version.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    int (*start_recognition_extended)(const struct sound_trigger_hw_device *dev,
+                             sound_model_handle_t sound_model_handle,
+                             const struct sound_trigger_recognition_config_header *header,
+                             recognition_callback_t callback,
+                             void *cookie);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
