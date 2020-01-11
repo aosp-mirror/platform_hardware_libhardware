@@ -80,6 +80,7 @@ typedef enum {
     HWC2_CALLBACK_VSYNC = 3,
     HWC2_CALLBACK_VSYNC_2_4 = 4,
     HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED = 5,
+    HWC2_CALLBACK_SEAMLESS_POSSIBLE = 6,
 } hwc2_callback_descriptor_t;
 
 /* Optional capabilities which may be supported by some devices. The particular
@@ -492,6 +493,7 @@ static inline const char* getCallbackDescriptorName(
         case HWC2_CALLBACK_VSYNC: return "Vsync";
         case HWC2_CALLBACK_VSYNC_2_4: return "Vsync2.4";
         case HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED: return "VsyncPeriodTimingChanged";
+        case HWC2_CALLBACK_SEAMLESS_POSSIBLE: return "SeamlessPossible";
         default: return "Unknown";
     }
 }
@@ -802,6 +804,7 @@ enum class Callback : int32_t {
     Vsync = HWC2_CALLBACK_VSYNC,
     Vsync_2_4 = HWC2_CALLBACK_VSYNC_2_4,
     VsyncPeriodTimingChanged = HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED,
+    SeamlessPossible = HWC2_CALLBACK_SEAMLESS_POSSIBLE,
 };
 TO_STRING(hwc2_callback_descriptor_t, Callback, getCallbackDescriptorName)
 
@@ -1175,6 +1178,22 @@ typedef void (*HWC2_PFN_VSYNC_2_4)(hwc2_callback_data_t callbackData,
  */
 typedef void (*HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED)(hwc2_callback_data_t callbackData,
         hwc2_display_t display, hwc_vsync_period_change_timeline_t* updated_timeline);
+
+/* SeamlessPossible(..., display)
+ * Descriptor: HWC2_CALLBACK_SEAMLESS_POSSIBLE
+ * Optional for HWC2 devices for composer 2.4
+ *
+ * Notifies the client that the conditions which previously led to returning SEAMLESS_NOT_POSSIBLE
+ * from setActiveConfigWithConstraints have changed and now seamless may be possible. Client should
+ * retry calling setActiveConfigWithConstraints.
+ *
+ *
+ * Parameters:
+ *   display - a display setActiveConfigWithConstraints previously failed with
+ *             SEAMLESS_NOT_POSSIBLE.
+ */
+typedef void (*HWC2_PFN_SEAMLESS_POSSIBLE)(hwc2_callback_data_t callbackData,
+        hwc2_display_t display);
 
 /*
  * Device Functions
@@ -2935,6 +2954,11 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_VSYNC_PERIOD)(
  *                                    seamlessRequired - if true, requires that the vsync period
  *                                                       change must happen seamlessly without
  *                                                       a noticeable visual artifact.
+ *                                                       When the conditions change and it may be
+ *                                                       possible to change the vsync period
+ *                                                       seamlessly, HWC2_CALLBACK_SEAMLESS_POSSIBLE
+ *                                                       callback must be called to indicate that
+ *                                                       caller should retry.
  *     outTimeline - the timeline for the vsync period change.
  *
  * Returns HWC2_ERROR_NONE or one of the following errors:
@@ -2953,8 +2977,7 @@ typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS)(
 
 /* setAutoLowLatencyMode(displayToken, on)
  * Descriptor: HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE
- * Required for HWC2 devices for composer 2.4, connected to a display via HDMI 2.1
- * Optional for internally connected devices and HDMI <2.1 display connections
+ * Optional for HWC2 devices
  *
  * setAutoLowLatencyMode requests that the display goes into low latency mode. If the display
  * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
@@ -2972,7 +2995,7 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_AUTO_LOW_LATENCY_MODE)(hwc2_devic
 
 /* getSupportedContentTypes(..., outSupportedContentTypes)
  * Descriptor: HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES
- * Required for HWC2 devices for composer 2.4
+ * Optional for HWC2 devices
  *
  * getSupportedContentTypes returns a list of supported content types
  * (as described in the definition of ContentType above).
@@ -2993,8 +3016,7 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_SUPPORTED_CONTENT_TYPES)(hwc2_dev
 
 /* setContentType(displayToken, contentType)
  * Descriptor: HWC2_FUNCTION_SET_CONTENT_TYPE
- * Required for HWC2 devices for composer 2.4
- * Optional for HWC2 devices for composer 2.1, 2.2, 2.3
+ * Optional for HWC2 devices
  *
  * setContentType instructs the display that the content being shown is of the given contentType
  * (one of GRAPHICS, PHOTO, CINEMA, GAME).
