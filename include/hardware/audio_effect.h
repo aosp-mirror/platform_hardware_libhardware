@@ -207,6 +207,8 @@ struct effect_interface_s {
 // Note that EffectsFactory.c only checks the major version component, so changes to the minor
 // number can only be used for fully backwards compatible changes
 #define EFFECT_LIBRARY_API_VERSION EFFECT_MAKE_API_VERSION(3,0)
+#define EFFECT_LIBRARY_API_VERSION_3_0 EFFECT_MAKE_API_VERSION(3,0)
+#define EFFECT_LIBRARY_API_VERSION_3_1 EFFECT_MAKE_API_VERSION(3,1)
 
 #define AUDIO_EFFECT_LIBRARY_TAG ((('A') << 24) | (('E') << 16) | (('L') << 8) | ('T'))
 
@@ -297,6 +299,48 @@ typedef struct audio_effect_library_s {
     ////////////////////////////////////////////////////////////////////////////////
     int32_t (*get_descriptor)(const effect_uuid_t *uuid,
                               effect_descriptor_t *pDescriptor);
+
+    ////////////////////////////////////////////////////////////////////////////////
+    //
+    //    Function:        create_effect_3_1
+    //
+    //    Description:    Creates an effect engine of the specified implementation uuid and
+    //          returns an effect control interface on this engine. The function will allocate the
+    //          resources for an instance of the requested effect engine and return
+    //          a handle on the effect control interface.
+    //
+    //    Input:
+    //          uuid:    pointer to the effect uuid.
+    //          sessionId:  audio session to which this effect instance will be attached.
+    //              All effects created with the same session ID are connected in series and process
+    //              the same signal stream. Knowing that two effects are part of the same effect
+    //              chain can help the library implement some kind of optimizations.
+    //          ioId:   identifies the output or input stream this effect is directed to in
+    //              audio HAL.
+    //              For future use especially with tunneled HW accelerated effects
+    //          deviceId:  identifies the sink or source device this effect is directed to in
+    //              audio HAL. Must be specified if sessionId is AUDIO_SESSION_DEVICE and is
+    //              ignored otherwise.
+    //              deviceId is the audio_port_handle_t used for the device when the audio
+    //              patch is created at the audio HAL.
+    //
+    //    Input/Output:
+    //          pHandle:        address where to return the effect interface handle.
+    //
+    //    Output:
+    //        returned value:    0          successful operation.
+    //                          -ENODEV     library failed to initialize
+    //                          -EINVAL     invalid pEffectUuid or pHandle
+    //                          -ENOENT     no effect with this uuid found
+    //        *pHandle:         updated with the effect interface handle.
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+    int32_t (*create_effect_3_1)(const effect_uuid_t *uuid,
+                         int32_t sessionId,
+                         int32_t ioId,
+                         int32_t deviceId,
+                         effect_handle_t *pHandle);
+
 } audio_effect_library_t;
 
 // Name of the hal_module_info
