@@ -307,6 +307,8 @@ typedef enum {
     HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
     HWC2_FUNCTION_SET_CONTENT_TYPE,
     HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
+    HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA,
+    HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -667,6 +669,8 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES: return "GetSupportedContentTypes";
         case HWC2_FUNCTION_SET_CONTENT_TYPE: return "SetContentType";
         case HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY: return "GetClientTargetProperty";
+        case HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA: return "SetLayerGenericMetadata";
+        case HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY: return "GetLayerGenericMetadataKey";
 
         default: return "Unknown";
     }
@@ -945,6 +949,8 @@ enum class FunctionDescriptor : int32_t {
     GetSupportedContentTypes = HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
     SetContentType = HWC2_FUNCTION_SET_CONTENT_TYPE,
     GetClientTargetProperty = HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
+    SetLayerGenericMetadata = HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA,
+    GetLayerGenericMetadataKey = HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -2895,6 +2901,8 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_DISPLAY_BRIGHTNESS_SUPPORT)(hwc2_
 typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_DISPLAY_BRIGHTNESS)(hwc2_device_t* device,
         hwc2_display_t display, float brightness);
 
+/* Composer 2.4 additions */
+
 /* getDisplayConnectionType(..., outType)
  * Descriptor: HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE
  * Optional for all HWC2 devices
@@ -3067,6 +3075,100 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_CONTENT_TYPE)(hwc2_device_t* devi
 typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_CLIENT_TARGET_PROPERTY)(
         hwc2_device_t* device, hwc2_display_t display,
         hwc_client_target_property_t* outClientTargetProperty);
+
+/* setLayerGenericMetadata(..., keyLength, key, mandatory, valueLength, value)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA
+ * Optional for HWC2 devices for composer 2.4+
+ *
+ * setLayerGenericMetadata sets a piece of generic metadata for the given layer.
+ * If this function is called twice with the same key but different values, the
+ * newer value must override the older one. Calling this function with
+ * valueLength == 0 must reset that key's metadata as if it had not been set.
+ *
+ * A given piece of metadata may either be mandatory or a hint (non-mandatory)
+ * as indicated by the `mandatory` parameter. Mandatory metadata may affect the
+ * composition result, which is to say that it may cause a visible change in the
+ * final image. By contrast, hints may only affect the composition strategy,
+ * such as which layers are composited by the client, but must not cause a
+ * visible change in the final image.
+ *
+ * This implies that if the device does not understand a given key:
+ * - If the key is marked as mandatory, it must mark this layer for client
+ *   composition in order to ensure the correct composition result
+ * - If the key is a hint, the metadata provided may be ignored
+ *
+ * Parameters:
+ *   keyLength - the length of the key parameter
+ *   key - the metadata key
+ *   mandatory - indicates whether this particular key represents mandatory
+ *       metadata or a hint, as described above
+ *   valueLength - the length of the value parameter
+ *   value - the metadata value
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ *   HWC2_ERROR_BAD_PARAMETER - an unsupported key was passed in, or the value
+ *       does not conform to the expected format for the key
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_LAYER_GENERIC_METADATA)(hwc2_device_t* device,
+        hwc2_display_t display, hwc2_layer_t layer, uint32_t keyLength, const char* key,
+        bool mandatory, uint32_t valueLength, const uint8_t* value);
+
+/* getLayerGenericMetadataKey(..., keyIndex, outKeyLength, outKey, outMandatory)
+ * Descriptor: HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY
+ * Optional for HWC2 devices for composer 2.4+
+ *
+ * getLayerGenericMetadataKey allows the client to query which metadata keys are
+ * supported by the composer implementation. Only keys in this list will be
+ * passed into setLayerGenericMetadata. Additionally, the key names in this list
+ * must meet the following requirements:
+ * - Must be specified in reverse domain name notation
+ * - Must not start with 'com.android' or 'android'
+ * - Must be unique within the returned list of keys
+ * - Must correspond to a matching HIDL struct type, which defines the structure
+ *   of its values. For example, the key 'com.example.V1-3.Foo' should
+ *   correspond to a value of type com.example@1.3::Foo, which is defined in a
+ *   vendor HAL extension
+ *
+ * Client code which calls this function will look similar to this:
+ *
+ *     struct Key {
+ *         std::string name;
+ *         bool mandatory;
+ *     }
+ *
+ *     std::vector<Key> keys;
+ *     uint32_t index = 0;
+ *     uint32_t keyLength = 0;
+ *     while (true) {
+ *         getLayerGenericMetadataKey(device, index, &keyLength, nullptr, nullptr);
+ *         if (keyLength == 0) break;
+ *
+ *         Key key;
+ *         key.name.resize(keyLength);
+ *         getLayerGenericMetadataKey(device, index, &keyLength, key.name.data(), &key.mandatory);
+ *         keys.push_back(key);
+ *
+ *         ++index;
+ *     }
+ *
+ * Parameters:
+ *   keyIndex - the index of the key to retrieve. For values beyond the end of
+ *       the list of supported keys, outKeyLength should return 0, and the
+ *       client may assume that if the length is 0 for keyIndex N, then it is
+ *       also 0 for all keyIndex values > N.
+ *   outKeyLength - if outKey was nullptr, returns the length of the key to
+ *       allow the client to allocate an appropriately-sized buffer; if outKey
+ *       was not nullptr, returns the length of the returned key, which must not
+ *       exceed the value stored in outKeyLength prior to the call; pointer will
+ *       be non-null
+ *   outKey - the key at the given index, or nullptr to query the key's length
+ *   outMandatory - whether the given metadata is mandatory or not (see
+ *      setLayerGenericMetadata for more information), may be nullptr
+ */
+typedef void (*HWC2_PFN_GET_LAYER_GENERIC_METADATA_KEY)(hwc2_device_t* device, uint32_t keyIndex,
+        uint32_t* outKeyLength, char* outKey, bool* outMandatory);
 
 __END_DECLS
 
