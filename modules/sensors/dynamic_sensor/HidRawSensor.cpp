@@ -676,6 +676,7 @@ bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
                     mFeatureInfo.type = SENSOR_TYPE_AMBIENT_TEMPERATURE;
                     mFeatureInfo.typeString = SENSOR_STRING_TYPE_AMBIENT_TEMPERATURE;
                     typeParsed = true;
+                    break;
                 case SENSOR_TYPE_LIGHT:
                     mFeatureInfo.type = SENSOR_TYPE_LIGHT;
                     mFeatureInfo.typeString = SENSOR_STRING_TYPE_LIGHT;
@@ -917,12 +918,14 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
                     periodMs = std::min(periodMs, static_cast<int64_t>(UINT16_MAX));
                     buffer[mReportIntervalOffset] = periodMs & 0xFF;
                     buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
+                    break;
                 case sizeof(uint32_t):
                     periodMs = std::min(periodMs, static_cast<int64_t>(UINT32_MAX));
                     buffer[mReportIntervalOffset] = periodMs & 0xFF;
                     buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
                     buffer[mReportIntervalOffset + 2] = (periodMs >> 16) & 0xFF;
                     buffer[mReportIntervalOffset + 3] = (periodMs >> 24) & 0xFF;
+                    break;
             }
             ok = device->setFeature(id, buffer);
         }
