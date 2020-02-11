@@ -47,13 +47,26 @@ static struct {
     {SW_FRONT_PROXIMITY, INPUT_USAGE_SWITCH_UNKNOWN},
     {SW_ROTATE_LOCK, INPUT_USAGE_SWITCH_UNKNOWN},
     {SW_LINEIN_INSERT, INPUT_USAGE_SWITCH_UNKNOWN},
-    {0x0e /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_MUTE_DEVICE, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_PEN_INSERTED, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_HPHL_OVERCURRENT, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_HPHR_OVERCURRENT, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_UNSUPPORT_INSERT, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x13 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x14 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x15 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x16 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x17 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x18 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x19 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {SW_MAX, INPUT_USAGE_SWITCH_UNKNOWN},
 };
 
 SwitchInputMapper::SwitchInputMapper()
     : InputMapper() {
-    static_assert(SW_CNT <= 32, "More than 32 switches defined in linux/input.h");
+    // If this gets larger than 64, then the mSwitchValues and mUpdatedSwitchMask
+    // variables need to be changed to support more than 64 bits.
+    static_assert(SW_CNT <= 64, "More than 64 switches defined in linux/input.h");
 }
 
 bool SwitchInputMapper::configureInputReport(InputDeviceNode* devNode,

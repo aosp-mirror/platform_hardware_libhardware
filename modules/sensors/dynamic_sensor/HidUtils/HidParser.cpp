@@ -231,9 +231,9 @@ std::vector<HidParser::ReportPacket> HidParser::convertGroupToPacket(
 
             // template
             ReportPacket packet = {
+                .bitSize = 0,
                 .type = type,
                 .id = id,
-                .bitSize = 0
             };
 
             for (const auto &r : reports) {
@@ -252,10 +252,10 @@ std::vector<HidParser::ReportPacket> HidParser::convertGroupToPacket(
                     .maxRaw = logical.second,
                     .a = scale,
                     .b = offset,
+                    .unit = r.getUnit(),
                     .bitOffset = packet.bitSize,
                     .bitSize = r.getSize(),
                     .count = r.getCount(),
-                    .unit = r.getUnit(),
                 };
                 packet.reports.push_back(digest);
                 packet.bitSize += digest.bitSize * digest.count;
