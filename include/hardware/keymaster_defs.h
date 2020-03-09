@@ -164,6 +164,8 @@ typedef enum {
                                                       included in attestation */
     KM_TAG_DEVICE_UNIQUE_ATTESTATION = KM_BOOL | 720,  /* Indicates StrongBox device-unique attestation
                                                           is requested. */
+    KM_TAG_IDENTITY_CREDENTIAL_KEY = KM_BOOL | 721, /* This is an identity credential key */
+
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
