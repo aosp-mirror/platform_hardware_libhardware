@@ -1142,6 +1142,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         // adev_close_input_stream() in this case.
         *stream_in = NULL;
         free(in);
+        return ret;
     }
 
     device_lock(in->adev);
