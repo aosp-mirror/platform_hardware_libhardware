@@ -26,6 +26,7 @@ cc_library_headers {
             ],
         },
     },
+    min_sdk_version: "29",
 
 }
 
@@ -59,4 +60,5 @@ cc_library_shared {
             exclude_shared_libs: ["libvndksupport"],
         },
     },
+    min_sdk_version: "29",
 }
