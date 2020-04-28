@@ -117,7 +117,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
 
 /*****************************************************************************/
 
-int mapFrameBufferLocked(struct private_module_t* module, int format)
+int mapFrameBufferLocked(struct private_module_t* module)
 {
     // already initialized...
     if (module->framebuffer) {
@@ -161,20 +161,6 @@ int mapFrameBufferLocked(struct private_module_t* module, int format)
      */
     info.yres_virtual = info.yres * NUM_BUFFERS;
 
-    switch (format) {
-    case HAL_PIXEL_FORMAT_RGBA_8888:
-        info.bits_per_pixel = 32;
-        info.red.offset = 0;
-        info.red.length = 8;
-        info.green.offset = 8;
-        info.green.length = 8;
-        info.blue.offset = 16;
-        info.blue.length = 8;
-        break;
-    default:
-        ALOGW("unknown format: %d", format);
-        break;
-    }
 
     uint32_t flags = PAGE_FLIP;
 #if USE_PAN_DISPLAY
@@ -294,8 +280,7 @@ int mapFrameBufferLocked(struct private_module_t* module, int format)
 static int mapFrameBuffer(struct private_module_t* module)
 {
     pthread_mutex_lock(&module->lock);
-    // Request RGBA8888 because the platform assumes support for RGBA8888.
-    int err = mapFrameBufferLocked(module, HAL_PIXEL_FORMAT_RGBA_8888);
+    int err = mapFrameBufferLocked(module);
     pthread_mutex_unlock(&module->lock);
     return err;
 }
