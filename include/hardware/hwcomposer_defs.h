@@ -104,6 +104,39 @@ typedef enum {
     HWC_TRANSFORM_FLIP_V_ROT_90 = HAL_TRANSFORM_FLIP_V | HAL_TRANSFORM_ROT_90,
 } hwc_transform_t;
 
+/* Constraints for changing vsync period */
+typedef struct hwc_vsync_period_change_constraints {
+    /* Time in CLOCK_MONOTONIC after which the vsync period may change
+     * (i.e., the vsync period must not change before this time). */
+    int64_t desiredTimeNanos;
+    /*
+     * If true, requires that the vsync period change must happen seamlessly without
+     * a noticeable visual artifact. */
+    uint8_t seamlessRequired;
+} hwc_vsync_period_change_constraints_t;
+
+/* Timing for a vsync period change. */
+typedef struct hwc_vsync_period_change_timeline {
+    /* The time in CLOCK_MONOTONIC when the new display will start to refresh at
+     * the new vsync period. */
+    int64_t newVsyncAppliedTimeNanos;
+
+    /* Set to true if the client is required to sent a frame to be displayed before
+     * the change can take place. */
+    uint8_t refreshRequired;
+
+    /* The time in CLOCK_MONOTONIC when the client is expected to send the new frame.
+     * Should be ignored if refreshRequired is false. */
+    int64_t refreshTimeNanos;
+} hwc_vsync_period_change_timeline_t;
+
+typedef struct hwc_client_target_property {
+    // The pixel format of client target requested by hardware composer.
+    int32_t pixelFormat;
+    // The dataspace of the client target requested by hardware composer.
+    int32_t dataspace;
+} hwc_client_target_property_t;
+
 /*******************************************************************************
  * Beyond this point are things only used by HWC1, which should be ignored when
  * implementing a HWC2 device
@@ -250,6 +283,11 @@ enum {
     /* Indicates which of the vendor-defined color transforms is provided by
      * this configuration. */
     HWC_DISPLAY_COLOR_TRANSFORM             = 6,
+
+    /* The configuration group this config is associated to. The groups are defined
+     * to mark certain configs as similar and changing configs within a certain group
+     * may be done seamlessly in some conditions. setActiveConfigWithConstraints. */
+    HWC_DISPLAY_CONFIG_GROUP                = 7,
 };
 
 /* Allowed events for hwc_methods::eventControl() */
