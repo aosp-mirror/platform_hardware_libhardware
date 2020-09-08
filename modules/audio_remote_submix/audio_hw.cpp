@@ -831,6 +831,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
     // in the pipe in case capture start was delayed
     {
         const size_t availableToWrite = sink->availableToWrite();
+        // NOTE: rsxSink has been checked above and sink and source life cycles are synchronized
         sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
         const struct submix_stream_in *in = rsxadev->routes[out->route_handle].input;
         const bool dont_block = (in == NULL)
@@ -905,8 +906,14 @@ static int out_get_presentation_position(const struct audio_stream_out *stream,
 
     int ret = -EWOULDBLOCK;
     pthread_mutex_lock(&rsxadev->lock);
-    const ssize_t frames_in_pipe =
-            rsxadev->routes[out->route_handle].rsxSource->availableToRead();
+    sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
+    if (source == NULL) {
+        ALOGW("%s called on released output", __FUNCTION__);
+        pthread_mutex_unlock(&rsxadev->lock);
+        return -ENODEV;
+    }
+
+    const ssize_t frames_in_pipe = source->availableToRead();
     if (CC_UNLIKELY(frames_in_pipe < 0)) {
         *frames = out->frames_written;
         ret = 0;
@@ -939,8 +946,14 @@ static int out_get_render_position(const struct audio_stream_out *stream,
     struct submix_audio_device * const rsxadev = out->dev;
 
     pthread_mutex_lock(&rsxadev->lock);
-    const ssize_t frames_in_pipe =
-            rsxadev->routes[out->route_handle].rsxSource->availableToRead();
+    sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
+    if (source == NULL) {
+        ALOGW("%s called on released output", __FUNCTION__);
+        pthread_mutex_unlock(&rsxadev->lock);
+        return -ENODEV;
+    }
+
+    const ssize_t frames_in_pipe = source->availableToRead();
     if (CC_UNLIKELY(frames_in_pipe < 0)) {
         *dsp_frames = (uint32_t)out->frames_written_since_standby;
     } else {

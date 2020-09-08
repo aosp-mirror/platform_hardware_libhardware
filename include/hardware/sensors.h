@@ -185,6 +185,7 @@ enum {
 #define SENSOR_STRING_TYPE_ADDITIONAL_INFO              "android.sensor.additional_info"
 #define SENSOR_STRING_TYPE_LOW_LATENCY_OFFBODY_DETECT   "android.sensor.low_latency_offbody_detect"
 #define SENSOR_STRING_TYPE_ACCELEROMETER_UNCALIBRATED   "android.sensor.accelerometer_uncalibrated"
+#define SENSOR_STRING_TYPE_HINGE_ANGLE                  "android.sensor.hinge_angle"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
