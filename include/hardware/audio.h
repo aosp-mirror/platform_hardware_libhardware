@@ -203,7 +203,14 @@ typedef enum {
     STREAM_CBK_EVENT_ERROR, /* stream hit some error, let AF take action */
 } stream_callback_event_t;
 
+typedef enum {
+    STREAM_EVENT_CBK_TYPE_CODEC_FORMAT_CHANGED, /* codec format of the stream changed */
+} stream_event_callback_type_t;
+
 typedef int (*stream_callback_t)(stream_callback_event_t event, void *param, void *cookie);
+
+typedef int (*stream_event_callback_t)(stream_event_callback_type_t event,
+                                       void *param, void *cookie);
 
 /* type of drain requested to audio_stream_out->drain(). Mutually exclusive */
 typedef enum {
@@ -422,6 +429,13 @@ struct audio_stream_out {
      */
     void (*update_source_metadata)(struct audio_stream_out *stream,
                                    const struct source_metadata* source_metadata);
+
+    /**
+     * Set the callback function for notifying events for an output stream.
+     */
+    int (*set_event_callback)(struct audio_stream_out *stream,
+                              stream_event_callback_t callback,
+                              void *cookie);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 

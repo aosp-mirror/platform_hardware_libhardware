@@ -41,7 +41,8 @@ __BEGIN_DECLS
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_0 HARDWARE_DEVICE_API_VERSION(1, 0)
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_1 HARDWARE_DEVICE_API_VERSION(1, 1)
 #define SOUND_TRIGGER_DEVICE_API_VERSION_1_2 HARDWARE_DEVICE_API_VERSION(1, 2)
-#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_2
+#define SOUND_TRIGGER_DEVICE_API_VERSION_1_3 HARDWARE_DEVICE_API_VERSION(1, 3)
+#define SOUND_TRIGGER_DEVICE_API_VERSION_CURRENT SOUND_TRIGGER_DEVICE_API_VERSION_1_3
 
 /**
  * List of known sound trigger HAL modules. This is the base name of the sound_trigger HAL
@@ -123,6 +124,60 @@ struct sound_trigger_hw_device {
      */
     int (*get_model_state)(const struct sound_trigger_hw_device *dev,
                            sound_model_handle_t sound_model_handle);
+
+    /* Set a model specific ModelParameter with the given value. This parameter
+     * will keep its value for the duration the model is loaded regardless of starting and stopping
+     * recognition. Once the model is unloaded, the value will be lost.
+     * Returns 0 or an error code.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    int (*set_parameter)(const struct sound_trigger_hw_device *dev,
+                           sound_model_handle_t sound_model_handle,
+                           sound_trigger_model_parameter_t model_param, int32_t value);
+
+    /* Get a model specific ModelParameter. This parameter will keep its value
+     * for the duration the model is loaded regardless of starting and stopping recognition.
+     * Once the model is unloaded, the value will be lost. If the value is not set, a default
+     * value is returned. See sound_trigger_model_parameter_t for parameter default values.
+     * Returns 0 or an error code. On return 0, value pointer will be set.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    int (*get_parameter)(const struct sound_trigger_hw_device *dev,
+                           sound_model_handle_t sound_model_handle,
+                           sound_trigger_model_parameter_t model_param, int32_t* value);
+
+    /* Get supported parameter attributes with respect to the provided model
+     * handle. Along with determining the valid range, this API is also used
+     * to determine if a given parameter ID is supported at all by the
+     * modelHandle for use with getParameter and setParameter APIs.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    int (*query_parameter)(const struct sound_trigger_hw_device *dev,
+                           sound_model_handle_t sound_model_handle,
+                           sound_trigger_model_parameter_t model_param,
+                           sound_trigger_model_parameter_range_t* param_range);
+
+    /*
+     * Retrieve verbose extended implementation properties.
+     * The header pointer is intented to be cast to the proper extended
+     * properties struct based on the header version.
+     * The returned pointer is valid throughout the lifetime of the driver.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    const struct sound_trigger_properties_header* (*get_properties_extended)
+            (const struct sound_trigger_hw_device *dev);
+
+    /* Start recognition on a given model. Only one recognition active at a time per model.
+     * Once recognition succeeds of fails, the callback is called.
+     * Recognition API includes extended config fields. The header is intended to be base to
+     * the proper config struct based on the header version.
+     * Only supported for device api versions SOUND_TRIGGER_DEVICE_API_VERSION_1_3 or above.
+     */
+    int (*start_recognition_extended)(const struct sound_trigger_hw_device *dev,
+                             sound_model_handle_t sound_model_handle,
+                             const struct sound_trigger_recognition_config_header *header,
+                             recognition_callback_t callback,
+                             void *cookie);
 };
 
 typedef struct sound_trigger_hw_device sound_trigger_hw_device_t;
