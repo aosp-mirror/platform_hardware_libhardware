@@ -50,6 +50,11 @@ typedef enum {
      * the device may return -1 instead */
     HWC2_ATTRIBUTE_DPI_X = 4,
     HWC2_ATTRIBUTE_DPI_Y = 5,
+
+    /* The configuration group this config is associated to.
+     * Switching between configurations within the same group may be done seamlessly
+     * in some conditions via setActiveConfigWithConstraints. */
+    HWC2_ATTRIBUTE_CONFIG_GROUP = 7,
 } hwc2_attribute_t;
 
 /* Blend modes, settable per layer */
@@ -73,6 +78,9 @@ typedef enum {
     HWC2_CALLBACK_HOTPLUG = 1,
     HWC2_CALLBACK_REFRESH = 2,
     HWC2_CALLBACK_VSYNC = 3,
+    HWC2_CALLBACK_VSYNC_2_4 = 4,
+    HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED = 5,
+    HWC2_CALLBACK_SEAMLESS_POSSIBLE = 6,
 } hwc2_callback_descriptor_t;
 
 /* Optional capabilities which may be supported by some devices. The particular
@@ -203,6 +211,12 @@ typedef enum {
     HWC2_DISPLAY_TYPE_VIRTUAL = 2,
 } hwc2_display_type_t;
 
+/* Physical display types returned by getDisplayConnectionType */
+typedef enum {
+    HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL = 0,
+    HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL = 1,
+} hwc2_display_connection_type_t;
+
 /* Return codes from all functions */
 typedef enum {
     HWC2_ERROR_NONE = 0,
@@ -214,6 +228,8 @@ typedef enum {
     HWC2_ERROR_NO_RESOURCES,
     HWC2_ERROR_NOT_VALIDATED,
     HWC2_ERROR_UNSUPPORTED,
+    HWC2_ERROR_SEAMLESS_NOT_ALLOWED,
+    HWC2_ERROR_SEAMLESS_NOT_POSSIBLE,
 } hwc2_error_t;
 
 /* Function descriptors for use with getFunction */
@@ -282,6 +298,17 @@ typedef enum {
     HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
     HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
     HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
+
+    // composer 2.4
+    HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
+    HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD,
+    HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS,
+    HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
+    HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
+    HWC2_FUNCTION_SET_CONTENT_TYPE,
+    HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
+    HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA,
+    HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY,
 } hwc2_function_descriptor_t;
 
 /* Layer requests returned from getDisplayRequests */
@@ -319,6 +346,14 @@ typedef enum {
     /* The display is fully on */
     HWC2_POWER_MODE_ON = 2,
 } hwc2_power_mode_t;
+
+typedef enum {
+    HWC2_CONTENT_TYPE_NONE = 0,
+    HWC2_CONTENT_TYPE_GRAPHICS = 1,
+    HWC2_CONTENT_TYPE_PHOTO = 2,
+    HWC2_CONTENT_TYPE_CINEMA = 3,
+    HWC2_CONTENT_TYPE_GAME = 4,
+} hwc2_content_type_t;
 
 /* Vsync values passed to setVsyncEnabled */
 typedef enum {
@@ -412,6 +447,15 @@ typedef enum {
      * Specified that the display supports brightness operations.
      */
     HWC2_DISPLAY_CAPABILITY_BRIGHTNESS = 3,
+
+    /**
+     * Specifies that the display supports a low latency mode. If the connection
+     * to the display is via HDMI, this specifies whether Auto Low Latency Mode
+     * is supported. If, instead, there is an internal connection to the display,
+     * then this specifies that the display has some other custom low latency
+     * mode.
+     */
+    HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE = 5,
 } hwc2_display_capability_t;
 
 /*
@@ -428,6 +472,7 @@ static inline const char* getAttributeName(hwc2_attribute_t attribute) {
         case HWC2_ATTRIBUTE_VSYNC_PERIOD: return "VsyncPeriod";
         case HWC2_ATTRIBUTE_DPI_X: return "DpiX";
         case HWC2_ATTRIBUTE_DPI_Y: return "DpiY";
+        case HWC2_ATTRIBUTE_CONFIG_GROUP: return "ConfigGroup";
         default: return "Unknown";
     }
 }
@@ -449,6 +494,9 @@ static inline const char* getCallbackDescriptorName(
         case HWC2_CALLBACK_HOTPLUG: return "Hotplug";
         case HWC2_CALLBACK_REFRESH: return "Refresh";
         case HWC2_CALLBACK_VSYNC: return "Vsync";
+        case HWC2_CALLBACK_VSYNC_2_4: return "Vsync2.4";
+        case HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED: return "VsyncPeriodTimingChanged";
+        case HWC2_CALLBACK_SEAMLESS_POSSIBLE: return "SeamlessPossible";
         default: return "Unknown";
     }
 }
@@ -509,6 +557,14 @@ static inline const char* getDisplayTypeName(hwc2_display_type_t type) {
     }
 }
 
+static inline const char* getDisplayConnectionTypeName(hwc2_display_connection_type_t type) {
+    switch (type) {
+        case HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL: return "Internal";
+        case HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL: return "External";
+        default: return "Unknown";
+    }
+}
+
 static inline const char* getErrorName(hwc2_error_t error) {
     switch (error) {
         case HWC2_ERROR_NONE: return "None";
@@ -520,6 +576,8 @@ static inline const char* getErrorName(hwc2_error_t error) {
         case HWC2_ERROR_NO_RESOURCES: return "NoResources";
         case HWC2_ERROR_NOT_VALIDATED: return "NotValidated";
         case HWC2_ERROR_UNSUPPORTED: return "Unsupported";
+        case HWC2_ERROR_SEAMLESS_NOT_ALLOWED: return "SeamlessNotAllowed";
+        case HWC2_ERROR_SEAMLESS_NOT_POSSIBLE: return "SeamlessNotPossible";
         default: return "Unknown";
     }
 }
@@ -602,6 +660,18 @@ static inline const char* getFunctionDescriptorName(
         case HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS: return "SetLayerPerFrameMetadataBlobs";
         case HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT: return "GetDisplayBrightnessSupport";
         case HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS: return "SetDisplayBrightness";
+
+        // composer 2.4
+        case HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE: return "GetDisplayConnectionType";
+        case HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD: return "GetDisplayVsyncPeriod";
+        case HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS: return "SetActiveConfigWithConstraints";
+        case HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE: return "SetAutoLowLatencyMode";
+        case HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES: return "GetSupportedContentTypes";
+        case HWC2_FUNCTION_SET_CONTENT_TYPE: return "SetContentType";
+        case HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY: return "GetClientTargetProperty";
+        case HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA: return "SetLayerGenericMetadata";
+        case HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY: return "GetLayerGenericMetadataKey";
+
         default: return "Unknown";
     }
 }
@@ -620,6 +690,17 @@ static inline const char* getPowerModeName(hwc2_power_mode_t mode) {
         case HWC2_POWER_MODE_DOZE_SUSPEND: return "DozeSuspend";
         case HWC2_POWER_MODE_DOZE: return "Doze";
         case HWC2_POWER_MODE_ON: return "On";
+        default: return "Unknown";
+    }
+}
+
+static inline const char* getContentTypeName(hwc2_content_type_t contentType) {
+    switch(contentType) {
+        case HWC2_CONTENT_TYPE_NONE: return "None";
+        case HWC2_CONTENT_TYPE_GRAPHICS: return "Graphics";
+        case HWC2_CONTENT_TYPE_PHOTO: return "Photo";
+        case HWC2_CONTENT_TYPE_CINEMA: return "Cinema";
+        case HWC2_CONTENT_TYPE_GAME: return "Game";
         default: return "Unknown";
     }
 }
@@ -676,6 +757,8 @@ static inline const char* getDisplayCapabilityName(hwc2_display_capability_t cap
             return "Doze";
         case HWC2_DISPLAY_CAPABILITY_BRIGHTNESS:
             return "Brightness";
+        case HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE:
+            return "AutoLowLatencyMode";
         default:
             return "Unknown";
     }
@@ -708,6 +791,7 @@ enum class Attribute : int32_t {
     VsyncPeriod = HWC2_ATTRIBUTE_VSYNC_PERIOD,
     DpiX = HWC2_ATTRIBUTE_DPI_X,
     DpiY = HWC2_ATTRIBUTE_DPI_Y,
+    ConfigGroup = HWC2_ATTRIBUTE_CONFIG_GROUP,
 };
 TO_STRING(hwc2_attribute_t, Attribute, getAttributeName)
 
@@ -724,6 +808,9 @@ enum class Callback : int32_t {
     Hotplug = HWC2_CALLBACK_HOTPLUG,
     Refresh = HWC2_CALLBACK_REFRESH,
     Vsync = HWC2_CALLBACK_VSYNC,
+    Vsync_2_4 = HWC2_CALLBACK_VSYNC_2_4,
+    VsyncPeriodTimingChanged = HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED,
+    SeamlessPossible = HWC2_CALLBACK_SEAMLESS_POSSIBLE,
 };
 TO_STRING(hwc2_callback_descriptor_t, Callback, getCallbackDescriptorName)
 
@@ -767,6 +854,12 @@ enum class DisplayType : int32_t {
 };
 TO_STRING(hwc2_display_type_t, DisplayType, getDisplayTypeName)
 
+enum class DisplayConnectionType : uint32_t {
+    Internal = HWC2_DISPLAY_CONNECTION_TYPE_INTERNAL,
+    External = HWC2_DISPLAY_CONNECTION_TYPE_EXTERNAL,
+};
+TO_STRING(hwc2_display_connection_type_t, DisplayConnectionType, getDisplayConnectionTypeName)
+
 enum class Error : int32_t {
     None = HWC2_ERROR_NONE,
     BadConfig = HWC2_ERROR_BAD_CONFIG,
@@ -777,6 +870,8 @@ enum class Error : int32_t {
     NoResources = HWC2_ERROR_NO_RESOURCES,
     NotValidated = HWC2_ERROR_NOT_VALIDATED,
     Unsupported = HWC2_ERROR_UNSUPPORTED,
+    SeamlessNotAllowed = HWC2_ERROR_SEAMLESS_NOT_ALLOWED,
+    SeamlessNotPossible = HWC2_ERROR_SEAMLESS_NOT_POSSIBLE,
 };
 TO_STRING(hwc2_error_t, Error, getErrorName)
 
@@ -845,6 +940,17 @@ enum class FunctionDescriptor : int32_t {
     SetLayerPerFrameMetadataBlobs = HWC2_FUNCTION_SET_LAYER_PER_FRAME_METADATA_BLOBS,
     GetDisplayBrightnessSupport = HWC2_FUNCTION_GET_DISPLAY_BRIGHTNESS_SUPPORT,
     SetDisplayBrightness = HWC2_FUNCTION_SET_DISPLAY_BRIGHTNESS,
+
+    // composer 2.4
+    GetDisplayConnectionType = HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE,
+    GetDisplayVsyncPeriod = HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD,
+    SetActiveConfigWithConstraints = HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS,
+    SetAutoLowLatencyMode = HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE,
+    GetSupportedContentTypes = HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES,
+    SetContentType = HWC2_FUNCTION_SET_CONTENT_TYPE,
+    GetClientTargetProperty = HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY,
+    SetLayerGenericMetadata = HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA,
+    GetLayerGenericMetadataKey = HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY,
 };
 TO_STRING(hwc2_function_descriptor_t, FunctionDescriptor,
         getFunctionDescriptorName)
@@ -861,6 +967,15 @@ enum class PowerMode : int32_t {
     On = HWC2_POWER_MODE_ON,
 };
 TO_STRING(hwc2_power_mode_t, PowerMode, getPowerModeName)
+
+enum class ContentType : int32_t {
+    None = HWC2_CONTENT_TYPE_NONE,
+    Graphics = HWC2_CONTENT_TYPE_GRAPHICS,
+    Photo = HWC2_CONTENT_TYPE_PHOTO,
+    Cinema = HWC2_CONTENT_TYPE_CINEMA,
+    Game = HWC2_CONTENT_TYPE_GAME,
+};
+TO_STRING(hwc2_content_type_t, ContentType, getContentTypeName)
 
 enum class Transform : int32_t {
     None = 0,
@@ -886,6 +1001,7 @@ enum class DisplayCapability : int32_t {
     SkipClientColorTransform = HWC2_DISPLAY_CAPABILITY_SKIP_CLIENT_COLOR_TRANSFORM,
     Doze = HWC2_DISPLAY_CAPABILITY_DOZE,
     Brightness = HWC2_DISPLAY_CAPABILITY_BRIGHTNESS,
+    AutoLowLatencyMode = HWC2_DISPLAY_CAPABILITY_AUTO_LOW_LATENCY_MODE,
 };
 TO_STRING(hwc2_display_capability_t, DisplayCapability, getDisplayCapabilityName)
 
@@ -904,6 +1020,7 @@ typedef void* hwc2_callback_data_t;
 typedef uint32_t hwc2_config_t;
 typedef uint64_t hwc2_display_t;
 typedef uint64_t hwc2_layer_t;
+typedef uint32_t hwc2_vsync_period_t;
 
 /*
  * Device Struct
@@ -1029,6 +1146,63 @@ typedef void (*HWC2_PFN_REFRESH)(hwc2_callback_data_t callbackData,
  */
 typedef void (*HWC2_PFN_VSYNC)(hwc2_callback_data_t callbackData,
         hwc2_display_t display, int64_t timestamp);
+
+/* vsync_2_4(..., display, timestamp, vsyncPeriodNanos)
+ * Descriptor: HWC2_CALLBACK_VSYNC_2_4
+ * Required for HWC2 devices for composer 2.4
+ *
+ * Notifies the client that a vsync event has occurred. This callback must
+ * only be triggered when vsync is enabled for this display (through
+ * setVsyncEnabled).
+ *
+ * This callback should be triggered from a thread of at least
+ * HAL_PRIORITY_URGENT_DISPLAY with as little latency as possible, typically
+ * less than 0.5 ms. This thread is guaranteed not to call back into the device.
+ *
+ * Parameters:
+ *   display - the display which has received a vsync event
+ *   timestamp - the CLOCK_MONOTONIC time at which the vsync event occurred, in
+ *       nanoseconds
+ *   vsyncPeriodNanos - the display vsync period in nanoseconds i.e. the next onVsync2_4 is
+ *   expected to be called vsyncPeriod nanoseconds after this call.
+ */
+typedef void (*HWC2_PFN_VSYNC_2_4)(hwc2_callback_data_t callbackData,
+        hwc2_display_t display, int64_t timestamp, hwc2_vsync_period_t vsyncPeriodNanos);
+
+/* vsyncPeriodTimingChanged(..., display, updated_timeline)
+ * Descriptor: HWC2_CALLBACK_VSYNC_PERIOD_TIMING_CHANGED
+ * Optional for HWC2 devices for composer 2.4
+ *
+ * Notifies the client that the previously reported timing for vsync period change has been
+ * updated. This may occur if the composer missed the deadline for changing the vsync period
+ * or the client submitted a refresh frame too late.
+ *
+ * This callback should be triggered from a thread of at least
+ * HAL_PRIORITY_URGENT_DISPLAY with as little latency as possible, typically
+ * less than 0.5 ms. This thread is guaranteed not to call back into the device.
+ *
+ * Parameters:
+ *   display - the display which has received a vsync event
+ *   updated_timeline - new timeline for the vsync period change
+ */
+typedef void (*HWC2_PFN_VSYNC_PERIOD_TIMING_CHANGED)(hwc2_callback_data_t callbackData,
+        hwc2_display_t display, hwc_vsync_period_change_timeline_t* updated_timeline);
+
+/* SeamlessPossible(..., display)
+ * Descriptor: HWC2_CALLBACK_SEAMLESS_POSSIBLE
+ * Optional for HWC2 devices for composer 2.4
+ *
+ * Notifies the client that the conditions which previously led to returning SEAMLESS_NOT_POSSIBLE
+ * from setActiveConfigWithConstraints have changed and now seamless may be possible. Client should
+ * retry calling setActiveConfigWithConstraints.
+ *
+ *
+ * Parameters:
+ *   display - a display setActiveConfigWithConstraints previously failed with
+ *             SEAMLESS_NOT_POSSIBLE.
+ */
+typedef void (*HWC2_PFN_SEAMLESS_POSSIBLE)(hwc2_callback_data_t callbackData,
+        hwc2_display_t display);
 
 /*
  * Device Functions
@@ -2726,6 +2900,275 @@ typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_DISPLAY_BRIGHTNESS_SUPPORT)(hwc2_
  */
 typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_DISPLAY_BRIGHTNESS)(hwc2_device_t* device,
         hwc2_display_t display, float brightness);
+
+/* Composer 2.4 additions */
+
+/* getDisplayConnectionType(..., outType)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_CONNECTION_TYPE
+ * Optional for all HWC2 devices
+ *
+ * Returns whether the given physical display is internal or external.
+ *
+ * Parameters:
+ *   outType - the connection type of the display; pointer will be non-NULL
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY when the display is invalid or virtual.
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_CONNECTION_TYPE)(
+        hwc2_device_t* device, hwc2_display_t display,
+        uint32_t* /*hwc2_display_connection_type_t*/ outType);
+
+/* getDisplayVsyncPeriod(..., outVsyncPeriods)
+ * Descriptor: HWC2_FUNCTION_GET_DISPLAY_VSYNC_PERIOD
+ * Required for HWC2 devices for composer 2.4
+ *
+ * Retrieves which vsync period the display is currently using.
+ *
+ * If no display configuration is currently active, this function must
+ * return BAD_CONFIG. If a vsync period is about to change due to a
+ * setActiveConfigWithConstraints call, this function must return the current vsync period
+ * until the change has taken place.
+ *
+ * Parameters:
+ *     outVsyncPeriod - the current vsync period of the display.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_CONFIG - no configuration is currently active
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_DISPLAY_VSYNC_PERIOD)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_vsync_period_t* outVsyncPeriod);
+
+/* setActiveConfigWithConstraints(...,
+ *                                config,
+ *                                vsyncPeriodChangeConstraints,
+ *                                outTimeline)
+ * Descriptor: HWC2_FUNCTION_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS
+ * Required for HWC2 devices for composer 2.4
+ *
+ * Sets the active configuration and the refresh rate for this display.
+ * If the new config shares the same config group as the current config,
+ * only the vsync period shall change.
+ * Upon returning, the given display configuration, except vsync period, must be active and
+ * remain so until either this function is called again or the display is disconnected.
+ * When the display starts to refresh at the new vsync period, onVsync_2_4 callback must be
+ * called with the new vsync period.
+ *
+ * Parameters:
+ *     config - the new display configuration.
+ *     vsyncPeriodChangeConstraints - constraints required for changing vsync period:
+ *                                    desiredTimeNanos - the time in CLOCK_MONOTONIC after
+ *                                                       which the vsync period may change
+ *                                                       (i.e., the vsync period must not change
+ *                                                       before this time).
+ *                                    seamlessRequired - if true, requires that the vsync period
+ *                                                       change must happen seamlessly without
+ *                                                       a noticeable visual artifact.
+ *                                                       When the conditions change and it may be
+ *                                                       possible to change the vsync period
+ *                                                       seamlessly, HWC2_CALLBACK_SEAMLESS_POSSIBLE
+ *                                                       callback must be called to indicate that
+ *                                                       caller should retry.
+ *     outTimeline - the timeline for the vsync period change.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in.
+ *   HWC2_ERROR_BAD_CONFIG - an invalid configuration handle passed in.
+ *   HWC2_ERROR_SEAMLESS_NOT_ALLOWED - when seamlessRequired was true but config provided doesn't
+     *                                 share the same config group as the current config.
+ *   HWC2_ERROR_SEAMLESS_NOT_POSSIBLE - when seamlessRequired was true but the display cannot
+ *                                      achieve the vsync period change without a noticeable
+ *                                      visual artifact.
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_SET_ACTIVE_CONFIG_WITH_CONSTRAINTS)(
+        hwc2_device_t* device, hwc2_display_t display, hwc2_config_t config,
+        hwc_vsync_period_change_constraints_t* vsyncPeriodChangeConstraints,
+        hwc_vsync_period_change_timeline_t* outTimeline);
+
+/* setAutoLowLatencyMode(displayToken, on)
+ * Descriptor: HWC2_FUNCTION_SET_AUTO_LOW_LATENCY_MODE
+ * Optional for HWC2 devices
+ *
+ * setAutoLowLatencyMode requests that the display goes into low latency mode. If the display
+ * is connected via HDMI 2.1, then Auto Low Latency Mode should be triggered. If the display is
+ * internally connected, then a custom low latency mode should be triggered (if available).
+ *
+ * Parameters:
+ *   on - indicates whether to turn low latency mode on (=true) or off (=false)
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED - when the display does not support any low latency mode
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_AUTO_LOW_LATENCY_MODE)(hwc2_device_t* device,
+        hwc2_display_t display, bool on);
+
+/* getSupportedContentTypes(..., outSupportedContentTypes)
+ * Descriptor: HWC2_FUNCTION_GET_SUPPORTED_CONTENT_TYPES
+ * Optional for HWC2 devices
+ *
+ * getSupportedContentTypes returns a list of supported content types
+ * (as described in the definition of ContentType above).
+ * This list must not change after initialization.
+ *
+ * Parameters:
+ *   outNumSupportedContentTypes - if outSupportedContentTypes was nullptr, returns the number
+ *       of supported content types; if outSupportedContentTypes was not nullptr, returns the
+ *       number of capabilities stored in outSupportedContentTypes, which must not exceed the
+ *       value stored in outNumSupportedContentTypes prior to the call; pointer will be non-NULL
+ *   outSupportedContentTypes - a list of supported content types.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_GET_SUPPORTED_CONTENT_TYPES)(hwc2_device_t* device,
+        hwc2_display_t display, uint32_t* outNumSupportedContentTypes, uint32_t* outSupportedContentTypes);
+
+/* setContentType(displayToken, contentType)
+ * Descriptor: HWC2_FUNCTION_SET_CONTENT_TYPE
+ * Optional for HWC2 devices
+ *
+ * setContentType instructs the display that the content being shown is of the given contentType
+ * (one of GRAPHICS, PHOTO, CINEMA, GAME).
+ *
+ * According to the HDMI 1.4 specification, supporting all content types is optional. Whether
+ * the display supports a given content type is reported by getSupportedContentTypes.
+ *
+ * Parameters:
+ *   contentType - the type of content that is currently being shown on the display
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - when the display is invalid, or
+ *   HWC2_ERROR_UNSUPPORTED - when the given content type is a valid content type, but is not
+ *                            supported on this display, or
+ *   HWC2_ERROR_BAD_PARAMETER - when the given content type is invalid
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_CONTENT_TYPE)(hwc2_device_t* device,
+        hwc2_display_t display, int32_t /* hwc2_content_type_t */ contentType);
+
+/* getClientTargetProperty(..., outClientTargetProperty)
+ * Descriptor: HWC2_FUNCTION_GET_CLIENT_TARGET_PROPERTY
+ * Optional for HWC2 devices
+ *
+ * Retrieves the client target properties for which the hardware composer
+ * requests after the last call to validateDisplay. The client must set the
+ * properties of the client target to match the returned values.
+ * When this API is implemented, if client composition is needed, the hardware
+ * composer must return meaningful client target property with dataspace not
+ * setting to UNKNOWN.
+ * When the returned dataspace is set to UNKNOWN, it means hardware composer
+ * requests nothing, the client must ignore the returned client target property
+ * structrue.
+ *
+ * Parameters:
+ *   outClientTargetProperty - the client target properties that hardware
+ *       composer requests. If dataspace field is set to UNKNOWN, it means
+ *       the hardware composer requests nothing, the client must ignore the
+ *       returned client target property structure.
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_NOT_VALIDATED - validateDisplay has not been called for this
+ *       display
+ */
+typedef int32_t /*hwc2_error_t*/ (*HWC2_PFN_GET_CLIENT_TARGET_PROPERTY)(
+        hwc2_device_t* device, hwc2_display_t display,
+        hwc_client_target_property_t* outClientTargetProperty);
+
+/* setLayerGenericMetadata(..., keyLength, key, mandatory, valueLength, value)
+ * Descriptor: HWC2_FUNCTION_SET_LAYER_GENERIC_METADATA
+ * Optional for HWC2 devices for composer 2.4+
+ *
+ * setLayerGenericMetadata sets a piece of generic metadata for the given layer.
+ * If this function is called twice with the same key but different values, the
+ * newer value must override the older one. Calling this function with
+ * valueLength == 0 must reset that key's metadata as if it had not been set.
+ *
+ * A given piece of metadata may either be mandatory or a hint (non-mandatory)
+ * as indicated by the `mandatory` parameter. Mandatory metadata may affect the
+ * composition result, which is to say that it may cause a visible change in the
+ * final image. By contrast, hints may only affect the composition strategy,
+ * such as which layers are composited by the client, but must not cause a
+ * visible change in the final image.
+ *
+ * This implies that if the device does not understand a given key:
+ * - If the key is marked as mandatory, it must mark this layer for client
+ *   composition in order to ensure the correct composition result
+ * - If the key is a hint, the metadata provided may be ignored
+ *
+ * Parameters:
+ *   keyLength - the length of the key parameter
+ *   key - the metadata key
+ *   mandatory - indicates whether this particular key represents mandatory
+ *       metadata or a hint, as described above
+ *   valueLength - the length of the value parameter
+ *   value - the metadata value
+ *
+ * Returns HWC2_ERROR_NONE or one of the following errors:
+ *   HWC2_ERROR_BAD_DISPLAY - an invalid display handle was passed in
+ *   HWC2_ERROR_BAD_LAYER - an invalid layer handle was passed in
+ *   HWC2_ERROR_BAD_PARAMETER - an unsupported key was passed in, or the value
+ *       does not conform to the expected format for the key
+ */
+typedef int32_t /*hwc_error_t*/ (*HWC2_PFN_SET_LAYER_GENERIC_METADATA)(hwc2_device_t* device,
+        hwc2_display_t display, hwc2_layer_t layer, uint32_t keyLength, const char* key,
+        bool mandatory, uint32_t valueLength, const uint8_t* value);
+
+/* getLayerGenericMetadataKey(..., keyIndex, outKeyLength, outKey, outMandatory)
+ * Descriptor: HWC2_FUNCTION_GET_LAYER_GENERIC_METADATA_KEY
+ * Optional for HWC2 devices for composer 2.4+
+ *
+ * getLayerGenericMetadataKey allows the client to query which metadata keys are
+ * supported by the composer implementation. Only keys in this list will be
+ * passed into setLayerGenericMetadata. Additionally, the key names in this list
+ * must meet the following requirements:
+ * - Must be specified in reverse domain name notation
+ * - Must not start with 'com.android' or 'android'
+ * - Must be unique within the returned list of keys
+ * - Must correspond to a matching HIDL struct type, which defines the structure
+ *   of its values. For example, the key 'com.example.V1-3.Foo' should
+ *   correspond to a value of type com.example@1.3::Foo, which is defined in a
+ *   vendor HAL extension
+ *
+ * Client code which calls this function will look similar to this:
+ *
+ *     struct Key {
+ *         std::string name;
+ *         bool mandatory;
+ *     }
+ *
+ *     std::vector<Key> keys;
+ *     uint32_t index = 0;
+ *     uint32_t keyLength = 0;
+ *     while (true) {
+ *         getLayerGenericMetadataKey(device, index, &keyLength, nullptr, nullptr);
+ *         if (keyLength == 0) break;
+ *
+ *         Key key;
+ *         key.name.resize(keyLength);
+ *         getLayerGenericMetadataKey(device, index, &keyLength, key.name.data(), &key.mandatory);
+ *         keys.push_back(key);
+ *
+ *         ++index;
+ *     }
+ *
+ * Parameters:
+ *   keyIndex - the index of the key to retrieve. For values beyond the end of
+ *       the list of supported keys, outKeyLength should return 0, and the
+ *       client may assume that if the length is 0 for keyIndex N, then it is
+ *       also 0 for all keyIndex values > N.
+ *   outKeyLength - if outKey was nullptr, returns the length of the key to
+ *       allow the client to allocate an appropriately-sized buffer; if outKey
+ *       was not nullptr, returns the length of the returned key, which must not
+ *       exceed the value stored in outKeyLength prior to the call; pointer will
+ *       be non-null
+ *   outKey - the key at the given index, or nullptr to query the key's length
+ *   outMandatory - whether the given metadata is mandatory or not (see
+ *      setLayerGenericMetadata for more information), may be nullptr
+ */
+typedef void (*HWC2_PFN_GET_LAYER_GENERIC_METADATA_KEY)(hwc2_device_t* device, uint32_t keyIndex,
+        uint32_t* outKeyLength, char* outKey, bool* outMandatory);
 
 __END_DECLS
 
