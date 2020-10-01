@@ -51,6 +51,7 @@ enum {
     SENSOR_TYPE_ADDITIONAL_INFO = 33,
     SENSOR_TYPE_LOW_LATENCY_OFFBODY_DETECT = 34,
     SENSOR_TYPE_ACCELEROMETER_UNCALIBRATED = 35,
+    SENSOR_TYPE_HINGE_ANGLE = 36,
     SENSOR_TYPE_DEVICE_PRIVATE_BASE = 65536 /* 0x10000 */,
 };
 
@@ -80,7 +81,7 @@ typedef enum {
 } sensor_flag_shift_t;
 
 enum {
-    SENSOR_STATUS_NO_CONTACT = -1 /* (-1) */,
+    SENSOR_STATUS_NO_CONTACT = -1 /* -1 */,
     SENSOR_STATUS_UNRELIABLE = 0,
     SENSOR_STATUS_ACCURACY_LOW = 1,
     SENSOR_STATUS_ACCURACY_MEDIUM = 2,
@@ -95,35 +96,35 @@ typedef enum {
     AINFO_BEGIN = 0u,
     AINFO_END = 1u,
     AINFO_UNTRACKED_DELAY = 65536u /* 0x10000 */,
-    AINFO_INTERNAL_TEMPERATURE = 65537u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_UNTRACKED_DELAY implicitly + 1) */,
-    AINFO_VEC3_CALIBRATION = 65538u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_INTERNAL_TEMPERATURE implicitly + 1) */,
-    AINFO_SENSOR_PLACEMENT = 65539u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_VEC3_CALIBRATION implicitly + 1) */,
-    AINFO_SAMPLING = 65540u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_SENSOR_PLACEMENT implicitly + 1) */,
+    AINFO_INTERNAL_TEMPERATURE = 65537u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_UNTRACKED_DELAY implicitly + 1 */,
+    AINFO_VEC3_CALIBRATION = 65538u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_INTERNAL_TEMPERATURE implicitly + 1 */,
+    AINFO_SENSOR_PLACEMENT = 65539u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_VEC3_CALIBRATION implicitly + 1 */,
+    AINFO_SAMPLING = 65540u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_SENSOR_PLACEMENT implicitly + 1 */,
     AINFO_CHANNEL_NOISE = 131072u /* 0x20000 */,
-    AINFO_CHANNEL_SAMPLER = 131073u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_NOISE implicitly + 1) */,
-    AINFO_CHANNEL_FILTER = 131074u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_SAMPLER implicitly + 1) */,
-    AINFO_CHANNEL_LINEAR_TRANSFORM = 131075u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_FILTER implicitly + 1) */,
-    AINFO_CHANNEL_NONLINEAR_MAP = 131076u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_LINEAR_TRANSFORM implicitly + 1) */,
-    AINFO_CHANNEL_RESAMPLER = 131077u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_NONLINEAR_MAP implicitly + 1) */,
+    AINFO_CHANNEL_SAMPLER = 131073u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_NOISE implicitly + 1 */,
+    AINFO_CHANNEL_FILTER = 131074u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_SAMPLER implicitly + 1 */,
+    AINFO_CHANNEL_LINEAR_TRANSFORM = 131075u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_FILTER implicitly + 1 */,
+    AINFO_CHANNEL_NONLINEAR_MAP = 131076u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_LINEAR_TRANSFORM implicitly + 1 */,
+    AINFO_CHANNEL_RESAMPLER = 131077u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_CHANNEL_NONLINEAR_MAP implicitly + 1 */,
     AINFO_LOCAL_GEOMAGNETIC_FIELD = 196608u /* 0x30000 */,
-    AINFO_LOCAL_GRAVITY = 196609u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_LOCAL_GEOMAGNETIC_FIELD implicitly + 1) */,
-    AINFO_DOCK_STATE = 196610u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_LOCAL_GRAVITY implicitly + 1) */,
-    AINFO_HIGH_PERFORMANCE_MODE = 196611u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_DOCK_STATE implicitly + 1) */,
-    AINFO_MAGNETIC_FIELD_CALIBRATION = 196612u /* (::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_HIGH_PERFORMANCE_MODE implicitly + 1) */,
+    AINFO_LOCAL_GRAVITY = 196609u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_LOCAL_GEOMAGNETIC_FIELD implicitly + 1 */,
+    AINFO_DOCK_STATE = 196610u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_LOCAL_GRAVITY implicitly + 1 */,
+    AINFO_HIGH_PERFORMANCE_MODE = 196611u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_DOCK_STATE implicitly + 1 */,
+    AINFO_MAGNETIC_FIELD_CALIBRATION = 196612u /* ::android::hardware::sensors::V1_0::AdditionalInfoType.AINFO_HIGH_PERFORMANCE_MODE implicitly + 1 */,
     AINFO_CUSTOM_START = 268435456u /* 0x10000000 */,
     AINFO_DEBUGGING_START = 1073741824u /* 0x40000000 */,
 } additional_info_type_t;
 
 typedef enum {
     SENSOR_DIRECT_RATE_STOP = 0,
-    SENSOR_DIRECT_RATE_NORMAL = 1 /* (::android::hardware::sensors::V1_0::RateLevel.STOP implicitly + 1) */,
-    SENSOR_DIRECT_RATE_FAST = 2 /* (::android::hardware::sensors::V1_0::RateLevel.NORMAL implicitly + 1) */,
-    SENSOR_DIRECT_RATE_VERY_FAST = 3 /* (::android::hardware::sensors::V1_0::RateLevel.FAST implicitly + 1) */,
+    SENSOR_DIRECT_RATE_NORMAL = 1 /* ::android::hardware::sensors::V1_0::RateLevel.STOP implicitly + 1 */,
+    SENSOR_DIRECT_RATE_FAST = 2 /* ::android::hardware::sensors::V1_0::RateLevel.NORMAL implicitly + 1 */,
+    SENSOR_DIRECT_RATE_VERY_FAST = 3 /* ::android::hardware::sensors::V1_0::RateLevel.FAST implicitly + 1 */,
 } direct_rate_level_t;
 
 typedef enum {
     SENSOR_DIRECT_MEM_TYPE_ASHMEM = 1,
-    SENSOR_DIRECT_MEM_TYPE_GRALLOC = 2 /* (::android::hardware::sensors::V1_0::SharedMemType.ASHMEM implicitly + 1) */,
+    SENSOR_DIRECT_MEM_TYPE_GRALLOC = 2 /* ::android::hardware::sensors::V1_0::SharedMemType.ASHMEM implicitly + 1 */,
 } direct_mem_type_t;
 
 typedef enum {
