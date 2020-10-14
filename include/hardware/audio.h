@@ -57,7 +57,8 @@ __BEGIN_DECLS
 #define AUDIO_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
 #define AUDIO_DEVICE_API_VERSION_3_0 HARDWARE_DEVICE_API_VERSION(3, 0)
 #define AUDIO_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
-#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_1
+#define AUDIO_DEVICE_API_VERSION_3_2 HARDWARE_DEVICE_API_VERSION(3, 2)
+#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_2
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
 
@@ -865,6 +866,18 @@ struct audio_hw_device {
      */
     int (*remove_device_effect)(struct audio_hw_device *dev,
                         audio_port_handle_t device, effect_handle_t effect);
+
+    /**
+     * Fills the list of supported attributes for a given audio port.
+     * As input, "port" contains the information (type, role, address etc...)
+     * needed by the HAL to identify the port.
+     * As output, "port" contains possible attributes (sampling rates, formats,
+     * channel masks, gain controllers...) for this port. The possible attributes
+     * are saved as audio profiles, which contains audio format and the supported
+     * sampling rates and channel masks.
+     */
+    int (*get_audio_port_v7)(struct audio_hw_device *dev,
+                             struct audio_port_v7 *port);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 
