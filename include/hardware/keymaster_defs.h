@@ -115,8 +115,10 @@ typedef enum {
     KM_TAG_ALLOW_WHILE_ON_BODY = KM_BOOL | 506, /* Allow key to be used after authentication timeout
                                                  * if device is still on-body (requires secure
                                                  * on-body sensor. */
+    KM_TAG_TRUSTED_USER_PRESENCE_REQUIRED = KM_BOOL | 507,/* Require test of user presence
+                                                           * to use this key. */
     KM_TAG_TRUSTED_CONFIRMATION_REQUIRED = KM_BOOL | 508, /* Require user confirmation through a
-                                                           * trusted UI to use this key */
+                                                           * trusted UI to use this key. */
     KM_TAG_UNLOCKED_DEVICE_REQUIRED = KM_BOOL | 509, /* Require the device screen to be unlocked if the
                                                       * key is used. */
 
@@ -162,10 +164,14 @@ typedef enum {
                                                             attestation */
     KM_TAG_ATTESTATION_ID_MODEL = KM_BYTES | 717,  /* Used to provide the device's model name to be
                                                       included in attestation */
-    KM_TAG_DEVICE_UNIQUE_ATTESTATION = KM_BOOL | 720,  /* Indicates StrongBox device-unique attestation
-                                                          is requested. */
+    KM_TAG_VENDOR_PATCHLEVEL =  KM_UINT | 718,     /* specifies the vendor image security patch
+                                                      level with which the key may be used */
+    KM_TAG_BOOT_PATCHLEVEL =  KM_UINT | 719,       /* specifies the boot image (kernel) security
+                                                      patch level with which the key may be used */
+    KM_TAG_DEVICE_UNIQUE_ATTESTATION = KM_BOOL | 720,  /* Indicates StrongBox device-unique
+                                                          attestation is requested. */
     KM_TAG_IDENTITY_CREDENTIAL_KEY = KM_BOOL | 721, /* This is an identity credential key */
-
+    KM_TAG_STORAGE_KEY = KM_BOOL | 722,             /* storage encryption key */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -177,8 +183,12 @@ typedef enum {
                                                * bits. */
 
     KM_TAG_RESET_SINCE_ID_ROTATION = KM_BOOL | 1004, /* Whether the device has beeen factory reset
-                                                        since the last unique ID rotation.  Used for
-                                                        key attestation. */
+                                                        since the last unique ID rotation.  Used
+                                                        for key attestation. */
+
+    KM_TAG_CONFIRMATION_TOKEN = KM_BYTES | 1005,     /* used to deliver a cryptographic token
+                                                        proving that the user confirmed a signing
+                                                        request. */
 } keymaster_tag_t;
 
 /**
