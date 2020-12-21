@@ -22,6 +22,7 @@
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <unistd.h>
 
@@ -68,6 +69,8 @@ struct audio_device {
     bool mic_muted;
 
     int32_t inputs_open; /* number of input streams currently open. */
+
+    audio_patch_handle_t next_patch_handle; // Increase 1 when create audio patch
 };
 
 struct stream_lock {
@@ -109,6 +112,12 @@ struct stream_out {
                                          * they could come from here too if
                                          * there was a previous conversion */
     size_t conversion_buffer_size;      /* in bytes */
+
+    struct pcm_config config;
+
+    audio_io_handle_t handle; // Unique constant for a stream
+
+    audio_patch_handle_t patch_handle; // Patch handle for this stream
 };
 
 struct stream_in {
@@ -140,7 +149,54 @@ struct stream_in {
                                          * they could come from here too if
                                          * there was a previous conversion */
     size_t conversion_buffer_size;      /* in bytes */
+
+    struct pcm_config config;
+
+    audio_io_handle_t handle; // Unique identifier for a stream
+
+    audio_patch_handle_t patch_handle; // Patch handle for this stream
 };
+
+// Map channel count to output channel mask
+static const audio_channel_mask_t OUT_CHANNEL_MASKS_MAP[] = {
+    AUDIO_CHANNEL_NONE,        /* 0 */
+    AUDIO_CHANNEL_OUT_MONO,    /* 1 */
+    AUDIO_CHANNEL_OUT_STEREO,  /* 2 */
+    AUDIO_CHANNEL_OUT_2POINT1, /* 3 */
+    AUDIO_CHANNEL_OUT_QUAD,    /* 4 */
+    AUDIO_CHANNEL_OUT_PENTA,   /* 5 */
+    AUDIO_CHANNEL_OUT_5POINT1, /* 6 */
+    AUDIO_CHANNEL_OUT_6POINT1, /* 7 */
+    AUDIO_CHANNEL_OUT_7POINT1  /* 8 */
+    /* channel counts greater than this are not considered */
+};
+static const int OUT_CHANNEL_MASKS_SIZE = AUDIO_ARRAY_SIZE(OUT_CHANNEL_MASKS_MAP);
+
+// Map channel count to input channel mask
+static const audio_channel_mask_t IN_CHANNEL_MASKS_MAP[] = {
+    AUDIO_CHANNEL_NONE,       /* 0 */
+    AUDIO_CHANNEL_IN_MONO,    /* 1 */
+    AUDIO_CHANNEL_IN_STEREO,  /* 2 */
+    /* channel counts greater than this are not considered */
+};
+static const int IN_CHANNEL_MASKS_SIZE = AUDIO_ARRAY_SIZE(IN_CHANNEL_MASKS_MAP);
+
+// Map channel count to index mask
+static const audio_channel_mask_t CHANNEL_INDEX_MASKS_MAP[] = {
+    AUDIO_CHANNEL_NONE,         /* 0 */
+    AUDIO_CHANNEL_INDEX_MASK_1, /* 1 */
+    AUDIO_CHANNEL_INDEX_MASK_2, /* 2 */
+    AUDIO_CHANNEL_INDEX_MASK_3, /* 3 */
+    AUDIO_CHANNEL_INDEX_MASK_4, /* 4 */
+    AUDIO_CHANNEL_INDEX_MASK_5, /* 5 */
+    AUDIO_CHANNEL_INDEX_MASK_6, /* 6 */
+    AUDIO_CHANNEL_INDEX_MASK_7, /* 7 */
+    AUDIO_CHANNEL_INDEX_MASK_8  /* 8 */
+    /* channel counts greater than this are not considered */
+};
+static const int CHANNEL_INDEX_MASKS_SIZE = AUDIO_ARRAY_SIZE(CHANNEL_INDEX_MASKS_MAP);
+
+
 
 /*
  * Locking Helpers
@@ -158,6 +214,9 @@ static void stream_lock_init(struct stream_lock *lock) {
 }
 
 static void stream_lock(struct stream_lock *lock) {
+    if (lock == NULL) {
+        return;
+    }
     pthread_mutex_lock(&lock->pre_lock);
     pthread_mutex_lock(&lock->lock);
     pthread_mutex_unlock(&lock->pre_lock);
@@ -191,13 +250,52 @@ static void adev_add_stream_to_list(
     device_unlock(adev);
 }
 
-static void adev_remove_stream_from_list(
-    struct audio_device* adev, struct listnode* stream_node) {
-    device_lock(adev);
+static struct stream_out* adev_get_stream_out_by_io_handle_l(
+        struct audio_device* adev, audio_io_handle_t handle) {
+    struct listnode *node;
+    list_for_each (node, &adev->output_stream_list) {
+        struct stream_out *out = node_to_item(node, struct stream_out, list_node);
+        if (out->handle == handle) {
+            return out;
+        }
+    }
+    return NULL;
+}
 
-    list_remove(stream_node);
+static struct stream_in* adev_get_stream_in_by_io_handle_l(
+        struct audio_device* adev, audio_io_handle_t handle) {
+    struct listnode *node;
+    list_for_each (node, &adev->input_stream_list) {
+        struct stream_in *in = node_to_item(node, struct stream_in, list_node);
+        if (in->handle == handle) {
+            return in;
+        }
+    }
+    return NULL;
+}
 
-    device_unlock(adev);
+static struct stream_out* adev_get_stream_out_by_patch_handle_l(
+        struct audio_device* adev, audio_patch_handle_t patch_handle) {
+    struct listnode *node;
+    list_for_each (node, &adev->output_stream_list) {
+        struct stream_out *out = node_to_item(node, struct stream_out, list_node);
+        if (out->patch_handle == patch_handle) {
+            return out;
+        }
+    }
+    return NULL;
+}
+
+static struct stream_in* adev_get_stream_in_by_patch_handle_l(
+        struct audio_device* adev, audio_patch_handle_t patch_handle) {
+    struct listnode *node;
+    list_for_each (node, &adev->input_stream_list) {
+        struct stream_in *in = node_to_item(node, struct stream_in, list_node);
+        if (in->patch_handle == patch_handle) {
+            return in;
+        }
+    }
+    return NULL;
 }
 
 /*
@@ -278,6 +376,24 @@ static char *device_get_parameters(const alsa_device_profile *profile, const cha
     return result_str;
 }
 
+static audio_format_t audio_format_from(enum pcm_format format)
+{
+    switch (format) {
+    case PCM_FORMAT_S16_LE:
+        return AUDIO_FORMAT_PCM_16_BIT;
+    case PCM_FORMAT_S32_LE:
+        return AUDIO_FORMAT_PCM_32_BIT;
+    case PCM_FORMAT_S8:
+        return AUDIO_FORMAT_PCM_8_BIT;
+    case PCM_FORMAT_S24_LE:
+        return AUDIO_FORMAT_PCM_8_24_BIT;
+    case PCM_FORMAT_S24_3LE:
+        return AUDIO_FORMAT_PCM_24_BIT_PACKED;
+    default:
+        return AUDIO_FORMAT_INVALID;
+    }
+}
+
 /*
  * HAl Functions
  */
@@ -291,6 +407,73 @@ static struct alsa_device_info* stream_get_first_alsa_device(const struct listno
         return NULL;
     }
     return node_to_item(list_head(alsa_devices), struct alsa_device_info, list_node);
+}
+
+/**
+ * Must be called with holding the stream's lock.
+ */
+static void stream_standby_l(struct listnode *alsa_devices, bool *standby)
+{
+    if (!*standby) {
+        struct listnode *node;
+        list_for_each (node, alsa_devices) {
+            struct alsa_device_info *device_info =
+                    node_to_item(node, struct alsa_device_info, list_node);
+            proxy_close(&device_info->proxy);
+        }
+        *standby = true;
+    }
+}
+
+static void stream_clear_devices(struct listnode *alsa_devices)
+{
+    struct listnode *node, *temp;
+    struct alsa_device_info *device_info = NULL;
+    list_for_each_safe (node, temp, alsa_devices) {
+        device_info = node_to_item(node, struct alsa_device_info, list_node);
+        if (device_info != NULL) {
+            list_remove(&device_info->list_node);
+            free(device_info);
+        }
+    }
+}
+
+static int stream_set_new_devices(struct pcm_config *config,
+                                  struct listnode *alsa_devices,
+                                  unsigned int num_devices,
+                                  const int cards[],
+                                  const int devices[],
+                                  int direction)
+{
+    int status = 0;
+    stream_clear_devices(alsa_devices);
+
+    for (unsigned int i = 0; i < num_devices; ++i) {
+        struct alsa_device_info *device_info =
+                (struct alsa_device_info *) calloc(1, sizeof(struct alsa_device_info));
+        profile_init(&device_info->profile, direction);
+        device_info->profile.card = cards[i];
+        device_info->profile.device = devices[i];
+        status = profile_read_device_info(&device_info->profile) ? 0 : -EINVAL;
+        if (status != 0) {
+            ALOGE("%s failed to read device info card=%d;device=%d",
+                    __func__, cards[i], devices[i]);
+            goto exit;
+        }
+        status = proxy_prepare(&device_info->proxy, &device_info->profile, config);
+        if (status != 0) {
+            ALOGE("%s failed to prepare device card=%d;device=%d",
+                    __func__, cards[i], devices[i]);
+            goto exit;
+        }
+        list_add_tail(alsa_devices, &device_info->list_node);
+    }
+
+exit:
+    if (status != 0) {
+        stream_clear_devices(alsa_devices);
+    }
+    return status;
 }
 
 static void stream_dump_alsa_devices(const struct listnode *alsa_devices, int fd) {
@@ -371,15 +554,9 @@ static int out_standby(struct audio_stream *stream)
     struct stream_out *out = (struct stream_out *)stream;
 
     stream_lock(&out->lock);
-    if (!out->standby) {
-        struct listnode *node;
-        list_for_each(node, &out->alsa_devices) {
-            struct alsa_device_info *device_info =
-                    node_to_item(node, struct alsa_device_info, list_node);
-            proxy_close(&device_info->proxy);
-        }
-        out->standby = true;
-    }
+    device_lock(out->adev);
+    stream_standby_l(&out->alsa_devices, &out->standby);
+    device_unlock(out->adev);
     stream_unlock(&out->lock);
     return 0;
 }
@@ -394,43 +571,14 @@ static int out_dump(const struct audio_stream *stream, int fd) {
     return 0;
 }
 
-static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
+static int out_set_parameters(struct audio_stream *stream __unused, const char *kvpairs)
 {
     ALOGV("out_set_parameters() keys:%s", kvpairs);
 
-    struct stream_out *out = (struct stream_out *)stream;
-
-    int ret_value = 0;
-    int card = -1;
-    int device = -1;
-
-    if (!parse_card_device_params(kvpairs, &card, &device)) {
-        // nothing to do
-        return ret_value;
-    }
-
-    stream_lock(&out->lock);
-    struct alsa_device_info* device_info = stream_get_first_alsa_device(&out->alsa_devices);
-    if (device_info != NULL && !profile_is_cached_for(&device_info->profile, card, device)) {
-        /* cannot read pcm device info if playback is active */
-        if (!out->standby)
-            ret_value = -ENOSYS;
-        else {
-            int saved_card = device_info->profile.card;
-            int saved_device = device_info->profile.device;
-            device_info->profile.card = card;
-            device_info->profile.device = device;
-            ret_value = profile_read_device_info(&device_info->profile) ? 0 : -EINVAL;
-            if (ret_value != 0) {
-                device_info->profile.card = saved_card;
-                device_info->profile.device = saved_device;
-            }
-        }
-    }
-
-    stream_unlock(&out->lock);
-
-    return ret_value;
+    // The set parameters here only matters when the routing devices are changed.
+    // When the device version is not less than 3.0, the framework will use create
+    // audio patch API instead of set parameters to chanage audio routing.
+    return 0;
 }
 
 static char * out_get_parameters(const struct audio_stream *stream, const char *keys)
@@ -624,6 +772,8 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     out->stream.get_presentation_position = out_get_presentation_position;
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
 
+    out->handle = handle;
+
     stream_lock_init(&out->lock);
 
     out->adev = (struct audio_device *)hw_dev;
@@ -709,6 +859,7 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     proxy_config.channels =
             profile_get_closest_channel_count(&device_info->profile, out->hal_channel_count);
     proxy_prepare(&device_info->proxy, &device_info->profile, &proxy_config);
+    out->config = proxy_config;
 
     list_add_tail(&out->alsa_devices, &device_info->list_node);
 
@@ -735,31 +886,21 @@ static void adev_close_output_stream(struct audio_hw_device *hw_dev,
 {
     struct stream_out *out = (struct stream_out *)stream;
 
+    stream_lock(&out->lock);
     /* Close the pcm device */
-    out_standby(&stream->common);
+    stream_standby_l(&out->alsa_devices, &out->standby);
+    stream_clear_devices(&out->alsa_devices);
 
     free(out->conversion_buffer);
 
     out->conversion_buffer = NULL;
     out->conversion_buffer_size = 0;
 
-    struct listnode *node, *temp;
-    struct alsa_device_info *item = NULL;
-    stream_lock(&out->lock);
-    list_for_each_safe (node, temp, &out->alsa_devices) {
-        item = node_to_item(node, struct alsa_device_info, list_node);
-        if (item != NULL) {
-            list_remove(&item->list_node);
-            free(item);
-        }
-    }
-    stream_unlock(&out->lock);
-
-    adev_remove_stream_from_list(out->adev, &out->list_node);
-
     device_lock(out->adev);
+    list_remove(&out->list_node);
     out->adev->device_sample_rate = 0;
     device_unlock(out->adev);
+    stream_unlock(&out->lock);
 
     free(stream);
 }
@@ -835,17 +976,10 @@ static int in_standby(struct audio_stream *stream)
     struct stream_in *in = (struct stream_in *)stream;
 
     stream_lock(&in->lock);
-    if (!in->standby) {
-        struct listnode *node;
-        list_for_each (node, &in->alsa_devices) {
-            struct alsa_device_info *device_info =
-                    node_to_item(node, struct alsa_device_info, list_node);
-            proxy_close(&device_info->proxy);
-        }
-        in->standby = true;
-    }
+    device_lock(in->adev);
+    stream_standby_l(&in->alsa_devices, &in->standby);
+    device_unlock(in->adev);
     stream_unlock(&in->lock);
-
     return 0;
 }
 
@@ -863,45 +997,10 @@ static int in_set_parameters(struct audio_stream *stream, const char *kvpairs)
 {
     ALOGV("in_set_parameters() keys:%s", kvpairs);
 
-    struct stream_in *in = (struct stream_in *)stream;
-
-    int ret_value = 0;
-    int card = -1;
-    int device = -1;
-
-    if (!parse_card_device_params(kvpairs, &card, &device)) {
-        // nothing to do
-        return ret_value;
-    }
-
-    stream_lock(&in->lock);
-    device_lock(in->adev);
-
-    struct alsa_device_info* device_info = stream_get_first_alsa_device(&in->alsa_devices);
-
-    if (card >= 0 && device >= 0 &&
-            device_info != NULL && !profile_is_cached_for(&device_info->profile, card, device)) {
-        /* cannot read pcm device info if capture is active, or more than one open stream */
-        if (!in->standby || in->adev->inputs_open > 1)
-            ret_value = -ENOSYS;
-        else {
-            int saved_card = device_info->profile.card;
-            int saved_device = device_info->profile.device;
-            device_info->profile.card = card;
-            device_info->profile.device = device;
-            ret_value = profile_read_device_info(&device_info->profile) ? 0 : -EINVAL;
-            if (ret_value != 0) {
-                ALOGE("Can't read device profile. card:%d, device:%d", card, device);
-                device_info->profile.card = saved_card;
-                device_info->profile.device = saved_device;
-            }
-        }
-    }
-
-    device_unlock(in->adev);
-    stream_unlock(&in->lock);
-
-    return ret_value;
+    // The set parameters here only matters when the routing devices are changed.
+    // When the device version higher than 3.0, the framework will use create_audio_patch
+    // API instead of set_parameters to change audio routing.
+    return 0;
 }
 
 static char * in_get_parameters(const struct audio_stream *stream, const char *keys)
@@ -1119,6 +1218,8 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     in->stream.set_microphone_direction = in_set_microphone_direction;
     in->stream.set_microphone_field_dimension = in_set_microphone_field_dimension;
 
+    in->handle = handle;
+
     stream_lock_init(&in->lock);
 
     in->adev = (struct audio_device *)hw_dev;
@@ -1128,8 +1229,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
             (struct alsa_device_info *)calloc(1, sizeof(struct alsa_device_info));
     profile_init(&device_info->profile, PCM_IN);
 
-    struct pcm_config proxy_config;
-    memset(&proxy_config, 0, sizeof(proxy_config));
+    memset(&in->config, 0, sizeof(in->config));
 
     int ret = 0;
     device_lock(in->adev);
@@ -1171,9 +1271,9 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
             if (highest_rate == 0) {
                 ret = -EINVAL; /* error with device */
             } else {
-                proxy_config.rate = config->sample_rate =
+                in->config.rate = config->sample_rate =
                         min(highest_rate, in->adev->device_sample_rate);
-                if (request_config_rate != 0 && proxy_config.rate != config->sample_rate) {
+                if (request_config_rate != 0 && in->config.rate != config->sample_rate) {
                     /* Changing the requested rate */
                     ret = -EINVAL;
                 } else {
@@ -1183,24 +1283,24 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
             }
         }
     } else if (profile_is_sample_rate_valid(&device_info->profile, config->sample_rate)) {
-        proxy_config.rate = config->sample_rate;
+        in->config.rate = config->sample_rate;
     } else {
-        proxy_config.rate = config->sample_rate =
+        in->config.rate = config->sample_rate =
                 profile_get_default_sample_rate(&device_info->profile);
         ret = -EINVAL;
     }
 
     /* Format */
     if (config->format == AUDIO_FORMAT_DEFAULT) {
-        proxy_config.format = profile_get_default_format(&device_info->profile);
-        config->format = audio_format_from_pcm_format(proxy_config.format);
+        in->config.format = profile_get_default_format(&device_info->profile);
+        config->format = audio_format_from_pcm_format(in->config.format);
     } else {
         enum pcm_format fmt = pcm_format_from_audio_format(config->format);
         if (profile_is_format_valid(&device_info->profile, fmt)) {
-            proxy_config.format = fmt;
+            in->config.format = fmt;
         } else {
-            proxy_config.format = profile_get_default_format(&device_info->profile);
-            config->format = audio_format_from_pcm_format(proxy_config.format);
+            in->config.format = profile_get_default_format(&device_info->profile);
+            config->format = audio_format_from_pcm_format(in->config.format);
             ret = -EINVAL;
         }
     }
@@ -1245,9 +1345,9 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         // Validate the "logical" channel count against support in the "actual" profile.
         // if they differ, choose the "actual" number of channels *closest* to the "logical".
         // and store THAT in proxy_config.channels
-        proxy_config.channels =
+        in->config.channels =
                 profile_get_closest_channel_count(&device_info->profile, in->hal_channel_count);
-        ret = proxy_prepare(&device_info->proxy, &device_info->profile, &proxy_config);
+        ret = proxy_prepare(&device_info->proxy, &device_info->profile, &in->config);
         if (ret == 0) {
             in->standby = true;
 
@@ -1291,9 +1391,9 @@ static void adev_close_input_stream(struct audio_hw_device *hw_dev,
 {
     struct stream_in *in = (struct stream_in *)stream;
 
-    adev_remove_stream_from_list(in->adev, &in->list_node);
-
+    stream_lock(&in->lock);
     device_lock(in->adev);
+    list_remove(&in->list_node);
     --in->adev->inputs_open;
     struct alsa_device_info *device_info = stream_get_first_alsa_device(&in->alsa_devices);
     if (device_info != NULL) {
@@ -1302,10 +1402,13 @@ static void adev_close_input_stream(struct audio_hw_device *hw_dev,
     }
     LOG_ALWAYS_FATAL_IF(in->adev->inputs_open < 0,
             "invalid inputs_open: %d", in->adev->inputs_open);
+
+    stream_standby_l(&in->alsa_devices, &in->standby);
+
     device_unlock(in->adev);
 
-    /* Close the pcm device */
-    in_standby(&stream->common);
+    stream_clear_devices(&in->alsa_devices);
+    stream_unlock(&in->lock);
 
     free(in->conversion_buffer);
 
@@ -1357,6 +1460,240 @@ static int adev_set_mic_mute(struct audio_hw_device *hw_dev, bool state)
 static int adev_get_mic_mute(const struct audio_hw_device *hw_dev, bool *state)
 {
     return -ENOSYS;
+}
+
+static int adev_create_audio_patch(struct audio_hw_device *dev,
+                                   unsigned int num_sources,
+                                   const struct audio_port_config *sources,
+                                   unsigned int num_sinks,
+                                   const struct audio_port_config *sinks,
+                                   audio_patch_handle_t *handle) {
+    if (num_sources != 1 || num_sinks == 0 || num_sinks > AUDIO_PATCH_PORTS_MAX) {
+        // Only accept mix->device and device->mix cases. In that case, the number of sources
+        // must be 1. The number of sinks must be in the range of (0, AUDIO_PATCH_PORTS_MAX].
+        return -EINVAL;
+    }
+
+    if (sources[0].type == AUDIO_PORT_TYPE_DEVICE) {
+        // If source is a device, the number of sinks should be 1.
+        if (num_sinks != 1 || sinks[0].type != AUDIO_PORT_TYPE_MIX) {
+            return -EINVAL;
+        }
+    } else if (sources[0].type == AUDIO_PORT_TYPE_MIX) {
+        // If source is a mix, all sinks should be device.
+        for (unsigned int i = 0; i < num_sinks; i++) {
+            if (sinks[i].type != AUDIO_PORT_TYPE_DEVICE) {
+                ALOGE("%s() invalid sink type %#x for mix source", __func__, sinks[i].type);
+                return -EINVAL;
+            }
+        }
+    } else {
+        // All other cases are invalid.
+        return -EINVAL;
+    }
+
+    struct audio_device* adev = (struct audio_device*) dev;
+    bool generatedPatchHandle = false;
+    device_lock(adev);
+    if (*handle == AUDIO_PATCH_HANDLE_NONE) {
+        *handle = ++adev->next_patch_handle;
+        generatedPatchHandle = true;
+    }
+
+    int cards[AUDIO_PATCH_PORTS_MAX];
+    int devices[AUDIO_PATCH_PORTS_MAX];
+    const struct audio_port_config *port_configs =
+            sources[0].type == AUDIO_PORT_TYPE_DEVICE ? sources : sinks;
+    int num_configs = 0;
+    audio_io_handle_t io_handle = 0;
+    bool wasStandby = true;
+    int direction = PCM_OUT;
+    audio_patch_handle_t *patch_handle = NULL;
+    struct listnode *alsa_devices = NULL;
+    struct stream_lock *lock = NULL;
+    struct pcm_config *config = NULL;
+    struct stream_in *in = NULL;
+    struct stream_out *out = NULL;
+
+    unsigned int num_saved_devices = 0;
+    int saved_cards[AUDIO_PATCH_PORTS_MAX];
+    int saved_devices[AUDIO_PATCH_PORTS_MAX];
+
+    struct listnode *node;
+
+    // Only handle patches for mix->devices and device->mix case.
+    if (sources[0].type == AUDIO_PORT_TYPE_DEVICE) {
+        in = adev_get_stream_in_by_io_handle_l(adev, sinks[0].ext.mix.handle);
+        if (in == NULL) {
+            ALOGE("%s()can not find stream with handle(%d)", __func__, sinks[0].ext.mix.handle);
+            device_unlock(adev);
+            return -EINVAL;
+        }
+
+        direction = PCM_IN;
+        wasStandby = in->standby;
+        io_handle = in->handle;
+        num_configs = num_sources;
+        patch_handle = &in->patch_handle;
+        alsa_devices = &in->alsa_devices;
+        lock = &in->lock;
+        config = &in->config;
+    } else {
+        out = adev_get_stream_out_by_io_handle_l(adev, sources[0].ext.mix.handle);
+        if (out == NULL) {
+            ALOGE("%s()can not find stream with handle(%d)", __func__, sources[0].ext.mix.handle);
+            device_unlock(adev);
+            return -EINVAL;
+        }
+
+        direction = PCM_OUT;
+        wasStandby = out->standby;
+        io_handle = out->handle;
+        num_configs = num_sinks;
+        patch_handle = &out->patch_handle;
+        alsa_devices = &out->alsa_devices;
+        lock = &out->lock;
+        config = &out->config;
+    }
+
+    // Check if the patch handle match the recorded one if a valid patch handle is passed.
+    if (!generatedPatchHandle && *patch_handle != *handle) {
+        ALOGE("%s() the patch handle(%d) does not match recorded one(%d) for stream "
+              "with handle(%d) when creating audio patch",
+              __func__, *handle, *patch_handle, io_handle);
+        device_unlock(adev);
+        return -EINVAL;
+    }
+    device_unlock(adev);
+
+    for (unsigned int i = 0; i < num_configs; ++i) {
+        if (!parse_card_device_params(port_configs[i].ext.device.address, &cards[i], &devices[i])) {
+            ALOGE("%s, failed to parse card and device %s",
+                    __func__, port_configs[i].ext.device.address);
+            return -EINVAL;
+        }
+    }
+
+    stream_lock(lock);
+    list_for_each (node, alsa_devices) {
+        struct alsa_device_info *device_info =
+                node_to_item(node, struct alsa_device_info, list_node);
+        saved_cards[num_saved_devices] = device_info->profile.card;
+        saved_devices[num_saved_devices++] = device_info->profile.device;
+    }
+
+    device_lock(adev);
+    stream_standby_l(alsa_devices, out == NULL ? &in->standby : &out->standby);
+    device_unlock(adev);
+
+    int ret = stream_set_new_devices(config, alsa_devices, num_configs, cards, devices, direction);
+
+    if (ret != 0) {
+        *handle = generatedPatchHandle ? AUDIO_PATCH_HANDLE_NONE : *handle;
+        stream_set_new_devices(
+                config, alsa_devices, num_saved_devices, saved_cards, saved_devices, direction);
+    } else {
+        *patch_handle = *handle;
+    }
+    if (!wasStandby) {
+        device_lock(adev);
+        if (in != NULL) {
+            start_input_stream(in);
+        }
+        if (out != NULL) {
+            start_output_stream(out);
+        }
+        device_unlock(adev);
+    }
+    stream_unlock(lock);
+    return ret;
+}
+
+static int adev_release_audio_patch(struct audio_hw_device *dev,
+                                    audio_patch_handle_t patch_handle)
+{
+    struct audio_device* adev = (struct audio_device*) dev;
+
+    device_lock(adev);
+    struct stream_out *out = adev_get_stream_out_by_patch_handle_l(adev, patch_handle);
+    device_unlock(adev);
+    if (out != NULL) {
+        stream_lock(&out->lock);
+        device_lock(adev);
+        stream_standby_l(&out->alsa_devices, &out->standby);
+        device_unlock(adev);
+        out->patch_handle = AUDIO_PATCH_HANDLE_NONE;
+        stream_unlock(&out->lock);
+        return 0;
+    }
+
+    device_lock(adev);
+    struct stream_in *in = adev_get_stream_in_by_patch_handle_l(adev, patch_handle);
+    device_unlock(adev);
+    if (in != NULL) {
+        stream_lock(&in->lock);
+        device_lock(adev);
+        stream_standby_l(&in->alsa_devices, &in->standby);
+        device_unlock(adev);
+        in->patch_handle = AUDIO_PATCH_HANDLE_NONE;
+        stream_unlock(&in->lock);
+        return 0;
+    }
+
+    ALOGE("%s cannot find stream with patch handle as %d", __func__, patch_handle);
+    return -EINVAL;
+}
+
+static int adev_get_audio_port(struct audio_hw_device *dev, struct audio_port *port)
+{
+    if (port->type != AUDIO_PORT_TYPE_DEVICE) {
+        return -EINVAL;
+    }
+
+    alsa_device_profile profile;
+    const bool is_output = audio_is_output_device(port->ext.device.type);
+    profile_init(&profile, is_output ? PCM_OUT : PCM_IN);
+    if (!parse_card_device_params(port->ext.device.address, &profile.card, &profile.device)) {
+        return -EINVAL;
+    }
+
+    if (!profile_read_device_info(&profile)) {
+        return -ENOENT;
+    }
+
+    port->num_formats = 0;;
+    for (size_t i = 0; i < min(MAX_PROFILE_FORMATS, AUDIO_PORT_MAX_FORMATS) &&
+            profile.formats[i] != 0; ++i) {
+        audio_format_t format = audio_format_from(profile.formats[i]);
+        if (format != AUDIO_FORMAT_INVALID) {
+            port->formats[port->num_formats++] = format;
+        }
+    }
+
+    port->num_sample_rates = min(MAX_PROFILE_SAMPLE_RATES, AUDIO_PORT_MAX_SAMPLING_RATES);
+    memcpy(port->sample_rates, profile.sample_rates, port->num_sample_rates * sizeof(unsigned int));
+
+    port->num_channel_masks = 0;
+    const audio_channel_mask_t* channel_masks_map =
+            is_output ? OUT_CHANNEL_MASKS_MAP : IN_CHANNEL_MASKS_MAP;
+    const int channel_masks_size = is_output ? OUT_CHANNEL_MASKS_SIZE : IN_CHANNEL_MASKS_SIZE;
+    unsigned int channel_count = 0;
+    for (size_t i = 0; i < min(channel_masks_size, AUDIO_PORT_MAX_CHANNEL_MASKS) &&
+            (channel_count = profile.channel_counts[i]) != 0 &&
+            port->num_channel_masks < AUDIO_PORT_MAX_CHANNEL_MASKS; ++i) {
+        if (channel_count < channel_masks_size &&
+            channel_masks_map[channel_count] != AUDIO_CHANNEL_NONE) {
+            port->channel_masks[port->num_channel_masks++] = channel_masks_map[channel_count];
+            if (port->num_channel_masks >= AUDIO_PORT_MAX_CHANNEL_MASKS) {
+                break;
+            }
+        }
+        if (channel_count < CHANNEL_INDEX_MASKS_SIZE &&
+            CHANNEL_INDEX_MASKS_MAP[channel_count] != AUDIO_CHANNEL_NONE) {
+            port->channel_masks[port->num_channel_masks++] = CHANNEL_INDEX_MASKS_MAP[channel_count];
+        }
+    }
+    return 0;
 }
 
 static int adev_dump(const struct audio_hw_device *device, int fd)
@@ -1428,7 +1765,7 @@ static int adev_open(const hw_module_t* module, const char* name, hw_device_t** 
     list_init(&adev->input_stream_list);
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;
-    adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_2_0;
+    adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_3_0;
     adev->hw_device.common.module = (struct hw_module_t *)module;
     adev->hw_device.common.close = adev_close;
 
@@ -1445,6 +1782,9 @@ static int adev_open(const hw_module_t* module, const char* name, hw_device_t** 
     adev->hw_device.close_output_stream = adev_close_output_stream;
     adev->hw_device.open_input_stream = adev_open_input_stream;
     adev->hw_device.close_input_stream = adev_close_input_stream;
+    adev->hw_device.create_audio_patch = adev_create_audio_patch;
+    adev->hw_device.release_audio_patch = adev_release_audio_patch;
+    adev->hw_device.get_audio_port = adev_get_audio_port;
     adev->hw_device.dump = adev_dump;
 
     *device = &adev->hw_device.common;
