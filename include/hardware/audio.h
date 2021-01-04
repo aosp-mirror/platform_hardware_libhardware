@@ -233,6 +233,20 @@ typedef struct sink_metadata {
     struct record_track_metadata* tracks;
 } sink_metadata_t;
 
+/* HAL version 3.2 and higher only. */
+typedef struct source_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this source. */
+    struct playback_track_metadata_v7* tracks;
+} source_metadata_v7_t;
+
+/* HAL version 3.2 and higher only. */
+typedef struct sink_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this sink. */
+    struct record_track_metadata_v7* tracks;
+} sink_metadata_v7_t;
+
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
  *
@@ -437,6 +451,14 @@ struct audio_stream_out {
     int (*set_event_callback)(struct audio_stream_out *stream,
                               stream_event_callback_t callback,
                               void *cookie);
+
+    /**
+     * Called when the metadata of the stream's source has been changed.
+     * HAL version 3.2 and higher only.
+     * @param source_metadata Description of the audio that is played by the clients.
+     */
+    void (*update_source_metadata_v7)(struct audio_stream_out *stream,
+                                      const struct source_metadata_v7* source_metadata);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -601,6 +623,14 @@ struct audio_stream_in {
      */
     void (*update_sink_metadata)(struct audio_stream_in *stream,
                                  const struct sink_metadata* sink_metadata);
+
+    /**
+     * Called when the metadata of the stream's sink has been changed.
+     * HAL version 3.2 and higher only.
+     * @param sink_metadata Description of the audio that is recorded by the clients.
+     */
+    void (*update_sink_metadata_v7)(struct audio_stream_in *stream,
+                                    const struct sink_metadata_v7* sink_metadata);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
