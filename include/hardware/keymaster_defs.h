@@ -71,6 +71,7 @@ typedef enum {
     KM_TAG_INCLUDE_UNIQUE_ID = KM_BOOL | 202,      /* If true, attestation certificates for this key
                                                     * will contain an application-scoped and
                                                     * time-bounded device-unique ID. (keymaster2) */
+    KM_TAG_RSA_OAEP_MGF_DIGEST = KM_ENUM_REP | 203, /* keymaster_digest_t. */
 
     /* Other hardware-enforced. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
@@ -490,6 +491,8 @@ typedef enum {
     KM_ERROR_EARLY_BOOT_ENDED = -73,
     KM_ERROR_ATTESTATION_KEYS_NOT_PROVISIONED = -74,
     KM_ERROR_ATTESTATION_IDS_NOT_PROVISIONED = -75,
+    KM_ERROR_INCOMPATIBLE_MGF_DIGEST = -78,
+    KM_ERROR_UNSUPPORTED_MGF_DIGEST = -79,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
