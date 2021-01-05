@@ -95,6 +95,8 @@ typedef enum {
                                                            cryptographic operations with the key. */
     KM_TAG_MAX_USES_PER_BOOT = KM_UINT | 404,           /* Number of times the key can be used per
                                                            boot. */
+    KM_TAG_USAGE_COUNT_LIMIT = KM_UINT | 405,           /* Number of cryptographic operations left
+                                                           with the key.*/
 
     /* User authentication */
     KM_TAG_ALL_USERS = KM_BOOL | 500,           /* Reserved for future use -- ignore */
