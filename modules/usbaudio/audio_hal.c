@@ -394,6 +394,44 @@ static audio_format_t audio_format_from(enum pcm_format format)
     }
 }
 
+static unsigned int populate_channel_mask_from_profile(const alsa_device_profile* profile,
+                                                       bool is_output,
+                                                       audio_channel_mask_t channel_masks[])
+{
+    unsigned int num_channel_masks = 0;
+    const audio_channel_mask_t* channel_masks_map =
+            is_output ? OUT_CHANNEL_MASKS_MAP : IN_CHANNEL_MASKS_MAP;
+    const int channel_masks_size = is_output ? OUT_CHANNEL_MASKS_SIZE : IN_CHANNEL_MASKS_SIZE;
+    unsigned int channel_count = 0;
+    for (size_t i = 0; i < min(channel_masks_size, AUDIO_PORT_MAX_CHANNEL_MASKS) &&
+            (channel_count = profile->channel_counts[i]) != 0 &&
+            num_channel_masks < AUDIO_PORT_MAX_CHANNEL_MASKS; ++i) {
+        if (channel_count < channel_masks_size &&
+            channel_masks_map[channel_count] != AUDIO_CHANNEL_NONE) {
+            channel_masks[num_channel_masks++] = channel_masks_map[channel_count];
+            if (num_channel_masks >= AUDIO_PORT_MAX_CHANNEL_MASKS) {
+                break;
+            }
+        }
+        if (channel_count < CHANNEL_INDEX_MASKS_SIZE &&
+            CHANNEL_INDEX_MASKS_MAP[channel_count] != AUDIO_CHANNEL_NONE) {
+            channel_masks[num_channel_masks++] = CHANNEL_INDEX_MASKS_MAP[channel_count];
+        }
+    }
+    return num_channel_masks;
+}
+
+static unsigned int populate_sample_rates_from_profile(const alsa_device_profile* profile,
+                                                       unsigned int sample_rates[])
+{
+    unsigned int num_sample_rates = 0;
+    for (;num_sample_rates < min(MAX_PROFILE_SAMPLE_RATES, AUDIO_PORT_MAX_SAMPLING_RATES) &&
+            profile->sample_rates[num_sample_rates] != 0; num_sample_rates++) {
+        sample_rates[num_sample_rates] = profile->sample_rates[num_sample_rates];
+    }
+    return num_sample_rates;
+}
+
 /*
  * HAl Functions
  */
@@ -1670,29 +1708,55 @@ static int adev_get_audio_port(struct audio_hw_device *dev, struct audio_port *p
         }
     }
 
-    port->num_sample_rates = min(MAX_PROFILE_SAMPLE_RATES, AUDIO_PORT_MAX_SAMPLING_RATES);
-    memcpy(port->sample_rates, profile.sample_rates, port->num_sample_rates * sizeof(unsigned int));
+    port->num_sample_rates = populate_sample_rates_from_profile(&profile, port->sample_rates);
+    port->num_channel_masks = populate_channel_mask_from_profile(
+            &profile, is_output, port->channel_masks);
 
-    port->num_channel_masks = 0;
-    const audio_channel_mask_t* channel_masks_map =
-            is_output ? OUT_CHANNEL_MASKS_MAP : IN_CHANNEL_MASKS_MAP;
-    const int channel_masks_size = is_output ? OUT_CHANNEL_MASKS_SIZE : IN_CHANNEL_MASKS_SIZE;
-    unsigned int channel_count = 0;
-    for (size_t i = 0; i < min(channel_masks_size, AUDIO_PORT_MAX_CHANNEL_MASKS) &&
-            (channel_count = profile.channel_counts[i]) != 0 &&
-            port->num_channel_masks < AUDIO_PORT_MAX_CHANNEL_MASKS; ++i) {
-        if (channel_count < channel_masks_size &&
-            channel_masks_map[channel_count] != AUDIO_CHANNEL_NONE) {
-            port->channel_masks[port->num_channel_masks++] = channel_masks_map[channel_count];
-            if (port->num_channel_masks >= AUDIO_PORT_MAX_CHANNEL_MASKS) {
-                break;
-            }
-        }
-        if (channel_count < CHANNEL_INDEX_MASKS_SIZE &&
-            CHANNEL_INDEX_MASKS_MAP[channel_count] != AUDIO_CHANNEL_NONE) {
-            port->channel_masks[port->num_channel_masks++] = CHANNEL_INDEX_MASKS_MAP[channel_count];
-        }
+    return 0;
+}
+
+static int adev_get_audio_port_v7(struct audio_hw_device *dev, struct audio_port_v7 *port)
+{
+    if (port->type != AUDIO_PORT_TYPE_DEVICE) {
+        return -EINVAL;
     }
+
+    alsa_device_profile profile;
+    const bool is_output = audio_is_output_device(port->ext.device.type);
+    profile_init(&profile, is_output ? PCM_OUT : PCM_IN);
+    if (!parse_card_device_params(port->ext.device.address, &profile.card, &profile.device)) {
+        return -EINVAL;
+    }
+
+    if (!profile_read_device_info(&profile)) {
+        return -ENOENT;
+    }
+
+    audio_channel_mask_t channel_masks[AUDIO_PORT_MAX_CHANNEL_MASKS];
+    unsigned int num_channel_masks = populate_channel_mask_from_profile(
+            &profile, is_output, channel_masks);
+    unsigned int sample_rates[AUDIO_PORT_MAX_SAMPLING_RATES];
+    const unsigned int num_sample_rates =
+            populate_sample_rates_from_profile(&profile, sample_rates);
+    port->num_audio_profiles = 0;;
+    for (size_t i = 0; i < min(MAX_PROFILE_FORMATS, AUDIO_PORT_MAX_AUDIO_PROFILES) &&
+            profile.formats[i] != 0; ++i) {
+        audio_format_t format = audio_format_from(profile.formats[i]);
+        if (format == AUDIO_FORMAT_INVALID) {
+            continue;
+        }
+        const unsigned int j = port->num_audio_profiles++;
+        port->audio_profiles[j].format = format;
+        port->audio_profiles[j].num_sample_rates = num_sample_rates;
+        memcpy(port->audio_profiles[j].sample_rates,
+               sample_rates,
+               num_sample_rates * sizeof(unsigned int));
+        port->audio_profiles[j].num_channel_masks = num_channel_masks;
+        memcpy(port->audio_profiles[j].channel_masks,
+               channel_masks,
+               num_channel_masks* sizeof(audio_channel_mask_t));
+    }
+
     return 0;
 }
 
@@ -1765,7 +1829,7 @@ static int adev_open(const hw_module_t* module, const char* name, hw_device_t** 
     list_init(&adev->input_stream_list);
 
     adev->hw_device.common.tag = HARDWARE_DEVICE_TAG;
-    adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_3_0;
+    adev->hw_device.common.version = AUDIO_DEVICE_API_VERSION_3_2;
     adev->hw_device.common.module = (struct hw_module_t *)module;
     adev->hw_device.common.close = adev_close;
 
@@ -1785,6 +1849,7 @@ static int adev_open(const hw_module_t* module, const char* name, hw_device_t** 
     adev->hw_device.create_audio_patch = adev_create_audio_patch;
     adev->hw_device.release_audio_patch = adev_release_audio_patch;
     adev->hw_device.get_audio_port = adev_get_audio_port;
+    adev->hw_device.get_audio_port_v7 = adev_get_audio_port_v7;
     adev->hw_device.dump = adev_dump;
 
     *device = &adev->hw_device.common;
