@@ -330,6 +330,7 @@ typedef enum {
     KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
     KM_PURPOSE_WRAP = 5,       /* Usable with wrapped keys. */
+    KM_PURPOSE_AGREE_KEY = 6,  /* Usable with EC keys. */
 
 } keymaster_purpose_t;
 
