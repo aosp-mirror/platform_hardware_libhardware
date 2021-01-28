@@ -459,6 +459,80 @@ struct audio_stream_out {
      */
     void (*update_source_metadata_v7)(struct audio_stream_out *stream,
                                       const struct source_metadata_v7* source_metadata);
+
+    /**
+     * Returns the Dual Mono mode presentation setting.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] mode current setting of Dual Mono mode.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_dual_mono_mode)(struct audio_stream_out *stream, audio_dual_mono_mode_t *mode);
+
+    /**
+     * Sets the Dual Mono mode presentation on the output device.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] mode selected Dual Mono mode.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_dual_mono_mode)(struct audio_stream_out *stream, const audio_dual_mono_mode_t mode);
+
+    /**
+     * Returns the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] leveldB the current Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_audio_description_mix_level)(struct audio_stream_out *stream, float *leveldB);
+
+    /**
+     * Sets the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] leveldB Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_audio_description_mix_level)(struct audio_stream_out *stream, const float leveldB);
+
+    /**
+     * Retrieves current playback rate parameters.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] playbackRate current playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        audio_playback_rate_t *playbackRate);
+
+    /**
+     * Sets the playback rate parameters that control playback behavior.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] playbackRate playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        const audio_playback_rate_t *playbackRate);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
