@@ -71,6 +71,7 @@ typedef enum {
     KM_TAG_INCLUDE_UNIQUE_ID = KM_BOOL | 202,      /* If true, attestation certificates for this key
                                                     * will contain an application-scoped and
                                                     * time-bounded device-unique ID. (keymaster2) */
+    KM_TAG_RSA_OAEP_MGF_DIGEST = KM_ENUM_REP | 203, /* keymaster_digest_t. */
 
     /* Other hardware-enforced. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
@@ -94,6 +95,8 @@ typedef enum {
                                                            cryptographic operations with the key. */
     KM_TAG_MAX_USES_PER_BOOT = KM_UINT | 404,           /* Number of times the key can be used per
                                                            boot. */
+    KM_TAG_USAGE_COUNT_LIMIT = KM_UINT | 405,           /* Number of cryptographic operations left
+                                                           with the key.*/
 
     /* User authentication */
     KM_TAG_ALL_USERS = KM_BOOL | 500,           /* Reserved for future use -- ignore */
@@ -115,8 +118,10 @@ typedef enum {
     KM_TAG_ALLOW_WHILE_ON_BODY = KM_BOOL | 506, /* Allow key to be used after authentication timeout
                                                  * if device is still on-body (requires secure
                                                  * on-body sensor. */
+    KM_TAG_TRUSTED_USER_PRESENCE_REQUIRED = KM_BOOL | 507,/* Require test of user presence
+                                                           * to use this key. */
     KM_TAG_TRUSTED_CONFIRMATION_REQUIRED = KM_BOOL | 508, /* Require user confirmation through a
-                                                           * trusted UI to use this key */
+                                                           * trusted UI to use this key. */
     KM_TAG_UNLOCKED_DEVICE_REQUIRED = KM_BOOL | 509, /* Require the device screen to be unlocked if the
                                                       * key is used. */
 
@@ -162,10 +167,14 @@ typedef enum {
                                                             attestation */
     KM_TAG_ATTESTATION_ID_MODEL = KM_BYTES | 717,  /* Used to provide the device's model name to be
                                                       included in attestation */
-    KM_TAG_DEVICE_UNIQUE_ATTESTATION = KM_BOOL | 720,  /* Indicates StrongBox device-unique attestation
-                                                          is requested. */
+    KM_TAG_VENDOR_PATCHLEVEL =  KM_UINT | 718,     /* specifies the vendor image security patch
+                                                      level with which the key may be used */
+    KM_TAG_BOOT_PATCHLEVEL =  KM_UINT | 719,       /* specifies the boot image (kernel) security
+                                                      patch level with which the key may be used */
+    KM_TAG_DEVICE_UNIQUE_ATTESTATION = KM_BOOL | 720,  /* Indicates StrongBox device-unique
+                                                          attestation is requested. */
     KM_TAG_IDENTITY_CREDENTIAL_KEY = KM_BOOL | 721, /* This is an identity credential key */
-
+    KM_TAG_STORAGE_KEY = KM_BOOL | 722,             /* storage encryption key */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
@@ -177,8 +186,22 @@ typedef enum {
                                                * bits. */
 
     KM_TAG_RESET_SINCE_ID_ROTATION = KM_BOOL | 1004, /* Whether the device has beeen factory reset
-                                                        since the last unique ID rotation.  Used for
-                                                        key attestation. */
+                                                        since the last unique ID rotation.  Used
+                                                        for key attestation. */
+
+    KM_TAG_CONFIRMATION_TOKEN = KM_BYTES | 1005,     /* used to deliver a cryptographic token
+                                                        proving that the user confirmed a signing
+                                                        request. */
+
+    KM_TAG_CERTIFICATE_SERIAL = KM_UINT | 1006,      /* The serial number that should be
+                                                        set in the attestation certificate
+                                                        to be generated. */
+
+    KM_TAG_CERTIFICATE_SUBJECT = KM_BYTES | 1007,    /* A DER-encoded X.500 subject that should be
+                                                        set in the attestation certificate
+                                                        to be generated. */
+
+
 } keymaster_tag_t;
 
 /**
@@ -309,6 +332,7 @@ typedef enum {
     KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
     KM_PURPOSE_WRAP = 5,       /* Usable with wrapped keys. */
+    KM_PURPOSE_AGREE_KEY = 6,  /* Usable with EC keys. */
 
 } keymaster_purpose_t;
 
@@ -470,6 +494,8 @@ typedef enum {
     KM_ERROR_EARLY_BOOT_ENDED = -73,
     KM_ERROR_ATTESTATION_KEYS_NOT_PROVISIONED = -74,
     KM_ERROR_ATTESTATION_IDS_NOT_PROVISIONED = -75,
+    KM_ERROR_INCOMPATIBLE_MGF_DIGEST = -78,
+    KM_ERROR_UNSUPPORTED_MGF_DIGEST = -79,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
