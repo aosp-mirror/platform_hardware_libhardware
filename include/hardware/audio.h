@@ -57,7 +57,8 @@ __BEGIN_DECLS
 #define AUDIO_DEVICE_API_VERSION_2_0 HARDWARE_DEVICE_API_VERSION(2, 0)
 #define AUDIO_DEVICE_API_VERSION_3_0 HARDWARE_DEVICE_API_VERSION(3, 0)
 #define AUDIO_DEVICE_API_VERSION_3_1 HARDWARE_DEVICE_API_VERSION(3, 1)
-#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_1
+#define AUDIO_DEVICE_API_VERSION_3_2 HARDWARE_DEVICE_API_VERSION(3, 2)
+#define AUDIO_DEVICE_API_VERSION_CURRENT AUDIO_DEVICE_API_VERSION_3_2
 /* Minimal audio HAL version supported by the audio framework */
 #define AUDIO_DEVICE_API_VERSION_MIN AUDIO_DEVICE_API_VERSION_2_0
 
@@ -231,6 +232,20 @@ typedef struct sink_metadata {
     /** Array of metadata of each track connected to this sink. */
     struct record_track_metadata* tracks;
 } sink_metadata_t;
+
+/* HAL version 3.2 and higher only. */
+typedef struct source_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this source. */
+    struct playback_track_metadata_v7* tracks;
+} source_metadata_v7_t;
+
+/* HAL version 3.2 and higher only. */
+typedef struct sink_metadata_v7 {
+    size_t track_count;
+    /** Array of metadata of each track connected to this sink. */
+    struct record_track_metadata_v7* tracks;
+} sink_metadata_v7_t;
 
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
@@ -436,6 +451,88 @@ struct audio_stream_out {
     int (*set_event_callback)(struct audio_stream_out *stream,
                               stream_event_callback_t callback,
                               void *cookie);
+
+    /**
+     * Called when the metadata of the stream's source has been changed.
+     * HAL version 3.2 and higher only.
+     * @param source_metadata Description of the audio that is played by the clients.
+     */
+    void (*update_source_metadata_v7)(struct audio_stream_out *stream,
+                                      const struct source_metadata_v7* source_metadata);
+
+    /**
+     * Returns the Dual Mono mode presentation setting.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] mode current setting of Dual Mono mode.
+     *
+     * \return 0 if the position is successfully returned.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_dual_mono_mode)(struct audio_stream_out *stream, audio_dual_mono_mode_t *mode);
+
+    /**
+     * Sets the Dual Mono mode presentation on the output device.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] mode selected Dual Mono mode.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_dual_mono_mode)(struct audio_stream_out *stream, const audio_dual_mono_mode_t mode);
+
+    /**
+     * Returns the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] leveldB the current Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_audio_description_mix_level)(struct audio_stream_out *stream, float *leveldB);
+
+    /**
+     * Sets the Audio Description Mix level in dB.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] leveldB Audio Description Mix Level in dB.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_audio_description_mix_level)(struct audio_stream_out *stream, const float leveldB);
+
+    /**
+     * Retrieves current playback rate parameters.
+     *
+     * \param[in] stream the stream object.
+     * \param[out] playbackRate current playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*get_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        audio_playback_rate_t *playbackRate);
+
+    /**
+     * Sets the playback rate parameters that control playback behavior.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] playbackRate playback parameters.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_playback_rate_parameters)(struct audio_stream_out *stream,
+                                        const audio_playback_rate_t *playbackRate);
 };
 typedef struct audio_stream_out audio_stream_out_t;
 
@@ -600,6 +697,14 @@ struct audio_stream_in {
      */
     void (*update_sink_metadata)(struct audio_stream_in *stream,
                                  const struct sink_metadata* sink_metadata);
+
+    /**
+     * Called when the metadata of the stream's sink has been changed.
+     * HAL version 3.2 and higher only.
+     * @param sink_metadata Description of the audio that is recorded by the clients.
+     */
+    void (*update_sink_metadata_v7)(struct audio_stream_in *stream,
+                                    const struct sink_metadata_v7* sink_metadata);
 };
 typedef struct audio_stream_in audio_stream_in_t;
 
@@ -865,6 +970,18 @@ struct audio_hw_device {
      */
     int (*remove_device_effect)(struct audio_hw_device *dev,
                         audio_port_handle_t device, effect_handle_t effect);
+
+    /**
+     * Fills the list of supported attributes for a given audio port.
+     * As input, "port" contains the information (type, role, address etc...)
+     * needed by the HAL to identify the port.
+     * As output, "port" contains possible attributes (sampling rates, formats,
+     * channel masks, gain controllers...) for this port. The possible attributes
+     * are saved as audio profiles, which contains audio format and the supported
+     * sampling rates and channel masks.
+     */
+    int (*get_audio_port_v7)(struct audio_hw_device *dev,
+                             struct audio_port_v7 *port);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 

@@ -71,6 +71,7 @@ typedef enum {
     KM_TAG_INCLUDE_UNIQUE_ID = KM_BOOL | 202,      /* If true, attestation certificates for this key
                                                     * will contain an application-scoped and
                                                     * time-bounded device-unique ID. (keymaster2) */
+    KM_TAG_RSA_OAEP_MGF_DIGEST = KM_ENUM_REP | 203, /* keymaster_digest_t. */
 
     /* Other hardware-enforced. */
     KM_TAG_BLOB_USAGE_REQUIREMENTS = KM_ENUM | 301, /* keymaster_key_blob_usage_requirements_t */
@@ -94,6 +95,8 @@ typedef enum {
                                                            cryptographic operations with the key. */
     KM_TAG_MAX_USES_PER_BOOT = KM_UINT | 404,           /* Number of times the key can be used per
                                                            boot. */
+    KM_TAG_USAGE_COUNT_LIMIT = KM_UINT | 405,           /* Number of cryptographic operations left
+                                                           with the key.*/
 
     /* User authentication */
     KM_TAG_ALL_USERS = KM_BOOL | 500,           /* Reserved for future use -- ignore */
@@ -329,6 +332,7 @@ typedef enum {
     KM_PURPOSE_VERIFY = 3,     /* Usable with RSA, EC and HMAC keys. */
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
     KM_PURPOSE_WRAP = 5,       /* Usable with wrapped keys. */
+    KM_PURPOSE_AGREE_KEY = 6,  /* Usable with EC keys. */
 
 } keymaster_purpose_t;
 
@@ -490,6 +494,8 @@ typedef enum {
     KM_ERROR_EARLY_BOOT_ENDED = -73,
     KM_ERROR_ATTESTATION_KEYS_NOT_PROVISIONED = -74,
     KM_ERROR_ATTESTATION_IDS_NOT_PROVISIONED = -75,
+    KM_ERROR_INCOMPATIBLE_MGF_DIGEST = -78,
+    KM_ERROR_UNSUPPORTED_MGF_DIGEST = -79,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
