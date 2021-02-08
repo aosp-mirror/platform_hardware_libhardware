@@ -193,13 +193,25 @@ typedef enum {
                                                         proving that the user confirmed a signing
                                                         request. */
 
-    KM_TAG_CERTIFICATE_SERIAL = KM_UINT | 1006,      /* The serial number that should be
+    KM_TAG_CERTIFICATE_SERIAL = KM_BIGNUM | 1006,      /* The serial number that should be
                                                         set in the attestation certificate
                                                         to be generated. */
 
     KM_TAG_CERTIFICATE_SUBJECT = KM_BYTES | 1007,    /* A DER-encoded X.500 subject that should be
                                                         set in the attestation certificate
                                                         to be generated. */
+
+    KM_TAG_CERTIFICATE_NOT_BEFORE = KM_DATE | 1008,  /* Epoch time in milliseconds of the start of
+                                                        the to be generated certificate's validity.
+                                                        The value should interpreted as too's
+                                                        complement signed integer. Negative values
+                                                        indicate dates before Jan 1970 */
+
+    KM_TAG_CERTIFICATE_NOT_AFTER = KM_DATE | 1009,  /*  Epoch time in milliseconds of the end of
+                                                        the to be generated certificate's validity.
+                                                        The value should interpreted as too's
+                                                        complement signed integer. Negative values
+                                                        indicate dates before Jan 1970 */
 
 
 } keymaster_tag_t;
@@ -496,6 +508,8 @@ typedef enum {
     KM_ERROR_ATTESTATION_IDS_NOT_PROVISIONED = -75,
     KM_ERROR_INCOMPATIBLE_MGF_DIGEST = -78,
     KM_ERROR_UNSUPPORTED_MGF_DIGEST = -79,
+    KM_ERROR_MISSING_NOT_BEFORE = -80,
+    KM_ERROR_MISSING_NOT_AFTER = -81,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
