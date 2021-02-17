@@ -345,7 +345,7 @@ typedef enum {
     KM_PURPOSE_DERIVE_KEY = 4, /* Usable with EC keys. */
     KM_PURPOSE_WRAP = 5,       /* Usable with wrapped keys. */
     KM_PURPOSE_AGREE_KEY = 6,  /* Usable with EC keys. */
-
+    KM_PURPOSE_ATTEST_KEY = 7  /* Usabe with RSA and EC keys */
 } keymaster_purpose_t;
 
 typedef struct {
@@ -510,6 +510,8 @@ typedef enum {
     KM_ERROR_UNSUPPORTED_MGF_DIGEST = -79,
     KM_ERROR_MISSING_NOT_BEFORE = -80,
     KM_ERROR_MISSING_NOT_AFTER = -81,
+    KM_ERROR_MISSING_ISSUER_SUBJECT = -82,
+    KM_ERROR_INVALID_ISSUER_SUBJECT = -83,
 
     KM_ERROR_UNIMPLEMENTED = -100,
     KM_ERROR_VERSION_MISMATCH = -101,
