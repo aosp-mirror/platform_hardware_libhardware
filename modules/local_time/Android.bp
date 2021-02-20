@@ -21,6 +21,15 @@
 // seen in libhardware/hardware.c
 //
 // The format of the name is local_time.<hardware>.so
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "hardware_libhardware_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["hardware_libhardware_license"],
+}
+
 cc_library_shared {
     name: "local_time.default",
     relative_install_path: "hw",
