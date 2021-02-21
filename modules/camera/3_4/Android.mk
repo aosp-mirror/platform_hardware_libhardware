@@ -88,6 +88,9 @@ v4l2_test_files := \
 # ==============================================================================
 include $(CLEAR_VARS)
 LOCAL_MODULE := camera.v4l2
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
+LOCAL_LICENSE_CONDITIONS := notice
+LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../../../NOTICE
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_CFLAGS += $(v4l2_cflags)
 LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
@@ -103,6 +106,9 @@ include $(BUILD_SHARED_LIBRARY)
 # ==============================================================================
 include $(CLEAR_VARS)
 LOCAL_MODULE := camera.v4l2_test
+LOCAL_LICENSE_KINDS := SPDX-license-identifier-Apache-2.0 SPDX-license-identifier-BSD
+LOCAL_LICENSE_CONDITIONS := notice
+LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../../../NOTICE
 LOCAL_CFLAGS += $(v4l2_cflags)
 LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
 LOCAL_STATIC_LIBRARIES := \
