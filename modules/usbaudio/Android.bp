@@ -12,18 +12,43 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-cc_library_shared {
-    name: "audio.usb.default",
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "hardware_libhardware_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["hardware_libhardware_license"],
+}
+
+cc_defaults {
+    name: "audio.usb_defaults",
     relative_install_path: "hw",
     vendor: true,
     srcs: ["audio_hal.c"],
     shared_libs: [
         "liblog",
         "libcutils",
-        "libtinyalsa",
         "libaudioutils",
-        "libalsautils",
     ],
     cflags: ["-Wno-unused-parameter"],
     header_libs: ["libhardware_headers"],
+}
+
+cc_library_shared {
+    name: "audio.usb.default",
+    defaults: ["audio.usb_defaults"],
+    shared_libs: [
+        "libtinyalsa",
+        "libalsautils",
+    ],
+}
+
+cc_library_shared {
+    name: "audio.usbv2.default",
+    defaults: ["audio.usb_defaults"],
+    shared_libs: [
+        "libtinyalsav2",
+        "libalsautilsv2",
+    ],
 }
