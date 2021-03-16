@@ -258,19 +258,25 @@ typedef struct
     void *val;
 } bt_property_t;
 
-/** Bluetooth Out Of Band data for bonding */
-typedef struct
-{
-   uint8_t le_bt_dev_addr[7]; /* LE Bluetooth Device Address */
-   uint8_t c192[16]; /* Simple Pairing Hash C-192 */
-   uint8_t r192[16]; /* Simple Pairing Randomizer R-192 */
-   uint8_t c256[16]; /* Simple Pairing Hash C-256 */
-   uint8_t r256[16]; /* Simple Pairing Randomizer R-256 */
-   uint8_t sm_tk[16]; /* Security Manager TK Value */
-   uint8_t le_sc_c[16]; /* LE Secure Connections Confirmation Value */
-   uint8_t le_sc_r[16]; /* LE Secure Connections Random Value */
-} bt_out_of_band_data_t;
+/** Represents the actual Out of Band data itself */
+typedef struct {
+    // Both
+    uint8_t address[7]; /* Bluetooth Device Address (6) plus Address Type (1) */
+    uint8_t c[16];      /* Simple Pairing Hash C-192/256 (Classic or LE) */
+    uint8_t r[16];      /* Simple Pairing Randomizer R-192/256 (Classic or LE) */
+    uint8_t device_name[256]; /* Name of the device */
 
+    // Classic
+    uint8_t oob_data_length[2]; /* Classic only data Length. Value includes this
+                                   in length */
+    uint8_t class_of_device[2]; /* Class of Device (Classic or LE) */
+
+    // LE
+    uint8_t le_device_role;   /* Supported and preferred role of device */
+    uint8_t sm_tk[16];        /* Security Manager TK Value (LE Only) */
+    uint8_t le_flags;         /* LE Flags for discoverability and features */
+    uint8_t le_appearance[2]; /* For the appearance of the device */
+} bt_oob_data_t;
 
 
 /** Bluetooth Device Type */
@@ -508,7 +514,8 @@ typedef struct {
 
     /** Create Bluetooth Bond using out of band data */
     int (*create_bond_out_of_band)(const RawAddress *bd_addr, int transport,
-                                   const bt_out_of_band_data_t *oob_data);
+                                   const bt_oob_data_t *p192_data,
+                                   const bt_oob_data_t *p256_data);
 
     /** Remove Bond */
     int (*remove_bond)(const RawAddress *bd_addr);
