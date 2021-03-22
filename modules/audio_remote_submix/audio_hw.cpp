@@ -196,6 +196,7 @@ struct submix_stream_in {
     struct timespec record_start_time;
     // how many frames have been requested to be read
     uint64_t read_counter_frames;
+    uint64_t read_counter_frames_since_standby;
 
 #if ENABLE_LEGACY_INPUT_OPEN
     // Number of references to this input stream.
@@ -836,7 +837,7 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer,
         sp<MonoPipeReader> source = rsxadev->routes[out->route_handle].rsxSource;
         const struct submix_stream_in *in = rsxadev->routes[out->route_handle].input;
         const bool dont_block = (in == NULL)
-                || (in->input_standby && (in->read_counter_frames != 0));
+                || (in->input_standby && (in->read_counter_frames_since_standby != 0));
         if (dont_block && availableToWrite < frames) {
             static uint8_t flush_buffer[64];
             const size_t flushBufferSizeFrames = sizeof(flush_buffer) / frame_size;
@@ -1141,11 +1142,12 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         // or when we start recording silence, and reset projected time
         int rc = clock_gettime(CLOCK_MONOTONIC, &in->record_start_time);
         if (rc == 0) {
-            in->read_counter_frames = 0;
+            in->read_counter_frames_since_standby = 0;
         }
     }
 
     in->read_counter_frames += frames_to_read;
+    in->read_counter_frames_since_standby += frames_to_read;
     size_t remaining_frames = frames_to_read;
 
     {
@@ -1324,12 +1326,12 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
             record_duration.tv_nsec += 1000000000;
         }
 
-        // read_counter_frames contains the number of frames that have been read since the
-        // beginning of recording (including this call): it's converted to usec and compared to
+        // read_counter_frames_since_standby contains the number of frames that have been read since
+        // the beginning of recording (including this call): it's converted to usec and compared to
         // how long we've been recording for, which gives us how long we must wait to sync the
         // projected recording time, and the observed recording time.
         long projected_vs_observed_offset_us =
-                ((int64_t)(in->read_counter_frames
+                ((int64_t)(in->read_counter_frames_since_standby
                             - (record_duration.tv_sec*sample_rate)))
                         * 1000000 / sample_rate
                 - (record_duration.tv_nsec / 1000);
@@ -1350,6 +1352,37 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
 static uint32_t in_get_input_frames_lost(struct audio_stream_in *stream)
 {
     (void)stream;
+    return 0;
+}
+
+static int in_get_capture_position(const struct audio_stream_in *stream,
+                                   int64_t *frames, int64_t *time)
+{
+    if (stream == NULL || frames == NULL || time == NULL) {
+        return -EINVAL;
+    }
+
+    struct submix_stream_in * const in = audio_stream_in_get_submix_stream_in(
+            (struct audio_stream_in*)stream);
+    struct submix_audio_device * const rsxadev = in->dev;
+
+    pthread_mutex_lock(&rsxadev->lock);
+    sp<MonoPipeReader> source = rsxadev->routes[in->route_handle].rsxSource;
+    if (source == NULL) {
+        ALOGW("%s called on released input", __FUNCTION__);
+        pthread_mutex_unlock(&rsxadev->lock);
+        return -ENODEV;
+    }
+    *frames = in->read_counter_frames;
+    const ssize_t frames_in_pipe = source->availableToRead();
+    pthread_mutex_unlock(&rsxadev->lock);
+    if (frames_in_pipe > 0) {
+        *frames += frames_in_pipe;
+    }
+
+    struct timespec timestamp;
+    clock_gettime(CLOCK_MONOTONIC, &timestamp);
+    *time = timestamp.tv_sec * 1000000000LL + timestamp.tv_nsec;
     return 0;
 }
 
@@ -1671,6 +1704,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
         in->stream.set_gain = in_set_gain;
         in->stream.read = in_read;
         in->stream.get_input_frames_lost = in_get_input_frames_lost;
+        in->stream.get_capture_position = in_get_capture_position;
 
         in->dev = rsxadev;
 #if LOG_STREAMS_TO_FILES
@@ -1680,6 +1714,7 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     // Initialize the input stream.
     in->read_counter_frames = 0;
+    in->read_counter_frames_since_standby = 0;
     in->input_standby = true;
     if (rsxadev->routes[route_idx].output != NULL) {
         in->output_standby_rec_thr = rsxadev->routes[route_idx].output->output_standby;
