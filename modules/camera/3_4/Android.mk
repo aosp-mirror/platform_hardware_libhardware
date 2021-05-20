@@ -94,9 +94,8 @@ LOCAL_NOTICE_FILE := $(LOCAL_PATH)/../../../NOTICE
 LOCAL_MODULE_RELATIVE_PATH := hw
 LOCAL_CFLAGS += $(v4l2_cflags)
 LOCAL_SHARED_LIBRARIES := $(v4l2_shared_libs)
-LOCAL_STATIC_LIBRARIES := \
-  libgtest_prod \
-  $(v4l2_static_libs) \
+LOCAL_HEADER_LIBRARIES := libgtest_prod_headers
+LOCAL_STATIC_LIBRARIES := $(v4l2_static_libs)
 
 LOCAL_C_INCLUDES += $(v4l2_c_includes)
 LOCAL_SRC_FILES := $(v4l2_src_files)
