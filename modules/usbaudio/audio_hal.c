@@ -520,10 +520,11 @@ static void stream_dump_alsa_devices(const struct listnode *alsa_devices, int fd
     list_for_each(node, alsa_devices) {
         struct alsa_device_info *device_info =
                 node_to_item(node, struct alsa_device_info, list_node);
-        dprintf(fd, "Output Profile %zu:\n", i);
+        const char* direction = device_info->profile.direction == PCM_OUT ? "Output" : "Input";
+        dprintf(fd, "%s Profile %zu:\n", direction, i);
         profile_dump(&device_info->profile, fd);
 
-        dprintf(fd, "Output Proxy %zu:\n", i);
+        dprintf(fd, "%s Proxy %zu:\n", direction, i);
         proxy_dump(&device_info->proxy, fd);
     }
 }
