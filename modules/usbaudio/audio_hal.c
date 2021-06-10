@@ -158,17 +158,26 @@ struct stream_in {
 };
 
 // Map channel count to output channel mask
-static const audio_channel_mask_t OUT_CHANNEL_MASKS_MAP[] = {
-    AUDIO_CHANNEL_NONE,        /* 0 */
-    AUDIO_CHANNEL_OUT_MONO,    /* 1 */
-    AUDIO_CHANNEL_OUT_STEREO,  /* 2 */
-    AUDIO_CHANNEL_OUT_2POINT1, /* 3 */
-    AUDIO_CHANNEL_OUT_QUAD,    /* 4 */
-    AUDIO_CHANNEL_OUT_PENTA,   /* 5 */
-    AUDIO_CHANNEL_OUT_5POINT1, /* 6 */
-    AUDIO_CHANNEL_OUT_6POINT1, /* 7 */
-    AUDIO_CHANNEL_OUT_7POINT1  /* 8 */
-    /* channel counts greater than this are not considered */
+static const audio_channel_mask_t OUT_CHANNEL_MASKS_MAP[FCC_24 + 1] = {
+    [0] = AUDIO_CHANNEL_NONE,  // == 0 (so this line is optional and could be omitted)
+                               // != AUDIO_CHANNEL_INVALID == 0xC0000000u
+
+    [1] = AUDIO_CHANNEL_OUT_MONO,
+    [2] = AUDIO_CHANNEL_OUT_STEREO,
+    [3] = AUDIO_CHANNEL_OUT_2POINT1,
+    [4] = AUDIO_CHANNEL_OUT_QUAD,
+    [5] = AUDIO_CHANNEL_OUT_PENTA,
+    [6] = AUDIO_CHANNEL_OUT_5POINT1,
+    [7] = AUDIO_CHANNEL_OUT_6POINT1,
+    [8] = AUDIO_CHANNEL_OUT_7POINT1,
+
+    [9 ... 11] = AUDIO_CHANNEL_NONE,  // == 0 (so this line is optional and could be omitted).
+
+    [12] = AUDIO_CHANNEL_OUT_7POINT1POINT4,
+
+    [13 ... 23] = AUDIO_CHANNEL_NONE,  //  == 0 (so this line is optional and could be omitted).
+
+    [24] = AUDIO_CHANNEL_OUT_22POINT2,
 };
 static const int OUT_CHANNEL_MASKS_SIZE = AUDIO_ARRAY_SIZE(OUT_CHANNEL_MASKS_MAP);
 
@@ -182,21 +191,37 @@ static const audio_channel_mask_t IN_CHANNEL_MASKS_MAP[] = {
 static const int IN_CHANNEL_MASKS_SIZE = AUDIO_ARRAY_SIZE(IN_CHANNEL_MASKS_MAP);
 
 // Map channel count to index mask
-static const audio_channel_mask_t CHANNEL_INDEX_MASKS_MAP[] = {
-    AUDIO_CHANNEL_NONE,         /* 0 */
-    AUDIO_CHANNEL_INDEX_MASK_1, /* 1 */
-    AUDIO_CHANNEL_INDEX_MASK_2, /* 2 */
-    AUDIO_CHANNEL_INDEX_MASK_3, /* 3 */
-    AUDIO_CHANNEL_INDEX_MASK_4, /* 4 */
-    AUDIO_CHANNEL_INDEX_MASK_5, /* 5 */
-    AUDIO_CHANNEL_INDEX_MASK_6, /* 6 */
-    AUDIO_CHANNEL_INDEX_MASK_7, /* 7 */
-    AUDIO_CHANNEL_INDEX_MASK_8  /* 8 */
-    /* channel counts greater than this are not considered */
+static const audio_channel_mask_t CHANNEL_INDEX_MASKS_MAP[FCC_24 + 1] = {
+    [0] = AUDIO_CHANNEL_NONE,  // == 0 (so this line is optional and could be omitted).
+
+    [1] = AUDIO_CHANNEL_INDEX_MASK_1,
+    [2] = AUDIO_CHANNEL_INDEX_MASK_2,
+    [3] = AUDIO_CHANNEL_INDEX_MASK_3,
+    [4] = AUDIO_CHANNEL_INDEX_MASK_4,
+    [5] = AUDIO_CHANNEL_INDEX_MASK_5,
+    [6] = AUDIO_CHANNEL_INDEX_MASK_6,
+    [7] = AUDIO_CHANNEL_INDEX_MASK_7,
+    [8] = AUDIO_CHANNEL_INDEX_MASK_8,
+
+    [9] = AUDIO_CHANNEL_INDEX_MASK_9,
+    [10] = AUDIO_CHANNEL_INDEX_MASK_10,
+    [11] = AUDIO_CHANNEL_INDEX_MASK_11,
+    [12] = AUDIO_CHANNEL_INDEX_MASK_12,
+    [13] = AUDIO_CHANNEL_INDEX_MASK_13,
+    [14] = AUDIO_CHANNEL_INDEX_MASK_14,
+    [15] = AUDIO_CHANNEL_INDEX_MASK_15,
+    [16] = AUDIO_CHANNEL_INDEX_MASK_16,
+
+    [17] = AUDIO_CHANNEL_INDEX_MASK_17,
+    [18] = AUDIO_CHANNEL_INDEX_MASK_18,
+    [19] = AUDIO_CHANNEL_INDEX_MASK_19,
+    [20] = AUDIO_CHANNEL_INDEX_MASK_20,
+    [21] = AUDIO_CHANNEL_INDEX_MASK_21,
+    [22] = AUDIO_CHANNEL_INDEX_MASK_22,
+    [23] = AUDIO_CHANNEL_INDEX_MASK_23,
+    [24] = AUDIO_CHANNEL_INDEX_MASK_24,
 };
 static const int CHANNEL_INDEX_MASKS_SIZE = AUDIO_ARRAY_SIZE(CHANNEL_INDEX_MASKS_MAP);
-
-
 
 /*
  * Locking Helpers
@@ -401,7 +426,10 @@ static unsigned int populate_channel_mask_from_profile(const alsa_device_profile
     unsigned int num_channel_masks = 0;
     const audio_channel_mask_t* channel_masks_map =
             is_output ? OUT_CHANNEL_MASKS_MAP : IN_CHANNEL_MASKS_MAP;
-    const int channel_masks_size = is_output ? OUT_CHANNEL_MASKS_SIZE : IN_CHANNEL_MASKS_SIZE;
+    int channel_masks_size = is_output ? OUT_CHANNEL_MASKS_SIZE : IN_CHANNEL_MASKS_SIZE;
+    if (channel_masks_size > FCC_LIMIT + 1) {
+        channel_masks_size = FCC_LIMIT + 1;
+    }
     unsigned int channel_count = 0;
     for (size_t i = 0; i < min(channel_masks_size, AUDIO_PORT_MAX_CHANNEL_MASKS) &&
             (channel_count = profile->channel_counts[i]) != 0 &&
@@ -874,8 +902,8 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     }
 
     /* The Framework is currently limited to no more than this number of channels */
-    if (out->hal_channel_count > FCC_8) {
-        out->hal_channel_count = FCC_8;
+    if (out->hal_channel_count > FCC_LIMIT) {
+        out->hal_channel_count = FCC_LIMIT;
         calc_mask = true;
     }
 
@@ -1355,8 +1383,8 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
     }
 
     /* The Framework is currently limited to no more than this number of channels */
-    if (in->hal_channel_count > FCC_8) {
-        in->hal_channel_count = FCC_8;
+    if (in->hal_channel_count > FCC_LIMIT) {
+        in->hal_channel_count = FCC_LIMIT;
         calc_mask = true;
     }
 
