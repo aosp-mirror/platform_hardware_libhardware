@@ -261,6 +261,7 @@ typedef struct
 /** Represents the actual Out of Band data itself */
 typedef struct {
     // Both
+    bool is_valid = false; /* Default to invalid data; force caller to verify */
     uint8_t address[7]; /* Bluetooth Device Address (6) plus Address Type (1) */
     uint8_t c[16];      /* Simple Pairing Hash C-192/256 (Classic or LE) */
     uint8_t r[16];      /* Simple Pairing Randomizer R-192/256 (Classic or LE) */
