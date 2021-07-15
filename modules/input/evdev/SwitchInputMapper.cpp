@@ -49,9 +49,9 @@ static struct {
     {SW_LINEIN_INSERT, INPUT_USAGE_SWITCH_UNKNOWN},
     {SW_MUTE_DEVICE, INPUT_USAGE_SWITCH_UNKNOWN},
     {SW_PEN_INSERTED, INPUT_USAGE_SWITCH_UNKNOWN},
-    {SW_HPHL_OVERCURRENT, INPUT_USAGE_SWITCH_UNKNOWN},
-    {SW_HPHR_OVERCURRENT, INPUT_USAGE_SWITCH_UNKNOWN},
-    {SW_UNSUPPORT_INSERT, INPUT_USAGE_SWITCH_UNKNOWN},
+    {SW_MACHINE_COVER, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x11 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x12 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {0x13 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {0x14 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {0x15 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
@@ -59,8 +59,20 @@ static struct {
     {0x17 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {0x18 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
     {0x19 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
-    {SW_MAX, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1a /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1b /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1c /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1d /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1e /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x1f /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
+    {0x20 /* unused */, INPUT_USAGE_SWITCH_UNKNOWN},
 };
+
+static_assert(SW_MAX == SW_MACHINE_COVER, "SW_MAX is not SW_MACHINE_COVER");
+
+// This is the max value that any kernel has ever used. The v5.4 kernels
+// increased SW_MAX to 0x20, while v5.8 decreased the value to 0x10.
+static constexpr int32_t kMaxNumInputCodes = 0x21;
 
 SwitchInputMapper::SwitchInputMapper()
     : InputMapper() {
@@ -71,9 +83,9 @@ SwitchInputMapper::SwitchInputMapper()
 
 bool SwitchInputMapper::configureInputReport(InputDeviceNode* devNode,
         InputReportDefinition* report) {
-    InputUsage usages[SW_CNT];
+    InputUsage usages[kMaxNumInputCodes];
     int numUsages = 0;
-    for (int32_t i = 0; i < SW_CNT; ++i) {
+    for (int32_t i = 0; i < kMaxNumInputCodes; ++i) {
         if (devNode->hasSwitch(codeMap[i].scancode)) {
             usages[numUsages++] = codeMap[i].usage;
         }
@@ -105,7 +117,7 @@ void SwitchInputMapper::process(const InputEvent& event) {
 
 void SwitchInputMapper::processSwitch(int32_t switchCode, int32_t switchValue) {
     ALOGV("processing switch event. code=%" PRId32 ", value=%" PRId32, switchCode, switchValue);
-    if (switchCode >= 0 && switchCode < SW_CNT) {
+    if (switchCode >= 0 && switchCode < kMaxNumInputCodes) {
         if (switchValue) {
             mSwitchValues.markBit(switchCode);
         } else {
