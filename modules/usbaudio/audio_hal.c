@@ -1652,6 +1652,15 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     stream_standby_l(alsa_devices, out == NULL ? &in->standby : &out->standby);
     device_unlock(adev);
 
+    // Timestamps:
+    // Audio timestamps assume continuous PCM frame counts which are maintained
+    // with the device proxy.transferred variable.  Technically it would be better
+    // associated with in or out stream, not the device; here we save and restore
+    // using the first alsa device as a simplification.
+    uint64_t saved_transferred_frames = 0;
+    struct alsa_device_info *device_info = stream_get_first_alsa_device(alsa_devices);
+    if (device_info != NULL) saved_transferred_frames = device_info->proxy.transferred;
+
     int ret = stream_set_new_devices(config, alsa_devices, num_configs, cards, devices, direction);
 
     if (ret != 0) {
@@ -1661,6 +1670,13 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     } else {
         *patch_handle = *handle;
     }
+
+    // Timestamps: Restore transferred frames.
+    if (saved_transferred_frames != 0) {
+        device_info = stream_get_first_alsa_device(alsa_devices);
+        if (device_info != NULL) device_info->proxy.transferred = saved_transferred_frames;
+    }
+
     if (!wasStandby) {
         device_lock(adev);
         if (in != NULL) {
