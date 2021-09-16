@@ -17,6 +17,8 @@
 #ifndef ANDROID_SENSORHAL_EXT_DYNAMIC_SENSORS_SUB_HAL_H
 #define ANDROID_SENSORHAL_EXT_DYNAMIC_SENSORS_SUB_HAL_H
 
+#include "DynamicSensorManager.h"
+
 #include <V2_1/SubHal.h>
 
 namespace android {
@@ -37,6 +39,8 @@ class DynamicSensorsSubHal :
     using SharedMemInfo = ::android::hardware::sensors::V1_0::SharedMemInfo;
 
 public:
+    DynamicSensorsSubHal();
+
     // ISensors.
     Return<Result> setOperationMode(OperationMode mode) override;
     Return<Result> activate(int32_t sensor_handle, bool enabled) override;
@@ -60,6 +64,14 @@ public:
     const std::string getName() override { return "Dynamic-SubHAL"; }
     Return<Result> initialize(
             const sp<IHalProxyCallback>& hal_proxy_callback) override;
+
+private:
+    static constexpr int32_t kDynamicHandleBase = 0;
+    static constexpr int32_t kDynamicHandleEnd = 0x1000000;
+    static constexpr int32_t kMaxDynamicHandleCount = kDynamicHandleEnd -
+                                                      kDynamicHandleBase;
+
+    std::unique_ptr<DynamicSensorManager> mDynamicSensorManager;
 };
 
 } // namespace SensorHalExt
