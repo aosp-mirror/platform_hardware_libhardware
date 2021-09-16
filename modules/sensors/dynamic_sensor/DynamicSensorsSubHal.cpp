@@ -16,29 +16,15 @@
 
 #include "DynamicSensorsSubHal.h"
 
-#include <cutils/properties.h>
 #include <hardware/sensors-base.h>
 #include <log/log.h>
 
 using ::android::hardware::sensors::V1_0::Result;
-using ::android::hardware::sensors::V2_1::SensorInfo;
-using ::android::hardware::sensors::V2_1::SensorType;
 template<class T> using Return = ::android::hardware::Return<T>;
 using ::android::hardware::Void;
 
 namespace android {
 namespace SensorHalExt {
-
-DynamicSensorsSubHal::DynamicSensorsSubHal() {
-    // initialize dynamic sensor manager
-    int32_t base = property_get_int32("sensor.dynamic_sensor_hal.handle_base",
-                                      kDynamicHandleBase);
-    int32_t count = property_get_int32("sensor.dynamic_sensor_hal.handle_count",
-                                       kMaxDynamicHandleCount);
-    mDynamicSensorManager.reset(
-            DynamicSensorManager::createInstance(base, count,
-                                                 nullptr /* callback */));
-}
 
 // ISensors.
 Return<Result> DynamicSensorsSubHal::setOperationMode(OperationMode mode) {
@@ -91,31 +77,8 @@ Return<void> DynamicSensorsSubHal::configDirectReport(
 }
 
 Return<void> DynamicSensorsSubHal::getSensorsList_2_1(
-        getSensorsList_2_1_cb callback) {
-    const sensor_t& sensor_info = mDynamicSensorManager->getDynamicMetaSensor();
-    std::vector<SensorInfo> sensors;
-
+        getSensorsList_2_1_cb callback __unused) {
     ALOGD("DynamicSensorsSubHal::getSensorsList_2_1 invoked.");
-
-    // get the dynamic sensor info
-    sensors.resize(1);
-    sensors[0].sensorHandle = sensor_info.handle;
-    sensors[0].name = sensor_info.name;
-    sensors[0].vendor = sensor_info.vendor;
-    sensors[0].version = 1;
-    sensors[0].type = static_cast<SensorType>(sensor_info.type);
-    sensors[0].typeAsString = sensor_info.stringType;
-    sensors[0].maxRange = sensor_info.maxRange;
-    sensors[0].resolution = sensor_info.resolution;
-    sensors[0].power = sensor_info.power;
-    sensors[0].minDelay = sensor_info.minDelay;
-    sensors[0].fifoReservedEventCount = sensor_info.fifoReservedEventCount;
-    sensors[0].fifoMaxEventCount = sensor_info.fifoMaxEventCount;
-    sensors[0].requiredPermission = sensor_info.requiredPermission;
-    sensors[0].maxDelay = sensor_info.maxDelay;
-    sensors[0].flags = sensor_info.flags;
-
-    callback(sensors);
 
     return Void();
 }
