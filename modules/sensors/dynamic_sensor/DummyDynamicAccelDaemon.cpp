@@ -28,7 +28,7 @@
 #include <netinet/in.h>
 #include <algorithm>            //std::max
 
-#define SYSPROP_PREFIX                  "vendor.dynamic_sensor.mock"
+#define SYSPROP_PREFIX                  "dynamic_sensor.dummy"
 #define FILE_NAME_BASE                  "dummy_accel_file"
 #define FILE_NAME_REGEX                 ("^" FILE_NAME_BASE "[0-9]$")
 
