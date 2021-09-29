@@ -25,6 +25,7 @@ namespace android {
 namespace SensorHalExt {
 
 class DynamicSensorsSubHal :
+        public SensorEventCallback,
         public ::android::hardware::sensors::V2_1::implementation::ISensorsSubHal {
     using Event = ::android::hardware::sensors::V2_1::Event;
     using hidl_handle = ::android::hardware::hidl_handle;
@@ -65,13 +66,20 @@ public:
     Return<Result> initialize(
             const sp<IHalProxyCallback>& hal_proxy_callback) override;
 
+    // SensorEventCallback.
+    int submitEvent(SP(BaseSensorObject) sensor,
+                    const sensors_event_t& e) override;
+
 private:
     static constexpr int32_t kDynamicHandleBase = 0;
     static constexpr int32_t kDynamicHandleEnd = 0x1000000;
     static constexpr int32_t kMaxDynamicHandleCount = kDynamicHandleEnd -
                                                       kDynamicHandleBase;
 
+    void onSensorConnected(int handle, const sensor_t* sensor_info);
+
     std::unique_ptr<DynamicSensorManager> mDynamicSensorManager;
+    sp<IHalProxyCallback> mHalProxyCallback;
 };
 
 } // namespace SensorHalExt
