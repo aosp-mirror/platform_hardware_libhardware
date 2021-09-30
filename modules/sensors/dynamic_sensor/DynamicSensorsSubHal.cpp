@@ -35,6 +35,21 @@ using ::android::hardware::Void;
 namespace android {
 namespace SensorHalExt {
 
+static Result ResultFromStatus(status_t err) {
+    switch (err) {
+        case ::android::OK:
+            return Result::OK;
+        case ::android::PERMISSION_DENIED:
+            return Result::PERMISSION_DENIED;
+        case ::android::NO_MEMORY:
+            return Result::NO_MEMORY;
+        case ::android::BAD_VALUE:
+            return Result::BAD_VALUE;
+        default:
+            return Result::INVALID_OPERATION;
+    }
+}
+
 DynamicSensorsSubHal::DynamicSensorsSubHal() {
     // initialize dynamic sensor manager
     mDynamicSensorManager.reset(
@@ -49,19 +64,18 @@ Return<Result> DynamicSensorsSubHal::setOperationMode(OperationMode mode) {
             Result::OK : Result::BAD_VALUE);
 }
 
-Return<Result> DynamicSensorsSubHal::activate(int32_t sensor_handle __unused,
-                                              bool enabled __unused) {
-    ALOGE("DynamicSensorsSubHal::activate not supported.");
-
-    return Result::INVALID_OPERATION;
+Return<Result> DynamicSensorsSubHal::activate(int32_t sensor_handle,
+                                              bool enabled) {
+    int rc = mDynamicSensorManager->activate(sensor_handle, enabled);
+    return ResultFromStatus(rc);
 }
 
 Return<Result> DynamicSensorsSubHal::batch(
-        int32_t sensor_handle __unused, int64_t sampling_period_ns __unused,
-        int64_t max_report_latency_ns __unused) {
-    ALOGE("DynamicSensorsSubHal::batch not supported.");
-
-    return Result::INVALID_OPERATION;
+        int32_t sensor_handle, int64_t sampling_period_ns,
+        int64_t max_report_latency_ns) {
+    int rc = mDynamicSensorManager->batch(sensor_handle, sampling_period_ns,
+                                          max_report_latency_ns);
+    return ResultFromStatus(rc);
 }
 
 Return<Result> DynamicSensorsSubHal::flush(int32_t sensor_handle __unused) {
