@@ -78,10 +78,9 @@ Return<Result> DynamicSensorsSubHal::batch(
     return ResultFromStatus(rc);
 }
 
-Return<Result> DynamicSensorsSubHal::flush(int32_t sensor_handle __unused) {
-    ALOGE("DynamicSensorsSubHal::flush not supported.");
-
-    return Result::INVALID_OPERATION;
+Return<Result> DynamicSensorsSubHal::flush(int32_t sensor_handle) {
+    int rc = mDynamicSensorManager->flush(sensor_handle);
+    return ResultFromStatus(rc);
 }
 
 Return<void> DynamicSensorsSubHal::registerDirectChannel(
