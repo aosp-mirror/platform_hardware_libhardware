@@ -77,24 +77,28 @@ enum {
 };
 } // namespace ReportUsage
 
-namespace RawMinMax {
+namespace ReportingStateUsage {
 enum {
-    REPORTING_STATE_MIN = 0,
-    REPORTING_STATE_MAX = 5,
-    POWER_STATE_MIN = 0,
-    POWER_STATE_MAX = 5,
+    REPORTING_STATE_NO_EVENTS = 0x0840,
+    REPORTING_STATE_ALL_EVENTS = 0x0841,
+    REPORTING_STATE_REPORT_THRESHOLD_EVENTS = 0x0842,
+    REPORTING_STATE_REPORT_WAKE_ON_NO_EVENTS = 0x0843,
+    REPORTING_STATE_REPORT_WAKE_ON_ALL_EVENTS = 0x0844,
+    REPORTING_STATE_REPORT_WAKE_ON_THRESHOLD_EVENTS = 0x0845,
 };
-} // namespace RawMinMax
+} // namespace ReportingStateUsage
 
-namespace StateValue {
+namespace PowerStateUsage {
 enum {
-    POWER_STATE_FULL_POWER = 1,
-    POWER_STATE_POWER_OFF = 5,
-
-    REPORTING_STATE_ALL_EVENT = 1,
-    REPORTING_STATE_NO_EVENT = 0,
+    POWER_STATE_UNDEFINED = 0x0850,
+    POWER_STATE_D0_FULL_POWER = 0x0851,
+    POWER_STATE_D1_LOW_POWER = 0x0852,
+    POWER_STATE_D2_STANDBY_POWER_WITH_WAKEUP = 0x0853,
+    POWER_STATE_D3_SLEEP_WITH_WAKEUP = 0x0854,
+    POWER_STATE_D4_POWER_OFF = 0x0855,
 };
-} // StateValue
+} // namespace PowerStateUsage
+
 } // namespace Sensor
 } // namespace Hid
 #endif // HID_SENSOR_DEF_H_
