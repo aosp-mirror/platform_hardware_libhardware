@@ -248,6 +248,7 @@ std::vector<HidParser::ReportPacket> HidParser::convertGroupToPacket(
                 ReportItem digest = {
                     .usage = r.getFullUsage(),
                     .id = id,
+                    .usageVector = r.getUsageVector(),
                     .minRaw = logical.first,
                     .maxRaw = logical.second,
                     .a = scale,
