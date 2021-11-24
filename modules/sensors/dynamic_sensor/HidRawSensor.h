@@ -138,9 +138,13 @@ private:
     // Features for control sensor
     int mReportingStateId;
     unsigned int mReportingStateOffset;
+    int mReportingStateDisableIndex;
+    int mReportingStateEnableIndex;
 
     int mPowerStateId;
     unsigned int mPowerStateOffset;
+    int mPowerStateOffIndex;
+    int mPowerStateOnIndex;
 
     int mReportIntervalId;
     unsigned int mReportIntervalOffset;
