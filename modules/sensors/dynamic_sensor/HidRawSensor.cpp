@@ -784,8 +784,9 @@ bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
 }
 
 bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPacket> &packets) {
+    using namespace Hid::Sensor::PowerStateUsage;
     using namespace Hid::Sensor::PropertyUsage;
-    using namespace Hid::Sensor::RawMinMax;
+    using namespace Hid::Sensor::ReportingStateUsage;
 
     //REPORTING_STATE
     const HidParser::ReportItem *reportingState
@@ -793,13 +794,31 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
 
     if (reportingState == nullptr
             || !reportingState->isByteAligned()
-            || reportingState->bitSize != 8
-            || reportingState->minRaw != REPORTING_STATE_MIN
-            || reportingState->maxRaw != REPORTING_STATE_MAX) {
+            || reportingState->bitSize != 8) {
         LOG_W << "Cannot find valid reporting state feature" << LOG_ENDL;
     } else {
         mReportingStateId = reportingState->id;
         mReportingStateOffset = reportingState->bitOffset / 8;
+
+        mReportingStateDisableIndex = -1;
+        mReportingStateEnableIndex = -1;
+        for (unsigned i = 0; i < reportingState->usageVector.size(); ++i) {
+            if (reportingState->usageVector[i] == REPORTING_STATE_NO_EVENTS) {
+                mReportingStateDisableIndex = i;
+            }
+            if (reportingState->usageVector[i] == REPORTING_STATE_ALL_EVENTS) {
+                mReportingStateEnableIndex = i;
+            }
+        }
+        if (mReportingStateDisableIndex < 0) {
+            LOG_W << "Cannot find reporting state to disable sensor"
+                  << LOG_ENDL;
+            mReportingStateId = -1;
+        }
+        if (mReportingStateEnableIndex < 0) {
+            LOG_W << "Cannot find reporting state to enable sensor" << LOG_ENDL;
+            mReportingStateId = -1;
+        }
     }
 
     //POWER_STATE
@@ -807,13 +826,31 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
             = find(packets, POWER_STATE, HidParser::REPORT_TYPE_FEATURE);
     if (powerState == nullptr
             || !powerState->isByteAligned()
-            || powerState->bitSize != 8
-            || powerState->minRaw != POWER_STATE_MIN
-            || powerState->maxRaw != POWER_STATE_MAX) {
+            || powerState->bitSize != 8) {
         LOG_W << "Cannot find valid power state feature" << LOG_ENDL;
     } else {
         mPowerStateId = powerState->id;
         mPowerStateOffset = powerState->bitOffset / 8;
+
+        mPowerStateOffIndex = -1;
+        mPowerStateOnIndex = -1;
+        for (unsigned i = 0; i < powerState->usageVector.size(); ++i) {
+            if (powerState->usageVector[i] == POWER_STATE_D4_POWER_OFF) {
+                mPowerStateOffIndex = i;
+            }
+            if (powerState->usageVector[i] == POWER_STATE_D0_FULL_POWER) {
+                mPowerStateOnIndex = i;
+            }
+        }
+        if (mPowerStateOffIndex < 0) {
+            LOG_W << "Cannot find power state to power off sensor"
+                  << LOG_ENDL;
+            mPowerStateId = -1;
+        }
+        if (mPowerStateOnIndex < 0) {
+            LOG_W << "Cannot find power state to power on sensor" << LOG_ENDL;
+            mPowerStateId = -1;
+        }
     }
 
     //REPORT_INTERVAL
@@ -846,7 +883,6 @@ void HidRawSensor::getUuid(uint8_t* uuid) const {
 }
 
 int HidRawSensor::enable(bool enable) {
-    using namespace Hid::Sensor::StateValue;
     SP(HidDevice) device = PROMOTE(mDevice);
 
     if (device == nullptr) {
@@ -864,7 +900,8 @@ int HidRawSensor::enable(bool enable) {
         uint8_t id = static_cast<uint8_t>(mPowerStateId);
         if (device->getFeature(id, &buffer)
                 && buffer.size() > mPowerStateOffset) {
-            buffer[mPowerStateOffset] = enable ? POWER_STATE_FULL_POWER : POWER_STATE_POWER_OFF;
+            buffer[mPowerStateOffset] =
+                    enable ? mPowerStateOnIndex : mPowerStateOffIndex;
             setPowerOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
@@ -878,7 +915,8 @@ int HidRawSensor::enable(bool enable) {
         if (device->getFeature(id, &buffer)
                 && buffer.size() > mReportingStateOffset) {
             buffer[mReportingStateOffset]
-                    = enable ? REPORTING_STATE_ALL_EVENT : REPORTING_STATE_NO_EVENT;
+                    = enable ? mReportingStateEnableIndex :
+                               mReportingStateDisableIndex;
             setReportingOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
@@ -1019,7 +1057,10 @@ std::string HidRawSensor::dump() const {
     ss << "  Power state ";
     if (mPowerStateId >= 0) {
         ss << "found, id: " << mPowerStateId
-              << " offset: " << mPowerStateOffset << LOG_ENDL;
+              << " offset: " << mPowerStateOffset
+              << " power off index: " << mPowerStateOffIndex
+              << " power on index: " << mPowerStateOnIndex
+              << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
@@ -1027,7 +1068,10 @@ std::string HidRawSensor::dump() const {
     ss << "  Reporting state ";
     if (mReportingStateId >= 0) {
         ss << "found, id: " << mReportingStateId
-              << " offset: " << mReportingStateOffset << LOG_ENDL;
+              << " offset: " << mReportingStateOffset
+              << " disable index: " << mReportingStateDisableIndex
+              << " enable index: " << mReportingStateEnableIndex
+              << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
