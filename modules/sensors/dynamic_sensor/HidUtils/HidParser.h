@@ -89,6 +89,7 @@ struct HidParser::ReportItem {
     unsigned int usage;
     unsigned int id;
     int type; // feature, input or output
+    std::vector<unsigned int> usageVector;
 
     int64_t minRaw;
     int64_t maxRaw;
