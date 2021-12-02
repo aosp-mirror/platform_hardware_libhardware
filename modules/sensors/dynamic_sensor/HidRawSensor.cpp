@@ -492,13 +492,8 @@ bool HidRawSensor::populateFeatureValueFromFeatureReport(
                     }
                     break;
                 case SENSOR_DESCRIPTION:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1
-                            || (r.bitOffset / 8 + r.count * 2) > buffer.size() ) {
-                        // invalid description
-                        break;
-                    }
                     if (decodeString(r, buffer, &str)) {
-                        mFeatureInfo.isAndroidCustom = detectAndroidCustomSensor(str);
+                        detectSensorFromDescription(str);
                     }
                     break;
                 default:
@@ -583,26 +578,34 @@ bool HidRawSensor::validateFeatureValueAndBuildSensor() {
 
 bool HidRawSensor::decodeString(
         const HidParser::ReportItem &report, const std::vector<uint8_t> &buffer, std::string *d) {
-    if (!report.isByteAligned() || report.bitSize != 16 || report.count < 1) {
+    if (!report.isByteAligned() ||
+        (report.bitSize != 8 && report.bitSize != 16) || report.count < 1) {
         return false;
     }
 
+    size_t charSize = report.bitSize / 8;
     size_t offset = report.bitOffset / 8;
-    if (offset + report.count * 2 > buffer.size()) {
+    if (offset + report.count * charSize > buffer.size()) {
         return false;
     }
 
-    std::vector<uint16_t> data(report.count);
-    auto i = data.begin();
-    auto j = buffer.begin() + offset;
-    for ( ; i != data.end(); ++i, j += sizeof(uint16_t)) {
-        // hid specified little endian
-        *i = *j + (*(j + 1) << 8);
-    }
-    std::wstring wstr(data.begin(), data.end());
+    if (charSize == 1) {
+        *d = std::string(buffer.begin() + offset,
+                         buffer.begin() + offset + report.count);
+    } else {
+        std::vector<uint16_t> data(report.count);
+        auto i = data.begin();
+        auto j = buffer.begin() + offset;
+        for ( ; i != data.end(); ++i, j += sizeof(uint16_t)) {
+            // hid specified little endian
+            *i = *j + (*(j + 1) << 8);
+        }
+        std::wstring wstr(data.begin(), data.end());
 
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-    *d = converter.to_bytes(wstr);
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        *d = converter.to_bytes(wstr);
+    }
+
     return true;
 }
 
@@ -619,6 +622,28 @@ std::vector<std::string> split(const std::string &text, char sep) {
         tokens.push_back(text.substr(start));
     }
     return tokens;
+}
+
+void HidRawSensor::detectSensorFromDescription(const std::string &description) {
+    if (detectAndroidHeadTrackerSensor(description) ||
+        detectAndroidCustomSensor(description)) {
+        mFeatureInfo.isAndroidCustom = true;
+    }
+}
+
+bool HidRawSensor::detectAndroidHeadTrackerSensor(
+        const std::string &description) {
+    if (description.find("#AndroidHeadTracker#1.") != 0) {
+        return false;
+    }
+
+    mFeatureInfo.type = SENSOR_TYPE_DEVICE_PRIVATE_BASE;
+    mFeatureInfo.typeString = CUSTOM_TYPE_PREFIX + "headtracker";
+    mFeatureInfo.reportModeFlag = SENSOR_FLAG_CONTINUOUS_MODE;
+    mFeatureInfo.permission = "";
+    mFeatureInfo.isWakeUp = false;
+
+    return true;
 }
 
 bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
