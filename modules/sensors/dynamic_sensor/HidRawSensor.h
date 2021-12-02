@@ -137,18 +137,20 @@ private:
 
     // Features for control sensor
     int mReportingStateId;
-    unsigned int mReportingStateOffset;
+    unsigned int mReportingStateBitOffset;
+    unsigned int mReportingStateBitSize;
     int mReportingStateDisableIndex;
     int mReportingStateEnableIndex;
 
     int mPowerStateId;
-    unsigned int mPowerStateOffset;
+    unsigned int mPowerStateBitOffset;
+    unsigned int mPowerStateBitSize;
     int mPowerStateOffIndex;
     int mPowerStateOnIndex;
 
     int mReportIntervalId;
-    unsigned int mReportIntervalOffset;
-    unsigned int mReportIntervalSize;
+    unsigned int mReportIntervalBitOffset;
+    unsigned int mReportIntervalBitSize;
 
     // Input report translate table
     std::vector<ReportTranslateRecord> mTranslateTable;

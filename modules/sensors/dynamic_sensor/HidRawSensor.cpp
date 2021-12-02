@@ -19,6 +19,8 @@
 #include <utils/Errors.h>
 #include "HidLog.h"
 
+#include <HidUtils.h>
+
 #include <algorithm>
 #include <cfloat>
 #include <codecvt>
@@ -792,13 +794,12 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
     const HidParser::ReportItem *reportingState
             = find(packets, REPORTING_STATE, HidParser::REPORT_TYPE_FEATURE);
 
-    if (reportingState == nullptr
-            || !reportingState->isByteAligned()
-            || reportingState->bitSize != 8) {
+    if (reportingState == nullptr) {
         LOG_W << "Cannot find valid reporting state feature" << LOG_ENDL;
     } else {
         mReportingStateId = reportingState->id;
-        mReportingStateOffset = reportingState->bitOffset / 8;
+        mReportingStateBitOffset = reportingState->bitOffset;
+        mReportingStateBitSize = reportingState->bitSize;
 
         mReportingStateDisableIndex = -1;
         mReportingStateEnableIndex = -1;
@@ -824,13 +825,12 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
     //POWER_STATE
     const HidParser::ReportItem *powerState
             = find(packets, POWER_STATE, HidParser::REPORT_TYPE_FEATURE);
-    if (powerState == nullptr
-            || !powerState->isByteAligned()
-            || powerState->bitSize != 8) {
+    if (powerState == nullptr) {
         LOG_W << "Cannot find valid power state feature" << LOG_ENDL;
     } else {
         mPowerStateId = powerState->id;
-        mPowerStateOffset = powerState->bitOffset / 8;
+        mPowerStateBitOffset = powerState->bitOffset;
+        mPowerStateBitSize = powerState->bitSize;
 
         mPowerStateOffIndex = -1;
         mPowerStateOnIndex = -1;
@@ -857,14 +857,12 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
     const HidParser::ReportItem *reportInterval
             = find(packets, REPORT_INTERVAL, HidParser::REPORT_TYPE_FEATURE);
     if (reportInterval == nullptr
-            || !reportInterval->isByteAligned()
-            || reportInterval->minRaw < 0
-            || (reportInterval->bitSize != 16 && reportInterval->bitSize != 32)) {
+            || reportInterval->minRaw < 0) {
         LOG_W << "Cannot find valid report interval feature" << LOG_ENDL;
     } else {
         mReportIntervalId = reportInterval->id;
-        mReportIntervalOffset = reportInterval->bitOffset / 8;
-        mReportIntervalSize = reportInterval->bitSize / 8;
+        mReportIntervalBitOffset = reportInterval->bitOffset;
+        mReportIntervalBitSize = reportInterval->bitSize;
 
         mFeatureInfo.minDelay = std::max(static_cast<int64_t>(1), reportInterval->minRaw) * 1000;
         mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000),
@@ -899,9 +897,11 @@ int HidRawSensor::enable(bool enable) {
         setPowerOk = false;
         uint8_t id = static_cast<uint8_t>(mPowerStateId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() > mPowerStateOffset) {
-            buffer[mPowerStateOffset] =
-                    enable ? mPowerStateOnIndex : mPowerStateOffIndex;
+                && (8 * buffer.size()) >=
+                   (mPowerStateBitOffset + mPowerStateBitSize)) {
+            uint8_t index = enable ? mPowerStateOnIndex : mPowerStateOffIndex;
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),
+                              0, mPowerStateBitOffset, mPowerStateBitSize);
             setPowerOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
@@ -913,10 +913,12 @@ int HidRawSensor::enable(bool enable) {
         setReportingOk = false;
         uint8_t id = static_cast<uint8_t>(mReportingStateId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() > mReportingStateOffset) {
-            buffer[mReportingStateOffset]
-                    = enable ? mReportingStateEnableIndex :
-                               mReportingStateDisableIndex;
+                && (8 * buffer.size()) >
+                   (mReportingStateBitOffset + mReportingStateBitSize)) {
+            uint8_t index = enable ? mReportingStateEnableIndex :
+                                     mReportingStateDisableIndex;
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),0,
+                              mReportingStateBitOffset, mReportingStateBitSize);
             setReportingOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
@@ -949,22 +951,15 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
         ok = false;
         uint8_t id = static_cast<uint8_t>(mReportIntervalId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() >= mReportIntervalOffset + mReportIntervalSize) {
+                && (8 * buffer.size()) >=
+                   (mReportIntervalBitOffset + mReportIntervalBitSize)) {
             int64_t periodMs = samplingPeriod / 1000000; //ns -> ms
-            switch (mReportIntervalSize) {
-                case sizeof(uint16_t):
-                    periodMs = std::min(periodMs, static_cast<int64_t>(UINT16_MAX));
-                    buffer[mReportIntervalOffset] = periodMs & 0xFF;
-                    buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
-                    break;
-                case sizeof(uint32_t):
-                    periodMs = std::min(periodMs, static_cast<int64_t>(UINT32_MAX));
-                    buffer[mReportIntervalOffset] = periodMs & 0xFF;
-                    buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
-                    buffer[mReportIntervalOffset + 2] = (periodMs >> 16) & 0xFF;
-                    buffer[mReportIntervalOffset + 3] = (periodMs >> 24) & 0xFF;
-                    break;
-            }
+            int64_t maxPeriodMs =
+                (1LL << std::min(mReportIntervalBitSize, 63U)) - 1;
+            periodMs = std::min(periodMs, maxPeriodMs);
+            HidUtil::copyBits(&periodMs, &(buffer[0]), buffer.size(),
+                              0, mReportIntervalBitOffset,
+                              mReportIntervalBitSize);
             ok = device->setFeature(id, buffer);
         }
     }
@@ -1057,7 +1052,8 @@ std::string HidRawSensor::dump() const {
     ss << "  Power state ";
     if (mPowerStateId >= 0) {
         ss << "found, id: " << mPowerStateId
-              << " offset: " << mPowerStateOffset
+              << " bit offset: " << mPowerStateBitOffset
+              << " bit size: " << mPowerStateBitSize
               << " power off index: " << mPowerStateOffIndex
               << " power on index: " << mPowerStateOnIndex
               << LOG_ENDL;
@@ -1068,7 +1064,8 @@ std::string HidRawSensor::dump() const {
     ss << "  Reporting state ";
     if (mReportingStateId >= 0) {
         ss << "found, id: " << mReportingStateId
-              << " offset: " << mReportingStateOffset
+              << " bit offset: " << mReportingStateBitOffset
+              << " bit size: " << mReportingStateBitSize
               << " disable index: " << mReportingStateDisableIndex
               << " enable index: " << mReportingStateEnableIndex
               << LOG_ENDL;
@@ -1079,8 +1076,8 @@ std::string HidRawSensor::dump() const {
     ss << "  Report interval ";
     if (mReportIntervalId >= 0) {
         ss << "found, id: " << mReportIntervalId
-              << " offset: " << mReportIntervalOffset
-              << " size: " << mReportIntervalSize << LOG_ENDL;
+              << " bit offset: " << mReportIntervalBitOffset
+              << " bit size: " << mReportIntervalBitSize << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
