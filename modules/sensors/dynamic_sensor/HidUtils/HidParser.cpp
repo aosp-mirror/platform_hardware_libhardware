@@ -317,4 +317,5 @@ std::ostream& operator<<(std::ostream &os, const HidParser::DigestVector &digest
     os << LOG_ENDL;
     return os;
 }
+
 } // namespace HidUtil
