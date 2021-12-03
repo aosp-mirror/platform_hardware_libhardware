@@ -174,6 +174,7 @@ struct HidParser::ReportPacket {
 };
 
 std::ostream& operator<<(std::ostream &os, const HidParser::DigestVector &digest2);
+
 } // namespace HidUtil
 
 #endif // HIDUTIL_HIDPARSER_H_
