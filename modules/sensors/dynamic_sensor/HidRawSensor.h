@@ -121,6 +121,14 @@ private:
     // helper function to find sensor control feature usage from packets
     bool findSensorControlUsage(const std::vector<HidParser::ReportPacket> &packets);
 
+    // try to parse sensor description feature value to see if it matches any
+    // known sensors
+    void detectSensorFromDescription(const std::string &description);
+
+    // try to parse sensor description feature value to see if it matches the
+    // Android header tracker sensor
+    bool detectAndroidHeadTrackerSensor(const std::string &description);
+
     // try to parse sensor description feature value to see if it matches
     // android specified custom sensor definition.
     bool detectAndroidCustomSensor(const std::string &description);
