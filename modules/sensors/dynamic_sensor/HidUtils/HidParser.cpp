@@ -240,10 +240,12 @@ std::vector<HidParser::ReportPacket> HidParser::convertGroupToPacket(
                 auto logical = r.getLogicalRange();
                 auto physical = r.getPhysicalRange();
 
-                int64_t offset = physical.first - logical.first;
                 double scale = static_cast<double>((physical.second - physical.first))
                         / (logical.second - logical.first);
                 scale *= r.getExponentValue();
+                int64_t offset =
+                        (physical.first * r.getExponentValue() / scale) -
+                        logical.first;
 
                 ReportItem digest = {
                     .usage = r.getFullUsage(),
