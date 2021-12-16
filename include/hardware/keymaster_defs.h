@@ -304,6 +304,7 @@ typedef enum {
     KM_EC_CURVE_P_256 = 1,
     KM_EC_CURVE_P_384 = 2,
     KM_EC_CURVE_P_521 = 3,
+    KM_EC_CURVE_CURVE_25519 = 4,
 } keymaster_ec_curve_t;
 
 /**
