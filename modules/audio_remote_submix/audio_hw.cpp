@@ -1227,7 +1227,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     struct submix_audio_device * const rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGD("adev_open_output_stream(address=%s)", address);
     struct submix_stream_out *out;
-    bool force_pipe_creation = false;
     (void)handle;
     (void)devices;
     (void)flags;
@@ -1283,7 +1282,7 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     // If the sink has been shutdown or pipe recreation is forced (see above), delete the pipe so
     // that it's recreated.
     if ((rsxadev->routes[route_idx].rsxSink != NULL
-            && rsxadev->routes[route_idx].rsxSink->isShutdown()) || force_pipe_creation) {
+            && rsxadev->routes[route_idx].rsxSink->isShutdown())) {
         submix_audio_device_release_pipe_l(rsxadev, route_idx);
     }
 
