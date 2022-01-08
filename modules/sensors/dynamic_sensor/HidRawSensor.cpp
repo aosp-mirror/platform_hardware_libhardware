@@ -439,6 +439,7 @@ void HidRawSensor::initFeatureValueFromHidDeviceInfo(
 
     featureValue->reportModeFlag = SENSOR_FLAG_SPECIAL_REPORTING_MODE;
     featureValue->isWakeUp = false;
+    featureValue->useUniqueIdForUuid = false;
     memset(featureValue->uuid, 0, sizeof(featureValue->uuid));
     featureValue->isAndroidCustom = false;
 }
@@ -465,28 +466,16 @@ bool HidRawSensor::populateFeatureValueFromFeatureReport(
         for (const auto & r : packet.reports) {
             switch (r.usage) {
                 case FRIENDLY_NAME:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid friendly name
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->name = str;
                     }
                     break;
                 case SENSOR_MANUFACTURER:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid manufacturer
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->vendor = str;
                     }
                     break;
                 case PERSISTENT_UNIQUE_ID:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid unique id string
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->uniqueId = str;
                     }
@@ -541,10 +530,19 @@ bool HidRawSensor::validateFeatureValueAndBuildSensor() {
     }
 
     // initialize uuid field, use name, vendor and uniqueId
-    if (mFeatureInfo.name.size() >= 4
-            && mFeatureInfo.vendor.size() >= 4
-            && mFeatureInfo.typeString.size() >= 4
-            && mFeatureInfo.uniqueId.size() >= 4) {
+    // initialize uuid field using one of the following methods:
+    //
+    // 1. use uniqueId
+    // 2. use name, vendor and uniqueId
+    if (mFeatureInfo.useUniqueIdForUuid) {
+        if (mFeatureInfo.uniqueId.size() == sizeof(mFeatureInfo.uuid)) {
+            memcpy(mFeatureInfo.uuid, mFeatureInfo.uniqueId.c_str(),
+                   sizeof(mFeatureInfo.uuid));
+        }
+    } else if (mFeatureInfo.name.size() >= 4
+                   && mFeatureInfo.vendor.size() >= 4
+                   && mFeatureInfo.typeString.size() >= 4
+                   && mFeatureInfo.uniqueId.size() >= 4) {
         uint32_t tmp[4], h;
         std::hash<std::string> stringHash;
         h = stringHash(mFeatureInfo.uniqueId);
@@ -642,6 +640,11 @@ bool HidRawSensor::detectAndroidHeadTrackerSensor(
     mFeatureInfo.reportModeFlag = SENSOR_FLAG_CONTINUOUS_MODE;
     mFeatureInfo.permission = "";
     mFeatureInfo.isWakeUp = false;
+
+    // HID head tracker sensors must use the HID unique ID for the sensor UUID
+    // to permit association between the sensor and audio device (see
+    // specification for HEAD_TRACKER in SensorType).
+    mFeatureInfo.useUniqueIdForUuid = true;
 
     return true;
 }
@@ -1055,11 +1058,15 @@ std::string HidRawSensor::dump() const {
           << "  fifoSize: " << mFeatureInfo.fifoSize << LOG_ENDL
           << "  fifoMaxSize: " << mFeatureInfo.fifoMaxSize << LOG_ENDL
           << "  reportModeFlag: " << mFeatureInfo.reportModeFlag << LOG_ENDL
-          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL
-          << "  uniqueId: " << mFeatureInfo.uniqueId << LOG_ENDL
-          << "  uuid: ";
+          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL;
 
-    ss << std::hex << std::setfill('0');
+    ss << "  uniqueId: " << std::hex << std::setfill('0');
+    for (auto d : mFeatureInfo.uniqueId) {
+          ss << std::setw(2) << static_cast<int>(d) << " ";
+    }
+    ss << std::dec << std::setfill(' ') << LOG_ENDL;
+
+    ss << "  uuid: " << std::hex << std::setfill('0');
     for (auto d : mFeatureInfo.uuid) {
           ss << std::setw(2) << static_cast<int>(d) << " ";
     }
