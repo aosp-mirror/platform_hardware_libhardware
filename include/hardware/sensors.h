@@ -292,6 +292,16 @@ typedef struct {
     };
 } additional_info_event_t;
 
+typedef struct {
+    float rx;
+    float ry;
+    float rz;
+    float vx;
+    float vy;
+    float vz;
+    int32_t discontinuity_count;
+} head_tracker_event_t;
+
 /**
  * Union of the various types of sensor data
  * that can be returned.
@@ -369,6 +379,9 @@ typedef struct sensors_event_t {
              * SENSOR_TYPE_ADDITIONAL_INFO for details.
              */
             additional_info_event_t additional_info;
+
+            /* vector describing head orientation (added for legacy code support only) */
+            head_tracker_event_t head_tracker;
         };
 
         union {
