@@ -187,6 +187,10 @@ enum {
 #define SENSOR_STRING_TYPE_ACCELEROMETER_UNCALIBRATED   "android.sensor.accelerometer_uncalibrated"
 #define SENSOR_STRING_TYPE_HINGE_ANGLE                  "android.sensor.hinge_angle"
 #define SENSOR_STRING_TYPE_HEAD_TRACKER                 "android.sensor.head_tracker"
+#define SENSOR_STRING_TYPE_ACCELEROMETER_LIMITED_AXES   "android.sensor.accelerometer_limited_axes"
+#define SENSOR_STRING_TYPE_GYROSCOPE_LIMITED_AXES       "android.sensor.gyroscope_limited_axes"
+#define SENSOR_STRING_TYPE_ACCELEROMETER_LIMITED_AXES_UNCALIBRATED "android.sensor.accelerometer_limited_axes_uncalibrated"
+#define SENSOR_STRING_TYPE_GYROSCOPE_LIMITED_AXES_UNCALIBRATED "android.sensor.gyroscope_limited_axes_uncalibrated"
 
 /**
  * Values returned by the accelerometer in various locations in the universe.
