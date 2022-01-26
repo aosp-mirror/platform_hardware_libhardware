@@ -307,6 +307,58 @@ typedef struct {
 } head_tracker_event_t;
 
 /**
+ * limited axes imu event data
+ */
+typedef struct {
+    union {
+        float calib[3];
+        struct {
+            float x;
+            float y;
+            float z;
+        };
+    };
+    union {
+        float supported[3];
+        struct {
+            float x_supported;
+            float y_supported;
+            float z_supported;
+        };
+    };
+} limited_axes_imu_event_t;
+
+/**
+ * limited axes uncalibrated imu event data
+ */
+typedef struct {
+    union {
+        float uncalib[3];
+        struct {
+            float x_uncalib;
+            float y_uncalib;
+            float z_uncalib;
+        };
+    };
+    union {
+        float bias[3];
+        struct {
+            float x_bias;
+            float y_bias;
+            float z_bias;
+        };
+    };
+    union {
+        float supported[3];
+        struct {
+            float x_supported;
+            float y_supported;
+            float z_supported;
+        };
+    };
+} limited_axes_imu_uncalibrated_event_t;
+
+/**
  * Union of the various types of sensor data
  * that can be returned.
  */
@@ -386,6 +438,20 @@ typedef struct sensors_event_t {
 
             /* vector describing head orientation (added for legacy code support only) */
             head_tracker_event_t head_tracker;
+
+            /*
+             * limited axes imu event, See
+             * SENSOR_TYPE_GYROSCOPE_LIMITED_AXES and
+             * SENSOR_TYPE_ACCELEROMETER_LIMITED_AXES for details.
+             */
+            limited_axes_imu_event_t limited_axes_imu;
+
+            /*
+             * limited axes imu uncalibrated event, See
+             * SENSOR_TYPE_GYROSCOPE_LIMITED_AXES_UNCALIBRATED and
+             * SENSOR_TYPE_ACCELEROMETER_LIMITED_AXES_UNCALIBRATED for details.
+             */
+            limited_axes_imu_uncalibrated_event_t limited_axes_imu_uncalibrated;
         };
 
         union {
