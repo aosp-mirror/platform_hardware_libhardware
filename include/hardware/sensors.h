@@ -360,6 +360,14 @@ typedef struct {
 } limited_axes_imu_uncalibrated_event_t;
 
 /**
+ * Heading event data
+ */
+typedef struct {
+  float heading;
+  float accuracy;
+} heading_event_t;
+
+/**
  * Union of the various types of sensor data
  * that can be returned.
  */
@@ -453,6 +461,9 @@ typedef struct sensors_event_t {
              * SENSOR_TYPE_ACCELEROMETER_LIMITED_AXES_UNCALIBRATED for details.
              */
             limited_axes_imu_uncalibrated_event_t limited_axes_imu_uncalibrated;
+
+            /* heading data containing value in degrees and its accuracy */
+            heading_event_t heading;
         };
 
         union {
