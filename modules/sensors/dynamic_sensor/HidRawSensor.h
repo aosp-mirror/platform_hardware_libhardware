@@ -46,6 +46,14 @@ public:
     // handle input report received
     void handleInput(uint8_t id, const std::vector<uint8_t> &message);
 
+    // get head tracker sensor event data
+    bool getHeadTrackerEventData(const std::vector<uint8_t> &message,
+                                 sensors_event_t *event);
+
+    // get generic sensor event data
+    bool getSensorEventData(const std::vector<uint8_t> &message,
+                            sensors_event_t *event);
+
     // indicate if the HidRawSensor is a valid one
     bool isValid() const { return mValid; };
 
@@ -140,6 +148,33 @@ private:
 
     // process HID snesor spec defined orientation(quaternion) sensor usages.
     bool processQuaternionUsage(const std::vector<HidParser::ReportPacket> &packets);
+
+    // get the value of a report field
+    template<typename ValueType>
+    bool getReportFieldValue(const std::vector<uint8_t> &message,
+                             ReportTranslateRecord* rec, ValueType* value) {
+        bool valid = true;
+        int64_t v;
+
+        v = (message[rec->byteOffset + rec->byteSize - 1] & 0x80) ? -1 : 0;
+        for (int i = static_cast<int>(rec->byteSize) - 1; i >= 0; --i) {
+            v = (v << 8) | message[rec->byteOffset + i]; // HID is little endian
+        }
+        if (v > rec->maxValue || v < rec->minValue) {
+            valid = false;
+        }
+
+        switch (rec->type) {
+            case TYPE_FLOAT:
+                *value = rec->a * (v + rec->b);
+                break;
+            case TYPE_INT64:
+                *value = v + rec->b;
+                break;
+        }
+
+        return valid;
+    }
 
     // dump data for test/debug purpose
     std::string dump() const;
