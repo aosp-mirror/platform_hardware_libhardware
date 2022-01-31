@@ -982,6 +982,24 @@ struct audio_hw_device {
      */
     int (*get_audio_port_v7)(struct audio_hw_device *dev,
                              struct audio_port_v7 *port);
+
+    /**
+     * Called when the state of the connection of an external device has been changed.
+     * The "port" parameter is only used as input and besides identifying the device
+     * port, also may contain additional information such as extra audio descriptors.
+     *
+     * HAL version 3.2 and higher only. If the HAL does not implement this method,
+     * it must leave the function entry as null, or return -ENOSYS. In this case
+     * the framework will use 'set_parameters', which can only pass the device address.
+     *
+     * @param dev the audio HAL device context.
+     * @param port device port identification and extra information.
+     * @param connected whether the external device is connected.
+     * @return retval operation completion status.
+     */
+    int (*set_device_connected_state_v7)(struct audio_hw_device *dev,
+                                         struct audio_port_v7 *port,
+                                         bool connected);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 
