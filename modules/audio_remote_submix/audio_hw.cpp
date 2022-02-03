@@ -63,7 +63,7 @@ namespace android {
 #endif // SUBMIX_VERBOSE_LOGGING
 
 // NOTE: This value will be rounded up to the nearest power of 2 by MonoPipe().
-#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*4)
+#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*4) // size at default sample rate
 // Value used to divide the MonoPipe() buffer into segments that are written to the source and
 // read from the sink.  The maximum latency of the device is the size of the MonoPipe's buffer
 // the minimum latency is the MonoPipe buffer size divided by this value.
@@ -206,6 +206,11 @@ static bool sample_rate_supported(const uint32_t sample_rate)
     bool return_value;
     SUBMIX_VALUE_IN_SET(sample_rate, supported_sample_rates, &return_value);
     return return_value;
+}
+
+static size_t pipe_size_in_frames(const uint32_t sample_rate)
+{
+    return DEFAULT_PIPE_SIZE_IN_FRAMES * ((float) sample_rate / DEFAULT_SAMPLE_RATE_HZ);
 }
 
 // Determine whether the specified sample rate is supported, if it is return the specified sample
@@ -1289,8 +1294,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     // Store a pointer to the device from the output stream.
     out->dev = rsxadev;
     // Initialize the pipe.
-    ALOGV("adev_open_output_stream(): about to create pipe at index %d", route_idx);
-    submix_audio_device_create_pipe_l(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
+    const size_t pipeSizeInFrames = pipe_size_in_frames(config->sample_rate);
+    ALOGI("adev_open_output_stream(): about to create pipe at index %d, rate %u, pipe size %zu",
+          route_idx, config->sample_rate, pipeSizeInFrames);
+    submix_audio_device_create_pipe_l(rsxadev, config, pipeSizeInFrames,
             DEFAULT_PIPE_PERIOD_COUNT, NULL, out, address, route_idx);
 #if LOG_STREAMS_TO_FILES
     out->log_fd = open(LOG_STREAM_OUT_FILENAME, O_CREAT | O_TRUNC | O_WRONLY,
@@ -1419,7 +1426,8 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
         const size_t frame_size_in_bytes = audio_channel_count_from_in_mask(config->channel_mask) *
                 audio_bytes_per_sample(config->format);
         if (max_buffer_period_size_frames == 0) {
-            max_buffer_period_size_frames = DEFAULT_PIPE_SIZE_IN_FRAMES;
+            max_buffer_period_size_frames =
+                    pipe_size_in_frames(get_supported_sample_rate(config->sample_rate));;
         }
         const size_t buffer_size = max_buffer_period_size_frames * frame_size_in_bytes;
         SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
@@ -1532,8 +1540,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->read_error_count = 0;
     // Initialize the pipe.
-    ALOGV("adev_open_input_stream(): about to create pipe");
-    submix_audio_device_create_pipe_l(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
+    const size_t pipeSizeInFrames = pipe_size_in_frames(config->sample_rate);
+    ALOGI("adev_open_input_stream(): about to create pipe at index %d, rate %u, pipe size %zu",
+          route_idx, config->sample_rate, pipeSizeInFrames);
+    submix_audio_device_create_pipe_l(rsxadev, config, pipeSizeInFrames,
                                     DEFAULT_PIPE_PERIOD_COUNT, in, NULL, address, route_idx);
 
     sp <MonoPipe> sink = rsxadev->routes[route_idx].rsxSink;
