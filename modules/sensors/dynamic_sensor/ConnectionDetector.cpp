@@ -156,6 +156,10 @@ std::string FileConnectionDetector::getFullName(const std::string name) const {
 
 void FileConnectionDetector::processExistingFiles() const {
     auto dirp = ::opendir(mPath.c_str());
+    if(dirp == NULL) {
+      ALOGE("Problem open dir %s, errno: %s", mPath.c_str(), ::strerror(errno));
+      return;
+    }
     struct dirent *dp;
     while ((dp = ::readdir(dirp)) != NULL) {
         const std::string name(dp->d_name);
