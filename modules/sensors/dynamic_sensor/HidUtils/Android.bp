@@ -45,7 +45,6 @@ cc_library {
         "HidParser.cpp",
         "HidReport.cpp",
         "HidTree.cpp",
-        "HidUtils.cpp",
     ],
     export_include_dirs: ["."],
 
@@ -100,20 +99,3 @@ cc_test_host {
 
     local_include_dirs: ["test"],
 }
-
-//
-// Test for HidUtils
-//
-cc_test_host {
-    name: "hid_utils_test",
-    defaults: ["hid_defaults"],
-
-    srcs: ["test/CopyBitsTest.cpp"],
-
-    shared_libs: [
-        "libhidparser",
-    ],
-
-    local_include_dirs: ["test"],
-}
-

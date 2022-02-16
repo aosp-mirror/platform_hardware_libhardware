@@ -34,7 +34,6 @@ class ConnectionDetector : virtual public RefBase {
 public:
     ConnectionDetector(BaseDynamicSensorDaemon *d) : mDaemon(d) { }
     virtual ~ConnectionDetector() = default;
-    virtual void Init() {}
 protected:
     BaseDynamicSensorDaemon* mDaemon;
 };
@@ -46,7 +45,6 @@ class SocketConnectionDetector : public ConnectionDetector, public Thread {
 public:
     SocketConnectionDetector(BaseDynamicSensorDaemon *d, int port);
     virtual ~SocketConnectionDetector();
-    void Init() override;
 private:
     // implement virtual of Thread
     virtual bool threadLoop();
@@ -64,7 +62,6 @@ public:
     FileConnectionDetector(
             BaseDynamicSensorDaemon *d, const std::string &path, const std::string &regex);
     virtual ~FileConnectionDetector();
-    void Init() override;
 private:
     static constexpr int POLL_IDENT = 1;
     // implement virtual of Thread
