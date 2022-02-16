@@ -39,7 +39,6 @@ HidRawSensorDaemon::HidRawSensorDaemon(DynamicSensorManager& manager)
         : BaseDynamicSensorDaemon(manager) {
     mDetector = new FileConnectionDetector(
             this, std::string(DEV_PATH), std::string(DEV_NAME_REGEX));
-    mDetector->Init();
 }
 
 BaseSensorVector HidRawSensorDaemon::createSensor(const std::string &deviceKey) {
