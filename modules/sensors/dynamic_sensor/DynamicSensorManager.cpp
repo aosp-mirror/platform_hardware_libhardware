@@ -76,7 +76,7 @@ bool DynamicSensorManager::owns(int handle) const {
 
 int DynamicSensorManager::activate(int handle, bool enable) {
     if (handle == mHandleRange.first) {
-        mMetaSensorActive = enable;
+        // ignored
         return 0;
     }
 
@@ -109,17 +109,13 @@ int DynamicSensorManager::setDelay(int handle, nsecs_t sample_period) {
 
 int DynamicSensorManager::flush(int handle) {
     if (handle == mHandleRange.first) {
-        if (mMetaSensorActive) {
-            static const sensors_event_t event = {
-                .sensor = mHandleRange.first,
-                .type = SENSOR_TYPE_META_DATA,
-                .meta_data.what = META_DATA_FLUSH_COMPLETE,
-                .timestamp = TIMESTAMP_AUTO_FILL,  // timestamp will be filled at dispatcher
-            };
-            submitEvent(nullptr, event);
-        } else {
-            return -EINVAL;
-        }
+        // submit a flush complete here
+        static const sensors_event_t event = {
+            .sensor = mHandleRange.first,
+            .type = SENSOR_TYPE_META_DATA,
+            .timestamp = TIMESTAMP_AUTO_FILL,  // timestamp will be filled at dispatcher
+        };
+        submitEvent(nullptr, event);
         return 0;
     }
     return operateSensor(handle, [] (sp<BaseSensorObject> s)->int {return s->flush();});
