@@ -57,14 +57,18 @@ SocketConnectionDetector::SocketConnectionDetector(BaseDynamicSensorDaemon *d, i
     std::ostringstream s;
     s << "socket:" << port;
     mDevice = s.str();
-
-    run("ddad_socket");
 }
 
 SocketConnectionDetector::~SocketConnectionDetector() {
     if (mListenFd >= 0) {
         requestExitAndWait();
     }
+}
+
+void SocketConnectionDetector::Init() {
+    // run adds a strong reference to this object, so it can't be invoked from
+    // the constructor.
+    run("ddad_socket");
 }
 
 int SocketConnectionDetector::waitForConnection() {
@@ -124,9 +128,6 @@ FileConnectionDetector::FileConnectionDetector (
         ALOGE("Cannot setup watch on dir %s", path.c_str());
         return;
     }
-
-    // mLooper != null && mInotifyFd added to looper
-    run("ddad_file");
 }
 
 FileConnectionDetector::~FileConnectionDetector() {
@@ -136,6 +137,13 @@ FileConnectionDetector::~FileConnectionDetector() {
         join();
         ::close(mInotifyFd);
     }
+}
+
+void FileConnectionDetector::Init() {
+    // mLooper != null && mInotifyFd added to looper
+    // run adds a strong reference to this object, so it can't be invoked from
+    // the constructor.
+    run("ddad_file");
 }
 
 bool FileConnectionDetector::matches(const std::string &name) const {

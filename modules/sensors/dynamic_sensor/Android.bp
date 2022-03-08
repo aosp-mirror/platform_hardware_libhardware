@@ -108,7 +108,23 @@ cc_library_shared {
 
     cflags: ["-DLOG_TAG=\"DynamicSensorHal\""],
 
-    srcs: ["sensors.cpp"],
+    srcs: [
+        "DynamicSensorsSubHal.cpp",
+        "sensors.cpp",
+    ],
+    shared_libs: [
+        "android.hardware.sensors@2.0",
+        "android.hardware.sensors@2.0-ScopedWakelock",
+        "android.hardware.sensors@2.1",
+        "libhidlbase",
+    ],
+    static_libs: [
+        "android.hardware.sensors@1.0-convert",
+    ],
+    header_libs: [
+        "android.hardware.sensors@2.X-multihal.header",
+        "android.hardware.sensors@2.X-shared-utils",
+    ],
 }
 
 //
