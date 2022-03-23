@@ -38,5 +38,8 @@ LOCAL_CFLAGS:= -DLOG_TAG=\"gralloc\" -Wno-missing-field-initializers
 ifeq ($(TARGET_USE_PAN_DISPLAY),true)
 LOCAL_CFLAGS += -DUSE_PAN_DISPLAY=1
 endif
+ifneq ($(GRALLOC_FRAMEBUFFER_NUM),)
+LOCAL_CFLAGS += -DNUM_BUFFERS=$(GRALLOC_FRAMEBUFFER_NUM)
+endif
 
 include $(BUILD_SHARED_LIBRARY)
