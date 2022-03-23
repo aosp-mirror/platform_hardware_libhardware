@@ -45,10 +45,8 @@
 #define USE_PAN_DISPLAY 0
 #endif
 
-// Enabling page flipping by default
-#ifndef NUM_BUFFERS
+// numbers of buffers for page flipping
 #define NUM_BUFFERS 2
-#endif
 
 
 enum {
@@ -159,8 +157,7 @@ int mapFrameBufferLocked(struct private_module_t* module, int format)
     info.activate = FB_ACTIVATE_NOW;
 
     /*
-     * Request NUM_BUFFERS screens
-     * To enable page flipping, NUM_BUFFERS should be at least 2.
+     * Request NUM_BUFFERS screens (at lest 2 for page flipping)
      */
     info.yres_virtual = info.yres * NUM_BUFFERS;
 

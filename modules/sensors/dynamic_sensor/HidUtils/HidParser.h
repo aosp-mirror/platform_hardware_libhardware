@@ -89,7 +89,6 @@ struct HidParser::ReportItem {
     unsigned int usage;
     unsigned int id;
     int type; // feature, input or output
-    std::vector<unsigned int> usageVector;
 
     int64_t minRaw;
     int64_t maxRaw;
@@ -174,7 +173,6 @@ struct HidParser::ReportPacket {
 };
 
 std::ostream& operator<<(std::ostream &os, const HidParser::DigestVector &digest2);
-
 } // namespace HidUtil
 
 #endif // HIDUTIL_HIDPARSER_H_
