@@ -57,14 +57,18 @@ SocketConnectionDetector::SocketConnectionDetector(BaseDynamicSensorDaemon *d, i
     std::ostringstream s;
     s << "socket:" << port;
     mDevice = s.str();
-
-    run("ddad_socket");
 }
 
 SocketConnectionDetector::~SocketConnectionDetector() {
     if (mListenFd >= 0) {
         requestExitAndWait();
     }
+}
+
+void SocketConnectionDetector::Init() {
+    // run adds a strong reference to this object, so it can't be invoked from
+    // the constructor.
+    run("ddad_socket");
 }
 
 int SocketConnectionDetector::waitForConnection() {
@@ -124,9 +128,6 @@ FileConnectionDetector::FileConnectionDetector (
         ALOGE("Cannot setup watch on dir %s", path.c_str());
         return;
     }
-
-    // mLooper != null && mInotifyFd added to looper
-    run("ddad_file");
 }
 
 FileConnectionDetector::~FileConnectionDetector() {
@@ -136,6 +137,13 @@ FileConnectionDetector::~FileConnectionDetector() {
         join();
         ::close(mInotifyFd);
     }
+}
+
+void FileConnectionDetector::Init() {
+    // mLooper != null && mInotifyFd added to looper
+    // run adds a strong reference to this object, so it can't be invoked from
+    // the constructor.
+    run("ddad_file");
 }
 
 bool FileConnectionDetector::matches(const std::string &name) const {
@@ -148,6 +156,10 @@ std::string FileConnectionDetector::getFullName(const std::string name) const {
 
 void FileConnectionDetector::processExistingFiles() const {
     auto dirp = ::opendir(mPath.c_str());
+    if(dirp == NULL) {
+      ALOGE("Problem open dir %s, errno: %s", mPath.c_str(), ::strerror(errno));
+      return;
+    }
     struct dirent *dp;
     while ((dp = ::readdir(dirp)) != NULL) {
         const std::string name(dp->d_name);
