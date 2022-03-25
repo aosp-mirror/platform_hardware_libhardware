@@ -247,6 +247,10 @@ typedef struct sink_metadata_v7 {
     struct record_track_metadata_v7* tracks;
 } sink_metadata_v7_t;
 
+/** output stream callback method to indicate changes in supported latency modes */
+typedef void (*stream_latency_mode_callback_t)(
+        audio_latency_mode_t *modes, size_t num_modes, void *cookie);
+
 /**
  * audio_stream_out is the abstraction interface for the audio output hardware.
  *
@@ -533,7 +537,68 @@ struct audio_stream_out {
      */
     int (*set_playback_rate_parameters)(struct audio_stream_out *stream,
                                         const audio_playback_rate_t *playbackRate);
+
+    /**
+     * Indicates the requested latency mode for this output stream.
+     *
+     * The requested mode can be one of the modes returned by
+     * get_recommended_latency_modes().
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] mode the requested latency mode.
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_latency_mode)(struct audio_stream_out *stream, audio_latency_mode_t mode);
+
+    /**
+     * Indicates which latency modes are currently supported on this output stream.
+     * If the transport protocol (e.g Bluetooth A2DP) used by this output stream to reach
+     * the output device supports variable latency modes, the HAL indicates which
+     * modes are currently supported.
+     * The framework can then call setLatencyMode() with one of the supported modes to select
+     * the desired operation mode.
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     * \param[in] stream the stream object.
+     * \param[out] modes the supported latency modes.
+     * \param[in/out] num_modes as input the maximum number of modes to return,
+     *                as output the actual number of modes returned.
+     */
+    int (*get_recommended_latency_modes)(struct audio_stream_out *stream,
+            audio_latency_mode_t *modes, size_t *num_modes);
+
+    /**
+     * Set the callback interface for notifying changes in supported latency modes.
+     *
+     * Calling this method with a null pointer will result in clearing a previously set callback.
+     *
+     * Support for this method is optional but mandated on specific spatial audio
+     * streams indicated by AUDIO_OUTPUT_FLAG_SPATIALIZER flag if they can be routed
+     * to a BT classic sink.
+     *
+     * \param[in] stream the stream object.
+     * \param[in] callback the registered callback or null to unregister.
+     * \param[in] cookie the context to pass when calling the callback.
+     * \return 0 in case of success.
+     *         -EINVAL if the arguments are invalid
+     *         -ENOSYS if the function is not available
+     */
+    int (*set_latency_mode_callback)(struct audio_stream_out *stream,
+            stream_latency_mode_callback_t callback, void *cookie);
 };
+
 typedef struct audio_stream_out audio_stream_out_t;
 
 struct audio_stream_in {
@@ -982,6 +1047,24 @@ struct audio_hw_device {
      */
     int (*get_audio_port_v7)(struct audio_hw_device *dev,
                              struct audio_port_v7 *port);
+
+    /**
+     * Called when the state of the connection of an external device has been changed.
+     * The "port" parameter is only used as input and besides identifying the device
+     * port, also may contain additional information such as extra audio descriptors.
+     *
+     * HAL version 3.2 and higher only. If the HAL does not implement this method,
+     * it must leave the function entry as null, or return -ENOSYS. In this case
+     * the framework will use 'set_parameters', which can only pass the device address.
+     *
+     * @param dev the audio HAL device context.
+     * @param port device port identification and extra information.
+     * @param connected whether the external device is connected.
+     * @return retval operation completion status.
+     */
+    int (*set_device_connected_state_v7)(struct audio_hw_device *dev,
+                                         struct audio_port_v7 *port,
+                                         bool connected);
 };
 typedef struct audio_hw_device audio_hw_device_t;
 

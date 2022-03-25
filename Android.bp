@@ -58,6 +58,11 @@ cc_library_headers {
             ],
         },
     },
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.bluetooth",
+        "com.android.media.swcodec",
+    ],
     min_sdk_version: "29",
     host_supported: true,
 
