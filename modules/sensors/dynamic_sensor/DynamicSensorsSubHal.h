@@ -71,7 +71,7 @@ public:
                     const sensors_event_t& e) override;
 
 private:
-    static constexpr int32_t kDynamicHandleBase = 0;
+    static constexpr int32_t kDynamicHandleBase = 1;
     static constexpr int32_t kDynamicHandleEnd = 0x1000000;
     static constexpr int32_t kMaxDynamicHandleCount = kDynamicHandleEnd -
                                                       kDynamicHandleBase;
