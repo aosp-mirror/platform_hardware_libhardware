@@ -891,10 +891,18 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
         mReportIntervalId = reportInterval->id;
         mReportIntervalBitOffset = reportInterval->bitOffset;
         mReportIntervalBitSize = reportInterval->bitSize;
+        mReportIntervalScale = reportInterval->a;
+        mReportIntervalOffset = reportInterval->b;
 
-        mFeatureInfo.minDelay = std::max(static_cast<int64_t>(1), reportInterval->minRaw) * 1000;
-        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000),
-                                    reportInterval->maxRaw) * 1000; // maximum 1000 second
+        mFeatureInfo.minDelay = 1000000.0
+                                * (reportInterval->minRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.minDelay = std::max(1000, mFeatureInfo.minDelay);
+        mFeatureInfo.maxDelay = 1000000.0
+                                * (reportInterval->maxRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000000),
+                                         mFeatureInfo.maxDelay);
     }
     return true;
     return (mPowerStateId >= 0 || mReportingStateId >= 0) && mReportIntervalId >= 0;
@@ -981,7 +989,9 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >=
                    (mReportIntervalBitOffset + mReportIntervalBitSize)) {
-            int64_t periodMs = samplingPeriod / 1000000; //ns -> ms
+            int64_t periodMs =
+                    (((static_cast<double>(samplingPeriod)) / 1000000000.0)
+                     / mReportIntervalScale) - mReportIntervalOffset;
             int64_t maxPeriodMs =
                 (1LL << std::min(mReportIntervalBitSize, 63U)) - 1;
             periodMs = std::min(periodMs, maxPeriodMs);
