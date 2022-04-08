@@ -125,14 +125,7 @@ typedef struct boot_control_module {
      */
     int (*isSlotMarkedSuccessful)(struct boot_control_module *module, unsigned slot);
 
-    /**
-     * Returns the active slot to boot into on the next boot. If
-     * setActiveBootSlot() has been called, the getter function should return
-     * the same slot as the one provided in the last setActiveBootSlot() call.
-     */
-    unsigned (*getActiveBootSlot)(struct boot_control_module *module);
-
-    void* reserved[30];
+    void* reserved[31];
 } boot_control_module_t;
 
 

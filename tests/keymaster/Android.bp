@@ -1,16 +1,17 @@
+// Build the keymaster unit tests
 cc_test {
-    name: "camera3_tests",
-    srcs: ["camera3tests.cpp"],
+    name: "keymaster_test",
+    srcs: ["keymaster_test.cpp"],
 
     shared_libs: [
         "liblog",
+        "libutils",
+        "libcrypto",
         "libhardware",
-        "libcamera_metadata",
     ],
 
     cflags: [
         "-Wall",
-        "-Wextra",
         "-Werror",
     ],
 }
