@@ -195,6 +195,8 @@ private:
     int mReportIntervalId;
     unsigned int mReportIntervalBitOffset;
     unsigned int mReportIntervalBitSize;
+    double mReportIntervalScale;
+    int64_t mReportIntervalOffset;
 
     // Input report translate table
     std::vector<ReportTranslateRecord> mTranslateTable;
