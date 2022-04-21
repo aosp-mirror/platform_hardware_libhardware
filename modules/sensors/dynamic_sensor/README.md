@@ -62,6 +62,7 @@ index 0797253..22a4208 100644
 +get_prop(hal_sensors_default, vendor_dynamic_sensor_prop)
 +
 +# Allow access to raw HID devices for dynamic sensors.
++allow hal_sensors_default device:dir r_dir_perms;
 +allow hal_sensors_default hidraw_device:chr_file rw_file_perms;
 +
  #
