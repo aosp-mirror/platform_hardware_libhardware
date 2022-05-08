@@ -95,15 +95,18 @@ private:
     // TF:  int foo(sp<BaseSensorObject> obj);
     template <typename TF>
     int operateSensor(int handle, TF f) const {
-        std::lock_guard<std::mutex> lk(mLock);
-        const auto i = mMap.find(handle);
-        if (i == mMap.end()) {
-            return BAD_VALUE;
-        }
-        sp<BaseSensorObject> s = i->second.promote();
-        if (s == nullptr) {
-            // sensor object is already gone
-            return BAD_VALUE;
+        sp<BaseSensorObject> s;
+        {
+            std::lock_guard<std::mutex> lk(mLock);
+            const auto i = mMap.find(handle);
+            if (i == mMap.end()) {
+                return BAD_VALUE;
+            }
+            s = i->second.promote();
+            if (s == nullptr) {
+                // sensor object is already gone
+                return BAD_VALUE;
+            }
         }
         return f(s);
     }
@@ -111,6 +114,7 @@ private:
     // available sensor handle space
     const std::pair<int, int> mHandleRange;
     sensor_t mMetaSensor;
+    bool mMetaSensorActive = false;
 
     // immutable pointer to event callback, used in extention mode.
     SensorEventCallback * const mCallback;
