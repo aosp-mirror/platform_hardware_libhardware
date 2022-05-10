@@ -42,6 +42,7 @@ void BaseSensorObject::getUuid(uint8_t* uuid) const {
 int BaseSensorObject::flush() {
     static const sensors_event_t event = {
         .type = SENSOR_TYPE_META_DATA,
+        .meta_data.what = META_DATA_FLUSH_COMPLETE,
         .timestamp = TIMESTAMP_AUTO_FILL  // timestamp will be filled at dispatcher
     };
     generateEvent(event);
