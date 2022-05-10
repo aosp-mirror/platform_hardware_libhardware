@@ -63,7 +63,7 @@ namespace android {
 #endif // SUBMIX_VERBOSE_LOGGING
 
 // NOTE: This value will be rounded up to the nearest power of 2 by MonoPipe().
-#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*4)
+#define DEFAULT_PIPE_SIZE_IN_FRAMES  (1024*4) // size at default sample rate
 // Value used to divide the MonoPipe() buffer into segments that are written to the source and
 // read from the sink.  The maximum latency of the device is the size of the MonoPipe's buffer
 // the minimum latency is the MonoPipe buffer size divided by this value.
@@ -83,10 +83,7 @@ namespace android {
 // multiple input streams from this device.  If this option is enabled, each input stream returned
 // is *the same stream* which means that readers will race to read data from these streams.
 #define ENABLE_LEGACY_INPUT_OPEN     1
-// Whether channel conversion (16-bit signed PCM mono->stereo, stereo->mono) is enabled.
-#define ENABLE_CHANNEL_CONVERSION    1
-// Whether resampling is enabled.
-#define ENABLE_RESAMPLING            1
+
 #if LOG_STREAMS_TO_FILES
 // Folder to save stream log files to.
 #define LOG_STREAM_FOLDER "/data/misc/audioserver"
@@ -130,11 +127,6 @@ struct submix_config {
     // channel bitfields are not equivalent.
     audio_channel_mask_t input_channel_mask;
     audio_channel_mask_t output_channel_mask;
-#if ENABLE_RESAMPLING
-    // Input stream and output stream sample rates.
-    uint32_t input_sample_rate;
-    uint32_t output_sample_rate;
-#endif // ENABLE_RESAMPLING
     size_t pipe_frame_size;  // Number of bytes in each audio frame in the pipe.
     size_t buffer_size_frames; // Size of the audio pipe in frames.
     // Maximum number of frames buffered by the input and output streams.
@@ -159,11 +151,6 @@ typedef struct route_config {
     // destroyed if both and input and output streams are destroyed.
     struct submix_stream_out *output;
     struct submix_stream_in *input;
-#if ENABLE_RESAMPLING
-    // Buffer used as temporary storage for resampled data prior to returning data to the output
-    // stream.
-    int16_t resampler_buffer[DEFAULT_PIPE_SIZE_IN_FRAMES];
-#endif // ENABLE_RESAMPLING
 } route_config_t;
 
 struct submix_audio_device {
@@ -219,6 +206,11 @@ static bool sample_rate_supported(const uint32_t sample_rate)
     bool return_value;
     SUBMIX_VALUE_IN_SET(sample_rate, supported_sample_rates, &return_value);
     return return_value;
+}
+
+static size_t pipe_size_in_frames(const uint32_t sample_rate)
+{
+    return DEFAULT_PIPE_SIZE_IN_FRAMES * ((float) sample_rate / DEFAULT_SAMPLE_RATE_HZ);
 }
 
 // Determine whether the specified sample rate is supported, if it is return the specified sample
@@ -325,7 +317,6 @@ static struct submix_audio_device * audio_hw_device_get_submix_audio_device(
 static bool audio_config_compare(const audio_config * const input_config,
         const audio_config * const output_config)
 {
-#if !ENABLE_CHANNEL_CONVERSION
     const uint32_t input_channels = audio_channel_count_from_in_mask(input_config->channel_mask);
     const uint32_t output_channels = audio_channel_count_from_out_mask(output_config->channel_mask);
     if (input_channels != output_channels) {
@@ -333,13 +324,8 @@ static bool audio_config_compare(const audio_config * const input_config,
               input_channels, output_channels);
         return false;
     }
-#endif // !ENABLE_CHANNEL_CONVERSION
-#if ENABLE_RESAMPLING
-    if (input_config->sample_rate != output_config->sample_rate &&
-            audio_channel_count_from_in_mask(input_config->channel_mask) != 1) {
-#else
+
     if (input_config->sample_rate != output_config->sample_rate) {
-#endif // ENABLE_RESAMPLING
         ALOGE("audio_config_compare() sample rate mismatch %ul vs. %ul",
               input_config->sample_rate, output_config->sample_rate);
         return false;
@@ -376,24 +362,11 @@ static void submix_audio_device_create_pipe_l(struct submix_audio_device * const
         in->route_handle = route_idx;
         rsxadev->routes[route_idx].input = in;
         rsxadev->routes[route_idx].config.input_channel_mask = config->channel_mask;
-#if ENABLE_RESAMPLING
-        rsxadev->routes[route_idx].config.input_sample_rate = config->sample_rate;
-        // If the output isn't configured yet, set the output sample rate to the maximum supported
-        // sample rate such that the smallest possible input buffer is created, and put a default
-        // value for channel count
-        if (!rsxadev->routes[route_idx].output) {
-            rsxadev->routes[route_idx].config.output_sample_rate = 48000;
-            rsxadev->routes[route_idx].config.output_channel_mask = AUDIO_CHANNEL_OUT_STEREO;
-        }
-#endif // ENABLE_RESAMPLING
     }
     if (out) {
         out->route_handle = route_idx;
         rsxadev->routes[route_idx].output = out;
         rsxadev->routes[route_idx].config.output_channel_mask = config->channel_mask;
-#if ENABLE_RESAMPLING
-        rsxadev->routes[route_idx].config.output_sample_rate = config->sample_rate;
-#endif // ENABLE_RESAMPLING
     }
     // Save the address
     strncpy(rsxadev->routes[route_idx].address, address, AUDIO_DEVICE_MAX_ADDRESS_LEN);
@@ -403,18 +376,14 @@ static void submix_audio_device_create_pipe_l(struct submix_audio_device * const
     {
         struct submix_config * const device_config = &rsxadev->routes[route_idx].config;
         uint32_t channel_count;
-        if (out)
+        if (out) {
             channel_count = audio_channel_count_from_out_mask(config->channel_mask);
-        else
+        } else {
             channel_count = audio_channel_count_from_in_mask(config->channel_mask);
-#if ENABLE_CHANNEL_CONVERSION
-        // If channel conversion is enabled, allocate enough space for the maximum number of
-        // possible channels stored in the pipe for the situation when the number of channels in
-        // the output stream don't match the number in the input stream.
-        const uint32_t pipe_channel_count = max(channel_count, 2);
-#else
+        }
+
         const uint32_t pipe_channel_count = channel_count;
-#endif // ENABLE_CHANNEL_CONVERSION
+
         const NBAIO_Format format = Format_from_SR_C(config->sample_rate, pipe_channel_count,
             config->format);
         const NBAIO_Format offers[1] = {format};
@@ -444,11 +413,7 @@ static void submix_audio_device_create_pipe_l(struct submix_audio_device * const
                 buffer_period_count;
         if (in) device_config->pipe_frame_size = audio_stream_in_frame_size(&in->stream);
         if (out) device_config->pipe_frame_size = audio_stream_out_frame_size(&out->stream);
-#if ENABLE_CHANNEL_CONVERSION
-        // Calculate the pipe frame size based upon the number of channels.
-        device_config->pipe_frame_size = (device_config->pipe_frame_size * pipe_channel_count) /
-                channel_count;
-#endif // ENABLE_CHANNEL_CONVERSION
+
         SUBMIX_ALOGV("submix_audio_device_create_pipe_l(): pipe frame size %zd, pipe size %zd, "
                      "period size %zd", device_config->pipe_frame_size,
                      device_config->buffer_size_frames, device_config->buffer_period_size_frames);
@@ -473,10 +438,6 @@ static void submix_audio_device_release_pipe_l(struct submix_audio_device * cons
         rsxadev->routes[route_idx].rsxSource.clear();
     }
     memset(rsxadev->routes[route_idx].address, 0, AUDIO_DEVICE_MAX_ADDRESS_LEN);
-#if ENABLE_RESAMPLING
-    memset(rsxadev->routes[route_idx].resampler_buffer, 0,
-            sizeof(int16_t) * DEFAULT_PIPE_SIZE_IN_FRAMES);
-#endif
 }
 
 // Remove references to the specified input and output streams.  When the device no longer
@@ -624,11 +585,7 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_out * const out = audio_stream_get_submix_stream_out(
             const_cast<struct audio_stream *>(stream));
-#if ENABLE_RESAMPLING
-    const uint32_t out_rate = out->dev->routes[out->route_handle].config.output_sample_rate;
-#else
     const uint32_t out_rate = out->dev->routes[out->route_handle].config.common.sample_rate;
-#endif // ENABLE_RESAMPLING
     SUBMIX_ALOGV("out_get_sample_rate() returns %u for addr %s",
             out_rate, out->dev->routes[out->route_handle].address);
     return out_rate;
@@ -637,17 +594,6 @@ static uint32_t out_get_sample_rate(const struct audio_stream *stream)
 static int out_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
     struct submix_stream_out * const out = audio_stream_get_submix_stream_out(stream);
-#if ENABLE_RESAMPLING
-    // The sample rate of the stream can't be changed once it's set since this would change the
-    // output buffer size and hence break playback to the shared pipe.
-    if (rate != out->dev->routes[out->route_handle].config.output_sample_rate) {
-        ALOGE("out_set_sample_rate() resampling enabled can't change sample rate from "
-              "%u to %u for addr %s",
-              out->dev->routes[out->route_handle].config.output_sample_rate, rate,
-              out->dev->routes[out->route_handle].address);
-        return -ENOSYS;
-    }
-#endif // ENABLE_RESAMPLING
     if (!sample_rate_supported(rate)) {
         ALOGE("out_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
@@ -994,11 +940,7 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(
         const_cast<struct audio_stream*>(stream));
-#if ENABLE_RESAMPLING
-    const uint32_t rate = in->dev->routes[in->route_handle].config.input_sample_rate;
-#else
     const uint32_t rate = in->dev->routes[in->route_handle].config.common.sample_rate;
-#endif // ENABLE_RESAMPLING
     SUBMIX_ALOGV("in_get_sample_rate() returns %u", rate);
     return rate;
 }
@@ -1006,15 +948,6 @@ static uint32_t in_get_sample_rate(const struct audio_stream *stream)
 static int in_set_sample_rate(struct audio_stream *stream, uint32_t rate)
 {
     const struct submix_stream_in * const in = audio_stream_get_submix_stream_in(stream);
-#if ENABLE_RESAMPLING
-    // The sample rate of the stream can't be changed once it's set since this would change the
-    // input buffer size and hence break recording from the shared pipe.
-    if (rate != in->dev->routes[in->route_handle].config.input_sample_rate) {
-        ALOGE("in_set_sample_rate() resampling enabled can't change sample rate from "
-              "%u to %u", in->dev->routes[in->route_handle].config.input_sample_rate, rate);
-        return -ENOSYS;
-    }
-#endif // ENABLE_RESAMPLING
     if (!sample_rate_supported(rate)) {
         ALOGE("in_set_sample_rate(rate=%u) rate unsupported", rate);
         return -ENOSYS;
@@ -1033,13 +966,6 @@ static size_t in_get_buffer_size(const struct audio_stream *stream)
                             audio_stream_in_frame_size((const struct audio_stream_in *)stream);
     size_t buffer_size_frames = calculate_stream_pipe_size_in_frames(
         stream, config, config->buffer_period_size_frames, stream_frame_size);
-#if ENABLE_RESAMPLING
-    // Scale the size of the buffer based upon the maximum number of frames that could be returned
-    // given the ratio of output to input sample rate.
-    buffer_size_frames = (size_t)(((float)buffer_size_frames *
-                                   (float)config->input_sample_rate) /
-                                  (float)config->output_sample_rate);
-#endif // ENABLE_RESAMPLING
     const size_t buffer_size_bytes = buffer_size_frames * stream_frame_size;
     SUBMIX_ALOGV("in_get_buffer_size() returns %zu bytes, %zu frames", buffer_size_bytes,
                  buffer_size_frames);
@@ -1168,121 +1094,16 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer,
         // read the data from the pipe (it's non blocking)
         int attempts = 0;
         char* buff = (char*)buffer;
-#if ENABLE_CHANNEL_CONVERSION
-        // Determine whether channel conversion is required.
-        const uint32_t input_channels = audio_channel_count_from_in_mask(
-            rsxadev->routes[in->route_handle].config.input_channel_mask);
-        const uint32_t output_channels = audio_channel_count_from_out_mask(
-            rsxadev->routes[in->route_handle].config.output_channel_mask);
-        if (input_channels != output_channels) {
-            SUBMIX_ALOGV("in_read(): %d output channels will be converted to %d "
-                         "input channels", output_channels, input_channels);
-            // Only support 16-bit PCM channel conversion from mono to stereo or stereo to mono.
-            ALOG_ASSERT(rsxadev->routes[in->route_handle].config.common.format ==
-                    AUDIO_FORMAT_PCM_16_BIT);
-            ALOG_ASSERT((input_channels == 1 && output_channels == 2) ||
-                        (input_channels == 2 && output_channels == 1));
-        }
-#endif // ENABLE_CHANNEL_CONVERSION
-
-#if ENABLE_RESAMPLING
-        const uint32_t input_sample_rate = in_get_sample_rate(&stream->common);
-        const uint32_t output_sample_rate =
-                rsxadev->routes[in->route_handle].config.output_sample_rate;
-        const size_t resampler_buffer_size_frames =
-            sizeof(rsxadev->routes[in->route_handle].resampler_buffer) /
-                sizeof(rsxadev->routes[in->route_handle].resampler_buffer[0]);
-        float resampler_ratio = 1.0f;
-        // Determine whether resampling is required.
-        if (input_sample_rate != output_sample_rate) {
-            resampler_ratio = (float)output_sample_rate / (float)input_sample_rate;
-            // Only support 16-bit PCM mono resampling.
-            // NOTE: Resampling is performed after the channel conversion step.
-            ALOG_ASSERT(rsxadev->routes[in->route_handle].config.common.format ==
-                    AUDIO_FORMAT_PCM_16_BIT);
-            ALOG_ASSERT(audio_channel_count_from_in_mask(
-                    rsxadev->routes[in->route_handle].config.input_channel_mask) == 1);
-        }
-#endif // ENABLE_RESAMPLING
 
         while ((remaining_frames > 0) && (attempts < MAX_READ_ATTEMPTS)) {
             ssize_t frames_read = -1977;
             size_t read_frames = remaining_frames;
-#if ENABLE_RESAMPLING
-            char* const saved_buff = buff;
-            if (resampler_ratio != 1.0f) {
-                // Calculate the number of frames from the pipe that need to be read to generate
-                // the data for the input stream read.
-                const size_t frames_required_for_resampler = (size_t)(
-                    (float)read_frames * (float)resampler_ratio);
-                read_frames = min(frames_required_for_resampler, resampler_buffer_size_frames);
-                // Read into the resampler buffer.
-                buff = (char*)rsxadev->routes[in->route_handle].resampler_buffer;
-            }
-#endif // ENABLE_RESAMPLING
-#if ENABLE_CHANNEL_CONVERSION
-            if (output_channels == 1 && input_channels == 2) {
-                // Need to read half the requested frames since the converted output
-                // data will take twice the space (mono->stereo).
-                read_frames /= 2;
-            }
-#endif // ENABLE_CHANNEL_CONVERSION
 
             SUBMIX_ALOGV("in_read(): frames available to read %zd", source->availableToRead());
 
             frames_read = source->read(buff, read_frames);
 
             SUBMIX_ALOGV("in_read(): frames read %zd", frames_read);
-
-#if ENABLE_CHANNEL_CONVERSION
-            // Perform in-place channel conversion.
-            // NOTE: In the following "input stream" refers to the data returned by this function
-            // and "output stream" refers to the data read from the pipe.
-            if (input_channels != output_channels && frames_read > 0) {
-                int16_t *data = (int16_t*)buff;
-                if (output_channels == 2 && input_channels == 1) {
-                    // Offset into the output stream data in samples.
-                    ssize_t output_stream_offset = 0;
-                    for (ssize_t input_stream_frame = 0; input_stream_frame < frames_read;
-                         input_stream_frame++, output_stream_offset += 2) {
-                        // Average the content from both channels.
-                        data[input_stream_frame] = ((int32_t)data[output_stream_offset] +
-                                                    (int32_t)data[output_stream_offset + 1]) / 2;
-                    }
-                } else if (output_channels == 1 && input_channels == 2) {
-                    // Offset into the input stream data in samples.
-                    ssize_t input_stream_offset = (frames_read - 1) * 2;
-                    for (ssize_t output_stream_frame = frames_read - 1; output_stream_frame >= 0;
-                         output_stream_frame--, input_stream_offset -= 2) {
-                        const short sample = data[output_stream_frame];
-                        data[input_stream_offset] = sample;
-                        data[input_stream_offset + 1] = sample;
-                    }
-                }
-            }
-#endif // ENABLE_CHANNEL_CONVERSION
-
-#if ENABLE_RESAMPLING
-            if (resampler_ratio != 1.0f) {
-                SUBMIX_ALOGV("in_read(): resampling %zd frames", frames_read);
-                const int16_t * const data = (int16_t*)buff;
-                int16_t * const resampled_buffer = (int16_t*)saved_buff;
-                // Resample with *no* filtering - if the data from the ouptut stream was really
-                // sampled at a different rate this will result in very nasty aliasing.
-                const float output_stream_frames = (float)frames_read;
-                size_t input_stream_frame = 0;
-                for (float output_stream_frame = 0.0f;
-                     output_stream_frame < output_stream_frames &&
-                     input_stream_frame < remaining_frames;
-                     output_stream_frame += resampler_ratio, input_stream_frame++) {
-                    resampled_buffer[input_stream_frame] = data[(size_t)output_stream_frame];
-                }
-                ALOG_ASSERT(input_stream_frame <= (ssize_t)resampler_buffer_size_frames);
-                SUBMIX_ALOGV("in_read(): resampler produced %zd frames", input_stream_frame);
-                frames_read = input_stream_frame;
-                buff = saved_buff;
-            }
-#endif // ENABLE_RESAMPLING
 
             if (frames_read > 0) {
 #if LOG_STREAMS_TO_FILES
@@ -1411,7 +1232,6 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     struct submix_audio_device * const rsxadev = audio_hw_device_get_submix_audio_device(dev);
     ALOGD("adev_open_output_stream(address=%s)", address);
     struct submix_stream_out *out;
-    bool force_pipe_creation = false;
     (void)handle;
     (void)devices;
     (void)flags;
@@ -1464,25 +1284,20 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     out->stream.get_next_write_timestamp = out_get_next_write_timestamp;
     out->stream.get_presentation_position = out_get_presentation_position;
 
-#if ENABLE_RESAMPLING
-    // Recreate the pipe with the correct sample rate so that MonoPipe.write() rate limits
-    // writes correctly.
-    force_pipe_creation = rsxadev->routes[route_idx].config.common.sample_rate
-            != config->sample_rate;
-#endif // ENABLE_RESAMPLING
-
     // If the sink has been shutdown or pipe recreation is forced (see above), delete the pipe so
     // that it's recreated.
     if ((rsxadev->routes[route_idx].rsxSink != NULL
-            && rsxadev->routes[route_idx].rsxSink->isShutdown()) || force_pipe_creation) {
+            && rsxadev->routes[route_idx].rsxSink->isShutdown())) {
         submix_audio_device_release_pipe_l(rsxadev, route_idx);
     }
 
     // Store a pointer to the device from the output stream.
     out->dev = rsxadev;
     // Initialize the pipe.
-    ALOGV("adev_open_output_stream(): about to create pipe at index %d", route_idx);
-    submix_audio_device_create_pipe_l(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
+    const size_t pipeSizeInFrames = pipe_size_in_frames(config->sample_rate);
+    ALOGI("adev_open_output_stream(): about to create pipe at index %d, rate %u, pipe size %zu",
+          route_idx, config->sample_rate, pipeSizeInFrames);
+    submix_audio_device_create_pipe_l(rsxadev, config, pipeSizeInFrames,
             DEFAULT_PIPE_PERIOD_COUNT, NULL, out, address, route_idx);
 #if LOG_STREAMS_TO_FILES
     out->log_fd = open(LOG_STREAM_OUT_FILENAME, O_CREAT | O_TRUNC | O_WRONLY,
@@ -1611,7 +1426,8 @@ static size_t adev_get_input_buffer_size(const struct audio_hw_device *dev,
         const size_t frame_size_in_bytes = audio_channel_count_from_in_mask(config->channel_mask) *
                 audio_bytes_per_sample(config->format);
         if (max_buffer_period_size_frames == 0) {
-            max_buffer_period_size_frames = DEFAULT_PIPE_SIZE_IN_FRAMES;
+            max_buffer_period_size_frames =
+                    pipe_size_in_frames(get_supported_sample_rate(config->sample_rate));;
         }
         const size_t buffer_size = max_buffer_period_size_frames * frame_size_in_bytes;
         SUBMIX_ALOGV("adev_get_input_buffer_size() returns %zu bytes, %zu frames",
@@ -1724,8 +1540,10 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
 
     in->read_error_count = 0;
     // Initialize the pipe.
-    ALOGV("adev_open_input_stream(): about to create pipe");
-    submix_audio_device_create_pipe_l(rsxadev, config, DEFAULT_PIPE_SIZE_IN_FRAMES,
+    const size_t pipeSizeInFrames = pipe_size_in_frames(config->sample_rate);
+    ALOGI("adev_open_input_stream(): about to create pipe at index %d, rate %u, pipe size %zu",
+          route_idx, config->sample_rate, pipeSizeInFrames);
+    submix_audio_device_create_pipe_l(rsxadev, config, pipeSizeInFrames,
                                     DEFAULT_PIPE_PERIOD_COUNT, in, NULL, address, route_idx);
 
     sp <MonoPipe> sink = rsxadev->routes[route_idx].rsxSink;
@@ -1779,16 +1597,9 @@ static int adev_dump(const audio_hw_device_t *device, int fd)
     int n = snprintf(msg, sizeof(msg), "\nReroute submix audio module:\n");
     write(fd, &msg, n);
     for (int i=0 ; i < MAX_ROUTES ; i++) {
-#if ENABLE_RESAMPLING
-        n = snprintf(msg, sizeof(msg), " route[%d] rate in=%d out=%d, addr=[%s]\n", i,
-                rsxadev->routes[i].config.input_sample_rate,
-                rsxadev->routes[i].config.output_sample_rate,
-                rsxadev->routes[i].address);
-#else
         n = snprintf(msg, sizeof(msg), " route[%d], rate=%d addr=[%s]\n", i,
                 rsxadev->routes[i].config.common.sample_rate,
                 rsxadev->routes[i].address);
-#endif
         write(fd, &msg, n);
     }
     return 0;
