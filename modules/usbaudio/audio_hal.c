@@ -460,6 +460,41 @@ static unsigned int populate_sample_rates_from_profile(const alsa_device_profile
     return num_sample_rates;
 }
 
+static bool are_all_devices_found(unsigned int num_devices_to_find,
+                                  const int cards_to_find[],
+                                  const int devices_to_find[],
+                                  unsigned int num_devices,
+                                  const int cards[],
+                                  const int devices[]) {
+    for (unsigned int i = 0; i < num_devices_to_find; ++i) {
+        unsigned int j = 0;
+        for (; j < num_devices; ++j) {
+            if (cards_to_find[i] == cards[j] && devices_to_find[i] == devices[j]) {
+                break;
+            }
+        }
+        if (j >= num_devices) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static bool are_devices_the_same(unsigned int left_num_devices,
+                                 const int left_cards[],
+                                 const int left_devices[],
+                                 unsigned int right_num_devices,
+                                 const int right_cards[],
+                                 const int right_devices[]) {
+    if (left_num_devices != right_num_devices) {
+        return false;
+    }
+    return are_all_devices_found(left_num_devices, left_cards, left_devices,
+                                 right_num_devices, right_cards, right_devices) &&
+           are_all_devices_found(right_num_devices, right_cards, right_devices,
+                                 left_num_devices, left_cards, left_devices);
+}
+
 /*
  * HAl Functions
  */
@@ -548,10 +583,11 @@ static void stream_dump_alsa_devices(const struct listnode *alsa_devices, int fd
     list_for_each(node, alsa_devices) {
         struct alsa_device_info *device_info =
                 node_to_item(node, struct alsa_device_info, list_node);
-        dprintf(fd, "Output Profile %zu:\n", i);
+        const char* direction = device_info->profile.direction == PCM_OUT ? "Output" : "Input";
+        dprintf(fd, "%s Profile %zu:\n", direction, i);
         profile_dump(&device_info->profile, fd);
 
-        dprintf(fd, "Output Proxy %zu:\n", i);
+        dprintf(fd, "%s Proxy %zu:\n", direction, i);
         proxy_dump(&device_info->proxy, fd);
     }
 }
@@ -1648,9 +1684,25 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
         saved_devices[num_saved_devices++] = device_info->profile.device;
     }
 
+    if (are_devices_the_same(
+                num_configs, cards, devices, num_saved_devices, saved_cards, saved_devices)) {
+        // The new devices are the same as original ones. No need to update.
+        stream_unlock(lock);
+        return 0;
+    }
+
     device_lock(adev);
     stream_standby_l(alsa_devices, out == NULL ? &in->standby : &out->standby);
     device_unlock(adev);
+
+    // Timestamps:
+    // Audio timestamps assume continuous PCM frame counts which are maintained
+    // with the device proxy.transferred variable.  Technically it would be better
+    // associated with in or out stream, not the device; here we save and restore
+    // using the first alsa device as a simplification.
+    uint64_t saved_transferred_frames = 0;
+    struct alsa_device_info *device_info = stream_get_first_alsa_device(alsa_devices);
+    if (device_info != NULL) saved_transferred_frames = device_info->proxy.transferred;
 
     int ret = stream_set_new_devices(config, alsa_devices, num_configs, cards, devices, direction);
 
@@ -1661,6 +1713,13 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     } else {
         *patch_handle = *handle;
     }
+
+    // Timestamps: Restore transferred frames.
+    if (saved_transferred_frames != 0) {
+        device_info = stream_get_first_alsa_device(alsa_devices);
+        if (device_info != NULL) device_info->proxy.transferred = saved_transferred_frames;
+    }
+
     if (!wasStandby) {
         device_lock(adev);
         if (in != NULL) {

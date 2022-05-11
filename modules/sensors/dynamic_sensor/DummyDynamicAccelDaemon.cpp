@@ -28,7 +28,7 @@
 #include <netinet/in.h>
 #include <algorithm>            //std::max
 
-#define SYSPROP_PREFIX                  "dynamic_sensor.dummy"
+#define SYSPROP_PREFIX                  "vendor.dynamic_sensor.mock"
 #define FILE_NAME_BASE                  "dummy_accel_file"
 #define FILE_NAME_REGEX                 ("^" FILE_NAME_BASE "[0-9]$")
 
@@ -43,11 +43,13 @@ DummyDynamicAccelDaemon::DummyDynamicAccelDaemon(DynamicSensorManager& manager)
     if (strcmp(property, "") != 0) {
         mFileDetector = new FileConnectionDetector(
                 this, std::string(property), std::string(FILE_NAME_REGEX));
+        mFileDetector->Init();
     }
 
     property_get(SYSPROP_PREFIX ".socket", property, "");
     if (strcmp(property, "") != 0) {
         mSocketDetector = new SocketConnectionDetector(this, atoi(property));
+        mSocketDetector->Init();
     }
 }
 
