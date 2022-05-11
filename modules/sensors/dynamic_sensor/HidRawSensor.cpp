@@ -19,6 +19,8 @@
 #include <utils/Errors.h>
 #include "HidLog.h"
 
+#include <HidUtils.h>
+
 #include <algorithm>
 #include <cfloat>
 #include <codecvt>
@@ -437,6 +439,7 @@ void HidRawSensor::initFeatureValueFromHidDeviceInfo(
 
     featureValue->reportModeFlag = SENSOR_FLAG_SPECIAL_REPORTING_MODE;
     featureValue->isWakeUp = false;
+    featureValue->useUniqueIdForUuid = false;
     memset(featureValue->uuid, 0, sizeof(featureValue->uuid));
     featureValue->isAndroidCustom = false;
 }
@@ -463,40 +466,23 @@ bool HidRawSensor::populateFeatureValueFromFeatureReport(
         for (const auto & r : packet.reports) {
             switch (r.usage) {
                 case FRIENDLY_NAME:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid friendly name
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->name = str;
                     }
                     break;
                 case SENSOR_MANUFACTURER:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid manufacturer
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->vendor = str;
                     }
                     break;
                 case PERSISTENT_UNIQUE_ID:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid unique id string
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->uniqueId = str;
                     }
                     break;
                 case SENSOR_DESCRIPTION:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1
-                            || (r.bitOffset / 8 + r.count * 2) > buffer.size() ) {
-                        // invalid description
-                        break;
-                    }
                     if (decodeString(r, buffer, &str)) {
-                        mFeatureInfo.isAndroidCustom = detectAndroidCustomSensor(str);
+                        detectSensorFromDescription(str);
                     }
                     break;
                 default:
@@ -544,10 +530,19 @@ bool HidRawSensor::validateFeatureValueAndBuildSensor() {
     }
 
     // initialize uuid field, use name, vendor and uniqueId
-    if (mFeatureInfo.name.size() >= 4
-            && mFeatureInfo.vendor.size() >= 4
-            && mFeatureInfo.typeString.size() >= 4
-            && mFeatureInfo.uniqueId.size() >= 4) {
+    // initialize uuid field using one of the following methods:
+    //
+    // 1. use uniqueId
+    // 2. use name, vendor and uniqueId
+    if (mFeatureInfo.useUniqueIdForUuid) {
+        if (mFeatureInfo.uniqueId.size() == sizeof(mFeatureInfo.uuid)) {
+            memcpy(mFeatureInfo.uuid, mFeatureInfo.uniqueId.c_str(),
+                   sizeof(mFeatureInfo.uuid));
+        }
+    } else if (mFeatureInfo.name.size() >= 4
+                   && mFeatureInfo.vendor.size() >= 4
+                   && mFeatureInfo.typeString.size() >= 4
+                   && mFeatureInfo.uniqueId.size() >= 4) {
         uint32_t tmp[4], h;
         std::hash<std::string> stringHash;
         h = stringHash(mFeatureInfo.uniqueId);
@@ -581,26 +576,34 @@ bool HidRawSensor::validateFeatureValueAndBuildSensor() {
 
 bool HidRawSensor::decodeString(
         const HidParser::ReportItem &report, const std::vector<uint8_t> &buffer, std::string *d) {
-    if (!report.isByteAligned() || report.bitSize != 16 || report.count < 1) {
+    if (!report.isByteAligned() ||
+        (report.bitSize != 8 && report.bitSize != 16) || report.count < 1) {
         return false;
     }
 
+    size_t charSize = report.bitSize / 8;
     size_t offset = report.bitOffset / 8;
-    if (offset + report.count * 2 > buffer.size()) {
+    if (offset + report.count * charSize > buffer.size()) {
         return false;
     }
 
-    std::vector<uint16_t> data(report.count);
-    auto i = data.begin();
-    auto j = buffer.begin() + offset;
-    for ( ; i != data.end(); ++i, j += sizeof(uint16_t)) {
-        // hid specified little endian
-        *i = *j + (*(j + 1) << 8);
-    }
-    std::wstring wstr(data.begin(), data.end());
+    if (charSize == 1) {
+        *d = std::string(buffer.begin() + offset,
+                         buffer.begin() + offset + report.count);
+    } else {
+        std::vector<uint16_t> data(report.count);
+        auto i = data.begin();
+        auto j = buffer.begin() + offset;
+        for ( ; i != data.end(); ++i, j += sizeof(uint16_t)) {
+            // hid specified little endian
+            *i = *j + (*(j + 1) << 8);
+        }
+        std::wstring wstr(data.begin(), data.end());
 
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-    *d = converter.to_bytes(wstr);
+        std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
+        *d = converter.to_bytes(wstr);
+    }
+
     return true;
 }
 
@@ -617,6 +620,33 @@ std::vector<std::string> split(const std::string &text, char sep) {
         tokens.push_back(text.substr(start));
     }
     return tokens;
+}
+
+void HidRawSensor::detectSensorFromDescription(const std::string &description) {
+    if (detectAndroidHeadTrackerSensor(description) ||
+        detectAndroidCustomSensor(description)) {
+        mFeatureInfo.isAndroidCustom = true;
+    }
+}
+
+bool HidRawSensor::detectAndroidHeadTrackerSensor(
+        const std::string &description) {
+    if (description.find("#AndroidHeadTracker#1.") != 0) {
+        return false;
+    }
+
+    mFeatureInfo.type = SENSOR_TYPE_HEAD_TRACKER;
+    mFeatureInfo.typeString = SENSOR_STRING_TYPE_HEAD_TRACKER;
+    mFeatureInfo.reportModeFlag = SENSOR_FLAG_CONTINUOUS_MODE;
+    mFeatureInfo.permission = "";
+    mFeatureInfo.isWakeUp = false;
+
+    // HID head tracker sensors must use the HID unique ID for the sensor UUID
+    // to permit association between the sensor and audio device (see
+    // specification for HEAD_TRACKER in SensorType).
+    mFeatureInfo.useUniqueIdForUuid = true;
+
+    return true;
 }
 
 bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
@@ -784,54 +814,95 @@ bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
 }
 
 bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPacket> &packets) {
+    using namespace Hid::Sensor::PowerStateUsage;
     using namespace Hid::Sensor::PropertyUsage;
-    using namespace Hid::Sensor::RawMinMax;
+    using namespace Hid::Sensor::ReportingStateUsage;
 
     //REPORTING_STATE
     const HidParser::ReportItem *reportingState
             = find(packets, REPORTING_STATE, HidParser::REPORT_TYPE_FEATURE);
 
-    if (reportingState == nullptr
-            || !reportingState->isByteAligned()
-            || reportingState->bitSize != 8
-            || reportingState->minRaw != REPORTING_STATE_MIN
-            || reportingState->maxRaw != REPORTING_STATE_MAX) {
+    if (reportingState == nullptr) {
         LOG_W << "Cannot find valid reporting state feature" << LOG_ENDL;
     } else {
         mReportingStateId = reportingState->id;
-        mReportingStateOffset = reportingState->bitOffset / 8;
+        mReportingStateBitOffset = reportingState->bitOffset;
+        mReportingStateBitSize = reportingState->bitSize;
+
+        mReportingStateDisableIndex = -1;
+        mReportingStateEnableIndex = -1;
+        for (unsigned i = 0; i < reportingState->usageVector.size(); ++i) {
+            if (reportingState->usageVector[i] == REPORTING_STATE_NO_EVENTS) {
+                mReportingStateDisableIndex = i;
+            }
+            if (reportingState->usageVector[i] == REPORTING_STATE_ALL_EVENTS) {
+                mReportingStateEnableIndex = i;
+            }
+        }
+        if (mReportingStateDisableIndex < 0) {
+            LOG_W << "Cannot find reporting state to disable sensor"
+                  << LOG_ENDL;
+            mReportingStateId = -1;
+        }
+        if (mReportingStateEnableIndex < 0) {
+            LOG_W << "Cannot find reporting state to enable sensor" << LOG_ENDL;
+            mReportingStateId = -1;
+        }
     }
 
     //POWER_STATE
     const HidParser::ReportItem *powerState
             = find(packets, POWER_STATE, HidParser::REPORT_TYPE_FEATURE);
-    if (powerState == nullptr
-            || !powerState->isByteAligned()
-            || powerState->bitSize != 8
-            || powerState->minRaw != POWER_STATE_MIN
-            || powerState->maxRaw != POWER_STATE_MAX) {
+    if (powerState == nullptr) {
         LOG_W << "Cannot find valid power state feature" << LOG_ENDL;
     } else {
         mPowerStateId = powerState->id;
-        mPowerStateOffset = powerState->bitOffset / 8;
+        mPowerStateBitOffset = powerState->bitOffset;
+        mPowerStateBitSize = powerState->bitSize;
+
+        mPowerStateOffIndex = -1;
+        mPowerStateOnIndex = -1;
+        for (unsigned i = 0; i < powerState->usageVector.size(); ++i) {
+            if (powerState->usageVector[i] == POWER_STATE_D4_POWER_OFF) {
+                mPowerStateOffIndex = i;
+            }
+            if (powerState->usageVector[i] == POWER_STATE_D0_FULL_POWER) {
+                mPowerStateOnIndex = i;
+            }
+        }
+        if (mPowerStateOffIndex < 0) {
+            LOG_W << "Cannot find power state to power off sensor"
+                  << LOG_ENDL;
+            mPowerStateId = -1;
+        }
+        if (mPowerStateOnIndex < 0) {
+            LOG_W << "Cannot find power state to power on sensor" << LOG_ENDL;
+            mPowerStateId = -1;
+        }
     }
 
     //REPORT_INTERVAL
     const HidParser::ReportItem *reportInterval
             = find(packets, REPORT_INTERVAL, HidParser::REPORT_TYPE_FEATURE);
     if (reportInterval == nullptr
-            || !reportInterval->isByteAligned()
-            || reportInterval->minRaw < 0
-            || (reportInterval->bitSize != 16 && reportInterval->bitSize != 32)) {
+            || reportInterval->minRaw < 0) {
         LOG_W << "Cannot find valid report interval feature" << LOG_ENDL;
     } else {
         mReportIntervalId = reportInterval->id;
-        mReportIntervalOffset = reportInterval->bitOffset / 8;
-        mReportIntervalSize = reportInterval->bitSize / 8;
+        mReportIntervalBitOffset = reportInterval->bitOffset;
+        mReportIntervalBitSize = reportInterval->bitSize;
+        mReportIntervalScale = reportInterval->a;
+        mReportIntervalOffset = reportInterval->b;
 
-        mFeatureInfo.minDelay = std::max(static_cast<int64_t>(1), reportInterval->minRaw) * 1000;
-        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000),
-                                    reportInterval->maxRaw) * 1000; // maximum 1000 second
+        mFeatureInfo.minDelay = 1000000.0
+                                * (reportInterval->minRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.minDelay = std::max(1000, mFeatureInfo.minDelay);
+        mFeatureInfo.maxDelay = 1000000.0
+                                * (reportInterval->maxRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000000),
+                                         mFeatureInfo.maxDelay);
     }
     return true;
     return (mPowerStateId >= 0 || mReportingStateId >= 0) && mReportIntervalId >= 0;
@@ -846,7 +917,6 @@ void HidRawSensor::getUuid(uint8_t* uuid) const {
 }
 
 int HidRawSensor::enable(bool enable) {
-    using namespace Hid::Sensor::StateValue;
     SP(HidDevice) device = PROMOTE(mDevice);
 
     if (device == nullptr) {
@@ -863,8 +933,11 @@ int HidRawSensor::enable(bool enable) {
         setPowerOk = false;
         uint8_t id = static_cast<uint8_t>(mPowerStateId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() > mPowerStateOffset) {
-            buffer[mPowerStateOffset] = enable ? POWER_STATE_FULL_POWER : POWER_STATE_POWER_OFF;
+                && (8 * buffer.size()) >=
+                   (mPowerStateBitOffset + mPowerStateBitSize)) {
+            uint8_t index = enable ? mPowerStateOnIndex : mPowerStateOffIndex;
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),
+                              0, mPowerStateBitOffset, mPowerStateBitSize);
             setPowerOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
@@ -876,9 +949,12 @@ int HidRawSensor::enable(bool enable) {
         setReportingOk = false;
         uint8_t id = static_cast<uint8_t>(mReportingStateId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() > mReportingStateOffset) {
-            buffer[mReportingStateOffset]
-                    = enable ? REPORTING_STATE_ALL_EVENT : REPORTING_STATE_NO_EVENT;
+                && (8 * buffer.size()) >
+                   (mReportingStateBitOffset + mReportingStateBitSize)) {
+            uint8_t index = enable ? mReportingStateEnableIndex :
+                                     mReportingStateDisableIndex;
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),0,
+                              mReportingStateBitOffset, mReportingStateBitSize);
             setReportingOk = device->setFeature(id, buffer);
         } else {
             LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
@@ -911,22 +987,17 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
         ok = false;
         uint8_t id = static_cast<uint8_t>(mReportIntervalId);
         if (device->getFeature(id, &buffer)
-                && buffer.size() >= mReportIntervalOffset + mReportIntervalSize) {
-            int64_t periodMs = samplingPeriod / 1000000; //ns -> ms
-            switch (mReportIntervalSize) {
-                case sizeof(uint16_t):
-                    periodMs = std::min(periodMs, static_cast<int64_t>(UINT16_MAX));
-                    buffer[mReportIntervalOffset] = periodMs & 0xFF;
-                    buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
-                    break;
-                case sizeof(uint32_t):
-                    periodMs = std::min(periodMs, static_cast<int64_t>(UINT32_MAX));
-                    buffer[mReportIntervalOffset] = periodMs & 0xFF;
-                    buffer[mReportIntervalOffset + 1] = (periodMs >> 8) & 0xFF;
-                    buffer[mReportIntervalOffset + 2] = (periodMs >> 16) & 0xFF;
-                    buffer[mReportIntervalOffset + 3] = (periodMs >> 24) & 0xFF;
-                    break;
-            }
+                && (8 * buffer.size()) >=
+                   (mReportIntervalBitOffset + mReportIntervalBitSize)) {
+            int64_t periodMs =
+                    (((static_cast<double>(samplingPeriod)) / 1000000000.0)
+                     / mReportIntervalScale) - mReportIntervalOffset;
+            int64_t maxPeriodMs =
+                (1LL << std::min(mReportIntervalBitSize, 63U)) - 1;
+            periodMs = std::min(periodMs, maxPeriodMs);
+            HidUtil::copyBits(&periodMs, &(buffer[0]), buffer.size(),
+                              0, mReportIntervalBitOffset,
+                              mReportIntervalBitSize);
             ok = device->setFeature(id, buffer);
         }
     }
@@ -950,6 +1021,50 @@ void HidRawSensor::handleInput(uint8_t id, const std::vector<uint8_t> &message) 
         .type = mSensor.type
     };
     bool valid = true;
+
+    switch (mFeatureInfo.type) {
+        case SENSOR_TYPE_HEAD_TRACKER:
+            valid = getHeadTrackerEventData(message, &event);
+            break;
+        default:
+            valid = getSensorEventData(message, &event);
+            break;
+    }
+    if (!valid) {
+        LOG_E << "Invalid data observed in decoding, discard" << LOG_ENDL;
+        return;
+    }
+    event.timestamp = -1;
+    generateEvent(event);
+}
+
+bool HidRawSensor::getHeadTrackerEventData(const std::vector<uint8_t> &message,
+                                           sensors_event_t *event) {
+    head_tracker_event_t *head_tracker;
+
+    head_tracker = &(event->head_tracker);
+    if (!getReportFieldValue(message, &(mTranslateTable[0]),
+                             &(head_tracker->rx))
+            || !getReportFieldValue(message, &(mTranslateTable[1]),
+                                    &(head_tracker->ry))
+            || !getReportFieldValue(message, &(mTranslateTable[2]),
+                                    &(head_tracker->rz))
+            || !getReportFieldValue(message, &(mTranslateTable[3]),
+                                    &(head_tracker->vx))
+            || !getReportFieldValue(message, &(mTranslateTable[4]),
+                                    &(head_tracker->vy))
+            || !getReportFieldValue(message, &(mTranslateTable[5]),
+                                    &(head_tracker->vz))
+            || !getReportFieldValue(message, &(mTranslateTable[6]),
+                                    &(head_tracker->discontinuity_count))) {
+        return false;
+    }
+
+    return true;
+}
+
+bool HidRawSensor::getSensorEventData(const std::vector<uint8_t> &message,
+                                      sensors_event_t *event) {
     for (const auto &rec : mTranslateTable) {
         int64_t v = (message[rec.byteOffset + rec.byteSize - 1] & 0x80) ? -1 : 0;
         for (int i = static_cast<int>(rec.byteSize) - 1; i >= 0; --i) {
@@ -959,26 +1074,23 @@ void HidRawSensor::handleInput(uint8_t id, const std::vector<uint8_t> &message) 
         switch (rec.type) {
             case TYPE_FLOAT:
                 if (v > rec.maxValue || v < rec.minValue) {
-                    valid = false;
+                    return false;
                 }
-                event.data[rec.index] = rec.a * (v + rec.b);
+                event->data[rec.index] = rec.a * (v + rec.b);
                 break;
             case TYPE_INT64:
                 if (v > rec.maxValue || v < rec.minValue) {
-                    valid = false;
+                    return false;
                 }
-                event.u64.data[rec.index] = v + rec.b;
+                event->u64.data[rec.index] = v + rec.b;
                 break;
             case TYPE_ACCURACY:
-                event.magnetic.status = (v & 0xFF) + rec.b;
+                event->magnetic.status = (v & 0xFF) + rec.b;
                 break;
         }
     }
-    if (!valid) {
-        LOG_V << "Range error observed in decoding, discard" << LOG_ENDL;
-    }
-    event.timestamp = -1;
-    generateEvent(event);
+
+    return true;
 }
 
 std::string HidRawSensor::dump() const {
@@ -997,11 +1109,15 @@ std::string HidRawSensor::dump() const {
           << "  fifoSize: " << mFeatureInfo.fifoSize << LOG_ENDL
           << "  fifoMaxSize: " << mFeatureInfo.fifoMaxSize << LOG_ENDL
           << "  reportModeFlag: " << mFeatureInfo.reportModeFlag << LOG_ENDL
-          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL
-          << "  uniqueId: " << mFeatureInfo.uniqueId << LOG_ENDL
-          << "  uuid: ";
+          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL;
 
-    ss << std::hex << std::setfill('0');
+    ss << "  uniqueId: " << std::hex << std::setfill('0');
+    for (auto d : mFeatureInfo.uniqueId) {
+          ss << std::setw(2) << static_cast<int>(d) << " ";
+    }
+    ss << std::dec << std::setfill(' ') << LOG_ENDL;
+
+    ss << "  uuid: " << std::hex << std::setfill('0');
     for (auto d : mFeatureInfo.uuid) {
           ss << std::setw(2) << static_cast<int>(d) << " ";
     }
@@ -1019,7 +1135,11 @@ std::string HidRawSensor::dump() const {
     ss << "  Power state ";
     if (mPowerStateId >= 0) {
         ss << "found, id: " << mPowerStateId
-              << " offset: " << mPowerStateOffset << LOG_ENDL;
+              << " bit offset: " << mPowerStateBitOffset
+              << " bit size: " << mPowerStateBitSize
+              << " power off index: " << mPowerStateOffIndex
+              << " power on index: " << mPowerStateOnIndex
+              << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
@@ -1027,7 +1147,11 @@ std::string HidRawSensor::dump() const {
     ss << "  Reporting state ";
     if (mReportingStateId >= 0) {
         ss << "found, id: " << mReportingStateId
-              << " offset: " << mReportingStateOffset << LOG_ENDL;
+              << " bit offset: " << mReportingStateBitOffset
+              << " bit size: " << mReportingStateBitSize
+              << " disable index: " << mReportingStateDisableIndex
+              << " enable index: " << mReportingStateEnableIndex
+              << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
@@ -1035,8 +1159,8 @@ std::string HidRawSensor::dump() const {
     ss << "  Report interval ";
     if (mReportIntervalId >= 0) {
         ss << "found, id: " << mReportIntervalId
-              << " offset: " << mReportIntervalOffset
-              << " size: " << mReportIntervalSize << LOG_ENDL;
+              << " bit offset: " << mReportIntervalBitOffset
+              << " bit size: " << mReportIntervalBitSize << LOG_ENDL;
     } else {
         ss << "not found" << LOG_ENDL;
     }
