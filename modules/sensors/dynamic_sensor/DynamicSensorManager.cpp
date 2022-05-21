@@ -87,7 +87,7 @@ int DynamicSensorManager::activate(int handle, bool enable) {
     }
 
     return operateSensor(handle,
-            [&enable] (sp<BaseSensorObject> s)->int {
+            [=] (sp<BaseSensorObject> s)->int {
                 return s->enable(enable);
             });
 }
@@ -98,7 +98,7 @@ int DynamicSensorManager::batch(int handle, nsecs_t sample_period, nsecs_t batch
         return 0;
     }
     return operateSensor(handle,
-            [&sample_period, &batch_period] (sp<BaseSensorObject> s)->int {
+            [=] (sp<BaseSensorObject> s)->int {
                 return s->batch(sample_period, batch_period);
             });
 }
@@ -237,6 +237,87 @@ int DynamicSensorManager::getNextAvailableHandle() {
 
 const sensor_t& DynamicSensorManager::getDynamicMetaSensor() const {
     return mMetaSensor;
+}
+
+int DynamicSensorManager::operateSensor(
+        int handle, OperateSensorFunc sensorFunc) {
+    std::shared_future<int> sensorOp;
+    {
+        std::lock_guard<std::mutex> lock(mSensorOpQueueLock);
+
+        // Invoke the function asynchronously.
+        sensorOp = std::async(
+                [this, handle = handle, sensorFunc = sensorFunc,
+                 sensorOpIndex = mNextSensorOpIndex] ()->int {
+            return operateSensor(handle, sensorFunc, sensorOpIndex);
+        }).share();
+
+        // Add sensor operation to the queue.
+        mSensorOpQueue.push({mNextSensorOpIndex, sensorOp});
+        mNextSensorOpIndex++;
+    }
+
+    // Wait for the sensor operation to complete.
+    if (sensorOp.wait_for(kSensorOpTimeout) != std::future_status::ready) {
+        ALOGE("sensor operation timed out");
+        return TIMED_OUT;
+    }
+
+    return sensorOp.get();
+}
+
+int DynamicSensorManager::operateSensor(
+        int handle, OperateSensorFunc sensorFunc, uint64_t sensorOpIndex) {
+    int rv = 0;
+
+    // Wait until this sensor operation is at the head of the queue.
+    while (1) {
+        std::shared_future<int> headSensorOp;
+
+        {
+            std::lock_guard<std::mutex> lock(mSensorOpQueueLock);
+
+            if (mSensorOpQueue.front().first == sensorOpIndex) {
+                break;
+            }
+            headSensorOp = mSensorOpQueue.front().second;
+        }
+        headSensorOp.wait();
+    }
+
+    // Perform sensor operation.
+    sp<BaseSensorObject> sensor;
+    {
+        std::lock_guard<std::mutex> lk(mLock);
+        const auto i = mMap.find(handle);
+        if (i == mMap.end()) {
+            rv = BAD_VALUE;
+        }
+        if (rv == 0) {
+            sensor = i->second.promote();
+            if (sensor == nullptr) {
+                // sensor object is already gone
+                rv = BAD_VALUE;
+            }
+        }
+    }
+    if (rv == 0) {
+        rv = sensorFunc(sensor);
+    }
+
+    // Remove sensor operation from queue. When the operation's shared state is
+    // destroyed, execution of this function ceases. Thus, if the state is
+    // destroyed when the operation is removed from the queue, the lock will
+    // never be released. To prevent that, the state is shared locally, so it
+    // isn't destroyed until this function completes.
+    std::shared_future<int> sensorOp;
+    {
+        std::lock_guard<std::mutex> lock(mSensorOpQueueLock);
+        sensorOp = mSensorOpQueue.front().second;
+        mSensorOpQueue.pop();
+    }
+
+    return rv;
 }
 
 DynamicSensorManager::ConnectionReport::ConnectionReport(
