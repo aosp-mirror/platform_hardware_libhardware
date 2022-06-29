@@ -74,7 +74,6 @@ cc_library_shared {
     shared_libs: [
         "libcutils",
         "liblog",
-        "libdl",
         "libvndksupport",
     ],
     cflags: [
