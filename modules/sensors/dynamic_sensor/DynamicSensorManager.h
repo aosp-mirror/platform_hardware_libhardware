@@ -22,7 +22,9 @@
 #include <hardware/sensors.h>
 #include <utils/RefBase.h>
 
+#include <future>
 #include <mutex>
+#include <queue>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -92,24 +94,13 @@ private:
     // returns next available handle to use upon a new sensor connection, or -1 if we run out.
     int getNextAvailableHandle();
 
-    // TF:  int foo(sp<BaseSensorObject> obj);
-    template <typename TF>
-    int operateSensor(int handle, TF f) const {
-        sp<BaseSensorObject> s;
-        {
-            std::lock_guard<std::mutex> lk(mLock);
-            const auto i = mMap.find(handle);
-            if (i == mMap.end()) {
-                return BAD_VALUE;
-            }
-            s = i->second.promote();
-            if (s == nullptr) {
-                // sensor object is already gone
-                return BAD_VALUE;
-            }
-        }
-        return f(s);
-    }
+    // Runs a sensor function with a timeout. On timeout, function could still
+    // be running, so any function parameter or closure lifetimes should match
+    // the function's lifetime.
+    using OperateSensorFunc = std::function<int(sp<BaseSensorObject>)>;
+    int operateSensor(int handle, OperateSensorFunc sensorFunc);
+    int operateSensor(int handle, OperateSensorFunc sensorFunc,
+                      uint64_t sensorOpIndex);
 
     // available sensor handle space
     const std::pair<int, int> mHandleRange;
@@ -133,6 +124,14 @@ private:
 
     // daemons
     std::vector<sp<BaseDynamicSensorDaemon>> mDaemonVector;
+
+    // Sensor operation queue. Calls to the sensor HAL must complete within 1
+    // second.
+    static constexpr std::chrono::milliseconds
+            kSensorOpTimeout = std::chrono::milliseconds(900);
+    std::mutex mSensorOpQueueLock;
+    std::queue<std::pair<uint64_t, std::shared_future<int>>> mSensorOpQueue;
+    uint64_t mNextSensorOpIndex = 0;
 };
 
 } // namespace SensorHalExt
