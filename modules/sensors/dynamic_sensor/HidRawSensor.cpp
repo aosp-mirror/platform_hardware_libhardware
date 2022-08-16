@@ -439,6 +439,7 @@ void HidRawSensor::initFeatureValueFromHidDeviceInfo(
 
     featureValue->reportModeFlag = SENSOR_FLAG_SPECIAL_REPORTING_MODE;
     featureValue->isWakeUp = false;
+    featureValue->useUniqueIdForUuid = false;
     memset(featureValue->uuid, 0, sizeof(featureValue->uuid));
     featureValue->isAndroidCustom = false;
 }
@@ -465,28 +466,16 @@ bool HidRawSensor::populateFeatureValueFromFeatureReport(
         for (const auto & r : packet.reports) {
             switch (r.usage) {
                 case FRIENDLY_NAME:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid friendly name
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->name = str;
                     }
                     break;
                 case SENSOR_MANUFACTURER:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid manufacturer
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->vendor = str;
                     }
                     break;
                 case PERSISTENT_UNIQUE_ID:
-                    if (!r.isByteAligned() || r.bitSize != 16 || r.count < 1) {
-                        // invalid unique id string
-                        break;
-                    }
                     if (decodeString(r, buffer, &str) && !str.empty()) {
                         featureValue->uniqueId = str;
                     }
@@ -541,10 +530,19 @@ bool HidRawSensor::validateFeatureValueAndBuildSensor() {
     }
 
     // initialize uuid field, use name, vendor and uniqueId
-    if (mFeatureInfo.name.size() >= 4
-            && mFeatureInfo.vendor.size() >= 4
-            && mFeatureInfo.typeString.size() >= 4
-            && mFeatureInfo.uniqueId.size() >= 4) {
+    // initialize uuid field using one of the following methods:
+    //
+    // 1. use uniqueId
+    // 2. use name, vendor and uniqueId
+    if (mFeatureInfo.useUniqueIdForUuid) {
+        if (mFeatureInfo.uniqueId.size() == sizeof(mFeatureInfo.uuid)) {
+            memcpy(mFeatureInfo.uuid, mFeatureInfo.uniqueId.c_str(),
+                   sizeof(mFeatureInfo.uuid));
+        }
+    } else if (mFeatureInfo.name.size() >= 4
+                   && mFeatureInfo.vendor.size() >= 4
+                   && mFeatureInfo.typeString.size() >= 4
+                   && mFeatureInfo.uniqueId.size() >= 4) {
         uint32_t tmp[4], h;
         std::hash<std::string> stringHash;
         h = stringHash(mFeatureInfo.uniqueId);
@@ -637,11 +635,16 @@ bool HidRawSensor::detectAndroidHeadTrackerSensor(
         return false;
     }
 
-    mFeatureInfo.type = SENSOR_TYPE_DEVICE_PRIVATE_BASE;
-    mFeatureInfo.typeString = CUSTOM_TYPE_PREFIX + "headtracker";
+    mFeatureInfo.type = SENSOR_TYPE_HEAD_TRACKER;
+    mFeatureInfo.typeString = SENSOR_STRING_TYPE_HEAD_TRACKER;
     mFeatureInfo.reportModeFlag = SENSOR_FLAG_CONTINUOUS_MODE;
     mFeatureInfo.permission = "";
     mFeatureInfo.isWakeUp = false;
+
+    // HID head tracker sensors must use the HID unique ID for the sensor UUID
+    // to permit association between the sensor and audio device (see
+    // specification for HEAD_TRACKER in SensorType).
+    mFeatureInfo.useUniqueIdForUuid = true;
 
     return true;
 }
@@ -888,10 +891,18 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
         mReportIntervalId = reportInterval->id;
         mReportIntervalBitOffset = reportInterval->bitOffset;
         mReportIntervalBitSize = reportInterval->bitSize;
+        mReportIntervalScale = reportInterval->a;
+        mReportIntervalOffset = reportInterval->b;
 
-        mFeatureInfo.minDelay = std::max(static_cast<int64_t>(1), reportInterval->minRaw) * 1000;
-        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000),
-                                    reportInterval->maxRaw) * 1000; // maximum 1000 second
+        mFeatureInfo.minDelay = 1000000.0
+                                * (reportInterval->minRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.minDelay = std::max(1000, mFeatureInfo.minDelay);
+        mFeatureInfo.maxDelay = 1000000.0
+                                * (reportInterval->maxRaw + reportInterval->b)
+                                * reportInterval->a;
+        mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000000),
+                                         mFeatureInfo.maxDelay);
     }
     return true;
     return (mPowerStateId >= 0 || mReportingStateId >= 0) && mReportIntervalId >= 0;
@@ -978,7 +989,9 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >=
                    (mReportIntervalBitOffset + mReportIntervalBitSize)) {
-            int64_t periodMs = samplingPeriod / 1000000; //ns -> ms
+            int64_t periodMs =
+                    (((static_cast<double>(samplingPeriod)) / 1000000000.0)
+                     / mReportIntervalScale) - mReportIntervalOffset;
             int64_t maxPeriodMs =
                 (1LL << std::min(mReportIntervalBitSize, 63U)) - 1;
             periodMs = std::min(periodMs, maxPeriodMs);
@@ -1008,6 +1021,50 @@ void HidRawSensor::handleInput(uint8_t id, const std::vector<uint8_t> &message) 
         .type = mSensor.type
     };
     bool valid = true;
+
+    switch (mFeatureInfo.type) {
+        case SENSOR_TYPE_HEAD_TRACKER:
+            valid = getHeadTrackerEventData(message, &event);
+            break;
+        default:
+            valid = getSensorEventData(message, &event);
+            break;
+    }
+    if (!valid) {
+        LOG_E << "Invalid data observed in decoding, discard" << LOG_ENDL;
+        return;
+    }
+    event.timestamp = -1;
+    generateEvent(event);
+}
+
+bool HidRawSensor::getHeadTrackerEventData(const std::vector<uint8_t> &message,
+                                           sensors_event_t *event) {
+    head_tracker_event_t *head_tracker;
+
+    head_tracker = &(event->head_tracker);
+    if (!getReportFieldValue(message, &(mTranslateTable[0]),
+                             &(head_tracker->rx))
+            || !getReportFieldValue(message, &(mTranslateTable[1]),
+                                    &(head_tracker->ry))
+            || !getReportFieldValue(message, &(mTranslateTable[2]),
+                                    &(head_tracker->rz))
+            || !getReportFieldValue(message, &(mTranslateTable[3]),
+                                    &(head_tracker->vx))
+            || !getReportFieldValue(message, &(mTranslateTable[4]),
+                                    &(head_tracker->vy))
+            || !getReportFieldValue(message, &(mTranslateTable[5]),
+                                    &(head_tracker->vz))
+            || !getReportFieldValue(message, &(mTranslateTable[6]),
+                                    &(head_tracker->discontinuity_count))) {
+        return false;
+    }
+
+    return true;
+}
+
+bool HidRawSensor::getSensorEventData(const std::vector<uint8_t> &message,
+                                      sensors_event_t *event) {
     for (const auto &rec : mTranslateTable) {
         int64_t v = (message[rec.byteOffset + rec.byteSize - 1] & 0x80) ? -1 : 0;
         for (int i = static_cast<int>(rec.byteSize) - 1; i >= 0; --i) {
@@ -1017,26 +1074,23 @@ void HidRawSensor::handleInput(uint8_t id, const std::vector<uint8_t> &message) 
         switch (rec.type) {
             case TYPE_FLOAT:
                 if (v > rec.maxValue || v < rec.minValue) {
-                    valid = false;
+                    return false;
                 }
-                event.data[rec.index] = rec.a * (v + rec.b);
+                event->data[rec.index] = rec.a * (v + rec.b);
                 break;
             case TYPE_INT64:
                 if (v > rec.maxValue || v < rec.minValue) {
-                    valid = false;
+                    return false;
                 }
-                event.u64.data[rec.index] = v + rec.b;
+                event->u64.data[rec.index] = v + rec.b;
                 break;
             case TYPE_ACCURACY:
-                event.magnetic.status = (v & 0xFF) + rec.b;
+                event->magnetic.status = (v & 0xFF) + rec.b;
                 break;
         }
     }
-    if (!valid) {
-        LOG_V << "Range error observed in decoding, discard" << LOG_ENDL;
-    }
-    event.timestamp = -1;
-    generateEvent(event);
+
+    return true;
 }
 
 std::string HidRawSensor::dump() const {
@@ -1055,11 +1109,15 @@ std::string HidRawSensor::dump() const {
           << "  fifoSize: " << mFeatureInfo.fifoSize << LOG_ENDL
           << "  fifoMaxSize: " << mFeatureInfo.fifoMaxSize << LOG_ENDL
           << "  reportModeFlag: " << mFeatureInfo.reportModeFlag << LOG_ENDL
-          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL
-          << "  uniqueId: " << mFeatureInfo.uniqueId << LOG_ENDL
-          << "  uuid: ";
+          << "  isWakeUp: " << (mFeatureInfo.isWakeUp ? "true" : "false") << LOG_ENDL;
 
-    ss << std::hex << std::setfill('0');
+    ss << "  uniqueId: " << std::hex << std::setfill('0');
+    for (auto d : mFeatureInfo.uniqueId) {
+          ss << std::setw(2) << static_cast<int>(d) << " ";
+    }
+    ss << std::dec << std::setfill(' ') << LOG_ENDL;
+
+    ss << "  uuid: " << std::hex << std::setfill('0');
     for (auto d : mFeatureInfo.uuid) {
           ss << std::setw(2) << static_cast<int>(d) << " ";
     }
