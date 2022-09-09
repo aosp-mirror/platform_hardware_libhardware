@@ -204,7 +204,7 @@ bool HidRawDevice::getFeature(uint8_t id, std::vector<uint8_t> *out) {
     int res = ::ioctl(mDevFd, HIDIOCGFEATURE(size), mIoBuffer.data());
     if (res < 0) {
         LOG_E << "HidRawDevice::getFeature: feature " << static_cast<int>(id)
-              << " ioctl returns " << res << " (" << ::strerror(res) << ")" << LOG_ENDL;
+              << " ioctl returned " << res << ", errno: " << ::strerror(errno) << LOG_ENDL;
         return false;
     }
 
@@ -249,8 +249,8 @@ bool HidRawDevice::setFeature(uint8_t id, const std::vector<uint8_t> &in) {
     std::copy(in.begin(), in.end(), &mIoBuffer[1]);
     int res = ::ioctl(mDevFd, HIDIOCSFEATURE(size), mIoBuffer.data());
     if (res < 0) {
-        LOG_E << "HidRawDevice::setFeature: feature " << id << " ioctl returns " << res
-              << " (" << ::strerror(res) << ")" << LOG_ENDL;
+        LOG_E << "HidRawDevice::setFeature: feature " << id << " ioctl returned " << res
+              << ", errno: " << ::strerror(errno) << LOG_ENDL;
         return false;
     }
     return true;
@@ -287,8 +287,8 @@ bool HidRawDevice::sendReport(uint8_t id, std::vector<uint8_t> &data) {
         res = ::write(mDevFd, data.data(), size);
     }
     if (res < 0) {
-        LOG_E << "HidRawDevice::sendReport: output " << id << " write returns " << res
-              << " (" << ::strerror(res) << ")" << LOG_ENDL;
+        LOG_E << "HidRawDevice::sendReport: output " << id << " write returned "
+              << res << ", errno: " << ::strerror(errno) << LOG_ENDL;
         return false;
     }
     return true;
@@ -302,8 +302,8 @@ bool HidRawDevice::receiveReport(uint8_t *id, std::vector<uint8_t> *data) {
     uint8_t buffer[256];
     int res = ::read(mDevFd, buffer, 256);
     if (res < 0) {
-        LOG_E << "HidRawDevice::receiveReport: read returns " << res
-              << " (" << ::strerror(res) << ")" << LOG_ENDL;
+        LOG_E << "HidRawDevice::receiveReport: read returned " << res
+              << ", errno: " << ::strerror(errno) << LOG_ENDL;
         return false;
     }
 
