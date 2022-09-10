@@ -154,9 +154,11 @@ private:
     bool getReportFieldValue(const std::vector<uint8_t> &message,
                              ReportTranslateRecord* rec, ValueType* value) {
         bool valid = true;
-        int64_t v;
+        int64_t v = 0;
+        if (rec->minValue < 0) {
+            v = (message[rec->byteOffset + rec->byteSize - 1] & 0x80) ? -1 : 0;
+        }
 
-        v = (message[rec->byteOffset + rec->byteSize - 1] & 0x80) ? -1 : 0;
         for (int i = static_cast<int>(rec->byteSize) - 1; i >= 0; --i) {
             v = (v << 8) | message[rec->byteOffset + i]; // HID is little endian
         }
