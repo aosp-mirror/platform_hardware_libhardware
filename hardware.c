@@ -30,7 +30,7 @@
 #define LOG_TAG "HAL"
 #include <log/log.h>
 
-#if !defined(__ANDROID_RECOVERY__)
+#if !defined(__ANDROID_RECOVERY__) && defined(__ANDROID__)
 #include <vndksupport/linker.h>
 #endif
 
@@ -97,7 +97,7 @@ static int load(const char *id,
          */
         handle = dlopen(path, RTLD_NOW);
     } else {
-#if defined(__ANDROID_RECOVERY__)
+#if defined(__ANDROID_RECOVERY__) || !defined(__ANDROID__)
         handle = dlopen(path, RTLD_NOW);
 #else
         handle = android_load_sphal_library(path, RTLD_NOW);
@@ -206,8 +206,13 @@ int hw_get_module_by_class(const char *class_id, const char *inst,
 
     if (inst)
         snprintf(name, PATH_MAX, "%s.%s", class_id, inst);
+#if defined(__ANDROID__)
     else
         strlcpy(name, class_id, PATH_MAX);
+#else
+    else
+        snprintf(name, PATH_MAX, "%s", class_id);
+#endif
 
     /*
      * Here we rely on the fact that calling dlopen multiple times on

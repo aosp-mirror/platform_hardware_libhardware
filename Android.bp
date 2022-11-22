@@ -86,6 +86,7 @@ cc_library_shared {
     header_libs: ["libhardware_headers"],
     export_header_lib_headers: ["libhardware_headers"],
 
+    host_supported: true,
     recovery_available: true,
     vendor_available: true,
     vndk: {
@@ -93,6 +94,9 @@ cc_library_shared {
         support_system_process: true,
     },
     target: {
+        host: {
+            exclude_shared_libs: ["libvndksupport"],
+        },
         recovery: {
             exclude_shared_libs: ["libvndksupport"],
         },
