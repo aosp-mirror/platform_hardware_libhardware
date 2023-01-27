@@ -38,8 +38,7 @@ public:
         std::unordered_set<unsigned int> interestedUsage{
                 ACCELEROMETER_3D, GYROMETER_3D, COMPASS_3D, CUSTOM};
 
-        SP(HidRawDevice) device =
-                std::make_shared<HidRawDevice>(std::string(devicePath), interestedUsage);
+        SP(HidRawDevice) device{new HidRawDevice(std::string(devicePath), interestedUsage)};
         const HidDevice::HidDeviceInfo &info = device->getDeviceInfo();
 
         LOG_V << "Sizeof descriptor: " << info.descriptor.size() << LOG_ENDL;
@@ -69,8 +68,8 @@ public:
         // use HidRawSensor to operate the device, pick first digest
         //
         auto &reportDigest = device->mDigestVector[0];
-        SP(HidRawSensor) sensor = std::make_shared<HidRawSensor>(
-                device, reportDigest.fullUsage, reportDigest.packets);
+        SP(HidRawSensor) sensor{
+            new HidRawSensor(device, reportDigest.fullUsage, reportDigest.packets)};
 
         if (!sensor->isValid()) {
             LOG_E << "Sensor is not valid " << LOG_ENDL;
