@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -118,6 +119,13 @@ struct stream_out {
     audio_io_handle_t handle; // Unique constant for a stream
 
     audio_patch_handle_t patch_handle; // Patch handle for this stream
+
+    // Mixer information used for volume handling
+    struct mixer* mixer;
+    struct mixer_ctl* volume_ctl;
+    int volume_ctl_num_values;
+    int max_volume_level;
+    int min_volume_level;
 };
 
 struct stream_in {
@@ -222,6 +230,14 @@ static const audio_channel_mask_t CHANNEL_INDEX_MASKS_MAP[FCC_24 + 1] = {
     [24] = AUDIO_CHANNEL_INDEX_MASK_24,
 };
 static const int CHANNEL_INDEX_MASKS_SIZE = AUDIO_ARRAY_SIZE(CHANNEL_INDEX_MASKS_MAP);
+
+static const char* ALL_VOLUME_CONTROL_NAMES[] = {
+    "PCM Playback Volume",
+    "Headset Playback Volume",
+    "Headphone Playback Volume",
+    "Master Playback Volume",
+};
+static const int VOLUME_CONTROL_NAMES_NUM = AUDIO_ARRAY_SIZE(ALL_VOLUME_CONTROL_NAMES);
 
 /*
  * Locking Helpers
@@ -495,6 +511,45 @@ static bool are_devices_the_same(unsigned int left_num_devices,
                                  left_num_devices, left_cards, left_devices);
 }
 
+static void out_stream_find_mixer_volume_control(struct stream_out* out, int card) {
+    out->mixer = mixer_open(card);
+    if (out->mixer == NULL) {
+        ALOGI("%s, no mixer found for card=%d", __func__, card);
+        return;
+    }
+    unsigned int num_ctls = mixer_get_num_ctls(out->mixer);
+    for (int i = 0; i < VOLUME_CONTROL_NAMES_NUM; ++i) {
+        for (unsigned int j = 0; j < num_ctls; ++j) {
+            struct mixer_ctl *ctl = mixer_get_ctl(out->mixer, j);
+            enum mixer_ctl_type ctl_type = mixer_ctl_get_type(ctl);
+            if (strcasestr(mixer_ctl_get_name(ctl), ALL_VOLUME_CONTROL_NAMES[i]) == NULL ||
+                ctl_type != MIXER_CTL_TYPE_INT) {
+                continue;
+            }
+            ALOGD("%s, mixer volume control(%s) found", __func__, ALL_VOLUME_CONTROL_NAMES[i]);
+            out->volume_ctl_num_values = mixer_ctl_get_num_values(ctl);
+            if (out->volume_ctl_num_values <= 0) {
+                ALOGE("%s the num(%d) of volume ctl values is wrong",
+                        __func__, out->volume_ctl_num_values);
+                out->volume_ctl_num_values = 0;
+                continue;
+            }
+            out->max_volume_level = mixer_ctl_get_range_max(ctl);
+            out->min_volume_level = mixer_ctl_get_range_min(ctl);
+            if (out->max_volume_level < out->min_volume_level) {
+                ALOGE("%s the max volume level(%d) is less than min volume level(%d)",
+                        __func__, out->max_volume_level, out->min_volume_level);
+                out->max_volume_level = 0;
+                out->min_volume_level = 0;
+                continue;
+            }
+            out->volume_ctl = ctl;
+            return;
+        }
+    }
+    ALOGI("%s, no volume control found", __func__);
+}
+
 /*
  * HAl Functions
  */
@@ -709,7 +764,31 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 
 static int out_set_volume(struct audio_stream_out *stream, float left, float right)
 {
-    return -ENOSYS;
+    struct stream_out *out = (struct stream_out *)stream;
+    int result = -ENOSYS;
+    stream_lock(&out->lock);
+    if (out->volume_ctl != NULL) {
+        int left_volume =
+            out->min_volume_level + ceil((out->max_volume_level - out->min_volume_level) * left);
+        int right_volume =
+            out->min_volume_level + ceil((out->max_volume_level - out->min_volume_level) * right);
+        int volumes[out->volume_ctl_num_values];
+        if (out->volume_ctl_num_values == 1) {
+            volumes[0] = left_volume;
+        } else {
+            volumes[0] = left_volume;
+            volumes[1] = right_volume;
+            for (int i = 2; i < out->volume_ctl_num_values; ++i) {
+                volumes[i] = left_volume;
+            }
+        }
+        result = mixer_ctl_set_array(out->volume_ctl, volumes, out->volume_ctl_num_values);
+        if (result != 0) {
+            ALOGE("%s error=%d left=%f right=%f", __func__, result, left, right);
+        }
+    }
+    stream_unlock(&out->lock);
+    return result;
 }
 
 /* must be called with hw device and output stream mutexes locked */
@@ -965,6 +1044,10 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
 
     list_add_tail(&out->alsa_devices, &device_info->list_node);
 
+    if ((flags & AUDIO_OUTPUT_FLAG_BIT_PERFECT) != AUDIO_OUTPUT_FLAG_NONE) {
+        out_stream_find_mixer_volume_control(out, device_info->profile.card);
+    }
+
     /* TODO The retry mechanism isn't implemented in AudioPolicyManager/AudioFlinger
      * So clear any errors that may have occurred above.
      */
@@ -997,6 +1080,17 @@ static void adev_close_output_stream(struct audio_hw_device *hw_dev,
 
     out->conversion_buffer = NULL;
     out->conversion_buffer_size = 0;
+
+    if (out->volume_ctl != NULL) {
+        for (int i = 0; i < out->volume_ctl_num_values; ++i) {
+            mixer_ctl_set_value(out->volume_ctl, i, out->max_volume_level);
+        }
+        out->volume_ctl = NULL;
+    }
+    if (out->mixer != NULL) {
+        mixer_close(out->mixer);
+        out->mixer = NULL;
+    }
 
     device_lock(out->adev);
     list_remove(&out->list_node);
