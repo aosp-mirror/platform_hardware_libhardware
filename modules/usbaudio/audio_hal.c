@@ -19,6 +19,7 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <math.h>
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -118,6 +119,15 @@ struct stream_out {
     audio_io_handle_t handle; // Unique constant for a stream
 
     audio_patch_handle_t patch_handle; // Patch handle for this stream
+
+    bool is_bit_perfect; // True if the stream is open with bit-perfect output flag
+
+    // Mixer information used for volume handling
+    struct mixer* mixer;
+    struct mixer_ctl* volume_ctl;
+    int volume_ctl_num_values;
+    int max_volume_level;
+    int min_volume_level;
 };
 
 struct stream_in {
@@ -222,6 +232,14 @@ static const audio_channel_mask_t CHANNEL_INDEX_MASKS_MAP[FCC_24 + 1] = {
     [24] = AUDIO_CHANNEL_INDEX_MASK_24,
 };
 static const int CHANNEL_INDEX_MASKS_SIZE = AUDIO_ARRAY_SIZE(CHANNEL_INDEX_MASKS_MAP);
+
+static const char* ALL_VOLUME_CONTROL_NAMES[] = {
+    "PCM Playback Volume",
+    "Headset Playback Volume",
+    "Headphone Playback Volume",
+    "Master Playback Volume",
+};
+static const int VOLUME_CONTROL_NAMES_NUM = AUDIO_ARRAY_SIZE(ALL_VOLUME_CONTROL_NAMES);
 
 /*
  * Locking Helpers
@@ -495,6 +513,45 @@ static bool are_devices_the_same(unsigned int left_num_devices,
                                  left_num_devices, left_cards, left_devices);
 }
 
+static void out_stream_find_mixer_volume_control(struct stream_out* out, int card) {
+    out->mixer = mixer_open(card);
+    if (out->mixer == NULL) {
+        ALOGI("%s, no mixer found for card=%d", __func__, card);
+        return;
+    }
+    unsigned int num_ctls = mixer_get_num_ctls(out->mixer);
+    for (int i = 0; i < VOLUME_CONTROL_NAMES_NUM; ++i) {
+        for (unsigned int j = 0; j < num_ctls; ++j) {
+            struct mixer_ctl *ctl = mixer_get_ctl(out->mixer, j);
+            enum mixer_ctl_type ctl_type = mixer_ctl_get_type(ctl);
+            if (strcasestr(mixer_ctl_get_name(ctl), ALL_VOLUME_CONTROL_NAMES[i]) == NULL ||
+                ctl_type != MIXER_CTL_TYPE_INT) {
+                continue;
+            }
+            ALOGD("%s, mixer volume control(%s) found", __func__, ALL_VOLUME_CONTROL_NAMES[i]);
+            out->volume_ctl_num_values = mixer_ctl_get_num_values(ctl);
+            if (out->volume_ctl_num_values <= 0) {
+                ALOGE("%s the num(%d) of volume ctl values is wrong",
+                        __func__, out->volume_ctl_num_values);
+                out->volume_ctl_num_values = 0;
+                continue;
+            }
+            out->max_volume_level = mixer_ctl_get_range_max(ctl);
+            out->min_volume_level = mixer_ctl_get_range_min(ctl);
+            if (out->max_volume_level < out->min_volume_level) {
+                ALOGE("%s the max volume level(%d) is less than min volume level(%d)",
+                        __func__, out->max_volume_level, out->min_volume_level);
+                out->max_volume_level = 0;
+                out->min_volume_level = 0;
+                continue;
+            }
+            out->volume_ctl = ctl;
+            return;
+        }
+    }
+    ALOGI("%s, no volume control found", __func__);
+}
+
 /*
  * HAl Functions
  */
@@ -544,7 +601,8 @@ static int stream_set_new_devices(struct pcm_config *config,
                                   unsigned int num_devices,
                                   const int cards[],
                                   const int devices[],
-                                  int direction)
+                                  int direction,
+                                  bool is_bit_perfect)
 {
     int status = 0;
     stream_clear_devices(alsa_devices);
@@ -561,7 +619,7 @@ static int stream_set_new_devices(struct pcm_config *config,
                     __func__, cards[i], devices[i]);
             goto exit;
         }
-        status = proxy_prepare(&device_info->proxy, &device_info->profile, config);
+        status = proxy_prepare(&device_info->proxy, &device_info->profile, config, is_bit_perfect);
         if (status != 0) {
             ALOGE("%s failed to prepare device card=%d;device=%d",
                     __func__, cards[i], devices[i]);
@@ -709,7 +767,31 @@ static uint32_t out_get_latency(const struct audio_stream_out *stream)
 
 static int out_set_volume(struct audio_stream_out *stream, float left, float right)
 {
-    return -ENOSYS;
+    struct stream_out *out = (struct stream_out *)stream;
+    int result = -ENOSYS;
+    stream_lock(&out->lock);
+    if (out->volume_ctl != NULL) {
+        int left_volume =
+            out->min_volume_level + ceil((out->max_volume_level - out->min_volume_level) * left);
+        int right_volume =
+            out->min_volume_level + ceil((out->max_volume_level - out->min_volume_level) * right);
+        int volumes[out->volume_ctl_num_values];
+        if (out->volume_ctl_num_values == 1) {
+            volumes[0] = left_volume;
+        } else {
+            volumes[0] = left_volume;
+            volumes[1] = right_volume;
+            for (int i = 2; i < out->volume_ctl_num_values; ++i) {
+                volumes[i] = left_volume;
+            }
+        }
+        result = mixer_ctl_set_array(out->volume_ctl, volumes, out->volume_ctl_num_values);
+        if (result != 0) {
+            ALOGE("%s error=%d left=%f right=%f", __func__, result, left, right);
+        }
+    }
+    stream_unlock(&out->lock);
+    return result;
 }
 
 /* must be called with hw device and output stream mutexes locked */
@@ -847,6 +929,16 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     ALOGV("adev_open_output_stream() handle:0x%X, devicesSpec:0x%X, flags:0x%X, addr:%s",
           handle, devicesSpec, flags, address);
 
+    const bool is_bit_perfect = ((flags & AUDIO_OUTPUT_FLAG_BIT_PERFECT) != AUDIO_OUTPUT_FLAG_NONE);
+    if (is_bit_perfect && (config->format == AUDIO_FORMAT_DEFAULT ||
+            config->sample_rate == 0 ||
+            config->channel_mask == AUDIO_CHANNEL_NONE)) {
+        ALOGE("%s request bit perfect playback, config(format=%#x, sample_rate=%u, "
+              "channel_mask=%#x) must be specified", __func__, config->format,
+              config->sample_rate, config->channel_mask);
+        return -EINVAL;
+    }
+
     struct stream_out *out;
 
     out = (struct stream_out *)calloc(1, sizeof(struct stream_out));
@@ -901,9 +993,14 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     } else if (profile_is_sample_rate_valid(&device_info->profile, config->sample_rate)) {
         proxy_config.rate = config->sample_rate;
     } else {
+        ret = -EINVAL;
+        if (is_bit_perfect) {
+            ALOGE("%s requesting bit-perfect but the sample rate(%u) is not valid",
+                    __func__, config->sample_rate);
+            return ret;
+        }
         proxy_config.rate = config->sample_rate =
                 profile_get_default_sample_rate(&device_info->profile);
-        ret = -EINVAL;
     }
 
     /* TODO: This is a problem if the input does not support this rate */
@@ -920,9 +1017,14 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
         if (profile_is_format_valid(&device_info->profile, fmt)) {
             proxy_config.format = fmt;
         } else {
+            ret = -EINVAL;
+            if (is_bit_perfect) {
+                ALOGE("%s request bit-perfect but the format(%#x) is not valid",
+                        __func__, config->format);
+                return ret;
+            }
             proxy_config.format = profile_get_default_format(&device_info->profile);
             config->format = audio_format_from_pcm_format(proxy_config.format);
-            ret = -EINVAL;
         }
     }
 
@@ -960,10 +1062,24 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
     // and store THAT in proxy_config.channels
     proxy_config.channels =
             profile_get_closest_channel_count(&device_info->profile, out->hal_channel_count);
-    proxy_prepare(&device_info->proxy, &device_info->profile, &proxy_config);
+    if (is_bit_perfect && proxy_config.channels != out->hal_channel_count) {
+        ALOGE("%s request bit-perfect, but channel mask(%#x) cannot find exact match",
+                __func__, config->channel_mask);
+        return -EINVAL;
+    }
+
+    ret = proxy_prepare(&device_info->proxy, &device_info->profile, &proxy_config, is_bit_perfect);
+    if (is_bit_perfect && ret != 0) {
+        ALOGE("%s failed to prepare proxy for bit-perfect playback, err=%d", __func__, ret);
+        return ret;
+    }
     out->config = proxy_config;
 
     list_add_tail(&out->alsa_devices, &device_info->list_node);
+
+    if ((flags & AUDIO_OUTPUT_FLAG_BIT_PERFECT) != AUDIO_OUTPUT_FLAG_NONE) {
+        out_stream_find_mixer_volume_control(out, device_info->profile.card);
+    }
 
     /* TODO The retry mechanism isn't implemented in AudioPolicyManager/AudioFlinger
      * So clear any errors that may have occurred above.
@@ -997,6 +1113,17 @@ static void adev_close_output_stream(struct audio_hw_device *hw_dev,
 
     out->conversion_buffer = NULL;
     out->conversion_buffer_size = 0;
+
+    if (out->volume_ctl != NULL) {
+        for (int i = 0; i < out->volume_ctl_num_values; ++i) {
+            mixer_ctl_set_value(out->volume_ctl, i, out->max_volume_level);
+        }
+        out->volume_ctl = NULL;
+    }
+    if (out->mixer != NULL) {
+        mixer_close(out->mixer);
+        out->mixer = NULL;
+    }
 
     device_lock(out->adev);
     list_remove(&out->list_node);
@@ -1449,7 +1576,8 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         // and store THAT in proxy_config.channels
         in->config.channels =
                 profile_get_closest_channel_count(&device_info->profile, in->hal_channel_count);
-        ret = proxy_prepare(&device_info->proxy, &device_info->profile, &in->config);
+        ret = proxy_prepare(&device_info->proxy, &device_info->profile, &in->config,
+                            false /*require_exact_match*/);
         if (ret == 0) {
             in->standby = true;
 
@@ -1616,6 +1744,7 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     struct pcm_config *config = NULL;
     struct stream_in *in = NULL;
     struct stream_out *out = NULL;
+    bool is_bit_perfect = false;
 
     unsigned int num_saved_devices = 0;
     int saved_cards[AUDIO_PATCH_PORTS_MAX];
@@ -1656,6 +1785,7 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
         alsa_devices = &out->alsa_devices;
         lock = &out->lock;
         config = &out->config;
+        is_bit_perfect = out->is_bit_perfect;
     }
 
     // Check if the patch handle match the recorded one if a valid patch handle is passed.
@@ -1704,12 +1834,14 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
     struct alsa_device_info *device_info = stream_get_first_alsa_device(alsa_devices);
     if (device_info != NULL) saved_transferred_frames = device_info->proxy.transferred;
 
-    int ret = stream_set_new_devices(config, alsa_devices, num_configs, cards, devices, direction);
+    int ret = stream_set_new_devices(
+            config, alsa_devices, num_configs, cards, devices, direction, is_bit_perfect);
 
     if (ret != 0) {
         *handle = generatedPatchHandle ? AUDIO_PATCH_HANDLE_NONE : *handle;
         stream_set_new_devices(
-                config, alsa_devices, num_saved_devices, saved_cards, saved_devices, direction);
+                config, alsa_devices, num_saved_devices, saved_cards, saved_devices, direction,
+                is_bit_perfect);
     } else {
         *patch_handle = *handle;
     }
