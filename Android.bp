@@ -57,6 +57,9 @@ cc_library_headers {
                 "libbluetooth-types-header",
             ],
         },
+        windows: {
+            enabled: true,
+        },
     },
     apex_available: [
         "//apex_available:platform",
