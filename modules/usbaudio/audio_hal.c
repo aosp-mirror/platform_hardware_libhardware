@@ -1514,6 +1514,8 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
                     ret = 0;
                 }
             }
+        } else if (profile_is_sample_rate_valid(&device_info->profile, config->sample_rate)) {
+            in->config.rate = config->sample_rate;
         }
     } else if (profile_is_sample_rate_valid(&device_info->profile, config->sample_rate)) {
         in->config.rate = config->sample_rate;
