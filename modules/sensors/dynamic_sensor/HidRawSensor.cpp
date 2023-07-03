@@ -1066,7 +1066,10 @@ bool HidRawSensor::getHeadTrackerEventData(const std::vector<uint8_t> &message,
 bool HidRawSensor::getSensorEventData(const std::vector<uint8_t> &message,
                                       sensors_event_t *event) {
     for (const auto &rec : mTranslateTable) {
-        int64_t v = (message[rec.byteOffset + rec.byteSize - 1] & 0x80) ? -1 : 0;
+        int64_t v = 0;
+        if (rec.minValue < 0) {
+            v = (message[rec.byteOffset + rec.byteSize - 1] & 0x80) ? -1 : 0;
+        }
         for (int i = static_cast<int>(rec.byteSize) - 1; i >= 0; --i) {
             v = (v << 8) | message[rec.byteOffset + i]; // HID is little endian
         }
