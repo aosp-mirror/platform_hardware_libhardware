@@ -37,13 +37,11 @@ cc_library_headers {
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-        "libbluetooth-types-header",
     ],
     export_header_lib_headers: [
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-        "libbluetooth-types-header",
     ],
 
     recovery_available: true,
@@ -66,7 +64,6 @@ cc_library_headers {
         recovery: {
             exclude_header_libs: [
                 "libaudio_system_headers",
-                "libbluetooth-types-header",
             ],
         },
         windows: {
