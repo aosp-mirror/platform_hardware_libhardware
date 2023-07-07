@@ -679,7 +679,8 @@ static int out_set_parameters(struct audio_stream *stream, const char *kvpairs)
 
     // FIXME this is using hard-coded strings but in the future, this functionality will be
     //       converted to use audio HAL extensions required to support tunneling
-    if ((parms.getInt(String8("exiting"), exiting) == NO_ERROR) && (exiting > 0)) {
+    if ((parms.getInt(String8(AUDIO_PARAMETER_KEY_EXITING), exiting) == NO_ERROR)
+            && (exiting > 0)) {
         struct submix_audio_device * const rsxadev =
                 audio_stream_get_submix_stream_out(stream)->dev;
         pthread_mutex_lock(&rsxadev->lock);
