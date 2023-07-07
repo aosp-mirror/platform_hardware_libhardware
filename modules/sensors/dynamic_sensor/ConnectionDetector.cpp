@@ -194,9 +194,9 @@ void FileConnectionDetector::handleInotifyData(ssize_t len, const char *data) {
 }
 
 bool FileConnectionDetector::readInotifyData() {
-    struct {
+    union {
         struct inotify_event ev;
-        char padding[NAME_MAX + 1];
+        char raw[sizeof(inotify_event) + NAME_MAX + 1];
     } buffer;
 
     bool ret = true;
