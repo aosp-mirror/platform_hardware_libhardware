@@ -175,6 +175,8 @@ typedef enum {
                                                           attestation is requested. */
     KM_TAG_IDENTITY_CREDENTIAL_KEY = KM_BOOL | 721, /* This is an identity credential key */
     KM_TAG_STORAGE_KEY = KM_BOOL | 722,             /* storage encryption key */
+    KM_TAG_ATTESTATION_ID_SECOND_IMEI = KM_BYTES | 723,   /* Used to provide the device's second
+                                                             IMEI to be included in attestation */
 
     /* Tags used only to provide data to or receive data from operations */
     KM_TAG_ASSOCIATED_DATA = KM_BYTES | 1000, /* Used to provide associated data for AEAD modes. */
