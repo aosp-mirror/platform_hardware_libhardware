@@ -157,3 +157,28 @@ cc_binary_host {
         "test/HidRawDeviceTest.cpp",
     ],
 }
+
+//
+// Android device test for HidRawDevice and HidRawSensor
+//
+// Assuming lunch target 1
+// $ cd test
+// $ mma -j .
+// $ adb push $ANDROID_BUILD_TOP/out/target/product/generic/vendor/bin/hidrawdevice_test /vendor/bin
+// $ adb shell hidrawdevice_test /dev/hidraw0
+//
+cc_binary {
+    name: "hidrawdevice_test",
+    defaults: ["dynamic_sensor_defaults"],
+
+    srcs: [
+        "test/HidRawDeviceTest.cpp",
+    ],
+
+    cflags: ["-DLOG_TO_CONSOLE=1"],
+
+    local_include_dirs: [
+        "test",
+        "HidUtils/test",
+    ],
+}
