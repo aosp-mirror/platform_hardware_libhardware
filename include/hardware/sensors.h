@@ -367,9 +367,11 @@ typedef struct {
   float accuracy;
 } heading_event_t;
 
+// LINT.IfChange
 /**
  * Union of the various types of sensor data
  * that can be returned.
+ * This type needs to remain identical to ASensorEvent.
  */
 typedef struct sensors_event_t {
     /* must be sizeof(struct sensors_event_t) */
@@ -479,6 +481,7 @@ typedef struct sensors_event_t {
 
     uint32_t reserved1[3];
 } sensors_event_t;
+// LINT.ThenChange (frameworks/native/include/android/sensor.h)
 
 
 /* see SENSOR_TYPE_META_DATA */
