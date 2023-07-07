@@ -57,10 +57,14 @@ cc_library_headers {
                 "libbluetooth-types-header",
             ],
         },
+        windows: {
+            enabled: true,
+        },
     },
     apex_available: [
         "//apex_available:platform",
-        "com.android.bluetooth",
+        "com.android.btservices",
+        "com.android.media",
         "com.android.media.swcodec",
     ],
     min_sdk_version: "29",
@@ -75,7 +79,6 @@ cc_library_shared {
     shared_libs: [
         "libcutils",
         "liblog",
-        "libdl",
         "libvndksupport",
     ],
     cflags: [
@@ -87,6 +90,7 @@ cc_library_shared {
     header_libs: ["libhardware_headers"],
     export_header_lib_headers: ["libhardware_headers"],
 
+    host_supported: true,
     recovery_available: true,
     vendor_available: true,
     vndk: {
@@ -94,6 +98,9 @@ cc_library_shared {
         support_system_process: true,
     },
     target: {
+        host: {
+            exclude_shared_libs: ["libvndksupport"],
+        },
         recovery: {
             exclude_shared_libs: ["libvndksupport"],
         },

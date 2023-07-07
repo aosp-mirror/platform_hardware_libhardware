@@ -11,9 +11,9 @@
 
 A few files need to be modified to add dynamic sensor support to a device. The
 dynamic sensor HAL must be enabled in the device product makefile and in the
-sensor sub-HAL configuration file, raw HID devices must be configured, and raw
-HID device and dynamic sensor property permissions must be set up in the SELinux
-policy files.
+sensor sub-HAL configuration file, support for raw HID devices must be configured
+in the Linux kernel (`CONFIG_HIDRAW=y`), and SELinux policy files must be updated
+to provide the necessary permissions. Example changes are provided below.
 
 ```shell
 acme-co$ git -C device/acme/rocket-phone diff
@@ -123,10 +123,8 @@ Once the file modifications are made, rebuild and flash. The dynamic sensor HAL
 should be initialized and appear in the sensor service.
 
 ```shell
-acme-co$ make -j28 && fastboot flashall
-.
-.
-.
+acme-co$ build_and_flash_android
+...
 acme-co$ adb logcat -d | grep DynamicSensorHal
 12-15 18:18:45.735   791   791 D DynamicSensorHal: DynamicSensorsSubHal::getSensorsList_2_1 invoked.
 12-15 18:18:47.474   791   791 D DynamicSensorHal: DynamicSensorsSubHal::initialize invoked.
@@ -134,8 +132,6 @@ acme-co$ adb shell dumpsys sensorservice | grep Dynamic
 0000000000) Dynamic Sensor Manager    | Google          | ver: 1 | type: android.sensor.dynamic_sensor_meta(32) | perm: n/a | flags: 0x00000007
 Dynamic Sensor Manager (handle=0x00000000, connections=1)
          Dynamic Sensor Manager 0x00000000 | status: active | pending flush events 0
-acme-co$ adb logcat -c
-acme-co$
 ```
 
 When a dynamic sensor is paired with the device (e.g., Bluetooth rocket buds),
@@ -145,9 +141,9 @@ it will appear in the sensor service.
 acme-co$ adb logcat -d | grep "DynamicSensorHal\|hidraw\|Rocket"
 12-15 18:19:55.268   157   157 I hid-generic 0003: 1234:5678.0001: hidraw0: BLUETOOTH HID v0.00 Device [RocketBuds] on
 12-15 18:19:55.235   791   809 E DynamicSensorHal: return 1 sensors
-12-15 18:19:56.239  1629  1787 I SensorService: Dynamic sensor handle 0x1 connected, type 65536, name RocketBuds
-acme-co$ adb shell dumpsys sensorservice | grep Rocket
-0x00000001) RocketBuds                | BLUETOOTH 1234:1234   | ver: 1 | type: com.google.hardware.sensor.hid_dynamic.headtracker(65536) | perm: n/a | flags: 0x00000020
+12-15 18:19:56.239  1629  1787 I SensorService: Dynamic sensor handle 0x1 connected, type 37, name RocketBuds
+acme-co$ adb shell dumpsys sensorservice | grep head_tracker
+0x00000001) RocketBuds                | BLUETOOTH 1234:5678   | ver: 1 | type: android.sensor.head_tracker(37) | perm: n/a | flags: 0x00000020
 acme-co$
 ```
 
