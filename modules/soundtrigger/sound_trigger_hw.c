@@ -246,12 +246,10 @@ static void unload_all_sound_models(struct stub_sound_trigger_device *stdev);
 static char *sound_trigger_keyphrase_event_alloc(sound_model_handle_t handle,
                                                  struct sound_trigger_recognition_config *config,
                                                  int recognition_status) {
-    char *data;
-    struct sound_trigger_phrase_recognition_event *event;
-    data = (char *)calloc(1, sizeof(struct sound_trigger_phrase_recognition_event));
-    if (!data)
+    struct sound_trigger_phrase_recognition_event *event =
+        calloc(1, sizeof(struct sound_trigger_phrase_recognition_event));
+    if (!event)
         return NULL;
-    event = (struct sound_trigger_phrase_recognition_event *)data;
     event->common.status = recognition_status;
     event->common.type = SOUND_MODEL_TYPE_KEYPHRASE;
     event->common.model = handle;
@@ -279,18 +277,16 @@ static char *sound_trigger_keyphrase_event_alloc(sound_model_handle_t handle,
     event->common.audio_config.sample_rate = 16000;
     event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
     event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
-    return data;
+    return (char*) event;
 }
 
 static char *sound_trigger_generic_event_alloc(sound_model_handle_t handle,
                                                struct sound_trigger_recognition_config *config,
                                                int recognition_status) {
-    char *data;
-    struct sound_trigger_generic_recognition_event *event;
-    data = (char *)calloc(1, sizeof(struct sound_trigger_generic_recognition_event));
-    if (!data)
+    struct sound_trigger_generic_recognition_event *event =
+        calloc(1, sizeof(struct sound_trigger_generic_recognition_event));
+    if (!event)
         return NULL;
-    event = (struct sound_trigger_generic_recognition_event *)data;
     event->common.status = recognition_status;
     event->common.type = SOUND_MODEL_TYPE_GENERIC;
     event->common.model = handle;
@@ -301,7 +297,7 @@ static char *sound_trigger_generic_event_alloc(sound_model_handle_t handle,
     event->common.audio_config.sample_rate = 16000;
     event->common.audio_config.channel_mask = AUDIO_CHANNEL_IN_MONO;
     event->common.audio_config.format = AUDIO_FORMAT_PCM_16_BIT;
-    return data;
+    return (char*) event;
 }
 
 void send_event_with_handle(sound_model_handle_t* model_handle_str,
@@ -338,15 +334,13 @@ void send_event_with_handle(sound_model_handle_t* model_handle_str,
                 ALOGI("Unknown Sound Model Type, No Event to Send");
             }
         } else if (event_type == EVENT_SOUND_MODEL) {
-            char *data;
-            data = (char *)calloc(1, sizeof(struct sound_trigger_model_event));
-            if (!data) {
+            struct sound_trigger_model_event *event =
+                calloc(1, sizeof(struct sound_trigger_model_event));
+            if (!event) {
                 ALOGW("%s Could not allocate event", __func__);
                 return;
             }
 
-            struct sound_trigger_model_event *event;
-            event = (struct sound_trigger_model_event *)data;
             event->status = SOUND_MODEL_STATUS_UPDATED;
             event->model = model_context->model_handle;
             if (event) {

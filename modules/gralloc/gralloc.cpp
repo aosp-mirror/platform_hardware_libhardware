@@ -224,7 +224,11 @@ static int gralloc_alloc(alloc_device_t* dev,
         case HAL_PIXEL_FORMAT_RAW16:
             bytesPerPixel = 2;
             break;
+        case HAL_PIXEL_FORMAT_BLOB:
+            bytesPerPixel = 1;
+            break;
         default:
+            ALOGE("gralloc_alloc bad format %d", format);
             return -EINVAL;
     }
 
