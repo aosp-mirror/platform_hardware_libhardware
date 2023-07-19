@@ -1,1 +1,0 @@
-../../include_all/hardware/activity_recognition.h
