@@ -35,15 +35,6 @@ using namespace Hid::Sensor::PropertyUsage;
 const std::unordered_set<unsigned int> HidRawSensorDevice::sInterested{
         ACCELEROMETER_3D, GYROMETER_3D, COMPASS_3D, CUSTOM};
 
-void HidRawSensorDevice::enableSchedFifoMode() {
-  constexpr int kHidRawSensorPriority = 10;  // Matches with sensor service priority
-  struct sched_param param = {0};
-  param.sched_priority = kHidRawSensorPriority;
-  if (sched_setscheduler(getTid(), SCHED_FIFO | SCHED_RESET_ON_FORK, &param) != 0) {
-    ALOGE("Couldn't set SCHED_FIFO for HidRawSensor thread: %s", strerror(errno));
-  }
-}
-
 sp<HidRawSensorDevice> HidRawSensorDevice::create(const std::string &devName) {
     sp<HidRawSensorDevice> device(new HidRawSensorDevice(devName));
     // offset +1 strong count added by constructor
@@ -83,8 +74,7 @@ HidRawSensorDevice::HidRawSensorDevice(const std::string &devName)
         return;
     }
 
-    run("HidRawSensor", PRIORITY_URGENT_DISPLAY);
-    enableSchedFifoMode();
+    run("HidRawSensor");
     mValid = true;
 }
 
