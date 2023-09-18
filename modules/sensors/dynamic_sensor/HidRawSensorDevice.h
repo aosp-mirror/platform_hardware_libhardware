@@ -41,6 +41,7 @@ private:
 
     // constructor will result in +1 strong count
     explicit HidRawSensorDevice(const std::string &devName);
+    void enableSchedFifoMode();
     // implement function of Thread
     virtual bool threadLoop() override;
     std::unordered_map<unsigned int/*reportId*/, sp<HidRawSensor>> mSensors;
