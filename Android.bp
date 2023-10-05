@@ -92,6 +92,7 @@ cc_library_shared {
 
     srcs: ["hardware.c"],
     shared_libs: [
+        "libapexsupport",
         "libcutils",
         "liblog",
         "libvndksupport",
@@ -114,10 +115,16 @@ cc_library_shared {
     },
     target: {
         host: {
-            exclude_shared_libs: ["libvndksupport"],
+            exclude_shared_libs: [
+                "libapexsupport",
+                "libvndksupport",
+            ],
         },
         recovery: {
-            exclude_shared_libs: ["libvndksupport"],
+            exclude_shared_libs: [
+                "libapexsupport",
+                "libvndksupport",
+            ],
         },
     },
     min_sdk_version: "29",
