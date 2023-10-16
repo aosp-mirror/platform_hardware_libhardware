@@ -34,16 +34,20 @@
 #include <vndksupport/linker.h>
 #endif
 
+#ifdef __ANDROID_APEX__
+#include <android/apexsupport.h>
+#endif
+
 /** Base path of the hal modules */
 #if defined(__LP64__)
-#define HAL_LIBRARY_PATH1 "/system/lib64/hw"
-#define HAL_LIBRARY_PATH2 "/vendor/lib64/hw"
-#define HAL_LIBRARY_PATH3 "/odm/lib64/hw"
+#define HAL_LIBRARY_SUBDIR "lib64/hw"
 #else
-#define HAL_LIBRARY_PATH1 "/system/lib/hw"
-#define HAL_LIBRARY_PATH2 "/vendor/lib/hw"
-#define HAL_LIBRARY_PATH3 "/odm/lib/hw"
+#define HAL_LIBRARY_SUBDIR "lib/hw"
 #endif
+
+#define HAL_LIBRARY_PATH1 "/system/" HAL_LIBRARY_SUBDIR
+#define HAL_LIBRARY_PATH2 "/vendor/" HAL_LIBRARY_SUBDIR
+#define HAL_LIBRARY_PATH3 "/odm/" HAL_LIBRARY_SUBDIR
 
 /**
  * There are a set of variant filename for modules. The form of the filename
@@ -79,7 +83,7 @@ static int load(const char *id,
     int status = -EINVAL;
     void *handle = NULL;
     struct hw_module_t *hmi = NULL;
-#ifdef __ANDROID_VNDK__
+#if defined(__ANDROID_VNDK__) || defined(__ANDROID_APEX__)
     const bool try_system = false;
 #else
     const bool try_system = true;
@@ -97,7 +101,7 @@ static int load(const char *id,
          */
         handle = dlopen(path, RTLD_NOW);
     } else {
-#if defined(__ANDROID_RECOVERY__) || !defined(__ANDROID__)
+#if defined(__ANDROID_RECOVERY__) || !defined(__ANDROID__) || defined(__ANDROID_APEX__)
         handle = dlopen(path, RTLD_NOW);
 #else
         handle = android_load_sphal_library(path, RTLD_NOW);
@@ -151,7 +155,7 @@ static int load(const char *id,
 /*
  * If path is in in_path.
  */
-static bool path_in_path(const char *path, const char *in_path) {
+static bool __attribute__ ((unused)) path_in_path(const char *path, const char *in_path) {
     char real_path[PATH_MAX];
     if (realpath(path, real_path) == NULL) return false;
 
@@ -174,6 +178,22 @@ static bool path_in_path(const char *path, const char *in_path) {
 static int hw_module_exists(char *path, size_t path_len, const char *name,
                             const char *subname)
 {
+#ifdef __ANDROID_APEX__
+    // When used in APEX, it should look only into the same APEX because
+    // libhardware modules don't provide ABI stability.
+    if (__builtin_available(android AAPEXSUPPORT_API, *)) {
+        AApexInfo *apex_info;
+        if (AApexInfo_create(&apex_info) == AAPEXINFO_OK) {
+            snprintf(path, path_len, "/apex/%s/%s/%s.%s.so",
+                     AApexInfo_getName(apex_info), HAL_LIBRARY_SUBDIR, name, subname);
+            AApexInfo_destroy(apex_info);
+            if (access(path, R_OK) == 0)
+                return 0;
+        }
+    } else {
+        ALOGE("hw_module_exists: libapexsupport is not supported in %d.", __ANDROID_API__);
+    }
+#else // __ANDROID_APEX__
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH3, name, subname);
     if (path_in_path(path, HAL_LIBRARY_PATH3) && access(path, R_OK) == 0)
@@ -190,6 +210,8 @@ static int hw_module_exists(char *path, size_t path_len, const char *name,
     if (path_in_path(path, HAL_LIBRARY_PATH1) && access(path, R_OK) == 0)
         return 0;
 #endif
+
+#endif // __ANDROID_APEX__
 
     return -ENOENT;
 }
