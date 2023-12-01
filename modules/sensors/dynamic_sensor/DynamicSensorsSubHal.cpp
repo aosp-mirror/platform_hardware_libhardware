@@ -118,7 +118,7 @@ Return<void> DynamicSensorsSubHal::getSensorsList_2_1(
     sensors[0].sensorHandle = sensor_info.handle;
     sensors[0].name = sensor_info.name;
     sensors[0].vendor = sensor_info.vendor;
-    sensors[0].version = 1;
+    sensors[0].version = sensor_info.version;
     sensors[0].type = static_cast<SensorType>(sensor_info.type);
     sensors[0].typeAsString = sensor_info.stringType;
     sensors[0].maxRange = sensor_info.maxRange;
@@ -210,7 +210,7 @@ void DynamicSensorsSubHal::onSensorConnected(
     sensor_list[0].sensorHandle = handle;
     sensor_list[0].name = sensor_info->name;
     sensor_list[0].vendor = sensor_info->vendor;
-    sensor_list[0].version = 1;
+    sensor_list[0].version = sensor_info->version;
     sensor_list[0].type = static_cast<SensorType>(sensor_info->type);
     sensor_list[0].typeAsString = sensor_info->stringType;
     sensor_list[0].maxRange = sensor_info->maxRange;

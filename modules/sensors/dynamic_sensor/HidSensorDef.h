@@ -42,6 +42,7 @@ enum {
     SENSOR_MODEL = 0x200306,
     SENSOR_SERIAL_NUMBER = 0x200307,
     SENSOR_STATUS = 0x200303,
+    VENDOR_LE_TRANSPORT = 0x20F410,
 };
 } // nsmespace PropertyUsage
 
