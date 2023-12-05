@@ -204,6 +204,8 @@ private:
     unsigned int mLeTransportBitOffset;
     unsigned int mLeTransportBitSize;
     bool mRequiresLeTransport;
+    int mLeTransportAclIndex;
+    int mLeTransportIsoIndex;
 
     // Input report translate table
     std::vector<ReportTranslateRecord> mTranslateTable;

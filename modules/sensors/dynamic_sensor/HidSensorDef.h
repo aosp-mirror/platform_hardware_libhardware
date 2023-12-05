@@ -100,6 +100,13 @@ enum {
 };
 } // namespace PowerStateUsage
 
+namespace LeTransportUsage {
+enum {
+    LE_TRANSPORT_ACL = 0xF800,
+    LE_TRANSPORT_ISO = 0xF801,
+};
+} // namespace LeTransportUsage
+
 } // namespace Sensor
 } // namespace Hid
 #endif // HID_SENSOR_DEF_H_
