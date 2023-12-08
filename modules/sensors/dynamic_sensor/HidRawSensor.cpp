@@ -849,6 +849,7 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
     using namespace Hid::Sensor::PowerStateUsage;
     using namespace Hid::Sensor::PropertyUsage;
     using namespace Hid::Sensor::ReportingStateUsage;
+    using namespace Hid::Sensor::LeTransportUsage;
 
     //REPORTING_STATE
     const HidParser::ReportItem *reportingState
@@ -948,6 +949,26 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
             mLeTransportId = leTransport->id;
             mLeTransportBitOffset = leTransport->bitOffset;
             mLeTransportBitSize = leTransport->bitSize;
+
+            mLeTransportAclIndex = -1;
+            mLeTransportIsoIndex = -1;
+            for (unsigned i = 0; i < leTransport->usageVector.size(); ++i) {
+                if (leTransport->usageVector[i] == LE_TRANSPORT_ACL) {
+                    mLeTransportAclIndex = i;
+                }
+                if (leTransport->usageVector[i] == LE_TRANSPORT_ISO) {
+                    mLeTransportIsoIndex = i;
+                }
+            }
+            if (mLeTransportAclIndex < 0) {
+                LOG_W << "Cannot find LE transport to enable ACL"
+                        << LOG_ENDL;
+                mLeTransportId = -1;
+            }
+            if (mLeTransportIsoIndex < 0) {
+                LOG_W << "Cannot find LE transport to enable ISO" << LOG_ENDL;
+                mLeTransportId = -1;
+            }
         }
     }
 
@@ -1009,7 +1030,10 @@ int HidRawSensor::enable(bool enable) {
             } else {
                 value = (capability & kIsoBitMask) ? kLeIsoValue : kLeAclValue;
             }
-            HidUtil::copyBits(&value, &(buffer[0]), buffer.size(), 0,
+
+            uint8_t index = (value == kLeAclValue) ? mLeTransportAclIndex :
+                                     mLeTransportIsoIndex;
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(), 0,
                               mLeTransportBitOffset, mLeTransportBitSize);
             setLeAudioTransportOk = device->setFeature(id, buffer);
             if (!setLeAudioTransportOk) {
