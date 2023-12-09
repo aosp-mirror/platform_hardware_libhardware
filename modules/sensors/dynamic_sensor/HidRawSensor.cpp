@@ -1004,9 +1004,6 @@ int HidRawSensor::enable(bool enable) {
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >=
                         (mLeTransportBitOffset + mLeTransportBitSize)) {
-            constexpr uint8_t kLeAclValue = 0;
-            constexpr uint8_t kLeIsoValue = 1;
-
             // The following property, if defined, represents a comma-separated list of
             // transport preferences for the following types: le-acl or iso-[sw|hw],
             // which describes the priority list of transport selections used based on the
@@ -1020,19 +1017,17 @@ int HidRawSensor::enable(bool enable) {
             }
 
             uint16_t capability = mFeatureInfo.version & 0x0000FFFF;
-            uint8_t value;
+            uint8_t index;
             if (capability == (kIsoBitMask | kAclBitMask)) {
                 if (!priorityList.empty() && priorityList[0].compare("le-acl") == 0) {
-                    value = kLeAclValue;
+                    index = mLeTransportAclIndex;
                 } else {
-                    value = kLeIsoValue;
+                    index = mLeTransportIsoIndex;
                 }
             } else {
-                value = (capability & kIsoBitMask) ? kLeIsoValue : kLeAclValue;
+                index = (capability & kIsoBitMask) ? mLeTransportIsoIndex : mLeTransportAclIndex;
             }
 
-            uint8_t index = (value == kLeAclValue) ? mLeTransportAclIndex :
-                                     mLeTransportIsoIndex;
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(), 0,
                               mLeTransportBitOffset, mLeTransportBitSize);
             setLeAudioTransportOk = device->setFeature(id, buffer);
