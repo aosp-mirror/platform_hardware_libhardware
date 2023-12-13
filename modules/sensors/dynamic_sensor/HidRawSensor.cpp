@@ -995,11 +995,22 @@ int HidRawSensor::enable(bool enable) {
         return NO_ERROR;
     }
 
+    bool setLeAudioTransportOk = setLeAudioTransport(device, enable);
+    bool setPowerOk = setPower(device, enable);
+    bool setReportingOk = setReportingState(device, enable);
+    if (setPowerOk && setReportingOk && setLeAudioTransportOk) {
+        mEnabled = enable;
+        return NO_ERROR;
+    } else {
+        return INVALID_OPERATION;
+    }
+}
+
+bool HidRawSensor::setLeAudioTransport(const SP(HidDevice) &device, bool enable) {
     std::vector<uint8_t> buffer;
-    // TODO(b/298450041): Refactor the operations below in a separate function.
-    bool setLeAudioTransportOk = true;
+    bool success = true;
     if (mLeTransportId >= 0 && enable) {
-        setLeAudioTransportOk = false;
+        success = false;
         uint8_t id = static_cast<uint8_t>(mLeTransportId);
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >=
@@ -1030,18 +1041,22 @@ int HidRawSensor::enable(bool enable) {
 
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(), 0,
                               mLeTransportBitOffset, mLeTransportBitSize);
-            setLeAudioTransportOk = device->setFeature(id, buffer);
-            if (!setLeAudioTransportOk) {
+            success = device->setFeature(id, buffer);
+            if (!success) {
               LOG_E << "enable: setFeature VENDOR LE TRANSPORT failed" << LOG_ENDL;
             }
         } else {
             LOG_E << "enable: changing VENDOR LE TRANSPORT failed" << LOG_ENDL;
         }
     }
+    return success;
+}
 
-    bool setPowerOk = true;
+bool HidRawSensor::setPower(const SP(HidDevice) &device, bool enable) {
+    std::vector<uint8_t> buffer;
+    bool success = true;
     if (mPowerStateId >= 0) {
-        setPowerOk = false;
+        success = false;
         uint8_t id = static_cast<uint8_t>(mPowerStateId);
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >=
@@ -1049,18 +1064,22 @@ int HidRawSensor::enable(bool enable) {
             uint8_t index = enable ? mPowerStateOnIndex : mPowerStateOffIndex;
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),
                               0, mPowerStateBitOffset, mPowerStateBitSize);
-            setPowerOk = device->setFeature(id, buffer);
-            if (!setPowerOk) {
+            success = device->setFeature(id, buffer);
+            if (!success) {
               LOG_E << "enable: setFeature POWER STATE failed" << LOG_ENDL;
             }
         } else {
             LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
         }
     }
+    return success;
+}
 
-    bool setReportingOk = true;
+bool HidRawSensor::setReportingState(const SP(HidDevice) &device, bool enable) {
+    std::vector<uint8_t> buffer;
+    bool success = true;
     if (mReportingStateId >= 0) {
-        setReportingOk = false;
+        success = false;
         uint8_t id = static_cast<uint8_t>(mReportingStateId);
         if (device->getFeature(id, &buffer)
                 && (8 * buffer.size()) >
@@ -1069,21 +1088,15 @@ int HidRawSensor::enable(bool enable) {
                                      mReportingStateDisableIndex;
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),0,
                               mReportingStateBitOffset, mReportingStateBitSize);
-            setReportingOk = device->setFeature(id, buffer);
-            if (!setReportingOk) {
+            success = device->setFeature(id, buffer);
+            if (!success) {
               LOG_E << "enable: setFeature REPORTING STATE failed" << LOG_ENDL;
             }
         } else {
             LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
         }
     }
-
-    if (setPowerOk && setReportingOk && setLeAudioTransportOk) {
-        mEnabled = enable;
-        return NO_ERROR;
-    } else {
-        return INVALID_OPERATION;
-    }
+    return success;
 }
 
 int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
