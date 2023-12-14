@@ -998,7 +998,7 @@ int HidRawSensor::enable(bool enable) {
     std::vector<uint8_t> buffer;
     // TODO(b/298450041): Refactor the operations below in a separate function.
     bool setLeAudioTransportOk = true;
-    if (mLeTransportId >= 0) {
+    if (mLeTransportId >= 0 && enable) {
         setLeAudioTransportOk = false;
         uint8_t id = static_cast<uint8_t>(mLeTransportId);
         if (device->getFeature(id, &buffer)
