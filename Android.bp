@@ -126,6 +126,11 @@ cc_library_shared {
                 "libvndksupport",
             ],
         },
+        non_apex: {
+            exclude_shared_libs: [
+                "libapexsupport",
+            ],
+        },
     },
     min_sdk_version: "29",
 }

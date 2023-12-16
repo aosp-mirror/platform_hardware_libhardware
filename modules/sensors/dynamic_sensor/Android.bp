@@ -35,8 +35,16 @@ cc_defaults {
     export_include_dirs: ["."],
 
     shared_libs: [
+        "libbase",
         "libhidparser",
+        "server_configurable_flags",
     ],
+
+    static_libs: [
+        "dynamic_sensors_flags_c_lib",
+    ],
+
+    cpp_std: "c++20",
 
     target: {
         android: {
@@ -53,12 +61,12 @@ cc_defaults {
                 "RingBuffer.cpp",
             ],
             shared_libs: [
-                "libbase",
                 "libcutils",
                 "liblog",
                 "libutils",
             ],
             header_libs: [
+                "libbase_headers",
                 "libhardware_headers",
                 "libstagefright_foundation_headers",
             ],
@@ -181,4 +189,17 @@ cc_binary {
         "test",
         "HidUtils/test",
     ],
+}
+
+aconfig_declarations {
+    name: "dynamic_sensors_flags",
+    package: "com.android.libhardware.dynamic.sensors.flags",
+    srcs: ["dynamic_sensors.aconfig"],
+}
+
+cc_aconfig_library {
+    name: "dynamic_sensors_flags_c_lib",
+    aconfig_declarations: "dynamic_sensors_flags",
+    host_supported: true,
+    vendor: true,
 }
