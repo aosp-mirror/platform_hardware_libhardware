@@ -199,9 +199,9 @@ struct submix_stream_in {
 // Determine whether the specified sample rate is supported by the submix module.
 static bool sample_rate_supported(const uint32_t sample_rate)
 {
-    // Set of sample rates supported by Format_from_SR_C() frameworks/av/media/libnbaio/NAIO.cpp.
     static const unsigned int supported_sample_rates[] = {
         8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000,
+        192000 /* for IEC 61937 encapsulated E-AC-3(-JOC) */
     };
     bool return_value;
     SUBMIX_VALUE_IN_SET(sample_rate, supported_sample_rates, &return_value);
@@ -1240,6 +1240,10 @@ static int adev_open_output_stream(struct audio_hw_device *dev,
     *stream_out = NULL;
 
     // Make sure it's possible to open the device given the current audio config.
+    if (!audio_is_linear_pcm(config->format)) {
+        ALOGD("adev_open_output_stream(): not supported for audio format %#x", config->format);
+        return -EINVAL;
+    }
     submix_sanitize_config(config, false);
 
     int route_idx = -1;
@@ -1454,6 +1458,11 @@ static int adev_open_input_stream(struct audio_hw_device *dev,
     (void)devices;
 
     *stream_in = NULL;
+
+    if (!audio_is_linear_pcm(config->format)) {
+        ALOGD("adev_open_input_stream(): not supported for audio format %#x", config->format);
+        return -EINVAL;
+    }
 
     // Do we already have a route for this address
     int route_idx = -1;
