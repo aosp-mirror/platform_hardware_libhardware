@@ -6,3 +6,10 @@ flag {
   description: "This flag controls the enablement of LE audio support on dynamic sensors"
   bug: "298450041"
 }
+
+flag {
+  name: "dynamic_sensors_hal_disconnect_dynamic_sensor"
+  namespace: "sensors"
+  description: "This flag controls if onDynamicSensorDisconnect callback in sensors HAL will be triggered"
+  bug: "316958439"
+}
