@@ -77,6 +77,7 @@ private:
                                                       kDynamicHandleBase;
 
     void onSensorConnected(int handle, const sensor_t* sensor_info);
+    void onSensorDisconnected(int handle);
 
     std::unique_ptr<DynamicSensorManager> mDynamicSensorManager;
     sp<IHalProxyCallback> mHalProxyCallback;
