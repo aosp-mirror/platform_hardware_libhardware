@@ -194,6 +194,7 @@ cc_binary {
 aconfig_declarations {
     name: "dynamic_sensors_flags",
     package: "com.android.libhardware.dynamic.sensors.flags",
+    container: "system",
     srcs: ["dynamic_sensors.aconfig"],
 }
 
