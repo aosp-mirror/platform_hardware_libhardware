@@ -1,4 +1,5 @@
 package: "com.android.libhardware.dynamic.sensors.flags"
+container: "system"
 
 flag {
   name: "dynamic_sensors_le_audio"
