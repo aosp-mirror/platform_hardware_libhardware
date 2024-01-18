@@ -42,6 +42,7 @@ enum {
     SENSOR_MODEL = 0x200306,
     SENSOR_SERIAL_NUMBER = 0x200307,
     SENSOR_STATUS = 0x200303,
+    VENDOR_LE_TRANSPORT = 0x20F410,
 };
 } // nsmespace PropertyUsage
 
@@ -98,6 +99,13 @@ enum {
     POWER_STATE_D4_POWER_OFF = 0x0855,
 };
 } // namespace PowerStateUsage
+
+namespace LeTransportUsage {
+enum {
+    LE_TRANSPORT_ACL = 0xF800,
+    LE_TRANSPORT_ISO = 0xF801,
+};
+} // namespace LeTransportUsage
 
 } // namespace Sensor
 } // namespace Hid

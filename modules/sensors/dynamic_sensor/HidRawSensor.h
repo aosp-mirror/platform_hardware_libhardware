@@ -200,6 +200,13 @@ private:
     double mReportIntervalScale;
     int64_t mReportIntervalOffset;
 
+    int mLeTransportId;
+    unsigned int mLeTransportBitOffset;
+    unsigned int mLeTransportBitSize;
+    bool mRequiresLeTransport;
+    int mLeTransportAclIndex;
+    int mLeTransportIsoIndex;
+
     // Input report translate table
     std::vector<ReportTranslateRecord> mTranslateTable;
     unsigned mInputReportId;
@@ -214,6 +221,20 @@ private:
 
     WP(HidDevice) mDevice;
     bool mValid;
+
+    /**
+     * The first major version which LE audio capabilities are encoded.
+     * For this version, we expect the HID descriptor to be the following format:
+     * #AndroidHeadTracker#<major version>.<minor version>#<capability>
+     * where capability is an integer that defines where LE audio supported
+     * transports are indicated:
+     * - 1: ACL
+     * - 2: ISO
+     * - 3: ACL + ISO
+     */
+    const uint8_t kLeAudioCapabilitiesMajorVersion = 2;
+    const uint8_t kAclBitMask = 0x1;
+    const uint8_t kIsoBitMask = 0x2;
 };
 
 } // namespace SensorHalExt
