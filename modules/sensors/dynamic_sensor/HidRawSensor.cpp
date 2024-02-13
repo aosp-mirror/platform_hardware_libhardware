@@ -988,10 +988,12 @@ int HidRawSensor::enable(bool enable) {
     SP(HidDevice) device = PROMOTE(mDevice);
 
     if (device == nullptr) {
+        LOG_E << "enable: no device" << LOG_ENDL;
         return NO_INIT;
     }
 
     if (enable == mEnabled) {
+        LOG_D << "enable: already in desired state" << LOG_ENDL;
         return NO_ERROR;
     }
 
@@ -1000,8 +1002,10 @@ int HidRawSensor::enable(bool enable) {
     bool setReportingOk = setReportingState(device, enable);
     if (setPowerOk && setReportingOk && setLeAudioTransportOk) {
         mEnabled = enable;
+        LOG_I << "enable: success" << LOG_ENDL;
         return NO_ERROR;
     } else {
+        LOG_E << "enable: set feature failed" << LOG_ENDL;
         return INVALID_OPERATION;
     }
 }
