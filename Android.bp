@@ -32,33 +32,48 @@ license {
 
 cc_library_headers {
     name: "libhardware_headers",
+
     header_libs: [
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-        "libbluetooth-types-header",
     ],
     export_header_lib_headers: [
         "libaudio_system_headers",
         "libsystem_headers",
         "libcutils_headers",
-        "libbluetooth-types-header",
     ],
 
-    export_include_dirs: ["include"],
     recovery_available: true,
     vendor_available: true,
     // TODO(b/153609531): remove when no longer needed.
     native_bridge_supported: true,
+
+    // There are three include directories currently:
+    // - include: this directory is the original location of libhardware headers. It is globally
+    //       available (even if you do not depend on libhardware). Many locations also use
+    //       LOCAL_C_INCLUDES or include_dirs to access these from a global namespace. These processes
+    //       should replace this dependency with a direct dependency on libhardware(_headers)?.
+    // - include_all: this directory is for system and vendor include files. Gradually, the number of
+    //       files here should be reduced to 0 by moving them to vendor as old code is phased out.
+    // - include_vendor: this directory is the current designated resting place for these headers.
+    //       They are kept around to try to help insure existing codebases can function.
+    export_include_dirs: ["include_all"],
+
     target: {
         recovery: {
             exclude_header_libs: [
                 "libaudio_system_headers",
-                "libbluetooth-types-header",
             ],
         },
         windows: {
             enabled: true,
+        },
+        vendor: {
+            override_export_include_dirs: [
+                "include_all",
+                "include_vendor",
+            ],
         },
     },
     apex_available: [
@@ -77,6 +92,7 @@ cc_library_shared {
 
     srcs: ["hardware.c"],
     shared_libs: [
+        "libapexsupport",
         "libcutils",
         "liblog",
         "libvndksupport",
@@ -99,10 +115,21 @@ cc_library_shared {
     },
     target: {
         host: {
-            exclude_shared_libs: ["libvndksupport"],
+            exclude_shared_libs: [
+                "libapexsupport",
+                "libvndksupport",
+            ],
         },
         recovery: {
-            exclude_shared_libs: ["libvndksupport"],
+            exclude_shared_libs: [
+                "libapexsupport",
+                "libvndksupport",
+            ],
+        },
+        non_apex: {
+            exclude_shared_libs: [
+                "libapexsupport",
+            ],
         },
     },
     min_sdk_version: "29",
