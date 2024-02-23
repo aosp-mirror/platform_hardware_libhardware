@@ -481,7 +481,7 @@ typedef struct sensors_event_t {
 
     uint32_t reserved1[3];
 } sensors_event_t;
-// LINT.ThenChange (frameworks/native/include/android/sensor.h)
+// LINT.ThenChange(frameworks/native/include/android/sensor.h)
 
 
 /* see SENSOR_TYPE_META_DATA */
