@@ -16,7 +16,9 @@
 #include "HidRawSensor.h"
 #include "HidSensorDef.h"
 
+#include <android-base/properties.h>
 #include <utils/Errors.h>
+#include <com_android_libhardware_dynamic_sensors_flags.h>
 #include "HidLog.h"
 
 #include <HidUtils.h>
@@ -30,15 +32,20 @@
 namespace android {
 namespace SensorHalExt {
 
+using ::android::base::GetProperty;
+
+namespace dynamic_sensors_flags = com::android::libhardware::dynamic::sensors::flags;
+
 namespace {
 const std::string CUSTOM_TYPE_PREFIX("com.google.hardware.sensor.hid_dynamic.");
+
 }
 
 HidRawSensor::HidRawSensor(
         SP(HidDevice) device, uint32_t usage, const std::vector<HidParser::ReportPacket> &packets)
-        : mReportingStateId(-1), mPowerStateId(-1), mReportIntervalId(-1), mInputReportId(-1),
-        mEnabled(false), mSamplingPeriod(1000LL*1000*1000), mBatchingPeriod(0),
-        mDevice(device), mValid(false) {
+        : mReportingStateId(-1), mPowerStateId(-1), mReportIntervalId(-1), mLeTransportId(-1),
+        mRequiresLeTransport(false), mInputReportId(-1), mEnabled(false),
+        mSamplingPeriod(1000LL*1000*1000), mBatchingPeriod(0), mDevice(device), mValid(false) {
     if (device == nullptr) {
         return;
     }
@@ -631,8 +638,33 @@ void HidRawSensor::detectSensorFromDescription(const std::string &description) {
 
 bool HidRawSensor::detectAndroidHeadTrackerSensor(
         const std::string &description) {
-    if (description.find("#AndroidHeadTracker#1.") != 0) {
+    bool leAudioFlagEnabled = dynamic_sensors_flags::dynamic_sensors_le_audio();
+    LOG_I << "detectAndroidHeadTrackerSensor: " << description << LOG_ENDL;
+    if (!description.starts_with("#AndroidHeadTracker#1.")
+        && (!leAudioFlagEnabled || !description.starts_with("#AndroidHeadTracker#2."))) {
         return false;
+    }
+
+    // #AndroidHeadTracker#<major version>.<minor version>#<capability>
+    // We encode the major, minor, and capabilities in the following format:
+    // 0xMMmmcccc (Major, minor, capability bits)
+    if (leAudioFlagEnabled) {
+        uint32_t majorVersion = 0, minorVersion = 0, capability = 0;
+        mFeatureInfo.version = 0;
+        int ret = sscanf(description.c_str(), "#AndroidHeadTracker#%d.%d#%d",
+                        &majorVersion, &minorVersion, &capability);
+        if (ret > 0) {
+            mRequiresLeTransport = (majorVersion == kLeAudioCapabilitiesMajorVersion);
+            mFeatureInfo.version = (majorVersion & 0xFF) << 24;
+        }
+        if (ret > 1) {
+            mFeatureInfo.version |= (minorVersion & 0xFF) << 16;
+        }
+        if (ret > 2) {
+            mFeatureInfo.version |= (capability & 0xFFFF);
+        }
+    } else {
+        mFeatureInfo.version = 1;
     }
 
     mFeatureInfo.type = SENSOR_TYPE_HEAD_TRACKER;
@@ -817,6 +849,7 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
     using namespace Hid::Sensor::PowerStateUsage;
     using namespace Hid::Sensor::PropertyUsage;
     using namespace Hid::Sensor::ReportingStateUsage;
+    using namespace Hid::Sensor::LeTransportUsage;
 
     //REPORTING_STATE
     const HidParser::ReportItem *reportingState
@@ -904,8 +937,43 @@ bool HidRawSensor::findSensorControlUsage(const std::vector<HidParser::ReportPac
         mFeatureInfo.maxDelay = std::min(static_cast<int64_t>(1000000000),
                                          mFeatureInfo.maxDelay);
     }
-    return true;
-    return (mPowerStateId >= 0 || mReportingStateId >= 0) && mReportIntervalId >= 0;
+
+    bool leTransportExpected = mRequiresLeTransport;
+    if (leTransportExpected) {
+        //VENDOR_LE_TRANSPORT
+        const HidParser::ReportItem *leTransport
+                = find(packets, VENDOR_LE_TRANSPORT, HidParser::REPORT_TYPE_FEATURE);
+        if (leTransport == nullptr) {
+            LOG_W << "Cannot find valid LE transport feature" << LOG_ENDL;
+        } else {
+            mLeTransportId = leTransport->id;
+            mLeTransportBitOffset = leTransport->bitOffset;
+            mLeTransportBitSize = leTransport->bitSize;
+
+            mLeTransportAclIndex = -1;
+            mLeTransportIsoIndex = -1;
+            for (unsigned i = 0; i < leTransport->usageVector.size(); ++i) {
+                if (leTransport->usageVector[i] == LE_TRANSPORT_ACL) {
+                    mLeTransportAclIndex = i;
+                }
+                if (leTransport->usageVector[i] == LE_TRANSPORT_ISO) {
+                    mLeTransportIsoIndex = i;
+                }
+            }
+            if (mLeTransportAclIndex < 0) {
+                LOG_W << "Cannot find LE transport to enable ACL"
+                        << LOG_ENDL;
+                mLeTransportId = -1;
+            }
+            if (mLeTransportIsoIndex < 0) {
+                LOG_W << "Cannot find LE transport to enable ISO" << LOG_ENDL;
+                mLeTransportId = -1;
+            }
+        }
+    }
+
+    return (mPowerStateId >= 0 || mReportingStateId >= 0) && mReportIntervalId >= 0 &&
+           (!leTransportExpected || mLeTransportId >= 0);
 }
 
 const sensor_t* HidRawSensor::getSensor() const {
@@ -928,6 +996,49 @@ int HidRawSensor::enable(bool enable) {
     }
 
     std::vector<uint8_t> buffer;
+    // TODO(b/298450041): Refactor the operations below in a separate function.
+    bool setLeAudioTransportOk = true;
+    if (mLeTransportId >= 0 && enable) {
+        setLeAudioTransportOk = false;
+        uint8_t id = static_cast<uint8_t>(mLeTransportId);
+        if (device->getFeature(id, &buffer)
+                && (8 * buffer.size()) >=
+                        (mLeTransportBitOffset + mLeTransportBitSize)) {
+            // The following property, if defined, represents a comma-separated list of
+            // transport preferences for the following types: le-acl or iso-[sw|hw],
+            // which describes the priority list of transport selections used based on the
+            // capabilities reported by the HID device.
+            std::string prop = GetProperty("bluetooth.core.le.dsa_transport_preference", "");
+            std::istringstream tokenStream(prop);
+            std::string line;
+            std::vector<std::string> priorityList;
+            while (std::getline(tokenStream, line, ',')) {
+                priorityList.push_back(line);
+            }
+
+            uint16_t capability = mFeatureInfo.version & 0x0000FFFF;
+            uint8_t index;
+            if (capability == (kIsoBitMask | kAclBitMask)) {
+                if (!priorityList.empty() && priorityList[0].compare("le-acl") == 0) {
+                    index = mLeTransportAclIndex;
+                } else {
+                    index = mLeTransportIsoIndex;
+                }
+            } else {
+                index = (capability & kIsoBitMask) ? mLeTransportIsoIndex : mLeTransportAclIndex;
+            }
+
+            HidUtil::copyBits(&index, &(buffer[0]), buffer.size(), 0,
+                              mLeTransportBitOffset, mLeTransportBitSize);
+            setLeAudioTransportOk = device->setFeature(id, buffer);
+            if (!setLeAudioTransportOk) {
+              LOG_E << "enable: setFeature VENDOR LE TRANSPORT failed" << LOG_ENDL;
+            }
+        } else {
+            LOG_E << "enable: changing VENDOR LE TRANSPORT failed" << LOG_ENDL;
+        }
+    }
+
     bool setPowerOk = true;
     if (mPowerStateId >= 0) {
         setPowerOk = false;
@@ -939,6 +1050,9 @@ int HidRawSensor::enable(bool enable) {
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),
                               0, mPowerStateBitOffset, mPowerStateBitSize);
             setPowerOk = device->setFeature(id, buffer);
+            if (!setPowerOk) {
+              LOG_E << "enable: setFeature POWER STATE failed" << LOG_ENDL;
+            }
         } else {
             LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
         }
@@ -956,12 +1070,15 @@ int HidRawSensor::enable(bool enable) {
             HidUtil::copyBits(&index, &(buffer[0]), buffer.size(),0,
                               mReportingStateBitOffset, mReportingStateBitSize);
             setReportingOk = device->setFeature(id, buffer);
+            if (!setReportingOk) {
+              LOG_E << "enable: setFeature REPORTING STATE failed" << LOG_ENDL;
+            }
         } else {
             LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
         }
     }
 
-    if (setPowerOk && setReportingOk) {
+    if (setPowerOk && setReportingOk && setLeAudioTransportOk) {
         mEnabled = enable;
         return NO_ERROR;
     } else {
@@ -1100,6 +1217,7 @@ std::string HidRawSensor::dump() const {
     std::ostringstream ss;
     ss << "Feature Values " << LOG_ENDL
           << "  name: " << mFeatureInfo.name << LOG_ENDL
+          << "  version: 0x" << std::setfill('0') << std::setw(8) << std::hex << mFeatureInfo.version << LOG_ENDL
           << "  vendor: " << mFeatureInfo.vendor << LOG_ENDL
           << "  permission: " << mFeatureInfo.permission << LOG_ENDL
           << "  typeString: " << mFeatureInfo.typeString << LOG_ENDL

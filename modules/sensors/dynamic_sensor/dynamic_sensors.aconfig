@@ -1,0 +1,8 @@
+package: "com.android.libhardware.dynamic.sensors.flags"
+
+flag {
+  name: "dynamic_sensors_le_audio"
+  namespace: "sensors"
+  description: "This flag controls the enablement of LE audio support on dynamic sensors"
+  bug: "298450041"
+}
