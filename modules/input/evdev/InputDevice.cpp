@@ -24,7 +24,6 @@
 
 #include <linux/input.h>
 
-#define __STDC_FORMAT_MACROS
 #include <cinttypes>
 #include <cstdlib>
 #include <string>
