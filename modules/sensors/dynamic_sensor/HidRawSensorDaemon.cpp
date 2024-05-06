@@ -59,7 +59,7 @@ BaseSensorVector HidRawSensorDaemon::createSensor(const std::string &deviceKey) 
         ALOGE("failed to create HidRawSensorDevice object");
     }
 
-    ALOGE("return %zu sensors", ret.size());
+    ALOGI("return %zu sensors", ret.size());
     return ret;
 }
 
