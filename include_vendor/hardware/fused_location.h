@@ -19,7 +19,7 @@
 
 #include <hardware/hardware.h>
 
-#include "gnss-base.h"
+#include <hardware/gnss-base.h>
 
 /**
  * This header file defines the interface of the Fused Location Provider.
