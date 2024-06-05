@@ -15,6 +15,9 @@ sensor sub-HAL configuration file, support for raw HID devices must be configure
 in the Linux kernel (`CONFIG_HIDRAW=y`), and SELinux policy files must be updated
 to provide the necessary permissions. Example changes are provided below.
 
+Note: as of Android 15, the `hidraw_device` SELinux label is provided by the
+system.
+
 ```shell
 acme-co$ git -C device/acme/rocket-phone diff
 diff --git a/sensor_hal/hals.conf b/sensor_hal/hals.conf
@@ -68,18 +71,6 @@ index 0797253..22a4208 100644
  #
  # Thruster sensor enforcements.
  #
-diff --git a/sepolicy/device.te b/sepolicy/device.te
-index bc3c947..bad0be0 100644
---- a/sepolicy/device.te
-+++ b/sepolicy/device.te
-@@ -55,3 +55,7 @@
-
- # Thruster
- type thruster_device, dev_type;
-+
-+# Raw HID device
-+type hidraw_device, dev_type;
-+
 diff --git a/sepolicy/property.te b/sepolicy/property.te
 index 4b671a4..bb0894f 100644
 --- a/sepolicy/property.te
