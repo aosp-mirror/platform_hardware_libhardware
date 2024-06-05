@@ -809,6 +809,8 @@ static int start_output_stream(struct stream_out *out)
             ALOGE("%s failed to open device(card: %d device: %d)",
                     __func__, device_info->profile.card, device_info->profile.device);
             goto exit;
+        } else {
+            out->standby = false;
         }
     }
 
@@ -835,7 +837,6 @@ static ssize_t out_write(struct audio_stream_out *stream, const void* buffer, si
         if (ret != 0) {
             goto err;
         }
-        out->standby = false;
     }
 
     struct listnode* node;
@@ -1262,7 +1263,7 @@ static int in_set_gain(struct audio_stream_in *stream, float gain)
     return 0;
 }
 
-/* must be called with hw device and output stream mutexes locked */
+/* must be called with hw device and input stream mutexes locked */
 static int start_input_stream(struct stream_in *in)
 {
     // Only care about the first device as only one input device is allowed.
@@ -1273,7 +1274,11 @@ static int start_input_stream(struct stream_in *in)
 
     ALOGV("start_input_stream(card:%d device:%d)",
             device_info->profile.card, device_info->profile.device);
-    return proxy_open(&device_info->proxy);
+    int ret = proxy_open(&device_info->proxy);
+    if (ret == 0) {
+        in->standby = false;
+    }
+    return ret;
 }
 
 /* TODO mutex stuff here (see out_write) */
@@ -1292,7 +1297,6 @@ static ssize_t in_read(struct audio_stream_in *stream, void* buffer, size_t byte
         if (ret != 0) {
             goto err;
         }
-        in->standby = false;
     }
 
     // Only care about the first device as only one input device is allowed.
@@ -1858,15 +1862,9 @@ static int adev_create_audio_patch(struct audio_hw_device *dev,
         device_lock(adev);
         if (in != NULL) {
             ret = start_input_stream(in);
-            if (!ret) {
-                in->standby = false;
-            }
         }
         if (out != NULL) {
             ret = start_output_stream(out);
-            if (!ret) {
-                out->standby = false;
-            }
         }
         device_unlock(adev);
     }

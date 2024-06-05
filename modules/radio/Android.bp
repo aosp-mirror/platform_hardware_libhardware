@@ -43,6 +43,7 @@ cc_library_shared {
 // Stub radio tool that can be run in native.
 cc_binary {
     name: "radio_hal_tool",
+    vendor: true,
     srcs: ["radio_hal_tool.c"],
     cflags: [
         "-Wall",
