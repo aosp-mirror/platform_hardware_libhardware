@@ -38,6 +38,7 @@ cc_defaults {
         "libbase",
         "libhidparser",
         "server_configurable_flags",
+        "libaconfig_storage_read_api_cc",
     ],
 
     static_libs: [
