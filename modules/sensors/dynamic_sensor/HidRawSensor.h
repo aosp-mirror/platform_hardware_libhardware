@@ -149,6 +149,10 @@ private:
     // process HID snesor spec defined orientation(quaternion) sensor usages.
     bool processQuaternionUsage(const std::vector<HidParser::ReportPacket> &packets);
 
+    bool setLeAudioTransport(const SP(HidDevice) &device, bool enable);
+    bool setPower(const SP(HidDevice) &device, bool enable);
+    bool setReportingState(const SP(HidDevice) &device, bool enable);
+
     // get the value of a report field
     template<typename ValueType>
     bool getReportFieldValue(const std::vector<uint8_t> &message,
