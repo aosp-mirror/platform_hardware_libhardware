@@ -36,6 +36,7 @@ cc_defaults {
 
     shared_libs: [
         "libbase",
+        "liblog",
         "libhidparser",
         "server_configurable_flags",
         "libaconfig_storage_read_api_cc",
