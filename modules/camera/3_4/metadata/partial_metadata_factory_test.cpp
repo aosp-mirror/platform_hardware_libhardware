@@ -26,6 +26,7 @@
 #include "v4l2_wrapper_mock.h"
 
 using testing::AtMost;
+using testing::DoAll;
 using testing::Expectation;
 using testing::Return;
 using testing::SetArgPointee;

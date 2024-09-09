@@ -25,6 +25,7 @@
 #include "test_common.h"
 
 using testing::AtMost;
+using testing::DoAll;
 using testing::Expectation;
 using testing::Return;
 using testing::SetArgPointee;
