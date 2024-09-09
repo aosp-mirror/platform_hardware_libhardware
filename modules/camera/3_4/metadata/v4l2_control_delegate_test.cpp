@@ -21,6 +21,7 @@
 #include "converter_interface_mock.h"
 #include "v4l2_wrapper_mock.h"
 
+using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 using testing::Test;
