@@ -23,6 +23,7 @@
 #include <hardware/camera3.h>
 #include "default_option_delegate_mock.h"
 
+using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 using testing::Test;
