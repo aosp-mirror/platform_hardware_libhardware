@@ -97,6 +97,11 @@ enum {
 #define SENSOR_PERMISSION_BODY_SENSORS "android.permission.BODY_SENSORS"
 
 /*
+ * The permission to use for reading heart rate sensors.
+ */
+#define SENSOR_PERMISSION_READ_HEART_RATE "android.permission.health.READ_HEART_RATE"
+
+/*
  * sensor flags legacy names
  *
  * please use SENSOR_FLAG_* directly for new implementation.
