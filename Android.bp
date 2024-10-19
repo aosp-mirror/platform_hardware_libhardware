@@ -131,3 +131,9 @@ cc_library_shared {
     },
     min_sdk_version: "29",
 }
+
+dirgroup {
+    name: "trusty_dirgroup_hardware_libhardware",
+    dirs: ["."],
+    visibility: ["//trusty/vendor/google/aosp/scripts"],
+}
