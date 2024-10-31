@@ -215,7 +215,7 @@ bool HidRawDevice::getFeature(uint8_t id, std::vector<uint8_t> *out) {
     }
     if (mIoBuffer.front() != id) {
         LOG_E << "HidRawDevice::getFeature: get feature " << static_cast<int>(id)
-              << " result has header " << mIoBuffer.front() << LOG_ENDL;
+              << " result has header " << static_cast<int>(mIoBuffer.front()) << LOG_ENDL;
     }
     out->resize(size - 1);
     std::copy(mIoBuffer.begin() + 1, mIoBuffer.begin() + size, out->begin());
