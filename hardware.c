@@ -181,18 +181,16 @@ static int hw_module_exists(char *path, size_t path_len, const char *name,
 #ifdef __ANDROID_APEX__
     // When used in VAPEX, it should look only into the same APEX because
     // libhardware modules don't provide ABI stability.
-#if __ANDROID_VENDOR_API__ >= 202404
-    AApexInfo *apex_info;
-    if (AApexInfo_create(&apex_info) == AAPEXINFO_OK) {
-        snprintf(path, path_len, "/apex/%s/%s/%s.%s.so",
-                 AApexInfo_getName(apex_info), HAL_LIBRARY_SUBDIR, name, subname);
-        AApexInfo_destroy(apex_info);
-        if (access(path, R_OK) == 0)
-            return 0;
+    if (__builtin_available(android __ANDROID_API_V__, *)) {
+        AApexInfo *apex_info;
+        if (AApexInfo_create(&apex_info) == AAPEXINFO_OK) {
+            snprintf(path, path_len, "/apex/%s/%s/%s.%s.so",
+                    AApexInfo_getName(apex_info), HAL_LIBRARY_SUBDIR, name, subname);
+            AApexInfo_destroy(apex_info);
+            if (access(path, R_OK) == 0)
+                return 0;
+        }
     }
-#else  // __ANDROID_VENDOR_API__
-    ALOGE("hw_module_exists: libapexsupport is not supported in %d.", __ANDROID_VENDOR_API__);
-#endif // __ANDROID_VENDOR_API__
 #else // __ANDROID_APEX__
     snprintf(path, path_len, "%s/%s.%s.so",
              HAL_LIBRARY_PATH3, name, subname);
