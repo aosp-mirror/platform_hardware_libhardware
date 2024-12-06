@@ -18,6 +18,7 @@
 
 #include <android-base/properties.h>
 #include <utils/Errors.h>
+#include <utils/Unicode.h>
 #include <com_android_libhardware_dynamic_sensors_flags.h>
 #include "HidLog.h"
 
@@ -421,7 +422,14 @@ const HidParser::ReportItem *HidRawSensor::find(
 
 void HidRawSensor::initFeatureValueFromHidDeviceInfo(
         FeatureValue *featureValue, const HidDevice::HidDeviceInfo &info) {
-    featureValue->name = info.name;
+    const uint8_t *str8 = (uint8_t *)info.name.c_str();
+    const ssize_t len16 = utf8_to_utf16_length(str8, info.name.size());
+    if (len16 != -1) {
+        featureValue->name = info.name;
+    } else {
+        LOG_E << "Received an invalid sensor name" << LOG_ENDL;
+        featureValue->name = "Invalid sensor name";
+    }
 
     std::ostringstream ss;
     ss << info.busType << " "
