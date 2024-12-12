@@ -117,7 +117,7 @@ bool HidParser::processMainTag(const HidItem &i) {
             HidReport report(reportType, flag, top, mLocal);
             mReport.push_back(report);
             std::shared_ptr<HidTreeNode> node(new HidReportNode(mCurrent, report));
-            mCurrent->addChild(node);
+            mCurrent->addChild(std::move(node));
             break;
         }
         default:
