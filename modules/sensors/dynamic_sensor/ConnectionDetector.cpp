@@ -47,7 +47,11 @@ SocketConnectionDetector::SocketConnectionDetector(BaseDynamicSensorDaemon *d, i
         }
     };
 
-    ::bind(mListenFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress));
+    if (::bind(mListenFd, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) != NO_ERROR) {
+        ALOGE("Cannot bind to port %d", port);
+        mListenFd = -1;
+        return;
+    }
     if (::listen(mListenFd, 0) != NO_ERROR) {
         ALOGE("Cannot listen to port %d", port);
         mListenFd = -1;
@@ -196,12 +200,12 @@ void FileConnectionDetector::handleInotifyData(ssize_t len, const char *data) {
 bool FileConnectionDetector::readInotifyData() {
     union {
         struct inotify_event ev;
-        char raw[sizeof(inotify_event) + NAME_MAX + 1];
+        char raw[sizeof(inotify_event) + NAME_MAX + 1] = {0};
     } buffer;
 
     bool ret = true;
     while (true) {
-        ssize_t len = ::read(mInotifyFd, &buffer, sizeof(buffer));
+        ssize_t len = ::read(mInotifyFd, &buffer, sizeof(buffer) - sizeof(char));
         if (len == -1 && errno == EAGAIN) {
             // no more data
             break;
