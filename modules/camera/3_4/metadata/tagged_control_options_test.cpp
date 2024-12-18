@@ -21,6 +21,7 @@
 
 #include "control_options_interface_mock.h"
 
+using testing::DoAll;
 using testing::Return;
 using testing::SetArgPointee;
 using testing::Test;

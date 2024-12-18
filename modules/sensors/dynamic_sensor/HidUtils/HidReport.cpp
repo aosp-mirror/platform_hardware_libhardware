@@ -22,7 +22,8 @@
 namespace HidUtil {
 HidReport::HidReport(uint32_t type, uint32_t data,
                      const HidGlobal &global, const HidLocal &local)
-        : mReportType(type),
+        : mIsCollapsed(false),
+          mReportType(type),
           mFlag(data),
           mUsagePage(global.usagePage.get(0)),   // default value 0
           mUsage(local.getUsage(0)),
