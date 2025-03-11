@@ -18,6 +18,7 @@
 
 #include <android-base/properties.h>
 #include <utils/Errors.h>
+#include <utils/Unicode.h>
 #include <com_android_libhardware_dynamic_sensors_flags.h>
 #include "HidLog.h"
 
@@ -421,7 +422,14 @@ const HidParser::ReportItem *HidRawSensor::find(
 
 void HidRawSensor::initFeatureValueFromHidDeviceInfo(
         FeatureValue *featureValue, const HidDevice::HidDeviceInfo &info) {
-    featureValue->name = info.name;
+    const uint8_t *str8 = (uint8_t *)info.name.c_str();
+    const ssize_t len16 = utf8_to_utf16_length(str8, info.name.size());
+    if (len16 != -1) {
+        featureValue->name = info.name;
+    } else {
+        LOG_E << "Received an invalid sensor name" << LOG_ENDL;
+        featureValue->name = "Invalid sensor name";
+    }
 
     std::ostringstream ss;
     ss << info.busType << " "
@@ -988,12 +996,13 @@ int HidRawSensor::enable(bool enable) {
     SP(HidDevice) device = PROMOTE(mDevice);
 
     if (device == nullptr) {
-        LOG_E << "enable: no device" << LOG_ENDL;
+        LOG_E << "enable(" << enable << "): no device" << LOG_ENDL;
         return NO_INIT;
     }
 
     if (enable == mEnabled) {
-        LOG_D << "enable: already in desired state" << LOG_ENDL;
+        LOG_D << "enable(" << enable << "): already in desired state"
+              << LOG_ENDL;
         return NO_ERROR;
     }
 
@@ -1002,10 +1011,10 @@ int HidRawSensor::enable(bool enable) {
     bool setReportingOk = setReportingState(device, enable);
     if (setPowerOk && setReportingOk && setLeAudioTransportOk) {
         mEnabled = enable;
-        LOG_I << "enable: success" << LOG_ENDL;
+        LOG_I << "enable(" << enable << "): success" << LOG_ENDL;
         return NO_ERROR;
     } else {
-        LOG_E << "enable: set feature failed" << LOG_ENDL;
+        LOG_E << "enable(" << enable << "): set feature failed" << LOG_ENDL;
         return INVALID_OPERATION;
     }
 }
@@ -1047,10 +1056,10 @@ bool HidRawSensor::setLeAudioTransport(const SP(HidDevice) &device, bool enable)
                               mLeTransportBitOffset, mLeTransportBitSize);
             success = device->setFeature(id, buffer);
             if (!success) {
-              LOG_E << "enable: setFeature VENDOR LE TRANSPORT failed" << LOG_ENDL;
+              LOG_E << "enable(" << enable << "): setFeature LE TRANSPORT failed" << LOG_ENDL;
             }
         } else {
-            LOG_E << "enable: changing VENDOR LE TRANSPORT failed" << LOG_ENDL;
+            LOG_E << "enable(" << enable << "): changing LE TRANSPORT failed" << LOG_ENDL;
         }
     }
     return success;
@@ -1070,10 +1079,10 @@ bool HidRawSensor::setPower(const SP(HidDevice) &device, bool enable) {
                               0, mPowerStateBitOffset, mPowerStateBitSize);
             success = device->setFeature(id, buffer);
             if (!success) {
-              LOG_E << "enable: setFeature POWER STATE failed" << LOG_ENDL;
+              LOG_E << "enable(" << enable << "): setFeature POWER STATE failed" << LOG_ENDL;
             }
         } else {
-            LOG_E << "enable: changing POWER STATE failed" << LOG_ENDL;
+            LOG_E << "enable(" << enable << "): changing POWER STATE failed" << LOG_ENDL;
         }
     }
     return success;
@@ -1094,10 +1103,10 @@ bool HidRawSensor::setReportingState(const SP(HidDevice) &device, bool enable) {
                               mReportingStateBitOffset, mReportingStateBitSize);
             success = device->setFeature(id, buffer);
             if (!success) {
-              LOG_E << "enable: setFeature REPORTING STATE failed" << LOG_ENDL;
+              LOG_E << "enable(" << enable << "): setFeature REPORTING STATE failed" << LOG_ENDL;
             }
         } else {
-            LOG_E << "enable: changing REPORTING STATE failed" << LOG_ENDL;
+            LOG_E << "enable(" << enable << "): changing REPORTING STATE failed" << LOG_ENDL;
         }
     }
     return success;
@@ -1133,6 +1142,13 @@ int HidRawSensor::batch(int64_t samplingPeriod, int64_t batchingPeriod) {
                               0, mReportIntervalBitOffset,
                               mReportIntervalBitSize);
             ok = device->setFeature(id, buffer);
+            if (!ok) {
+                LOG_E << "batch(" << samplingPeriod << ", " << batchingPeriod << "): "
+                      << "setFeature failed" << LOG_ENDL;
+            }
+        } else {
+            LOG_E << "batch(" << samplingPeriod << ", " << batchingPeriod << "): "
+                  << "invalid getFeature result (buffer.size: " << buffer.size() << ")" << LOG_ENDL;
         }
     }
 
