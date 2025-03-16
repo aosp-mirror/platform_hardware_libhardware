@@ -814,6 +814,8 @@ bool HidRawSensor::detectAndroidCustomSensor(const std::string &description) {
     if (segments[2].size() == 1) {
         switch (segments[2][0]) {
             case 'B':
+                LOG_W << "BODY_SENSORS permission has been deprecated and should not be used."
+                      << LOG_ENDL;
                 mFeatureInfo.permission = SENSOR_PERMISSION_BODY_SENSORS;
                 permissionParsed = true;
                 break;

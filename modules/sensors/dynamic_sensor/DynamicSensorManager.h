@@ -128,8 +128,7 @@ private:
     // Sensor operation queue. Calls to the sensor HAL should complete within ~1
     // second, but to permit delayed replies due to sniff mode, etc., we use a
     // slightly longer timeout here.
-    static constexpr std::chrono::milliseconds
-            kSensorOpTimeout = std::chrono::milliseconds(1600);
+    const std::chrono::milliseconds kSensorOpTimeout;
     std::mutex mSensorOpQueueLock;
     std::queue<std::pair<uint64_t, std::shared_future<int>>> mSensorOpQueue;
     uint64_t mNextSensorOpIndex = 0;
