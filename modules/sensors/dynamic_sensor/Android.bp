@@ -143,7 +143,9 @@ cc_library_shared {
 cc_binary_host {
     name: "hidrawsensor_host_test",
     defaults: ["dynamic_sensor_defaults"],
-
+    static_libs: [
+        "libutils_binder",
+    ],
     srcs: [
         "HidRawSensor.cpp",
         "BaseSensorObject.cpp",
@@ -159,7 +161,9 @@ cc_binary_host {
 cc_binary_host {
     name: "hidrawdevice_host_test",
     defaults: ["dynamic_sensor_defaults"],
-
+    static_libs: [
+        "libutils_binder",
+    ],
     srcs: [
         "HidRawDevice.cpp",
         "HidRawSensor.cpp",
