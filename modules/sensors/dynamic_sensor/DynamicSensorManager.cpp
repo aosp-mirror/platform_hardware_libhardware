@@ -37,17 +37,16 @@ DynamicSensorManager* DynamicSensorManager::createInstance(
     return m;
 }
 
-DynamicSensorManager::DynamicSensorManager(
-        int handleBase, int handleMax, SensorEventCallback* callback) :
-        mHandleRange(handleBase, handleMax),
-        mCallback(callback),
-        mFifo(callback ? 0 : kFifoSize),
-        mNextHandle(handleBase+1),
-        kSensorOpTimeout(
-            std::chrono::milliseconds((uint32_t)property_get_int32(
-            "vendor.sensors.dynamic_sensor_op_timeout_ms", 1600))) {
-    assert(handleBase > 0 && handleMax > handleBase + 1); // handleBase is reserved
-
+DynamicSensorManager::DynamicSensorManager(int handleBase, int handleMax,
+                                           SensorEventCallback* callback)
+    : mHandleRange(handleBase, handleMax),
+      mCallback(callback),
+      mFifo(callback ? 0 : kFifoSize),
+      mNextHandle(handleBase + 1),
+      kSensorOpTimeout(std::chrono::milliseconds((uint32_t)property_get_int32(
+          "sensors_hal.dynamic_sensor_hal.op_timeout_ms", 1600))) {
+    assert(handleBase > 0 &&
+           handleMax > handleBase + 1);  // handleBase is reserved
     mMetaSensor = (const sensor_t) {
         "Dynamic Sensor Manager",
         "Google",
