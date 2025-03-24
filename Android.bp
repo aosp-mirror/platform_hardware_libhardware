@@ -75,6 +75,11 @@ cc_library_headers {
                 "include_vendor",
             ],
         },
+        host: {
+            export_include_dirs: [
+                "include_vendor", // for tests
+            ],
+        },
     },
     apex_available: [
         "//apex_available:platform",
