@@ -1014,7 +1014,7 @@ static int adev_open_output_stream(struct audio_hw_device *hw_dev,
         proxy_config.format = profile_get_default_format(&device_info->profile);
         config->format = audio_format_from_pcm_format(proxy_config.format);
     } else {
-        enum pcm_format fmt = pcm_format_from_audio_format(config->format);
+        enum pcm_format fmt = pcm_format_from_audio_format_no_fatal(config->format);
         if (profile_is_format_valid(&device_info->profile, fmt)) {
             proxy_config.format = fmt;
         } else {
@@ -1530,7 +1530,7 @@ static int adev_open_input_stream(struct audio_hw_device *hw_dev,
         in->config.format = profile_get_default_format(&device_info->profile);
         config->format = audio_format_from_pcm_format(in->config.format);
     } else {
-        enum pcm_format fmt = pcm_format_from_audio_format(config->format);
+        enum pcm_format fmt = pcm_format_from_audio_format_no_fatal(config->format);
         if (profile_is_format_valid(&device_info->profile, fmt)) {
             in->config.format = fmt;
         } else {
