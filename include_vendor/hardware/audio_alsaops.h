@@ -98,6 +98,71 @@ static inline audio_format_t audio_format_from_pcm_format(enum pcm_format format
     }
 }
 
+// TINYALSA_VERSION_MAJOR is defined in tinyalsa_new for tinyalsa v2
+#ifndef TINYALSA_VERSION_MAJOR
+#define TINYALSA_VERSION_MAJOR 1
+#endif
+
+static inline enum pcm_format pcm_format_from_audio_format_no_fatal(audio_format_t format) {
+    switch (format) {
+#if HAVE_BIG_ENDIAN
+    case AUDIO_FORMAT_PCM_16_BIT:
+    case AUDIO_FORMAT_PCM_24_BIT_PACKED:
+    case AUDIO_FORMAT_PCM_32_BIT:
+    case AUDIO_FORMAT_PCM_8_24_BIT:
+        return pcm_format_from_audio_format(format);
+#if TINYALSA_VERSION_MAJOR >= 2
+    case AUDIO_FORMAT_PCM_FLOAT:
+        return PCM_FORMAT_FLOAT_BE;
+#endif // TINYALSA_VERSION_MARJO >= 2
+#else // HAVE_BIG_ENDIAN
+    case AUDIO_FORMAT_PCM_16_BIT:
+    case AUDIO_FORMAT_PCM_24_BIT_PACKED:
+    case AUDIO_FORMAT_PCM_32_BIT:
+    case AUDIO_FORMAT_PCM_8_24_BIT:
+        return pcm_format_from_audio_format(format);
+#if TINYALSA_VERSION_MAJOR >= 2
+    case AUDIO_FORMAT_PCM_FLOAT:
+        return PCM_FORMAT_FLOAT_LE;
+#endif // TINYALSA_VERSION_MAJOR >= 2
+#endif // HAVE_BIG_ENDIAN
+    default:
+        ALOGE("pcm_format_from_audio_format_no_fatal: invalid audio format %#x", format);
+        return PCM_FORMAT_INVALID;
+    }
+
+}
+
+static inline audio_format_t audio_format_from_pcm_format_no_fatal(enum pcm_format format) {
+    switch (format) {
+#if HAVE_BIG_ENDIAN
+    case PCM_FORMAT_S16_BE:
+    case PCM_FORMAT_S24_3BE:
+    case PCM_FORMAT_S24_BE:
+    case PCM_FORMAT_S32_BE:
+        return audio_format_from_pcm_format(format);
+#if TINYALSA_VERSION_MAJOR >= 2
+    case PCM_FORMAT_FLOAT_BE:
+        return AUDIO_FORMAT_PCM_FLOAT;
+#endif // TINYALSA_VERSION_MARJO >= 2
+#else // HAVE_BIG_ENDIAN
+    case PCM_FORMAT_S16_LE:
+    case PCM_FORMAT_S24_3LE:
+    case PCM_FORMAT_S24_LE:
+    case PCM_FORMAT_S32_LE:
+        return audio_format_from_pcm_format(format);
+#if TINYALSA_VERSION_MAJOR >= 2
+    case PCM_FORMAT_FLOAT_LE:
+        return AUDIO_FORMAT_PCM_FLOAT;
+#endif // TINYALSA_VERSION_MAJOR >= 2
+#endif // HAVE_BIG_ENDIAN
+    default:
+        ALOGE("pcm_format_from_audio_format_no_fatal: invalid audio format %#x", format);
+        return AUDIO_FORMAT_INVALID;
+    }
+
+}
+
 __END_DECLS
 
 #endif /* ANDROID_AUDIO_ALSAOPS_H */
